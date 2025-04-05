@@ -1,8 +1,15 @@
 const { getChatName, sendLogMessage } = require('./utils');
+const { KILZI_CHAT_ID, DORSE_CHAT_ID } = require('./constants');
 
 exports.handleMessage = function (bot, msg) {
   const chatId = msg.chat.id;
   const chatName = getChatName(msg);
+
+  if (chatId !== KILZI_CHAT_ID && chatId !== DORSE_CHAT_ID) {
+    sendLogMessage(bot, `Message from unknown chat: ${chatName} (${chatId})`);
+    return;
+  }
+
   sendLogMessage(bot, `Received a message from ${chatName} (${chatId})`);
 
   // Handle text messages

@@ -1,12 +1,11 @@
+const { LOG_CHANNEL_ID } = require('./constants');
 exports.sendLogMessage = function (bot, logMessage) {
-  const logChannelId = process.env.LOG_CHANNEL_ID;
-
-  if (!logChannelId) {
+  if (!LOG_CHANNEL_ID) {
     console.error('LOG_CHANNEL_ID is not set.');
     return;
   }
 
-  bot.sendMessage(logChannelId, logMessage);
+  bot.sendMessage(LOG_CHANNEL_ID, logMessage);
 };
 
 exports.getChatName = function (msg) {
