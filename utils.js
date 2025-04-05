@@ -5,6 +5,11 @@ exports.sendLogMessage = function (bot, logMessage) {
     return;
   }
 
+  const log = {
+    logMessage,
+    env: process.env.NODE_ENV === 'production' ? 'prod' : 'dev',
+    timestamp: new Date().toISOString(),
+  };
   bot.sendMessage(LOG_CHANNEL_ID, logMessage);
 };
 
