@@ -5,7 +5,7 @@
   "scripts": {
     "prepare": "husky-init && husky install",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "eslint eslint.config.mjs",
+    "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "start": "node bot.js"
   },
