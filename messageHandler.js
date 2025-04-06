@@ -14,10 +14,89 @@ exports.handleMessage = function (bot, msg) {
 
   // Handle text messages
   if (msg.text) {
-    const textLength = msg.text.length;
+    let jsonData;
+    try {
+      jsonData = JSON.parse(msg.text);
+    } catch (error) {
+      sendLogMessage(
+        bot,
+        `Failed to parse JSON data: ${msg.text}. Error: ${error.message}`
+      );
+
+      bot
+        .sendMessage(chatId, 'Invalid JSON format. Please send valid JSON.')
+        .catch((err) =>
+          console.error('Error sending JSON error message:', err)
+        );
+
+      return;
+    }
+    if (!jsonData.Drivers || jsonData.Drivers.length !== 20) {
+      sendLogMessage(
+        bot,
+        `Invalid JSON data: ${msg.text}. Expected 20 drivers under "Drivers" property'.`
+      );
+
+      bot
+        .sendMessage(
+          chatId,
+          'Invalid JSON data. Please ensure it contains 20 drivers under "Drivers" property.'
+        )
+        .catch((err) =>
+          console.error('Error sending JSON error message:', err)
+        );
+
+      return;
+    }
+
+    if (!jsonData.Constructors || jsonData.Constructors.length !== 10) {
+      sendLogMessage(
+        bot,
+        `Invalid JSON data: ${msg.text}. Expected 10 constructors under "Constructors" property'.`
+      );
+
+      bot
+        .sendMessage(
+          chatId,
+          'Invalid JSON data. Please ensure it contains 10 constructors under "Constructors" property.'
+        )
+        .catch((err) =>
+          console.error('Error sending JSON error message:', err)
+        );
+
+      return;
+    }
+
+    if (
+      !jsonData.CurrentTeam ||
+      !jsonData.CurrentTeam.drivers ||
+      jsonData.CurrentTeam.drivers.length !== 5 ||
+      !jsonData.CurrentTeam.constructors ||
+      jsonData.CurrentTeam.constructors.length !== 2 ||
+      !jsonData.CurrentTeam.drsBoost ||
+      !jsonData.CurrentTeam.freeTransfers ||
+      !jsonData.CurrentTeam.costCapRemaining
+    ) {
+      sendLogMessage(
+        bot,
+        `Invalid JSON data: ${msg.text}. Expected 5 drivers, 2 constructors, drsBoost, freeTransfers, and costCapRemaining properties under "CurrentTeam" property'.`
+      );
+
+      bot
+        .sendMessage(
+          chatId,
+          'Invalid JSON data. Please ensure it contains the required properties under "CurrentTeam" property.'
+        )
+        .catch((err) =>
+          console.error('Error sending JSON error message:', err)
+        );
+
+      return;
+    }
+    // todo: kilzi: calculate table
     bot
-      .sendMessage(chatId, `The length of your text is: ${textLength}`)
-      .catch((err) => console.error('Error sending text reply:', err));
+      .sendMessage(chatId, 'Received valid JSON data')
+      .catch((err) => console.error('Error sending JSON reply:', err));
     return;
   }
 
