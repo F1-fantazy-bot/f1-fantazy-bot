@@ -16,7 +16,6 @@ if (NODE_ENV !== 'production') {
   bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
 } else {
   console.log('Running in production mode');
-  // todo: kilzi: change to webhooks
   bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });
 }
 
