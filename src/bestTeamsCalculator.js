@@ -1,4 +1,4 @@
-exports.CalculateBestTeams = function (jsonData) {
+exports.calculateBestTeams = function (jsonData) {
     // Data for drivers
     const drivers_data = jsonData.Drivers;
     
@@ -115,9 +115,9 @@ exports.CalculateBestTeams = function (jsonData) {
         }
     }
     
-    // Sort the teams by projected points in descending order and select the top 10
+    // Sort the teams by projected points in descending order and select the top 20
     teams.sort((a, b) => b.projected_points - a.projected_points);
-    const top_teams = teams.slice(0,10);
+    const top_teams = teams.slice(0,20);
     
     // Add a row number to each team and rearrange the output fields
     const finalTeams = top_teams.map((team, index) => ({
