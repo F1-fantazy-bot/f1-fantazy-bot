@@ -1,13 +1,20 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Attach to Node Functions",
-            "type": "node",
-            "request": "attach",
-            "restart": true,
-            "port": 9229,
-            "preLaunchTask": "func: host start"
-        }
-    ]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "npm start (local using polling)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"]
+    },
+    {
+      "name": "Attach to Node Functions",
+      "type": "node",
+      "request": "attach",
+      "restart": true,
+      "port": 9229,
+      "preLaunchTask": "func: host start"
+    }
+  ]
 }

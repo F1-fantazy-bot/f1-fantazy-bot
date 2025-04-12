@@ -1,13 +1,13 @@
 {
   "name": "f1-fantazy-bot",
   "version": "1.0.0",
-  "main": "bot.js",
+  "main": "src/bot.js",
   "scripts": {
     "prepare": "husky install",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "start": "node bot.js"
+    "start": "node src/bot.js"
   },
   "keywords": [],
   "author": "Doron Kilzi",
