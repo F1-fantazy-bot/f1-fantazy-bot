@@ -134,3 +134,26 @@ exports.calculateBestTeams = function (jsonData) {
     
     return finalTeams;
 }
+
+exports.calculateChangesToTeam = function (currentTeam, targetTeam) {    
+    // Determine drivers that need to be added and removed
+    const driversToAdd = targetTeam.drivers.filter(driver => !currentTeam.drivers.includes(driver));
+    const driversToRemove = currentTeam.drivers.filter(driver => !targetTeam.drivers.includes(driver));
+    
+    // Determine constructors that need to be added and removed
+    const constructorsToAdd = targetTeam.constructors.filter(cons => !currentTeam.constructors.includes(cons));
+    const constructorsToRemove = currentTeam.constructors.filter(cons => !targetTeam.constructors.includes(cons));
+    
+    // Calculate DRS driver change:
+    // If currentTeam has a drs_driver property, compare; if not, assume a change is needed.
+    const drs_driver_change = currentTeam.drs_driver !== targetTeam.drs_driver;
+    const newDRS = drs_driver_change ? targetTeam.drs_driver : undefined;
+    
+    return {
+        driversToAdd,
+        driversToRemove,
+        constructorsToAdd,
+        constructorsToRemove,
+        newDRS
+    };
+};

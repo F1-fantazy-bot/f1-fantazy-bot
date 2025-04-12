@@ -16,7 +16,7 @@ describe('handleTextMessage', () => {
     jest.clearAllMocks();
   });
 
-  it('when got message without json inside, return error', () => {
+  it('when got message without json or number inside, return error', () => {
     const msgMock = {
       chat: {
         id: KILZI_CHAT_ID,
