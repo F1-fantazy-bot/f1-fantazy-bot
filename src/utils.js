@@ -1,7 +1,7 @@
 const { LOG_CHANNEL_ID } = require('./constants');
 exports.sendLogMessage = function (bot, logMessage) {
   if (!LOG_CHANNEL_ID) {
-    console.error('LOG_CHANNEL_ID is not set.');
+    console.error('LOG_CHANNEL_ID is not set');
     return;
   }
 

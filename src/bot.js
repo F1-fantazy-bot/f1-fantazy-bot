@@ -1,10 +1,8 @@
 // Load environment variables from .env file
-const NODE_ENV = process.env.NODE_ENV;
-const envFile = NODE_ENV === 'production' ? '.env' : '.env.local';
-require('dotenv').config({ path: envFile });
+require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const { handleMessage } = require('./messageHandler');
-const { TELEGRAM_BOT_TOKEN } = process.env;
+const { TELEGRAM_BOT_TOKEN, NODE_ENV } = process.env;
 
 if (!TELEGRAM_BOT_TOKEN) {
   console.error('Error: TELEGRAM_BOT_TOKEN is not set in the .env file.');
