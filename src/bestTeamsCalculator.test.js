@@ -1,4 +1,5 @@
 const { calculateBestTeams } = require('./bestTeamsCalculator');
+const { calculateChangesToTeam } = require('./bestTeamsCalculator');
 
 describe('calculateBestTeams', () => {
     const mockDrivers = [
@@ -93,5 +94,52 @@ describe('calculateBestTeams', () => {
         for(let i = 1; i < result.length; i++) {
             expect(result[i-1].projected_points).toBeGreaterThanOrEqual(result[i].projected_points);
         }
+    });
+
+    describe('calculateChangesToTeam', () => {
+
+        test('should correctly identify drivers and constructors to add/remove', () => {
+            const currentTeam = {
+                drivers: ['VER', 'HAM', 'PER', 'SAI', 'LEC'],
+                constructors: ['RED', 'MER'],
+                drs_driver: 'VER'
+            };
+
+            const targetTeam = {
+                drivers: ['VER', 'HAM', 'PER', 'SAI', 'NOR'],
+                constructors: ['RED', 'FER'],
+                drs_driver: 'HAM'
+            };
+
+            const result = calculateChangesToTeam(currentTeam, targetTeam);
+
+            expect(result.driversToAdd).toEqual(['NOR']);
+            expect(result.driversToRemove).toEqual(['LEC']);
+            expect(result.constructorsToAdd).toEqual(['FER']);
+            expect(result.constructorsToRemove).toEqual(['MER']);
+            expect(result.newDRS).toBe('HAM');
+        });
+
+        test('should return empty arrays when no changes needed', () => {
+            const currentTeam = {
+                drivers: ['VER', 'HAM', 'PER', 'SAI', 'LEC'],
+                constructors: ['RED', 'MER'],
+                drs_driver: 'VER'
+            };
+
+            const targetTeam = {
+                drivers: ['VER', 'HAM', 'PER', 'SAI', 'LEC'],
+                constructors: ['RED', 'MER'],
+                drs_driver: 'VER'
+            };
+
+            const result = calculateChangesToTeam(currentTeam, targetTeam);
+
+            expect(result.driversToAdd).toEqual([]);
+            expect(result.driversToRemove).toEqual([]);
+            expect(result.constructorsToAdd).toEqual([]);
+            expect(result.constructorsToRemove).toEqual([]);
+            expect(result.newDRS).toBeUndefined();
+        });
     });
 });
