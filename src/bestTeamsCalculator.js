@@ -145,8 +145,7 @@ exports.calculateChangesToTeam = function (currentTeam, targetTeam) {
     const constructorsToRemove = currentTeam.constructors.filter(cons => !targetTeam.constructors.includes(cons));
     
     // Calculate DRS driver change:
-    // If currentTeam has a drs_driver property, compare; if not, assume a change is needed.
-    const drs_driver_change = currentTeam.drs_driver !== targetTeam.drs_driver;
+    const drs_driver_change = currentTeam.drsBoost !== targetTeam.drs_driver;
     const newDRS = drs_driver_change ? targetTeam.drs_driver : undefined;
     
     return {

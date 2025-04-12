@@ -102,7 +102,7 @@ describe('calculateBestTeams', () => {
             const currentTeam = {
                 drivers: ['VER', 'HAM', 'PER', 'SAI', 'LEC'],
                 constructors: ['RED', 'MER'],
-                drs_driver: 'VER'
+                drsBoost: 'VER'
             };
 
             const targetTeam = {
@@ -124,7 +124,7 @@ describe('calculateBestTeams', () => {
             const currentTeam = {
                 drivers: ['VER', 'HAM', 'PER', 'SAI', 'LEC'],
                 constructors: ['RED', 'MER'],
-                drs_driver: 'VER'
+                drsBoost: 'VER'
             };
 
             const targetTeam = {
