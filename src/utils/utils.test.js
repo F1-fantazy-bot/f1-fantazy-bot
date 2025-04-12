@@ -50,7 +50,7 @@ describe('utils', () => {
       // Reset module registry to ensure the mocks take effect
       jest.resetModules();
       // Mock the constants module so that LOG_CHANNEL_ID is undefined
-      jest.mock('./constants', () => ({
+      jest.mock('../constants', () => ({
         LOG_CHANNEL_ID: undefined,
       }));
 

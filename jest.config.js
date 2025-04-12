@@ -7,6 +7,7 @@ module.exports = {
   collectCoverageFrom: [
     'src/**/*.js', // Collect coverage from all JavaScript files in the src directory
     '!src/bot.js', // Exclude the entry point bot file
+    '!src/**/index.js', // Exclude index files
   ],
   coverageDirectory: 'coverage',
 
@@ -14,10 +15,10 @@ module.exports = {
   // todo: kilzi: set coverage threshold
   coverageThreshold: {
     global: {
-      branches: 30,
-      functions: 6,
-      lines: 14,
-      statements: 13,
+      branches: 46,
+      functions: 11,
+      lines: 32,
+      statements: 30,
     },
   },
 };
