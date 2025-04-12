@@ -1,6 +1,6 @@
 const { getChatName, sendLogMessage } = require('./utils');
 const { KILZI_CHAT_ID, DORSE_CHAT_ID } = require('./constants');
-const { CalculateBestTeams } = require('./bestTeamsCalculator');
+const { calculateBestTeams } = require('./bestTeamsCalculator');
 
 exports.handleMessage = function (bot, msg) {
   const chatId = msg.chat.id;
@@ -98,10 +98,27 @@ exports.handleMessage = function (bot, msg) {
       .sendMessage(chatId, 'Received valid JSON data')
       .catch((err) => console.error('Error sending JSON reply:', err));
 
-    const bestTeams = CalculateBestTeams(jsonData);
-    const bestTeamsString = JSON.stringify(bestTeams, null, 2); // Converts to a pretty-printed string
+    const bestTeams = calculateBestTeams(jsonData);
+
+    // Create the Markdown message by mapping over the bestTeams array
+    let messageMarkdown = bestTeams.map(team => {
+      // If drivers or constructors are arrays, join them into a readable string.
+      const drivers = Array.isArray(team.drivers) ? team.drivers.join(', ') : team.drivers;
+      const constructors = Array.isArray(team.constructors) ? team.constructors.join(', ') : team.constructors;
+      
+      return `*Team ${team.row}*\n` +
+            `*Drivers:* ${drivers}\n` +
+            `*Constructors:* ${constructors}\n` +
+            `*DRS Driver:* ${team.drs_driver}\n` +
+            `*Total Price:* ${Number(team.total_price.toFixed(2))}\n` +
+            `*Transfers Needed:* ${team.transfers_needed}\n` +
+            `*Penalty:* ${team.penalty}\n` +
+            `*Projected Points:* ${Number(team.projected_points.toFixed(2))}\n` +
+            `*Expected Price Change:* ${Number(team.expected_price_change.toFixed(2))}`;
+    }).join("\n\n");
+
     bot
-      .sendMessage(chatId, bestTeamsString)
+      .sendMessage(chatId, messageMarkdown, { parse_mode: "Markdown" })
       .catch((err) => console.error('Error sending JSON reply:', err));
       
     return;
