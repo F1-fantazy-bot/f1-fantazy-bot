@@ -1,5 +1,6 @@
 const { getChatName, sendLogMessage } = require('./utils');
 const { KILZI_CHAT_ID, DORSE_CHAT_ID } = require('./constants');
+const { CalculateBestTeams } = require('./bestTeamsCalculator');
 
 exports.handleMessage = function (bot, msg) {
   const chatId = msg.chat.id;
@@ -93,10 +94,16 @@ exports.handleMessage = function (bot, msg) {
 
       return;
     }
-    // todo: kilzi: calculate table
     bot
       .sendMessage(chatId, 'Received valid JSON data')
       .catch((err) => console.error('Error sending JSON reply:', err));
+
+    const bestTeams = CalculateBestTeams(jsonData);
+    const bestTeamsString = JSON.stringify(bestTeams, null, 2); // Converts to a pretty-printed string
+    bot
+      .sendMessage(chatId, bestTeamsString)
+      .catch((err) => console.error('Error sending JSON reply:', err));
+      
     return;
   }
 
