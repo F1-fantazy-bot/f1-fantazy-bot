@@ -39,15 +39,18 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
                 changesToTeamMessage += `\n*New DRS Driver:* ${changesToTeam.newDRS}`;
             }
 
-            bot.sendMessage(chatId, changesToTeamMessage, { parse_mode: 'Markdown' })
-                .catch((err) => console.error('Error sending changes to team message:', err));
+            bot
+              .sendMessage(chatId, changesToTeamMessage, { parse_mode: 'Markdown' })
+              .catch((err) => console.error('Error sending changes to team message:', err));
         } else {
-            bot.sendMessage(chatId, `No team found for number ${teamRowRequested}.`)
-                .catch((err) => console.error('Error sending team not found message:', err));
+            bot
+              .sendMessage(chatId, `No team found for number ${teamRowRequested}.`)
+              .catch((err) => console.error('Error sending team not found message:', err));
         }
     } else {
-        bot.sendMessage(chatId, 'No cached teams available. Please send full JSON data first.')
-            .catch((err) => console.error('Error sending cache unavailable message:', err));
+        bot
+          .sendMessage(chatId, 'No cached teams available. Please send full JSON data first.')
+          .catch((err) => console.error('Error sending cache unavailable message:', err));
     }
 }
 
@@ -58,8 +61,9 @@ function handleJsonMessage(bot, msg, chatId) {
         jsonData = JSON.parse(msg.text);
     } catch (error) {
         sendLogMessage(bot, `Failed to parse JSON data: ${msg.text}. Error: ${error.message}`);
-        bot.sendMessage(chatId, 'Invalid JSON format. Please send valid JSON.')
-            .catch((err) => console.error('Error sending JSON error message:', err));
+        bot
+          .sendMessage(chatId, 'Invalid JSON format. Please send valid JSON.')
+          .catch((err) => console.error('Error sending JSON error message:', err));
         return;
     }
 
@@ -68,10 +72,12 @@ function handleJsonMessage(bot, msg, chatId) {
             bot,
             `Invalid JSON data: ${msg.text}. Expected 20 drivers under "Drivers" property'.`
         );
-        bot.sendMessage(
+        bot
+          .sendMessage(
             chatId,
             'Invalid JSON data. Please ensure it contains 20 drivers under "Drivers" property.'
-        ).catch((err) => console.error('Error sending JSON error message:', err));
+          )
+          .catch((err) => console.error('Error sending JSON error message:', err));
         return;
     }
 
@@ -80,10 +86,12 @@ function handleJsonMessage(bot, msg, chatId) {
             bot,
             `Invalid JSON data: ${msg.text}. Expected 10 constructors under "Constructors" property'.`
         );
-        bot.sendMessage(
+        bot
+          .sendMessage(
             chatId,
             'Invalid JSON data. Please ensure it contains 10 constructors under "Constructors" property.'
-        ).catch((err) => console.error('Error sending JSON error message:', err));
+          )
+          .catch((err) => console.error('Error sending JSON error message:', err));
         return;
     }
 
@@ -101,10 +109,12 @@ function handleJsonMessage(bot, msg, chatId) {
             bot,
             `Invalid JSON data: ${msg.text}. Expected 5 drivers, 2 constructors, drsBoost, freeTransfers, and costCapRemaining properties under "CurrentTeam" property'.`
         );
-        bot.sendMessage(
+        bot
+          .sendMessage(
             chatId,
             'Invalid JSON data. Please ensure it contains the required properties under "CurrentTeam" property.'
-        ).catch((err) => console.error('Error sending JSON error message:', err));
+          )
+          .catch((err) => console.error('Error sending JSON error message:', err));
         return;
     }
 
@@ -136,6 +146,7 @@ function handleJsonMessage(bot, msg, chatId) {
         })
         .join('\n\n');
 
-    bot.sendMessage(chatId, messageMarkdown, { parse_mode: 'Markdown' })
-        .catch((err) => console.error('Error sending JSON reply:', err));
+    bot
+      .sendMessage(chatId, messageMarkdown, { parse_mode: 'Markdown' })
+      .catch((err) => console.error('Error sending JSON reply:', err));
 }
