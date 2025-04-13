@@ -1,7 +1,7 @@
 const { AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPEN_AI_MODEL } =
   process.env;
 const { AzureOpenAI } = require('openai');
-const { EXTRACT_JSON_FROM_PHOTO_SYSTEM_PROMPT } = require('./constants');
+const { PHOTO_TYPE_TO_SYSTEM_PROMPT_MAP } = require('./constants');
 
 const apiVersion = '2024-04-01-preview';
 const options = {
@@ -12,17 +12,19 @@ const options = {
 };
 const client = new AzureOpenAI(options);
 
-exports.extractJsonDataFromPhotos = async function (photos) {
+exports.extractJsonDataFromPhotos = async function (type, fileLinks) {
+  const systemPrompt = PHOTO_TYPE_TO_SYSTEM_PROMPT_MAP[type];
+
   const systemMessage = {
     role: 'system',
-    content: EXTRACT_JSON_FROM_PHOTO_SYSTEM_PROMPT,
+    content: systemPrompt,
   };
 
   // Build an image_url message for every photo
-  const photoMessages = photos.map((photo) => ({
+  const photoMessages = fileLinks.map((fileLink) => ({
     type: 'image_url',
     image_url: {
-      url: photo.fileLink,
+      url: fileLink,
     },
   }));
 

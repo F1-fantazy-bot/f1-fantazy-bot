@@ -1,13 +1,16 @@
-const { photosCache } = require('./cache');
+const { photoCache } = require('./cache');
+const { DRIVERS_PHOTO_TYPE, CONSTRUCTORS_PHOTO_TYPE, CURRENT_TEAM_PHOTO_TYPE } = require('./constants');
 
 exports.handlePhotoMessage = function (bot, msg) {
   const chatId = msg.chat.id;
+  const messageId = msg.message_id;
 
   // The 'photo' property is an array of images in different sizes.
   // We select the largest version (usually the last element).
   const photoArray = msg.photo;
   const largestPhoto = photoArray[photoArray.length - 1];
   const fileId = largestPhoto.file_id;
+  const fileUniqueId = largestPhoto.file_unique_id;
 
   // Use the Telegram API to get file details.
   bot
@@ -28,29 +31,25 @@ exports.handlePhotoMessage = function (bot, msg) {
           );
       }
 
-      const fileLink = await bot.getFileLink(fileId);
-      const photoDetails = {
+      photoCache[fileUniqueId] = {
         fileId,
-        file,
-        fileLink,
-      }
+        chatId,
+        messageId,
+      };
 
-      if (photosCache[chatId]) {
-        if (!photosCache[chatId].some(existing => existing.file.file_unique_id === photoDetails.file.file_unique_id)) {
-          photosCache[chatId].push(photoDetails);
+      // Reply with inline buttons
+      bot.sendMessage(chatId, 'What type is this photo?', {
+        reply_to_message_id: messageId,
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: 'Drivers', callback_data: `${DRIVERS_PHOTO_TYPE}:${fileUniqueId}` },
+              { text: 'Constructors', callback_data: `${CONSTRUCTORS_PHOTO_TYPE}:${fileUniqueId}` },
+              { text: 'Current Team', callback_data: `${CURRENT_TEAM_PHOTO_TYPE}:${fileUniqueId}` },
+            ]
+          ]
         }
-      } else {
-        photosCache[chatId] = [photoDetails];
-      }
-
-      bot
-        .sendMessage(
-          chatId,
-          `The image has been saved to the cache. Total images in cache: ${photosCache[chatId].length}`
-        )
-        .catch((err) =>
-          console.error('Error sending cache message:', err)
-        );
+      });
     })
     .catch((err) => {
       console.error('Error retrieving file details:', err);

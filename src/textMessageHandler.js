@@ -1,7 +1,6 @@
 const { sendLogMessage } = require('./utils');
 const { calculateBestTeams, calculateChangesToTeam } = require('./bestTeamsCalculator');
-const { photosCache, bestTeamsCache } = require('./cache');
-const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
+const { bestTeamsCache } = require('./cache');
 
 exports.handleTextMessage = async function (bot, msg) {
     const chatId = msg.chat.id;
@@ -13,12 +12,6 @@ exports.handleTextMessage = async function (bot, msg) {
         return;
     }
   
-    // Check if message text is 'json' and delegate to the JSON handler
-    if (textTrimmed.toLowerCase() === 'json') {
-        handleJsonCommand(bot, chatId);
-        return;
-    }
-
     // Delegate to the JSON handler for any other case
     handleJsonMessage(bot, msg, chatId);
 };
@@ -57,30 +50,6 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
           .sendMessage(chatId, 'No cached teams available. Please send full JSON data first.')
           .catch((err) => console.error('Error sending cache unavailable message:', err));
     }
-}
-
-async function handleJsonCommand(bot, chatId) {
-    let extractedData;
-        if (photosCache[chatId]) {
-            try{
-                extractedData = await extractJsonDataFromPhotos(photosCache[chatId]);
-            }
-            catch (error) {
-                sendLogMessage(bot, `Error extracting JSON data from OpenAI: ${error.message}`);
-                bot
-                    .sendMessage(chatId, 'Error extracting JSON data from photos.')
-                    .catch((err) => console.error('Error sending extraction error message:', err));
-                return;
-            }
-
-            bot
-                .sendMessage(chatId, JSON.stringify(extractedData, null, 2))
-                .catch((err) => console.error('Error sending extracted JSON data:', err));
-        } else {
-            bot
-                .sendMessage(chatId, 'No cached images available.')
-                .catch((err) => console.error('Error sending cache unavailable message:', err));
-        }
 }
 
 // Handles the case when the message text is JSON data
