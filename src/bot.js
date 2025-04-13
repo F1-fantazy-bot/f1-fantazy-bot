@@ -20,8 +20,8 @@ if (NODE_ENV !== 'production') {
 }
 
 // Listen for any kind of message.
-bot.on('message', (msg) => {
-  handleMessage(bot, msg);
+bot.on('message', async (msg) => {
+  await handleMessage(bot, msg);
 });
 
 // Log polling errors

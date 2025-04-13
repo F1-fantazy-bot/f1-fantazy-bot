@@ -1,21 +1,26 @@
 const { sendLogMessage } = require('./utils');
 const { calculateBestTeams, calculateChangesToTeam } = require('./bestTeamsCalculator');
+const { photosCache, bestTeamsCache } = require('./cache');
+const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 
-// In-memory cache for best teams by chat id
-const bestTeamsCache = {};
+exports.handleTextMessage = async function (bot, msg) {
+    const chatId = msg.chat.id;
+    const textTrimmed = msg.text.trim();
+    
+    // Check if message text is a number and delegate to the number handler
+    if (/^\d+$/.test(textTrimmed)) {
+        handleNumberMessage(bot, chatId, textTrimmed);
+        return;
+    }
+  
+    // Check if message text is 'json' and delegate to the JSON handler
+    if (textTrimmed.toLowerCase() === 'json') {
+        handleJsonCommand(bot, chatId);
+        return;
+    }
 
-exports.handleTextMessage = function (bot, msg) {
-  const chatId = msg.chat.id;
-  const textTrimmed = msg.text.trim();
-
-  // Check if message text is a number and delegate to the number handler
-  if (/^\d+$/.test(textTrimmed)) {
-      handleNumberMessage(bot, chatId, textTrimmed);
-      return;
-  }
-
-  // Delegate to the JSON handler for any other case
-  handleJsonMessage(bot, msg, chatId);
+    // Delegate to the JSON handler for any other case
+    handleJsonMessage(bot, msg, chatId);
 };
 
 // Handles the case when the message text is a number
@@ -52,6 +57,30 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
           .sendMessage(chatId, 'No cached teams available. Please send full JSON data first.')
           .catch((err) => console.error('Error sending cache unavailable message:', err));
     }
+}
+
+async function handleJsonCommand(bot, chatId) {
+    let extractedData;
+        if (photosCache[chatId]) {
+            try{
+                extractedData = await extractJsonDataFromPhotos(photosCache[chatId]);
+            }
+            catch (error) {
+                sendLogMessage(bot, `Error extracting JSON data from OpenAI: ${error.message}`);
+                bot
+                    .sendMessage(chatId, 'Error extracting JSON data from photos.')
+                    .catch((err) => console.error('Error sending extraction error message:', err));
+                return;
+            }
+
+            bot
+                .sendMessage(chatId, JSON.stringify(extractedData, null, 2))
+                .catch((err) => console.error('Error sending extracted JSON data:', err));
+        } else {
+            bot
+                .sendMessage(chatId, 'No cached images available.')
+                .catch((err) => console.error('Error sending cache unavailable message:', err));
+        }
 }
 
 // Handles the case when the message text is JSON data

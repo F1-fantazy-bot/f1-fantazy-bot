@@ -1,3 +1,5 @@
+const { photosCache } = require('./cache');
+
 exports.handlePhotoMessage = function (bot, msg) {
   const chatId = msg.chat.id;
 
@@ -10,7 +12,7 @@ exports.handlePhotoMessage = function (bot, msg) {
   // Use the Telegram API to get file details.
   bot
     .getFile(fileId)
-    .then((file) => {
+    .then(async (file) => {
       const fileSize = file.file_size;
       if (fileSize) {
         bot
@@ -25,6 +27,30 @@ exports.handlePhotoMessage = function (bot, msg) {
             console.error('Error sending photo size error message:', err)
           );
       }
+
+      const fileLink = await bot.getFileLink(fileId);
+      const photoDetails = {
+        fileId,
+        file,
+        fileLink,
+      }
+
+      if (photosCache[chatId]) {
+        if (!photosCache[chatId].some(existing => existing.file.file_unique_id === photoDetails.file.file_unique_id)) {
+          photosCache[chatId].push(photoDetails);
+        }
+      } else {
+        photosCache[chatId] = [photoDetails];
+      }
+
+      bot
+        .sendMessage(
+          chatId,
+          `The image has been saved to the cache. Total images in cache: ${photosCache[chatId].length}`
+        )
+        .catch((err) =>
+          console.error('Error sending cache message:', err)
+        );
     })
     .catch((err) => {
       console.error('Error retrieving file details:', err);

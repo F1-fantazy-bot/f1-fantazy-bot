@@ -3,7 +3,7 @@ const { KILZI_CHAT_ID, DORSE_CHAT_ID } = require('./constants');
 const { handleTextMessage } = require('./textMessageHandler');
 const { handlePhotoMessage } = require('./photoMessageHandler');
 
-exports.handleMessage = function (bot, msg) {
+exports.handleMessage = async function (bot, msg) {
   const chatId = msg.chat.id;
   const chatName = getChatName(msg);
 
@@ -16,7 +16,7 @@ exports.handleMessage = function (bot, msg) {
 
   // Handle text messages
   if (msg.text) {
-    handleTextMessage(bot, msg);
+    await handleTextMessage(bot, msg);
     return;
   }
 
