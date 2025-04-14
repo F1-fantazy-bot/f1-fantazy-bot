@@ -1,5 +1,9 @@
 const { photoCache } = require('./cache');
-const { DRIVERS_PHOTO_TYPE, CONSTRUCTORS_PHOTO_TYPE, CURRENT_TEAM_PHOTO_TYPE } = require('./constants');
+const {
+  DRIVERS_PHOTO_TYPE,
+  CONSTRUCTORS_PHOTO_TYPE,
+  CURRENT_TEAM_PHOTO_TYPE,
+} = require('./constants');
 
 exports.handlePhotoMessage = function (bot, msg) {
   const chatId = msg.chat.id;
@@ -16,21 +20,6 @@ exports.handlePhotoMessage = function (bot, msg) {
   bot
     .getFile(fileId)
     .then(async (file) => {
-      const fileSize = file.file_size;
-      if (fileSize) {
-        bot
-          .sendMessage(chatId, `The size of the image is: ${fileSize} bytes`)
-          .catch((err) =>
-            console.error('Error sending photo size reply:', err)
-          );
-      } else {
-        bot
-          .sendMessage(chatId, 'Could not retrieve the image file size.')
-          .catch((err) =>
-            console.error('Error sending photo size error message:', err)
-          );
-      }
-
       photoCache[fileUniqueId] = {
         fileId,
         chatId,
@@ -43,12 +32,21 @@ exports.handlePhotoMessage = function (bot, msg) {
         reply_markup: {
           inline_keyboard: [
             [
-              { text: 'Drivers', callback_data: `${DRIVERS_PHOTO_TYPE}:${fileUniqueId}` },
-              { text: 'Constructors', callback_data: `${CONSTRUCTORS_PHOTO_TYPE}:${fileUniqueId}` },
-              { text: 'Current Team', callback_data: `${CURRENT_TEAM_PHOTO_TYPE}:${fileUniqueId}` },
-            ]
-          ]
-        }
+              {
+                text: 'Drivers',
+                callback_data: `${DRIVERS_PHOTO_TYPE}:${fileUniqueId}`,
+              },
+              {
+                text: 'Constructors',
+                callback_data: `${CONSTRUCTORS_PHOTO_TYPE}:${fileUniqueId}`,
+              },
+              {
+                text: 'Current Team',
+                callback_data: `${CURRENT_TEAM_PHOTO_TYPE}:${fileUniqueId}`,
+              },
+            ],
+          ],
+        },
       });
     })
     .catch((err) => {
