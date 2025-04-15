@@ -16,46 +16,32 @@ exports.handlePhotoMessage = function (bot, msg) {
   const fileId = largestPhoto.file_id;
   const fileUniqueId = largestPhoto.file_unique_id;
 
-  // Use the Telegram API to get file details.
-  bot
-    .getFile(fileId)
-    .then(async (file) => {
-      photoCache[fileUniqueId] = {
-        fileId,
-        chatId,
-        messageId,
-      };
+  photoCache[fileUniqueId] = {
+    fileId,
+    chatId,
+    messageId,
+  };
 
-      // Reply with inline buttons
-      bot.sendMessage(chatId, 'What type is this photo?', {
-        reply_to_message_id: messageId,
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: 'Drivers',
-                callback_data: `${DRIVERS_PHOTO_TYPE}:${fileUniqueId}`,
-              },
-              {
-                text: 'Constructors',
-                callback_data: `${CONSTRUCTORS_PHOTO_TYPE}:${fileUniqueId}`,
-              },
-              {
-                text: 'Current Team',
-                callback_data: `${CURRENT_TEAM_PHOTO_TYPE}:${fileUniqueId}`,
-              },
-            ],
-          ],
-        },
-      });
-    })
-    .catch((err) => {
-      console.error('Error retrieving file details:', err);
-      bot
-        .sendMessage(
-          chatId,
-          'An error occurred while retrieving the image details.'
-        )
-        .catch((err) => console.error('Error sending error message:', err));
-    });
+  // Reply with inline buttons
+  bot.sendMessage(chatId, 'What type is this photo?', {
+    reply_to_message_id: messageId,
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: 'Drivers',
+            callback_data: `${DRIVERS_PHOTO_TYPE}:${fileUniqueId}`,
+          },
+          {
+            text: 'Constructors',
+            callback_data: `${CONSTRUCTORS_PHOTO_TYPE}:${fileUniqueId}`,
+          },
+          {
+            text: 'Current Team',
+            callback_data: `${CURRENT_TEAM_PHOTO_TYPE}:${fileUniqueId}`,
+          },
+        ],
+      ],
+    },
+  });
 };

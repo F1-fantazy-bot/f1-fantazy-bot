@@ -38,5 +38,9 @@ exports.extractJsonDataFromPhotos = async function (type, fileLinks) {
     messages: [systemMessage, userMessage],
   });
 
+  console.log('Azure OpenAI prompt tokens:', completion.usage.prompt_tokens);
+  console.log('Azure OpenAI completion tokens:', completion.usage.completion_tokens);
+  console.log('Azure OpenAI total tokens:', completion.usage.total_tokens);
+
   return completion.choices[0].message.content;
 };

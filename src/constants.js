@@ -68,16 +68,16 @@ type Json = {
 };
 `;
 
-exports.EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT = `You are a data extraction assistant. xtract data from photos containing:
-- Driver and constructor names
+exports.EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT = `You are a data extraction assistant. Extract data from photos containing:
+- 5 drivers and 2 constructors names
 - The driver with DRS boost (2x)
 - Number of free transfers
 - Remaining cost cap
 
 Output:
 - An object containing:
-  - 'drivers': array of driver codes (initials)
-  - 'constructors': array of constructor codes (initials)
+  - 'drivers': array of 5 drivers
+  - 'constructors': array of 2 constructors
   - 'drsBoost': driver code with the boost
   - 'freeTransfers': number
   - 'costCapRemaining': number

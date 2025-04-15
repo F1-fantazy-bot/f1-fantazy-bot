@@ -20,7 +20,7 @@ exports.handleCallbackQuery = async function (bot, query) {
   // Save or process the selection (just logging here)
   console.log(
     `User ${
-      query.from.username
+      chatId
     } labeled photo ${fileId} as ${type.toUpperCase()}`
   );
 
