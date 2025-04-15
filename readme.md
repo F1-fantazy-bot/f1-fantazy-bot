@@ -12,6 +12,9 @@
    ```
    to create a bot token, go to [@BotFather](https://t.me/botfather) and follow the instructions.
    this bot token will be your test token, you can use it to test the bot locally.
+
+   you can get details for Azure OpenAI from the [Azure AI portal](https://ai.azure.com/).
+
 4. Run the bot:
    ```
    npm start
