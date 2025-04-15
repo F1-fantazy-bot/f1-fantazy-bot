@@ -1,21 +1,19 @@
 const { sendLogMessage } = require('./utils');
 const { calculateBestTeams, calculateChangesToTeam } = require('./bestTeamsCalculator');
-
-// In-memory cache for best teams by chat id
-const bestTeamsCache = {};
+const { bestTeamsCache } = require('./cache');
 
 exports.handleTextMessage = function (bot, msg) {
-  const chatId = msg.chat.id;
-  const textTrimmed = msg.text.trim();
-
-  // Check if message text is a number and delegate to the number handler
-  if (/^\d+$/.test(textTrimmed)) {
-      handleNumberMessage(bot, chatId, textTrimmed);
-      return;
-  }
-
-  // Delegate to the JSON handler for any other case
-  handleJsonMessage(bot, msg, chatId);
+    const chatId = msg.chat.id;
+    const textTrimmed = msg.text.trim();
+    
+    // Check if message text is a number and delegate to the number handler
+    if (/^\d+$/.test(textTrimmed)) {
+        handleNumberMessage(bot, chatId, textTrimmed);
+        return;
+    }
+  
+    // Delegate to the JSON handler for any other case
+    handleJsonMessage(bot, msg, chatId);
 };
 
 // Handles the case when the message text is a number

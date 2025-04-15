@@ -6,6 +6,24 @@ jest.mock('./utils', () => ({
 }));
 const { sendLogMessage } = require('./utils');
 
+jest.mock('openai', () => ({
+  AzureOpenAI: jest.fn().mockImplementation((options) => ({
+    chat: {
+      completions: {
+        create: jest.fn().mockResolvedValue({
+          choices: [
+            {
+              message: {
+                content: 'Mocked response',
+              },
+            },
+          ],
+        }),
+      },
+    },
+  })),
+}));
+
 const timesCalledSendLogMessageInMessageHandler = 1;
 describe('handleTextMessage', () => {
   const botMock = {

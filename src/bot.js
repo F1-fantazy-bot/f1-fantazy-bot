@@ -2,6 +2,7 @@
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const { handleMessage } = require('./messageHandler');
+const { handleCallbackQuery } = require('./callbackQueryHandler');
 const { TELEGRAM_BOT_TOKEN, NODE_ENV } = process.env;
 
 if (!TELEGRAM_BOT_TOKEN) {
@@ -20,8 +21,12 @@ if (NODE_ENV !== 'production') {
 }
 
 // Listen for any kind of message.
-bot.on('message', (msg) => {
+bot.on('message', async (msg) => {
   handleMessage(bot, msg);
+});
+
+bot.on('callback_query', async (query) => {
+  await handleCallbackQuery(bot, query);
 });
 
 // Log polling errors
