@@ -1,4 +1,12 @@
-const { LOG_CHANNEL_ID } = require('../constants');
+const {
+  LOG_CHANNEL_ID,
+  DRIVERS_PHOTO_TYPE,
+  CONSTRUCTORS_PHOTO_TYPE,
+  CURRENT_TEAM_PHOTO_TYPE,
+  EXTRACT_JSON_FROM_DRIVERS_PHOTO_SYSTEM_PROMPT,
+  EXTRACT_JSON_FROM_CONSTRUCTORS_PHOTO_SYSTEM_PROMPT,
+  EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT,
+} = require('../constants');
 exports.sendLogMessage = function (bot, logMessage) {
   if (!LOG_CHANNEL_ID) {
     console.error('LOG_CHANNEL_ID is not set');
@@ -24,4 +32,10 @@ exports.getChatName = function (msg) {
     return `${msg.chat.first_name || ''} ${msg.chat.last_name || ''}`;
   }
   return 'Unknown Chat';
+};
+
+exports.mapPhotoTypeToSystemPrompt = {
+  [DRIVERS_PHOTO_TYPE]: EXTRACT_JSON_FROM_DRIVERS_PHOTO_SYSTEM_PROMPT,
+  [CONSTRUCTORS_PHOTO_TYPE]: EXTRACT_JSON_FROM_CONSTRUCTORS_PHOTO_SYSTEM_PROMPT,
+  [CURRENT_TEAM_PHOTO_TYPE]: EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT,
 };
