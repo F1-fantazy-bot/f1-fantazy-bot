@@ -138,7 +138,7 @@ describe('handleCallbackQuery', () => {
     it('should handle current team photo type and store in currentTeamCache', async () => {
         query.data = `${CURRENT_TEAM_PHOTO_TYPE}:${fileId}`;
         extractJsonDataFromPhotos.mockResolvedValue(
-            '```json\n{"CurrentTeam":{"drivers":["HAM"],"constructors":["MER"],"drsBoost":"HAM","freeTransfers":2,"costCapRemaining":10}}\n```'
+            '```json\n{"CurrentTeam":{"drivers":["L. Hamilton"],"constructors":["Mercedes"],"drsBoost":"L. Hamilton","freeTransfers":2,"costCapRemaining":10}}\n```'
         );
 
         await handleCallbackQuery(bot, query);
