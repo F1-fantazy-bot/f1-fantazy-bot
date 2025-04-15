@@ -1,6 +1,6 @@
 const { sendLogMessage } = require('./utils');
 const { calculateBestTeams, calculateChangesToTeam } = require('./bestTeamsCalculator');
-const { bestTeamsCache } = require('./cache');
+const { bestTeamsCache, driversCache, constructorsCache, currentTeamCache } = require('./cache');
 
 exports.handleTextMessage = function (bot, msg) {
     const chatId = msg.chat.id;
@@ -9,6 +9,12 @@ exports.handleTextMessage = function (bot, msg) {
     // Check if message text is a number and delegate to the number handler
     if (/^\d+$/.test(textTrimmed)) {
         handleNumberMessage(bot, chatId, textTrimmed);
+        return;
+    }
+
+    // Handle the "/best_teams" command
+    if (msg.text === "/best_teams") {
+        handleBestTeamsMessage(bot, chatId);
         return;
     }
   
@@ -65,6 +71,37 @@ function handleJsonMessage(bot, msg, chatId) {
         return;
     }
 
+    handleJsonData(bot, jsonData, chatId);
+}
+
+function handleBestTeamsMessage(bot, chatId)
+{
+    // Try to fetch cached data for this chat
+    const drivers = driversCache[chatId];
+    const constructors = constructorsCache[chatId];
+    const currentTeam = currentTeamCache[chatId];
+
+    if (!drivers || !constructors || !currentTeam) {
+        bot
+          .sendMessage(chatId, 'Missing cached data. Please send images containing drivers, constructors, and current team first.')
+          .catch((err) => console.error('Error sending cache unavailable message:', err));
+        return;
+    }
+
+    // Build jsonData object
+    const jsonData = {
+        Drivers: Object.values(drivers),
+        Constructors: Object.values(constructors),
+        CurrentTeam: currentTeam
+    };
+
+    // Call handleJsonMessage with the constructed jsonData
+    handleJsonData(bot, jsonData, chatId);
+    return;
+}
+
+// Handles the case when the message text is JSON data
+function handleJsonData(bot, jsonData, chatId) {
     if (!jsonData.Drivers || jsonData.Drivers.length !== 20) {
         sendLogMessage(
             bot,
@@ -147,4 +184,11 @@ function handleJsonMessage(bot, msg, chatId) {
     bot
       .sendMessage(chatId, messageMarkdown, { parse_mode: 'Markdown' })
       .catch((err) => console.error('Error sending JSON reply:', err));
+
+    bot
+      .sendMessage(
+        chatId,
+        'Please send a number to get the required changes to that team.'
+      )
+      .catch((err) => console.error('Error sending number request message:', err));
 }
