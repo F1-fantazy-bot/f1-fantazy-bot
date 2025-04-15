@@ -111,7 +111,7 @@ exports.NAME_TO_CODE_MAPPING = {
   "c. leclerc": "LEC",
   "l. hamilton": "HAM",
   "f. alonso": "ALO",
-  "s. sainz": "SAI",
+  "c. sainz": "SAI",
   "y. tsunoda": "TSU",
   "a. albon": "ALB",
   "l. stroll": "STR",
