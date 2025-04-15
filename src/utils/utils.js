@@ -42,7 +42,7 @@ exports.mapPhotoTypeToSystemPrompt = {
 
 exports.validateJsonData = function (bot, jsonData, chatId) {
   if (!jsonData.Drivers || jsonData.Drivers.length !== 20) {
-      sendLogMessage(
+      exports.sendLogMessage(
           bot,
           `Invalid JSON data: ${msg.text}. Expected 20 drivers under "Drivers" property'.`
       );
@@ -56,7 +56,7 @@ exports.validateJsonData = function (bot, jsonData, chatId) {
   }
 
   if (!jsonData.Constructors || jsonData.Constructors.length !== 10) {
-      sendLogMessage(
+      exports.sendLogMessage(
           bot,
           `Invalid JSON data: ${msg.text}. Expected 10 constructors under "Constructors" property'.`
       );
@@ -79,7 +79,7 @@ exports.validateJsonData = function (bot, jsonData, chatId) {
       !jsonData.CurrentTeam.freeTransfers ||
       !jsonData.CurrentTeam.costCapRemaining
   ) {
-      sendLogMessage(
+      exports.sendLogMessage(
           bot,
           `Invalid JSON data: ${msg.text}. Expected 5 drivers, 2 constructors, drsBoost, freeTransfers, and costCapRemaining properties under "CurrentTeam" property'.`
       );
