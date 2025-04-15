@@ -4,12 +4,13 @@ const {
   currentTeamCache,
   constructorsCache,
   driversCache,
+  getPrintableCache,
 } = require('./cache');
 const {
   DRIVERS_PHOTO_TYPE,
   CONSTRUCTORS_PHOTO_TYPE,
   CURRENT_TEAM_PHOTO_TYPE,
-  NAME_TO_CODE_MAPPING
+  NAME_TO_CODE_MAPPING,
 } = require('./constants');
 
 exports.handleCallbackQuery = async function (bot, query) {
@@ -19,9 +20,7 @@ exports.handleCallbackQuery = async function (bot, query) {
 
   // Save or process the selection (just logging here)
   console.log(
-    `User ${
-      chatId
-    } labeled photo ${fileId} as ${type.toUpperCase()}`
+    `User ${chatId} labeled photo ${fileId} as ${type.toUpperCase()}`
   );
 
   // Optional: edit the message to confirm
@@ -40,19 +39,16 @@ exports.handleCallbackQuery = async function (bot, query) {
   try {
     const fileLink = await bot.getFileLink(fileDetails.fileId);
 
-    const extractedData = await extractJsonDataFromPhotos(bot, type, [fileLink]);
+    const extractedData = await extractJsonDataFromPhotos(bot, type, [
+      fileLink,
+    ]);
 
-    const dataFromCache = storeInCache(chatId, type, extractedData);
+    storeInCache(chatId, type, extractedData);
 
     bot
-      .sendMessage(
-        chatId,
-        `\`\`\`json
-${JSON.stringify(dataFromCache, null, 2)}\`\`\``,
-        {
-          parse_mode: 'Markdown',
-        }
-      )
+      .sendMessage(chatId, getPrintableCache(chatId, type), {
+        parse_mode: 'Markdown',
+      })
       .catch((err) => console.error('Error sending extracted data:', err));
   } catch (err) {
     console.error('Error extracting data from photo:', err);
@@ -87,8 +83,9 @@ function storeInCache(chatId, type, extractedData) {
     for (const driver of jsonObject.Drivers) {
       driversCache[chatId][driver.DR] = driver;
     }
-    return driversCache[chatId];
-  } else if (type === CONSTRUCTORS_PHOTO_TYPE) {
+    return;
+  }
+  if (type === CONSTRUCTORS_PHOTO_TYPE) {
     constructorsCache[chatId] = {
       ...constructorsCache[chatId],
     };
@@ -96,24 +93,29 @@ function storeInCache(chatId, type, extractedData) {
       constructorsCache[chatId][constructor.CN] = constructor;
     }
 
-    return constructorsCache[chatId];
-    // Store in constructors cache
-  } else if (type === CURRENT_TEAM_PHOTO_TYPE) {
+    return;
+  }
+  if (type === CURRENT_TEAM_PHOTO_TYPE) {
     // Convert drivers and constructors to code names
-    const mapToCodeName = (name) => NAME_TO_CODE_MAPPING[name.toLowerCase()] || name;
+    const mapToCodeName = (name) =>
+      NAME_TO_CODE_MAPPING[name.toLowerCase()] || name;
 
-    jsonObject.CurrentTeam.drivers = jsonObject.CurrentTeam.drivers.map(mapToCodeName);
-    jsonObject.CurrentTeam.constructors = jsonObject.CurrentTeam.constructors.map(mapToCodeName);
-    jsonObject.CurrentTeam.drsBoost = mapToCodeName(jsonObject.CurrentTeam.drsBoost);
+    jsonObject.CurrentTeam.drivers =
+      jsonObject.CurrentTeam.drivers.map(mapToCodeName);
+    jsonObject.CurrentTeam.constructors =
+      jsonObject.CurrentTeam.constructors.map(mapToCodeName);
+    jsonObject.CurrentTeam.drsBoost = mapToCodeName(
+      jsonObject.CurrentTeam.drsBoost
+    );
 
     currentTeamCache[chatId] = {
       ...currentTeamCache[chatId],
       ...jsonObject.CurrentTeam,
     };
 
-    return currentTeamCache[chatId];
+    return;
     // Store in current team cache
-  } else {
-    console.error('Unknown photo type:', type);
   }
+
+  console.error('Unknown photo type:', type);
 }
