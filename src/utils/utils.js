@@ -44,7 +44,7 @@ exports.validateJsonData = function (bot, jsonData, chatId) {
   if (!jsonData.Drivers || jsonData.Drivers.length !== 20) {
       exports.sendLogMessage(
           bot,
-          `Invalid JSON data: ${msg.text}. Expected 20 drivers under "Drivers" property'.`
+          `Invalid JSON data. Expected 20 drivers under "Drivers" property'.`
       );
       bot
         .sendMessage(
@@ -52,13 +52,13 @@ exports.validateJsonData = function (bot, jsonData, chatId) {
           'Invalid JSON data. Please ensure it contains 20 drivers under "Drivers" property.'
         )
         .catch((err) => console.error('Error sending JSON error message:', err));
-      return;
+      return false;
   }
 
   if (!jsonData.Constructors || jsonData.Constructors.length !== 10) {
       exports.sendLogMessage(
           bot,
-          `Invalid JSON data: ${msg.text}. Expected 10 constructors under "Constructors" property'.`
+          `Invalid JSON data. Expected 10 constructors under "Constructors" property'.`
       );
       bot
         .sendMessage(
@@ -66,7 +66,7 @@ exports.validateJsonData = function (bot, jsonData, chatId) {
           'Invalid JSON data. Please ensure it contains 10 constructors under "Constructors" property.'
         )
         .catch((err) => console.error('Error sending JSON error message:', err));
-      return;
+      return false;
   }
 
   if (
@@ -81,7 +81,7 @@ exports.validateJsonData = function (bot, jsonData, chatId) {
   ) {
       exports.sendLogMessage(
           bot,
-          `Invalid JSON data: ${msg.text}. Expected 5 drivers, 2 constructors, drsBoost, freeTransfers, and costCapRemaining properties under "CurrentTeam" property'.`
+          `Invalid JSON data. Expected 5 drivers, 2 constructors, drsBoost, freeTransfers, and costCapRemaining properties under "CurrentTeam" property'.`
       );
       bot
         .sendMessage(
@@ -89,6 +89,8 @@ exports.validateJsonData = function (bot, jsonData, chatId) {
           'Invalid JSON data. Please ensure it contains the required properties under "CurrentTeam" property.'
         )
         .catch((err) => console.error('Error sending JSON error message:', err));
-      return;
+      return false;
   }
+
+  return true;
 };

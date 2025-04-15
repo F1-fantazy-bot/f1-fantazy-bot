@@ -76,7 +76,9 @@ function handleJsonMessage(bot, msg, chatId) {
         return;
     }
 
-    validateJsonData(bot, jsonData, chatId);
+    if (!validateJsonData(bot, jsonData, chatId)) {
+        return;
+    }
 
     driversCache[chatId] = Object.fromEntries(jsonData.Drivers.map(driver => [driver.DR, driver]));
     constructorsCache[chatId] = Object.fromEntries(jsonData.Constructors.map(constructor => [constructor.CN, constructor]));;
@@ -118,7 +120,9 @@ function handleBestTeamsMessage(bot, chatId)
         CurrentTeam: currentTeam
     };
 
-    validateJsonData(bot, jsonData, chatId);
+    if (!validateJsonData(bot, jsonData, chatId)) {
+        return;
+    }
     
     const bestTeams = calculateBestTeams(jsonData);
     bestTeamsCache[chatId] = { currentTeam: jsonData.CurrentTeam, bestTeams };
