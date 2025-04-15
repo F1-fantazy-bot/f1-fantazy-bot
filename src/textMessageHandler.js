@@ -1,6 +1,11 @@
-const { sendLogMessage } = require('./utils');
+const { sendLogMessage, validateJsonData } = require('./utils');
 const { calculateBestTeams, calculateChangesToTeam } = require('./bestTeamsCalculator');
-const { bestTeamsCache, driversCache, constructorsCache, currentTeamCache } = require('./cache');
+const { bestTeamsCache, driversCache, constructorsCache, currentTeamCache, getPrintableCache } = require('./cache');
+const {
+    DRIVERS_PHOTO_TYPE,
+    CONSTRUCTORS_PHOTO_TYPE,
+    CURRENT_TEAM_PHOTO_TYPE
+  } = require('./constants');
 
 exports.handleTextMessage = function (bot, msg) {
     const chatId = msg.chat.id;
@@ -71,7 +76,25 @@ function handleJsonMessage(bot, msg, chatId) {
         return;
     }
 
-    handleJsonData(bot, jsonData, chatId);
+    validateJsonData(bot, jsonData, chatId);
+
+    driversCache[chatId] = Object.fromEntries(jsonData.Drivers.map(driver => [driver.DR, driver]));
+    constructorsCache[chatId] = Object.fromEntries(jsonData.Constructors.map(constructor => [constructor.CN, constructor]));;
+    currentTeamCache[chatId] = jsonData.CurrentTeam;
+
+    const driversPrintable = getPrintableCache(chatId, DRIVERS_PHOTO_TYPE);
+    const constructorsPrintable = getPrintableCache(chatId, CONSTRUCTORS_PHOTO_TYPE);
+    const currentTeamPrintable = getPrintableCache(chatId, CURRENT_TEAM_PHOTO_TYPE);
+
+    bot
+        .sendMessage(chatId, driversPrintable, { parse_mode: 'Markdown' })
+        .catch((err) => console.error('Error sending drivers cache:', err));
+    bot
+        .sendMessage(chatId, constructorsPrintable, { parse_mode: 'Markdown' })
+        .catch((err) => console.error('Error sending constructors cache:', err));
+    bot
+        .sendMessage(chatId, currentTeamPrintable, { parse_mode: 'Markdown' })
+        .catch((err) => console.error('Error sending current team cache:', err));
 }
 
 function handleBestTeamsMessage(bot, chatId)
@@ -95,64 +118,8 @@ function handleBestTeamsMessage(bot, chatId)
         CurrentTeam: currentTeam
     };
 
-    // Call handleJsonMessage with the constructed jsonData
-    handleJsonData(bot, jsonData, chatId);
-    return;
-}
-
-// Handles the case when the message text is JSON data
-function handleJsonData(bot, jsonData, chatId) {
-    if (!jsonData.Drivers || jsonData.Drivers.length !== 20) {
-        sendLogMessage(
-            bot,
-            `Invalid JSON data: ${msg.text}. Expected 20 drivers under "Drivers" property'.`
-        );
-        bot
-          .sendMessage(
-            chatId,
-            'Invalid JSON data. Please ensure it contains 20 drivers under "Drivers" property.'
-          )
-          .catch((err) => console.error('Error sending JSON error message:', err));
-        return;
-    }
-
-    if (!jsonData.Constructors || jsonData.Constructors.length !== 10) {
-        sendLogMessage(
-            bot,
-            `Invalid JSON data: ${msg.text}. Expected 10 constructors under "Constructors" property'.`
-        );
-        bot
-          .sendMessage(
-            chatId,
-            'Invalid JSON data. Please ensure it contains 10 constructors under "Constructors" property.'
-          )
-          .catch((err) => console.error('Error sending JSON error message:', err));
-        return;
-    }
-
-    if (
-        !jsonData.CurrentTeam ||
-        !jsonData.CurrentTeam.drivers ||
-        jsonData.CurrentTeam.drivers.length !== 5 ||
-        !jsonData.CurrentTeam.constructors ||
-        jsonData.CurrentTeam.constructors.length !== 2 ||
-        !jsonData.CurrentTeam.drsBoost ||
-        !jsonData.CurrentTeam.freeTransfers ||
-        !jsonData.CurrentTeam.costCapRemaining
-    ) {
-        sendLogMessage(
-            bot,
-            `Invalid JSON data: ${msg.text}. Expected 5 drivers, 2 constructors, drsBoost, freeTransfers, and costCapRemaining properties under "CurrentTeam" property'.`
-        );
-        bot
-          .sendMessage(
-            chatId,
-            'Invalid JSON data. Please ensure it contains the required properties under "CurrentTeam" property.'
-          )
-          .catch((err) => console.error('Error sending JSON error message:', err));
-        return;
-    }
-
+    validateJsonData(bot, jsonData, chatId);
+    
     const bestTeams = calculateBestTeams(jsonData);
     bestTeamsCache[chatId] = { currentTeam: jsonData.CurrentTeam, bestTeams };
 
