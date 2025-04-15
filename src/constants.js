@@ -78,7 +78,7 @@ Output:
 - An object containing:
   - 'drivers': array of 5 drivers
   - 'constructors': array of 2 constructors
-  - 'drsBoost': driver code with the boost
+  - 'drsBoost': driver with the boost
   - 'freeTransfers': number
   - 'costCapRemaining': number
 
@@ -101,3 +101,39 @@ type CurrentTeam = {
 type Json = {
   CurrentTeam: CurrentTeam;
 };`;
+
+exports.NAME_TO_CODE_MAPPING = {
+  // Drivers
+  "o. piastri": "PIA",
+  "l. norris": "NOR",
+  "g. russell": "RUS",
+  "m. verstappen": "VER",
+  "c. leclerc": "LEC",
+  "l. hamilton": "HAM",
+  "f. alonso": "ALO",
+  "s. sainz": "SAI",
+  "y. tsunoda": "TSU",
+  "a. albon": "ALB",
+  "l. stroll": "STR",
+  "n. hulkenberg": "HUL",
+  "o. bearman": "BEA",
+  "i. hadjar": "HAD",
+  "e. ocon": "OCO",
+  "p. gasly": "GAS",
+  "l. lawson": "LAW",
+  "j. doohan": "DOO",
+  "g. bortoleto": "BOR",
+  "k. antonelli": "ANT",
+
+  // Constructors
+  "mclaren": "MCL",
+  "mercedes": "MER",
+  "ferrari": "FER",
+  "red bull racing": "RED",
+  "williams": "WIL",
+  "racing bulls": "VRB",
+  "alpine": "ALP",
+  "haas": "HAA",
+  "aston martin": "AST",
+  "kick sauber": "KCK"
+};

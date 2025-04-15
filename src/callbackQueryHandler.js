@@ -9,6 +9,7 @@ const {
   DRIVERS_PHOTO_TYPE,
   CONSTRUCTORS_PHOTO_TYPE,
   CURRENT_TEAM_PHOTO_TYPE,
+  NAME_TO_CODE_MAPPING
 } = require('./constants');
 
 exports.handleCallbackQuery = async function (bot, query) {
@@ -98,6 +99,13 @@ function storeInCache(chatId, type, extractedData) {
     return constructorsCache[chatId];
     // Store in constructors cache
   } else if (type === CURRENT_TEAM_PHOTO_TYPE) {
+    // Convert drivers and constructors to code names
+    const mapToCodeName = (name) => NAME_TO_CODE_MAPPING[name.toLowerCase()] || name;
+
+    jsonObject.CurrentTeam.drivers = jsonObject.CurrentTeam.drivers.map(mapToCodeName);
+    jsonObject.CurrentTeam.constructors = jsonObject.CurrentTeam.constructors.map(mapToCodeName);
+    jsonObject.CurrentTeam.drsBoost = mapToCodeName(jsonObject.CurrentTeam.drsBoost);
+
     currentTeamCache[chatId] = {
       ...currentTeamCache[chatId],
       ...jsonObject.CurrentTeam,
