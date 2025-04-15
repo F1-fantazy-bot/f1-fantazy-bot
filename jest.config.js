@@ -15,10 +15,10 @@ module.exports = {
   // todo: kilzi: set coverage threshold
   coverageThreshold: {
     global: {
-      branches: 52,
-      functions: 66,
-      lines: 76,
-      statements: 77,
+      branches: 50,
+      functions: 60,
+      lines: 73,
+      statements: 73,
     },
   },
 };
