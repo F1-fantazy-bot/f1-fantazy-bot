@@ -2,6 +2,7 @@ const { AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPEN_AI_MODEL } =
   process.env;
 const { AzureOpenAI } = require('openai');
 const { PHOTO_TYPE_TO_SYSTEM_PROMPT_MAP } = require('./constants');
+const { sendLogMessage } = require('./utils');
 
 const apiVersion = '2024-04-01-preview';
 const options = {
@@ -12,7 +13,7 @@ const options = {
 };
 const client = new AzureOpenAI(options);
 
-exports.extractJsonDataFromPhotos = async function (type, fileLinks) {
+exports.extractJsonDataFromPhotos = async function (bot, type, fileLinks) {
   const systemPrompt = PHOTO_TYPE_TO_SYSTEM_PROMPT_MAP[type];
 
   const systemMessage = {
@@ -38,9 +39,9 @@ exports.extractJsonDataFromPhotos = async function (type, fileLinks) {
     messages: [systemMessage, userMessage],
   });
 
-  console.log('Azure OpenAI prompt tokens:', completion.usage.prompt_tokens);
-  console.log('Azure OpenAI completion tokens:', completion.usage.completion_tokens);
-  console.log('Azure OpenAI total tokens:', completion.usage.total_tokens);
+  const azureOpenAiTokensString = `Azure OpenAI model - ${AZURE_OPEN_AI_MODEL}, tokens - prompt: ${completion.usage.prompt_tokens}, completion: ${completion.usage.completion_tokens}, total: ${completion.usage.total_tokens}`;
+  console.log(azureOpenAiTokensString);
+  sendLogMessage(bot, azureOpenAiTokensString)
 
   return completion.choices[0].message.content;
 };

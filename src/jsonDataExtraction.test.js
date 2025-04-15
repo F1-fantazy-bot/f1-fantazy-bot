@@ -22,6 +22,10 @@ describe('extractJsonDataFromPhotos', () => {
         jest.clearAllMocks();
     });
 
+    const botMock = {
+        sendMessage: jest.fn().mockResolvedValue(),
+    };
+
     it('should call AzureOpenAI with correct parameters and return extracted data', async () => {
         const type = 'exampleType';
         const fileLinks = ['https://example.com/photo1.jpg', 'https://example.com/photo2.jpg'];
@@ -44,7 +48,7 @@ describe('extractJsonDataFromPhotos', () => {
         PHOTO_TYPE_TO_SYSTEM_PROMPT_MAP[type] = systemPrompt;
         __createMock.mockResolvedValue(mockResponse);
 
-        const result = await extractJsonDataFromPhotos(type, fileLinks);
+        const result = await extractJsonDataFromPhotos(botMock, type, fileLinks);
 
         expect(__createMock).toHaveBeenCalledWith({
             model: process.env.AZURE_OPEN_AI_MODEL,
@@ -71,6 +75,6 @@ describe('extractJsonDataFromPhotos', () => {
         PHOTO_TYPE_TO_SYSTEM_PROMPT_MAP[type] = systemPrompt;
         __createMock.mockRejectedValue(new Error('Azure API error'));
 
-        await expect(extractJsonDataFromPhotos(type, fileLinks)).rejects.toThrow('Azure API error');
+        await expect(extractJsonDataFromPhotos(botMock, type, fileLinks)).rejects.toThrow('Azure API error');
     });
 });

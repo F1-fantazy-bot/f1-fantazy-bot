@@ -2,7 +2,7 @@ const { sendLogMessage } = require('./utils');
 const { calculateBestTeams, calculateChangesToTeam } = require('./bestTeamsCalculator');
 const { bestTeamsCache } = require('./cache');
 
-exports.handleTextMessage = async function (bot, msg) {
+exports.handleTextMessage = function (bot, msg) {
     const chatId = msg.chat.id;
     const textTrimmed = msg.text.trim();
     

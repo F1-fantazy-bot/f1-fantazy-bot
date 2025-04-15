@@ -10,7 +10,6 @@ const {
   CONSTRUCTORS_PHOTO_TYPE,
   CURRENT_TEAM_PHOTO_TYPE,
 } = require('./constants');
-const js = require('@eslint/js');
 
 exports.handleCallbackQuery = async function (bot, query) {
   const chatId = query.message.chat.id;
@@ -40,10 +39,9 @@ exports.handleCallbackQuery = async function (bot, query) {
   try {
     const fileLink = await bot.getFileLink(fileDetails.fileId);
 
-    const extractedData = await extractJsonDataFromPhotos(type, [fileLink]);
+    const extractedData = await extractJsonDataFromPhotos(bot, type, [fileLink]);
 
     const dataFromCache = storeInCache(chatId, type, extractedData);
-    // TODO - store in cache
 
     bot
       .sendMessage(

@@ -22,7 +22,7 @@ if (NODE_ENV !== 'production') {
 
 // Listen for any kind of message.
 bot.on('message', async (msg) => {
-  await handleMessage(bot, msg);
+  handleMessage(bot, msg);
 });
 
 bot.on('callback_query', async (query) => {
