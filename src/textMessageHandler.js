@@ -9,6 +9,7 @@ const {
 
 // Command constants
 const COMMAND_BEST_TEAMS = "/best_teams";
+const COMMAND_CURRENT_TEAM_BUDGET = "/current_team_budget";
 const COMMAND_PRINT_CACHE = "/print_cache";
 const COMMAND_RESET_CACHE = "/reset_cache";
 const COMMAND_HELP = "/help";
@@ -27,6 +28,12 @@ exports.handleTextMessage = function (bot, msg) {
     if (msg.text === COMMAND_BEST_TEAMS) {
         handleBestTeamsMessage(bot, chatId);
         return;
+    }
+
+    // Handle the "/current_team_budget" command
+    if (msg.text === COMMAND_CURRENT_TEAM_BUDGET) {
+
+        return calcCurrentTeamBudget(bot, chatId);
     }
 
     // Handle the "/print_cache" command
@@ -118,7 +125,7 @@ function handleBestTeamsMessage(bot, chatId)
 
     if (!drivers || !constructors || !currentTeam) {
         bot
-          .sendMessage(chatId, 'Missing cached data. Please send images containing drivers, constructors, and current team first.')
+          .sendMessage(chatId, 'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.')
           .catch((err) => console.error('Error sending cache unavailable message:', err));
         return;
     }
@@ -224,12 +231,53 @@ function sendPrintableCache(chatId, bot) {
     return;
 }
 
+function calcCurrentTeamBudget(bot, chatId) {
+    const drivers = driversCache[chatId];
+    const constructors = constructorsCache[chatId];
+    const currentTeam = currentTeamCache[chatId];
+
+    if (!drivers || !constructors || !currentTeam) {
+        bot
+            .sendMessage(chatId, 'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.')
+            .catch((err) => console.error('Error sending cache unavailable message:', err));
+        return;
+    }
+
+    let totalPrice = 0;
+
+    // Sum driver prices
+    for (const dr of currentTeam.drivers) {
+        totalPrice += drivers[dr].price;
+    }
+
+    // Sum constructor prices
+    for (const cn of currentTeam.constructors) {
+        totalPrice += constructors[cn].price;
+    }
+
+    // Add cost remaining
+    const costCapRemaining = currentTeam.costCapRemaining
+    const teamBudget = totalPrice + costCapRemaining;
+
+    let message = `*Current Team Budget Calculation:*\n` +
+        `*Drivers & Constructors Total Price:* ${totalPrice.toFixed(2)}\n` +
+        `*Cost Cap Remaining:* ${costCapRemaining.toFixed(2)}\n` +
+        `*Total Budget:* ${teamBudget.toFixed(2)}`;
+
+    bot
+        .sendMessage(chatId, message, { parse_mode: 'Markdown' })
+        .catch((err) => console.error('Error sending current team budget message:', err));
+
+    return;
+}
+
 function displayHelpMessage(bot, chatId) {
     bot
         .sendMessage(
             chatId,
             `*Available Commands:*\n` +
             `${COMMAND_BEST_TEAMS.replace(/_/g, '\\_')} - Calculate and display the best possible teams based on your cached data.\n` +
+            `${COMMAND_CURRENT_TEAM_BUDGET.replace(/_/g, '\\_')} - Calculate the current team budget based on your cached data.\n` +
             `${COMMAND_PRINT_CACHE.replace(/_/g, '\\_')} - Show the currently cached drivers, constructors, and current team.\n` +
             `${COMMAND_RESET_CACHE.replace(/_/g, '\\_')} - Clear all cached data for this chat.\n` +
             `${COMMAND_HELP.replace(/_/g, '\\_')} - Show this help message.\n\n` +

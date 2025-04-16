@@ -106,7 +106,7 @@ describe('handleTextMessage', () => {
     handleMessage(botMock, msgMock);
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
-      'Missing cached data. Please send images containing drivers, constructors, and current team first.'
+      'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.'
     );
   });
 
@@ -137,6 +137,104 @@ describe('handleTextMessage', () => {
     expect(sendLogMessage).toHaveBeenCalledWith(
       botMock,
       expect.stringContaining('Failed to parse JSON data')
+    );
+  });
+
+  it('should calculate and send current team budget correctly', () => {
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: '/current_team_budget',
+    };
+
+    // Setup mock cache data
+    driversCache[KILZI_CHAT_ID] = {
+      VER: { price: 30.5 },
+      HAM: { price: 25.0 },
+    };
+    constructorsCache[KILZI_CHAT_ID] = {
+      RBR: { price: 20.0 },
+      MER: { price: 15.0 },
+    };
+    currentTeamCache[KILZI_CHAT_ID] = {
+      drivers: ['VER', 'HAM'],
+      constructors: ['RBR', 'MER'],
+      costCapRemaining: 3.5,
+    };
+
+    handleMessage(botMock, msgMock);
+
+    const expectedTotalPrice = 30.5 + 25.0 + 20.0 + 15.0; // 90.5
+    const expectedCostCap = 3.5;
+    const expectedBudget = expectedTotalPrice + expectedCostCap; // 94.0
+
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      msgMock.chat.id,
+      expect.stringContaining(`*Current Team Budget Calculation:*`),
+      { parse_mode: 'Markdown' }
+    );
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      msgMock.chat.id,
+      expect.stringContaining(`*Drivers & Constructors Total Price:* ${expectedTotalPrice.toFixed(2)}`),
+      { parse_mode: 'Markdown' }
+    );
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      msgMock.chat.id,
+      expect.stringContaining(`*Cost Cap Remaining:* ${expectedCostCap.toFixed(2)}`),
+      { parse_mode: 'Markdown' }
+    );
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      msgMock.chat.id,
+      expect.stringContaining(`*Total Budget:* ${expectedBudget.toFixed(2)}`),
+      { parse_mode: 'Markdown' }
+    );
+  });
+
+  it('should send missing cache message if drivers cache is missing', () => {
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: '/current_team_budget',
+    };
+    // Only constructors and currentTeam set
+    constructorsCache[KILZI_CHAT_ID] = { RBR: { PR: 20.0 } };
+    currentTeamCache[KILZI_CHAT_ID] = { drivers: [], constructors: [], costCapRemaining: 0 };
+
+    handleMessage(botMock, msgMock);
+
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      msgMock.chat.id,
+      'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.'
+    );
+  });
+
+  it('should send missing cache message if constructors cache is missing', () => {
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: '/current_team_budget',
+    };
+    driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
+    currentTeamCache[KILZI_CHAT_ID] = { drivers: [], constructors: [], costCapRemaining: 0 };
+
+    handleMessage(botMock, msgMock);
+
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      msgMock.chat.id,
+      'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.'
+    );
+  });
+
+  it('should send missing cache message if current team cache is missing', () => {
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: '/current_team_budget',
+    };
+    driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
+    constructorsCache[KILZI_CHAT_ID] = { RBR: { PR: 20.0 } };
+
+    handleMessage(botMock, msgMock);
+
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      msgMock.chat.id,
+      'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.'
     );
   });
 });
