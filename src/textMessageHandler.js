@@ -7,6 +7,12 @@ const {
     CURRENT_TEAM_PHOTO_TYPE
   } = require('./constants');
 
+// Command constants
+const COMMAND_BEST_TEAMS = "/best_teams";
+const COMMAND_PRINT_CACHE = "/print_cache";
+const COMMAND_RESET_CACHE = "/reset_cache";
+const COMMAND_HELP = "/help";
+
 exports.handleTextMessage = function (bot, msg) {
     const chatId = msg.chat.id;
     const textTrimmed = msg.text.trim();
@@ -18,9 +24,24 @@ exports.handleTextMessage = function (bot, msg) {
     }
 
     // Handle the "/best_teams" command
-    if (msg.text === "/best_teams") {
+    if (msg.text === COMMAND_BEST_TEAMS) {
         handleBestTeamsMessage(bot, chatId);
         return;
+    }
+
+    // Handle the "/print_cache" command
+    if (msg.text === COMMAND_PRINT_CACHE) {
+        return sendPrintableCache(chatId, bot);
+    }
+
+    // Handle the "/reset_cache" command
+    if (msg.text === COMMAND_RESET_CACHE) {
+        return resetCacheForChat(chatId, bot);
+    }
+
+    // Handle the "/help" command
+    if (msg.text === COMMAND_HELP) {
+        return displayHelpMessage(bot, chatId);
     }
   
     // Delegate to the JSON handler for any other case
@@ -58,7 +79,7 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
         }
     } else {
         bot
-          .sendMessage(chatId, 'No cached teams available. Please send full JSON data first.')
+          .sendMessage(chatId, `No cached teams available. Please send full JSON data or images first and then run the ${COMMAND_BEST_TEAMS} command.`)
           .catch((err) => console.error('Error sending cache unavailable message:', err));
     }
 }
@@ -83,20 +104,9 @@ function handleJsonMessage(bot, msg, chatId) {
     driversCache[chatId] = Object.fromEntries(jsonData.Drivers.map(driver => [driver.DR, driver]));
     constructorsCache[chatId] = Object.fromEntries(jsonData.Constructors.map(constructor => [constructor.CN, constructor]));;
     currentTeamCache[chatId] = jsonData.CurrentTeam;
+    delete bestTeamsCache[chatId];
 
-    const driversPrintable = getPrintableCache(chatId, DRIVERS_PHOTO_TYPE);
-    const constructorsPrintable = getPrintableCache(chatId, CONSTRUCTORS_PHOTO_TYPE);
-    const currentTeamPrintable = getPrintableCache(chatId, CURRENT_TEAM_PHOTO_TYPE);
-
-    bot
-        .sendMessage(chatId, driversPrintable, { parse_mode: 'Markdown' })
-        .catch((err) => console.error('Error sending drivers cache:', err));
-    bot
-        .sendMessage(chatId, constructorsPrintable, { parse_mode: 'Markdown' })
-        .catch((err) => console.error('Error sending constructors cache:', err));
-    bot
-        .sendMessage(chatId, currentTeamPrintable, { parse_mode: 'Markdown' })
-        .catch((err) => console.error('Error sending current team cache:', err));
+    sendPrintableCache(chatId, bot);
 }
 
 function handleBestTeamsMessage(bot, chatId)
@@ -162,4 +172,73 @@ function handleBestTeamsMessage(bot, chatId)
         'Please send a number to get the required changes to that team.'
       )
       .catch((err) => console.error('Error sending number request message:', err));
+}
+
+function resetCacheForChat(chatId, bot) {
+    delete driversCache[chatId];
+    delete constructorsCache[chatId];
+    delete currentTeamCache[chatId];
+    delete bestTeamsCache[chatId];
+
+    bot
+        .sendMessage(chatId, 'Cache has been reset for your chat.')
+        .catch((err) => console.error('Error sending cache reset message:', err));
+    return;
+}
+
+function sendPrintableCache(chatId, bot) {
+    const driversPrintable = getPrintableCache(chatId, DRIVERS_PHOTO_TYPE);
+    const constructorsPrintable = getPrintableCache(chatId, CONSTRUCTORS_PHOTO_TYPE);
+    const currentTeamPrintable = getPrintableCache(chatId, CURRENT_TEAM_PHOTO_TYPE);
+
+    if (driversPrintable) {
+        bot
+            .sendMessage(chatId, driversPrintable, { parse_mode: 'Markdown' })
+            .catch((err) => console.error('Error sending drivers cache:', err));
+    } else {
+        bot
+            .sendMessage(chatId, 'Drivers cache is empty. Please send drivers image or valid JSON data.')
+            .catch((err) => console.error('Error sending empty drivers cache message:', err));
+    }
+
+    if (constructorsPrintable) {
+        bot
+            .sendMessage(chatId, constructorsPrintable, { parse_mode: 'Markdown' })
+            .catch((err) => console.error('Error sending constructors cache:', err));
+    } else {
+        bot
+            .sendMessage(chatId, 'Constructors cache is empty. Please send constructors image or valid JSON data.')
+            .catch((err) => console.error('Error sending empty constructors cache message:', err));
+    }
+
+    if (currentTeamPrintable) {
+        bot
+            .sendMessage(chatId, currentTeamPrintable, { parse_mode: 'Markdown' })
+            .catch((err) => console.error('Error sending current team cache:', err));
+    } else {
+        bot
+            .sendMessage(chatId, 'Current team cache is empty. Please send current team image or valid JSON data.')
+            .catch((err) => console.error('Error sending empty current team cache message:', err));
+    }
+
+    return;
+}
+
+function displayHelpMessage(bot, chatId) {
+    bot
+        .sendMessage(
+            chatId,
+            `*Available Commands:*\n` +
+            `${COMMAND_BEST_TEAMS.replace(/_/g, '\\_')} - Calculate and display the best possible teams based on your cached data.\n` +
+            `${COMMAND_PRINT_CACHE.replace(/_/g, '\\_')} - Show the currently cached drivers, constructors, and current team.\n` +
+            `${COMMAND_RESET_CACHE.replace(/_/g, '\\_')} - Clear all cached data for this chat.\n` +
+            `${COMMAND_HELP.replace(/_/g, '\\_')} - Show this help message.\n\n` +
+            '*Other Messages:*\n' +
+            '- Send an image (drivers, constructors, or current team screenshot) to automatically extract and cache the relevant data.\n' +
+            '- Send valid JSON data to update your drivers, constructors, and current team cache.\n' +
+            `- Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using ${COMMAND_BEST_TEAMS.replace(/_/g, '\\_')}).`,
+            { parse_mode: 'Markdown' }
+        )
+        .catch((err) => console.error('Error sending help message:', err));
+    return;
 }

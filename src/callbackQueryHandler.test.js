@@ -31,6 +31,7 @@ jest.mock('./cache', () => ({
   currentTeamCache: {},
   constructorsCache: {},
   driversCache: {},
+  bestTeamsCache: {},
   getPrintableCache: jest.fn(),
 }));
 
