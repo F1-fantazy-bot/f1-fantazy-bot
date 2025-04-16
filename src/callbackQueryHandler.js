@@ -5,6 +5,7 @@ const {
   constructorsCache,
   driversCache,
   getPrintableCache,
+  bestTeamsCache
 } = require('./cache');
 const {
   DRIVERS_PHOTO_TYPE,
@@ -44,6 +45,7 @@ exports.handleCallbackQuery = async function (bot, query) {
     ]);
 
     storeInCache(chatId, type, extractedData);
+    delete bestTeamsCache[chatId];
 
     bot
       .sendMessage(chatId, getPrintableCache(chatId, type), {

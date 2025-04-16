@@ -22,14 +22,31 @@ exports.currentTeamCache = {};
 exports.getPrintableCache = function (chatId, type) {
   if (type === DRIVERS_PHOTO_TYPE) {
     const data = exports.driversCache[chatId];
+
+    if (!data){
+      return null;
+    }
+
     return wrapWithCodeBlock(JSON.stringify(Object.values(data), null, 2));
   }
+
   if (type === CONSTRUCTORS_PHOTO_TYPE) {
     const data = exports.constructorsCache[chatId];
+
+    if (!data){
+      return null;
+    }    
+    
     return wrapWithCodeBlock(JSON.stringify(Object.values(data), null, 2));
   }
+  
   if (type === CURRENT_TEAM_PHOTO_TYPE) {
     const data = exports.currentTeamCache[chatId];
+
+    if (!data){
+      return null;
+    }
+        
     return wrapWithCodeBlock(JSON.stringify(data, null, 2));
   }
 
