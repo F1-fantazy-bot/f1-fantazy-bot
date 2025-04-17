@@ -3,6 +3,7 @@ const {
   DRIVERS_PHOTO_TYPE,
   CONSTRUCTORS_PHOTO_TYPE,
   CURRENT_TEAM_PHOTO_TYPE,
+  PHOTO_CALLBACK_TYPE,
 } = require('./constants');
 const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 const cache = require('./cache');
@@ -63,7 +64,7 @@ describe('handleCallbackQuery', () => {
         chat: { id: chatId },
         message_id: messageId,
       },
-      data: `${type}:${fileId}`,
+      data: `${PHOTO_CALLBACK_TYPE}:${type}:${fileId}`,
       id: 'queryId',
     };
 
@@ -102,7 +103,7 @@ describe('handleCallbackQuery', () => {
   });
 
   it('should handle constructors photo type and store in constructorsCache', async () => {
-    query.data = `${CONSTRUCTORS_PHOTO_TYPE}:${fileId}`;
+    query.data = `${PHOTO_CALLBACK_TYPE}:${CONSTRUCTORS_PHOTO_TYPE}:${fileId}`;
     extractJsonDataFromPhotos.mockResolvedValue(
       '```json\n{"Constructors":[{"CN":"MER","price":50,"expectedPriceChange":3,"expectedPoints":100}]}\n```'
     );
@@ -124,7 +125,7 @@ describe('handleCallbackQuery', () => {
   });
 
   it('should handle current team photo type and store in currentTeamCache', async () => {
-    query.data = `${CURRENT_TEAM_PHOTO_TYPE}:${fileId}`;
+    query.data = `${PHOTO_CALLBACK_TYPE}:${CURRENT_TEAM_PHOTO_TYPE}:${fileId}`;
     extractJsonDataFromPhotos.mockResolvedValue(
       '```json\n{"CurrentTeam":{"drivers":["L. Hamilton"],"constructors":["Mercedes"],"drsBoost":"L. Hamilton","freeTransfers":2,"costCapRemaining":10}}\n```'
     );

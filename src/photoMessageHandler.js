@@ -3,6 +3,7 @@ const {
   DRIVERS_PHOTO_TYPE,
   CONSTRUCTORS_PHOTO_TYPE,
   CURRENT_TEAM_PHOTO_TYPE,
+  PHOTO_CALLBACK_TYPE,
 } = require('./constants');
 
 exports.handlePhotoMessage = function (bot, msg) {
@@ -30,15 +31,15 @@ exports.handlePhotoMessage = function (bot, msg) {
         [
           {
             text: 'Drivers',
-            callback_data: `${DRIVERS_PHOTO_TYPE}:${fileUniqueId}`,
+            callback_data: `${PHOTO_CALLBACK_TYPE}:${DRIVERS_PHOTO_TYPE}:${fileUniqueId}`,
           },
           {
             text: 'Constructors',
-            callback_data: `${CONSTRUCTORS_PHOTO_TYPE}:${fileUniqueId}`,
+            callback_data: `${PHOTO_CALLBACK_TYPE}:${CONSTRUCTORS_PHOTO_TYPE}:${fileUniqueId}`,
           },
           {
             text: 'Current Team',
-            callback_data: `${CURRENT_TEAM_PHOTO_TYPE}:${fileUniqueId}`,
+            callback_data: `${PHOTO_CALLBACK_TYPE}:${CURRENT_TEAM_PHOTO_TYPE}:${fileUniqueId}`,
           },
         ],
       ],

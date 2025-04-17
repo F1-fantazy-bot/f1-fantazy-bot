@@ -5,19 +5,33 @@ const {
   constructorsCache,
   driversCache,
   getPrintableCache,
-  bestTeamsCache
+  bestTeamsCache,
 } = require('./cache');
 const {
   DRIVERS_PHOTO_TYPE,
   CONSTRUCTORS_PHOTO_TYPE,
   CURRENT_TEAM_PHOTO_TYPE,
   NAME_TO_CODE_MAPPING,
+  PHOTO_CALLBACK_TYPE,
 } = require('./constants');
 
+const { sendLogMessage } = require('./utils');
+
 exports.handleCallbackQuery = async function (bot, query) {
+  const callbackType = query.data.split(':')[0];
+
+  switch (callbackType) {
+    case PHOTO_CALLBACK_TYPE:
+      return handlePhotoCallback(bot, query);
+    default:
+      sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
+  }
+};
+
+async function handlePhotoCallback(bot, query) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
-  const [type, fileId] = query.data.split(':');
+  const [_, type, fileId] = query.data.split(':');
 
   // Save or process the selection (just logging here)
   console.log(
@@ -63,7 +77,7 @@ exports.handleCallbackQuery = async function (bot, query) {
         console.error('Error sending extraction error message:', err)
       );
   }
-};
+}
 
 function storeInCache(chatId, type, extractedData) {
   const cleanedJsonString = extractedData
