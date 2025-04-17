@@ -19,6 +19,12 @@ exports.sendLogMessage = function (bot, logMessage) {
 
   let log = `${logMessage}
 env: ${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`;
+
+  if (process.env.NODE_ENV === 'production') {
+    log += `
+pid: ${process.pid}`;
+  }
+
   bot.sendMessage(LOG_CHANNEL_ID, log);
 };
 
