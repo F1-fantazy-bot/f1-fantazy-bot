@@ -47,18 +47,6 @@ bot.on('error', (err) => {
   sendLogMessage(bot, `Error occurred: ${err.message}`);
 });
 
-process.on('SIGINT', () => {
-  sendLogMessage(bot, 'got SIGINT. Bot is shutting down...');
-  bot.stopPolling();
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  sendLogMessage(bot, 'got SIGTERM. Bot is shutting down...');
-  bot.stopPolling();
-  process.exit(0);
-});
-
 process.on('uncaughtException', (err) => {
   sendLogMessage(bot, `Uncaught exception: ${err.message}`);
   console.error('Uncaught exception:', err);
