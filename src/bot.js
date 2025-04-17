@@ -22,10 +22,7 @@ if (NODE_ENV !== 'production') {
 }
 
 // Send a message to the log channel that the bot has started.
-sendLogMessage(
-  bot,
-  'Bot started successfully.'
-);
+sendLogMessage(bot, 'Bot started successfully.');
 
 // Listen for any kind of message.
 bot.on('message', async (msg) => {
@@ -37,6 +34,49 @@ bot.on('callback_query', async (query) => {
 });
 
 // Log polling errors
-bot.on('polling_error', (err) => console.error('Polling error:', err));
+bot.on('polling_error', (err) =>
+  sendLogMessage(bot, `Polling error: ${err.message}`)
+);
+
+bot.on('webhook_error', (err) =>
+  sendLogMessage(bot, `Webhook error: ${err.message}`)
+);
+
+// Log any errors that occur
+bot.on('error', (err) => {
+  sendLogMessage(bot, `Error occurred: ${err.message}`);
+});
+
+process.on('SIGINT', () => {
+  sendLogMessage(bot, 'got SIGINT. Bot is shutting down...');
+  bot.stopPolling();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  sendLogMessage(bot, 'got SIGTERM. Bot is shutting down...');
+  bot.stopPolling();
+  process.exit(0);
+});
+
+process.on('uncaughtException', (err) => {
+  sendLogMessage(bot, `Uncaught exception: ${err.message}`);
+  console.error('Uncaught exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  sendLogMessage(bot, `Unhandled rejection: ${reason}`);
+  console.error('Unhandled rejection:', reason);
+});
+
+process.on('exit', (code) => {
+  sendLogMessage(bot, `Process exited with code: ${code}`);
+  console.log(`Process exited with code: ${code}`);
+});
+
+process.on('warning', (warning) => {
+  sendLogMessage(bot, `Warning: ${warning.message}`);
+  console.warn('Warning:', warning);
+});
 
 module.exports = bot;
