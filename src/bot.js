@@ -62,9 +62,4 @@ process.on('exit', (code) => {
   console.log(`Process exited with code: ${code}`);
 });
 
-process.on('warning', (warning) => {
-  sendLogMessage(bot, `Warning: ${warning.message}`);
-  console.warn('Warning:', warning);
-});
-
 module.exports = bot;
