@@ -17,7 +17,7 @@ exports.sendLogMessage = function (bot, logMessage) {
     return;
   }
 
-  const log = `${logMessage}
+  let log = `${logMessage}
 env: ${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`;
   if (process.env.NODE_ENV === 'production') {
     log += `
