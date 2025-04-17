@@ -2,6 +2,7 @@ const {
   DRIVERS_PHOTO_TYPE,
   CONSTRUCTORS_PHOTO_TYPE,
   CURRENT_TEAM_PHOTO_TYPE,
+  WITHOUT_CHIP,
 } = require('./constants');
 
 // In-memory cache for photos by unique file id
@@ -18,6 +19,8 @@ exports.constructorsCache = {};
 
 // In-memory cache for current team by chat id
 exports.currentTeamCache = {};
+
+exports.selectedChipCache = {};
 
 exports.getPrintableCache = function (chatId, type) {
   if (type === DRIVERS_PHOTO_TYPE) {

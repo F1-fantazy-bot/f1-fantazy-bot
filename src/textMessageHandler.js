@@ -9,19 +9,24 @@ const {
   constructorsCache,
   currentTeamCache,
   getPrintableCache,
+  selectedChipCache,
 } = require('./cache');
 const {
   DRIVERS_PHOTO_TYPE,
   CONSTRUCTORS_PHOTO_TYPE,
   CURRENT_TEAM_PHOTO_TYPE,
+  COMMAND_BEST_TEAMS,
+  COMMAND_CURRENT_TEAM_BUDGET,
+  COMMAND_CHIPS,
+  COMMAND_PRINT_CACHE,
+  COMMAND_RESET_CACHE,
+  COMMAND_HELP,
+  CHIP_CALLBACK_TYPE,
+  EXTRA_DRS_CHIP,
+  WILDCARD_CHIP,
+  LIMITLESS_CHIP,
+  WITHOUT_CHIP,
 } = require('./constants');
-
-// Command constants
-const COMMAND_BEST_TEAMS = '/best_teams';
-const COMMAND_CURRENT_TEAM_BUDGET = '/current_team_budget';
-const COMMAND_PRINT_CACHE = '/print_cache';
-const COMMAND_RESET_CACHE = '/reset_cache';
-const COMMAND_HELP = '/help';
 
 exports.handleTextMessage = function (bot, msg) {
   const chatId = msg.chat.id;
@@ -39,6 +44,9 @@ exports.handleTextMessage = function (bot, msg) {
     // Handle the "/current_team_budget" command
     case msg.text === COMMAND_CURRENT_TEAM_BUDGET:
       return calcCurrentTeamBudget(bot, chatId);
+    // Handle the "/chips" command
+    case msg.text === COMMAND_CHIPS:
+      return handleChipsMessage(bot, msg);
     // Handle the "/print_cache" command
     case msg.text === COMMAND_PRINT_CACHE:
       return sendPrintableCache(chatId, bot);
@@ -217,6 +225,7 @@ function resetCacheForChat(chatId, bot) {
   delete constructorsCache[chatId];
   delete currentTeamCache[chatId];
   delete bestTeamsCache[chatId];
+  delete selectedChipCache[chatId];
 
   bot
     .sendMessage(chatId, 'Cache has been reset for your chat.')
@@ -234,6 +243,7 @@ function sendPrintableCache(chatId, bot) {
     chatId,
     CURRENT_TEAM_PHOTO_TYPE
   );
+  const selectedChip = selectedChipCache[chatId];
 
   if (driversPrintable) {
     bot
@@ -278,6 +288,18 @@ function sendPrintableCache(chatId, bot) {
       .catch((err) =>
         console.error('Error sending empty current team cache message:', err)
       );
+  }
+
+  if (selectedChip) {
+    bot
+      .sendMessage(chatId, `Selected Chip: ${selectedChip}`)
+      .catch((err) =>
+        console.error('Error sending selected chip message:', err)
+      );
+  } else {
+    bot
+      .sendMessage(chatId, 'No chip selected.')
+      .catch((err) => console.error('Error sending no chip message:', err));
   }
 
   return;
@@ -331,6 +353,38 @@ function calcCurrentTeamBudget(bot, chatId) {
   return;
 }
 
+function handleChipsMessage(bot, msg) {
+  const chatId = msg.chat.id;
+  const messageId = msg.message_id;
+
+  // Reply with inline buttons
+  bot.sendMessage(chatId, 'which chip do you want to use?', {
+    reply_to_message_id: messageId,
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: 'Extra DRS',
+            callback_data: `${CHIP_CALLBACK_TYPE}:${EXTRA_DRS_CHIP}`,
+          },
+          {
+            text: 'Limitless',
+            callback_data: `${CHIP_CALLBACK_TYPE}:${LIMITLESS_CHIP}`,
+          },
+          {
+            text: 'Wildcard',
+            callback_data: `${CHIP_CALLBACK_TYPE}:${WILDCARD_CHIP}`,
+          },
+          {
+            text: 'Without Chip',
+            callback_data: `${CHIP_CALLBACK_TYPE}:${WITHOUT_CHIP}`,
+          },
+        ],
+      ],
+    },
+  });
+}
+
 function displayHelpMessage(bot, chatId) {
   bot
     .sendMessage(
@@ -344,6 +398,10 @@ function displayHelpMessage(bot, chatId) {
           /_/g,
           '\\_'
         )} - Calculate the current team budget based on your cached data.\n` +
+        `${COMMAND_CHIPS.replace(
+          /_/g,
+          '\\_'
+        )} - choose a chip to use for the current race.\n` +
         `${COMMAND_PRINT_CACHE.replace(
           /_/g,
           '\\_'

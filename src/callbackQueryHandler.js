@@ -6,6 +6,7 @@ const {
   driversCache,
   getPrintableCache,
   bestTeamsCache,
+  selectedChipCache,
 } = require('./cache');
 const {
   DRIVERS_PHOTO_TYPE,
@@ -13,6 +14,8 @@ const {
   CURRENT_TEAM_PHOTO_TYPE,
   NAME_TO_CODE_MAPPING,
   PHOTO_CALLBACK_TYPE,
+  CHIP_CALLBACK_TYPE,
+  WITHOUT_CHIP,
 } = require('./constants');
 
 const { sendLogMessage } = require('./utils');
@@ -23,6 +26,8 @@ exports.handleCallbackQuery = async function (bot, query) {
   switch (callbackType) {
     case PHOTO_CALLBACK_TYPE:
       return handlePhotoCallback(bot, query);
+    case CHIP_CALLBACK_TYPE:
+      return handleChipCallback(bot, query);
     default:
       sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
   }
@@ -77,6 +82,24 @@ async function handlePhotoCallback(bot, query) {
         console.error('Error sending extraction error message:', err)
       );
   }
+}
+function handleChipCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const messageId = query.message.message_id;
+  const chip = query.data.split(':')[1];
+  selectedChipCache[chatId] = chip;
+  if (chip === WITHOUT_CHIP) {
+    delete selectedChipCache[chatId];
+  }
+
+  // Optional: edit the message to confirm
+  bot.editMessageText(`Selected chip: ${chip.toUpperCase()}.`, {
+    chat_id: chatId,
+    message_id: messageId,
+  });
+
+  // Answer callback to remove "Loading..." spinner
+  bot.answerCallbackQuery(query.id);
 }
 
 function storeInCache(chatId, type, extractedData) {

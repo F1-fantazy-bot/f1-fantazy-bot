@@ -1,11 +1,26 @@
 const { handleMessage } = require('./messageHandler');
-const { KILZI_CHAT_ID } = require('./constants');
+const {
+  KILZI_CHAT_ID,
+  COMMAND_BEST_TEAMS,
+  COMMAND_CURRENT_TEAM_BUDGET,
+  COMMAND_CHIPS,
+  COMMAND_PRINT_CACHE,
+  COMMAND_RESET_CACHE,
+  COMMAND_HELP,
+} = require('./constants');
+
 jest.mock('./utils', () => ({
   getChatName: jest.fn().mockReturnValue('Unknown'),
   sendLogMessage: jest.fn(),
 }));
 const { sendLogMessage } = require('./utils');
-const { driversCache, constructorsCache, currentTeamCache, bestTeamsCache } = require('./cache');
+const {
+  driversCache,
+  constructorsCache,
+  currentTeamCache,
+  bestTeamsCache,
+  selectedChipCache,
+} = require('./cache');
 
 const timesCalledSendLogMessageInMessageHandler = 1;
 describe('handleTextMessage', () => {
@@ -47,7 +62,7 @@ describe('handleTextMessage', () => {
   it('should handle /help command and send help message', () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
-      text: '/help',
+      text: COMMAND_HELP,
     };
 
     handleMessage(botMock, msgMock);
@@ -61,7 +76,7 @@ describe('handleTextMessage', () => {
   it('should handle /reset_cache command and send reset confirmation', () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
-      text: '/reset_cache',
+      text: COMMAND_RESET_CACHE,
     };
 
     // Set up cache before resetting
@@ -69,6 +84,7 @@ describe('handleTextMessage', () => {
     constructorsCache[KILZI_CHAT_ID] = { some: 'data' };
     currentTeamCache[KILZI_CHAT_ID] = { some: 'data' };
     bestTeamsCache[KILZI_CHAT_ID] = { some: 'data' };
+    selectedChipCache[KILZI_CHAT_ID] = 'some_chip';
 
     handleMessage(botMock, msgMock);
 
@@ -80,27 +96,28 @@ describe('handleTextMessage', () => {
     expect(constructorsCache[KILZI_CHAT_ID]).toBeUndefined();
     expect(currentTeamCache[KILZI_CHAT_ID]).toBeUndefined();
     expect(bestTeamsCache[KILZI_CHAT_ID]).toBeUndefined();
+    expect(selectedChipCache[KILZI_CHAT_ID]).toBeUndefined();
   });
 
   it('should handle /print_cache command and send cache messages', () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
-      text: '/print_cache',
+      text: COMMAND_PRINT_CACHE,
     };
 
     // Set up cache before resetting
     driversCache[KILZI_CHAT_ID] = { some: 'data' };
     constructorsCache[KILZI_CHAT_ID] = { some: 'data' };
     currentTeamCache[KILZI_CHAT_ID] = { some: 'data' };
-    
+
     handleMessage(botMock, msgMock);
-    expect(botMock.sendMessage).toHaveBeenCalledTimes(3);
+    expect(botMock.sendMessage).toHaveBeenCalledTimes(4);
   });
 
   it('should handle /best_teams command and send missing cache message if no cache', () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
-      text: '/best_teams',
+      text: COMMAND_BEST_TEAMS,
     };
 
     handleMessage(botMock, msgMock);
@@ -143,7 +160,7 @@ describe('handleTextMessage', () => {
   it('should calculate and send current team budget correctly', () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
-      text: '/current_team_budget',
+      text: COMMAND_CURRENT_TEAM_BUDGET,
     };
 
     // Setup mock cache data
@@ -174,12 +191,16 @@ describe('handleTextMessage', () => {
     );
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
-      expect.stringContaining(`*Drivers & Constructors Total Price:* ${expectedTotalPrice.toFixed(2)}`),
+      expect.stringContaining(
+        `*Drivers & Constructors Total Price:* ${expectedTotalPrice.toFixed(2)}`
+      ),
       { parse_mode: 'Markdown' }
     );
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
-      expect.stringContaining(`*Cost Cap Remaining:* ${expectedCostCap.toFixed(2)}`),
+      expect.stringContaining(
+        `*Cost Cap Remaining:* ${expectedCostCap.toFixed(2)}`
+      ),
       { parse_mode: 'Markdown' }
     );
     expect(botMock.sendMessage).toHaveBeenCalledWith(
@@ -192,11 +213,15 @@ describe('handleTextMessage', () => {
   it('should send missing cache message if drivers cache is missing', () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
-      text: '/current_team_budget',
+      text: COMMAND_CURRENT_TEAM_BUDGET,
     };
     // Only constructors and currentTeam set
     constructorsCache[KILZI_CHAT_ID] = { RBR: { PR: 20.0 } };
-    currentTeamCache[KILZI_CHAT_ID] = { drivers: [], constructors: [], costCapRemaining: 0 };
+    currentTeamCache[KILZI_CHAT_ID] = {
+      drivers: [],
+      constructors: [],
+      costCapRemaining: 0,
+    };
 
     handleMessage(botMock, msgMock);
 
@@ -209,10 +234,14 @@ describe('handleTextMessage', () => {
   it('should send missing cache message if constructors cache is missing', () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
-      text: '/current_team_budget',
+      text: COMMAND_CURRENT_TEAM_BUDGET,
     };
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
-    currentTeamCache[KILZI_CHAT_ID] = { drivers: [], constructors: [], costCapRemaining: 0 };
+    currentTeamCache[KILZI_CHAT_ID] = {
+      drivers: [],
+      constructors: [],
+      costCapRemaining: 0,
+    };
 
     handleMessage(botMock, msgMock);
 
@@ -225,7 +254,7 @@ describe('handleTextMessage', () => {
   it('should send missing cache message if current team cache is missing', () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
-      text: '/current_team_budget',
+      text: COMMAND_CURRENT_TEAM_BUDGET,
     };
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
     constructorsCache[KILZI_CHAT_ID] = { RBR: { PR: 20.0 } };
