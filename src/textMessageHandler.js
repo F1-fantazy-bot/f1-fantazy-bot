@@ -27,40 +27,32 @@ exports.handleTextMessage = function (bot, msg) {
   const chatId = msg.chat.id;
   const textTrimmed = msg.text.trim();
 
-  // Check if message text is a number and delegate to the number handler
-  if (/^\d+$/.test(textTrimmed)) {
-    handleNumberMessage(bot, chatId, textTrimmed);
-    return;
+  switch (true) {
+    // Check if message text is a number and delegate to the number handler
+    case /^\d+$/.test(textTrimmed):
+      handleNumberMessage(bot, chatId, textTrimmed);
+      return;
+    // Handle the "/best_teams" command
+    case msg.text === COMMAND_BEST_TEAMS:
+      handleBestTeamsMessage(bot, chatId);
+      return;
+    // Handle the "/current_team_budget" command
+    case msg.text === COMMAND_CURRENT_TEAM_BUDGET:
+      return calcCurrentTeamBudget(bot, chatId);
+    // Handle the "/print_cache" command
+    case msg.text === COMMAND_PRINT_CACHE:
+      return sendPrintableCache(chatId, bot);
+    // Handle the "/reset_cache" command
+    case msg.text === COMMAND_RESET_CACHE:
+      return resetCacheForChat(chatId, bot);
+    // Handle the "/help" command
+    case msg.text === COMMAND_HELP:
+      return displayHelpMessage(bot, chatId);
+    default:
+      // Delegate to the JSON handler for any other case
+      handleJsonMessage(bot, msg, chatId);
+      break;
   }
-
-  // Handle the "/best_teams" command
-  if (msg.text === COMMAND_BEST_TEAMS) {
-    handleBestTeamsMessage(bot, chatId);
-    return;
-  }
-
-  // Handle the "/current_team_budget" command
-  if (msg.text === COMMAND_CURRENT_TEAM_BUDGET) {
-    return calcCurrentTeamBudget(bot, chatId);
-  }
-
-  // Handle the "/print_cache" command
-  if (msg.text === COMMAND_PRINT_CACHE) {
-    return sendPrintableCache(chatId, bot);
-  }
-
-  // Handle the "/reset_cache" command
-  if (msg.text === COMMAND_RESET_CACHE) {
-    return resetCacheForChat(chatId, bot);
-  }
-
-  // Handle the "/help" command
-  if (msg.text === COMMAND_HELP) {
-    return displayHelpMessage(bot, chatId);
-  }
-
-  // Delegate to the JSON handler for any other case
-  handleJsonMessage(bot, msg, chatId);
 };
 
 // Handles the case when the message text is a number
