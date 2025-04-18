@@ -1,4 +1,4 @@
-const { getChatName, sendLogMessage } = require('./utils');
+const { getChatName, sendLogMessage, calculateTeamBudget, validateJsonData } = require('./utils');
 
 describe('utils', () => {
   describe('getChatName', () => {
@@ -107,6 +107,236 @@ describe('utils', () => {
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         expect.any(Number), // LOG_CHANNEL_ID
         expect.stringContaining('env: dev')
+      );
+    });
+  });
+
+  describe('calculateTeamBudget', () => {
+    it('calculates totalPrice, costCapRemaining, and overallBudget correctly', () => {
+      const mockDrivers = {
+        VER: { DR: 'VER', price: 30, expectedPoints: 25, expectedPriceChange: 0.2 },
+        HAM: { DR: 'HAM', price: 28, expectedPoints: 20, expectedPriceChange: 0.1 },
+        PER: { DR: 'PER', price: 25, expectedPoints: 15, expectedPriceChange: -0.1 },
+        SAI: { DR: 'SAI', price: 23, expectedPoints: 18, expectedPriceChange: 0.3 },
+        LEC: { DR: 'LEC', price: 24, expectedPoints: 19, expectedPriceChange: 0.1 },
+        NOR: { DR: 'NOR', price: 20, expectedPoints: 12, expectedPriceChange: 0 }
+      };
+
+      const mockConstructors = {
+        RED: { CN: 'RED', price: 35, expectedPoints: 30, expectedPriceChange: 0.5 },
+        MER: { CN: 'MER', price: 32, expectedPoints: 25, expectedPriceChange: 0.2 },
+        FER: { CN: 'FER', price: 30, expectedPoints: 20, expectedPriceChange: -0.1 }
+      };
+
+      const mockCurrentTeam = {
+        drivers: ['VER', 'HAM', 'PER', 'SAI', 'LEC'],
+        constructors: ['RED', 'MER'],
+        drsBoost: 'VER',
+        freeTransfers: 2,
+        costCapRemaining: 10
+      };
+
+      const result = calculateTeamBudget(mockCurrentTeam, mockDrivers, mockConstructors);
+
+      // totalPrice = 30+28+25+23+24 + 35+32 = 197
+      // costCapRemaining = 10
+      // overallBudget = 197 + 10 = 207
+      expect(result).toEqual({
+        totalPrice: 197,
+        costCapRemaining: 10,
+        overallBudget: 207,
+      });
+    });
+
+    it('returns 0 totalPrice if drivers and constructors are empty', () => {
+      const team = {
+        drivers: [],
+        constructors: [],
+        costCapRemaining: 10,
+      };
+      const drivers = [];
+      const constructors = [];
+
+      const result = calculateTeamBudget(team, drivers, constructors);
+
+      expect(result).toEqual({
+        totalPrice: 0,
+        costCapRemaining: 10,
+        overallBudget: 10,
+      });
+    });
+
+    it('handles driver and constructor indices correctly', () => {
+      const team = {
+        drivers: [1, 0],
+        constructors: [1, 0],
+        costCapRemaining: 0,
+      };
+      const drivers = [{ price: 5 }, { price: 10 }];
+      const constructors = [{ price: 20 }, { price: 30 }];
+
+      const result = calculateTeamBudget(team, drivers, constructors);
+
+      // drivers: 10 + 5, constructors: 30 + 20
+      expect(result).toEqual({
+        totalPrice: 65,
+        costCapRemaining: 0,
+        overallBudget: 65,
+      });
+    });
+  });
+
+  describe('validateJsonData', () => {
+    let botMock;
+
+    beforeEach(() => {
+      botMock = {
+        sendMessage: jest.fn().mockResolvedValue(),
+      };
+    });
+
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+
+    const validJsonData = {
+      Drivers: Array(20).fill({}),
+      Constructors: Array(10).fill({}),
+      CurrentTeam: {
+        drivers: Array(5).fill('DRIVER'),
+        constructors: Array(2).fill('CONSTRUCTOR'),
+        drsBoost: 'DRIVER',
+        freeTransfers: 2,
+        costCapRemaining: 10,
+      },
+    };
+
+    it('returns true for valid JSON data', async () => {
+      const result = validateJsonData(botMock, validJsonData, 123);
+      expect(result).toBe(true);
+      expect(botMock.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('returns false and sends message if Drivers is missing', async () => {
+      const data = { ...validJsonData, Drivers: undefined };
+      const result = validateJsonData(botMock, data, 123);
+      expect(result).toBe(false);
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        123,
+        expect.stringContaining('20 drivers')
+      );
+    });
+
+    it('returns false and sends message if Drivers length is not 20', async () => {
+      const data = { ...validJsonData, Drivers: Array(19).fill({}) };
+      const result = validateJsonData(botMock, data, 123);
+      expect(result).toBe(false);
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        123,
+        expect.stringContaining('20 drivers')
+      );
+    });
+
+    it('returns false and sends message if Constructors is missing', async () => {
+      const data = { ...validJsonData, Constructors: undefined };
+      const result = validateJsonData(botMock, data, 123);
+      expect(result).toBe(false);
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        123,
+        expect.stringContaining('10 constructors')
+      );
+    });
+
+    it('returns false and sends message if Constructors length is not 10', async () => {
+      const data = { ...validJsonData, Constructors: Array(9).fill({}) };
+      const result = validateJsonData(botMock, data, 123);
+      expect(result).toBe(false);
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        123,
+        expect.stringContaining('10 constructors')
+      );
+    });
+
+    it('returns false and sends message if CurrentTeam is missing', async () => {
+      const data = { ...validJsonData, CurrentTeam: undefined };
+      const result = validateJsonData(botMock, data, 123);
+      expect(result).toBe(false);
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        123,
+        expect.stringContaining('CurrentTeam')
+      );
+    });
+
+    it('returns false and sends message if CurrentTeam.drivers is missing', async () => {
+      const data = { ...validJsonData, CurrentTeam: { ...validJsonData.CurrentTeam, drivers: undefined } };
+      const result = validateJsonData(botMock, data, 123);
+      expect(result).toBe(false);
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        123,
+        expect.stringContaining('CurrentTeam')
+      );
+    });
+
+    it('returns false and sends message if CurrentTeam.drivers length is not 5', async () => {
+      const data = { ...validJsonData, CurrentTeam: { ...validJsonData.CurrentTeam, drivers: Array(4).fill('DRIVER') } };
+      const result = validateJsonData(botMock, data, 123);
+      expect(result).toBe(false);
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        123,
+        expect.stringContaining('CurrentTeam')
+      );
+    });
+
+    it('returns false and sends message if CurrentTeam.constructors is missing', async () => {
+      const data = { ...validJsonData, CurrentTeam: { ...validJsonData.CurrentTeam, constructors: undefined } };
+      const result = validateJsonData(botMock, data, 123);
+      expect(result).toBe(false);
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        123,
+        expect.stringContaining('CurrentTeam')
+      );
+    });
+
+    it('returns false and sends message if CurrentTeam.constructors length is not 2', async () => {
+      const data = { ...validJsonData, CurrentTeam: { ...validJsonData.CurrentTeam, constructors: Array(1).fill('CONSTRUCTOR') } };
+      const result = validateJsonData(botMock, data, 123);
+      expect(result).toBe(false);
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        123,
+        expect.stringContaining('CurrentTeam')
+      );
+    });
+
+    it('returns false and sends message if CurrentTeam.drsBoost is missing', async () => {
+      const { drsBoost, ...rest } = validJsonData.CurrentTeam;
+      const data = { ...validJsonData, CurrentTeam: { ...rest } };
+      const result = validateJsonData(botMock, data, 123);
+      expect(result).toBe(false);
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        123,
+        expect.stringContaining('CurrentTeam')
+      );
+    });
+
+    it('returns false and sends message if CurrentTeam.freeTransfers is missing', async () => {
+      const { freeTransfers, ...rest } = validJsonData.CurrentTeam;
+      const data = { ...validJsonData, CurrentTeam: { ...rest } };
+      const result = validateJsonData(botMock, data, 123);
+      expect(result).toBe(false);
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        123,
+        expect.stringContaining('CurrentTeam')
+      );
+    });
+
+    it('returns false and sends message if CurrentTeam.costCapRemaining is missing', async () => {
+      const { costCapRemaining, ...rest } = validJsonData.CurrentTeam;
+      const data = { ...validJsonData, CurrentTeam: { ...rest } };
+      const result = validateJsonData(botMock, data, 123);
+      expect(result).toBe(false);
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        123,
+        expect.stringContaining('CurrentTeam')
       );
     });
   });

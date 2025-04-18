@@ -1,4 +1,4 @@
-const { sendLogMessage, validateJsonData } = require('./utils');
+const { sendLogMessage, validateJsonData, calculateTeamBudget } = require('./utils');
 const {
   calculateBestTeams,
   calculateChangesToTeam,
@@ -74,8 +74,14 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
     );
 
     if (selectedTeam) {
+      // Build cachedJsonData object
+      const cachedJsonData = {
+        Drivers: driversCache[chatId],
+        Constructors: constructorsCache[chatId],
+        CurrentTeam: currentTeam,
+      };
       const changesToTeam = calculateChangesToTeam(
-        currentTeam,
+        cachedJsonData,
         selectedTeam,
         selectedChipCache[chatId]
       );
@@ -170,19 +176,18 @@ function handleBestTeamsMessage(bot, chatId) {
     return;
   }
 
-  // Build jsonData object
-  const jsonData = {
-    Drivers: Object.values(drivers),
-    Constructors: Object.values(constructors),
+  // Build cachedJsonData object
+  const cachedJsonData = {
+    Drivers: drivers,
+    Constructors: constructors,
     CurrentTeam: currentTeam,
   };
 
-  if (!validateJsonData(bot, jsonData, chatId)) {
+  if (!validateJsonData(bot, { ...cachedJsonData, Drivers: Object.values(drivers), Constructors: Object.values(constructors) }, chatId)) {
     return;
   }
-
-  const bestTeams = calculateBestTeams(jsonData, selectedChipCache[chatId]);
-  bestTeamsCache[chatId] = { currentTeam: jsonData.CurrentTeam, bestTeams };
+  const bestTeams = calculateBestTeams(cachedJsonData, selectedChipCache[chatId]);
+  bestTeamsCache[chatId] = { currentTeam: cachedJsonData.CurrentTeam, bestTeams };
 
   // Create the Markdown message by mapping over the bestTeams array
   let messageMarkdown = bestTeams
@@ -327,27 +332,13 @@ function calcCurrentTeamBudget(bot, chatId) {
     return;
   }
 
-  let totalPrice = 0;
-
-  // Sum driver prices
-  for (const dr of currentTeam.drivers) {
-    totalPrice += drivers[dr].price;
-  }
-
-  // Sum constructor prices
-  for (const cn of currentTeam.constructors) {
-    totalPrice += constructors[cn].price;
-  }
-
-  // Add cost remaining
-  const costCapRemaining = currentTeam.costCapRemaining;
-  const teamBudget = totalPrice + costCapRemaining;
+  const teamBudget = calculateTeamBudget(currentTeam, drivers, constructors);
 
   let message =
     `*Current Team Budget Calculation:*\n` +
-    `*Drivers & Constructors Total Price:* ${totalPrice.toFixed(2)}\n` +
-    `*Cost Cap Remaining:* ${costCapRemaining.toFixed(2)}\n` +
-    `*Total Budget:* ${teamBudget.toFixed(2)}`;
+    `*Drivers & Constructors Total Price:* ${teamBudget.totalPrice.toFixed(2)}\n` +
+    `*Cost Cap Remaining:* ${teamBudget.costCapRemaining.toFixed(2)}\n` +
+    `*Total Budget:* ${teamBudget.overallBudget.toFixed(2)}`;
 
   bot
     .sendMessage(chatId, message, { parse_mode: 'Markdown' })
@@ -395,34 +386,34 @@ function displayHelpMessage(bot, chatId) {
     .sendMessage(
       chatId,
       `*Available Commands:*\n` +
-        `${COMMAND_BEST_TEAMS.replace(
-          /_/g,
-          '\\_'
-        )} - Calculate and display the best possible teams based on your cached data.\n` +
-        `${COMMAND_CURRENT_TEAM_BUDGET.replace(
-          /_/g,
-          '\\_'
-        )} - Calculate the current team budget based on your cached data.\n` +
-        `${COMMAND_CHIPS.replace(
-          /_/g,
-          '\\_'
-        )} - choose a chip to use for the current race.\n` +
-        `${COMMAND_PRINT_CACHE.replace(
-          /_/g,
-          '\\_'
-        )} - Show the currently cached drivers, constructors, and current team.\n` +
-        `${COMMAND_RESET_CACHE.replace(
-          /_/g,
-          '\\_'
-        )} - Clear all cached data for this chat.\n` +
-        `${COMMAND_HELP.replace(/_/g, '\\_')} - Show this help message.\n\n` +
-        '*Other Messages:*\n' +
-        '- Send an image (drivers, constructors, or current team screenshot) to automatically extract and cache the relevant data.\n' +
-        '- Send valid JSON data to update your drivers, constructors, and current team cache.\n' +
-        `- Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using ${COMMAND_BEST_TEAMS.replace(
-          /_/g,
-          '\\_'
-        )}).`,
+      `${COMMAND_BEST_TEAMS.replace(
+        /_/g,
+        '\\_'
+      )} - Calculate and display the best possible teams based on your cached data.\n` +
+      `${COMMAND_CURRENT_TEAM_BUDGET.replace(
+        /_/g,
+        '\\_'
+      )} - Calculate the current team budget based on your cached data.\n` +
+      `${COMMAND_CHIPS.replace(
+        /_/g,
+        '\\_'
+      )} - choose a chip to use for the current race.\n` +
+      `${COMMAND_PRINT_CACHE.replace(
+        /_/g,
+        '\\_'
+      )} - Show the currently cached drivers, constructors, and current team.\n` +
+      `${COMMAND_RESET_CACHE.replace(
+        /_/g,
+        '\\_'
+      )} - Clear all cached data for this chat.\n` +
+      `${COMMAND_HELP.replace(/_/g, '\\_')} - Show this help message.\n\n` +
+      '*Other Messages:*\n' +
+      '- Send an image (drivers, constructors, or current team screenshot) to automatically extract and cache the relevant data.\n' +
+      '- Send valid JSON data to update your drivers, constructors, and current team cache.\n' +
+      `- Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using ${COMMAND_BEST_TEAMS.replace(
+        /_/g,
+        '\\_'
+      )}).`,
       { parse_mode: 'Markdown' }
     )
     .catch((err) => console.error('Error sending help message:', err));
