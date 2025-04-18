@@ -1,4 +1,10 @@
-exports.calculateBestTeams = function (jsonData) {
+const {
+    EXTRA_DRS_CHIP,
+    WILDCARD_CHIP,
+    LIMITLESS_CHIP,
+  } = require('./constants');
+
+exports.calculateBestTeams = function (jsonData, selectedChip) {
     // Data for drivers
     const drivers_data = jsonData.Drivers;
     
@@ -18,6 +24,8 @@ exports.calculateBestTeams = function (jsonData) {
     
     // Current team info
     const current_team = jsonData.CurrentTeam;
+
+    const freeTransfers = selectedChip === WILDCARD_CHIP ? 7 : current_team.freeTransfers;
     
     // Calculate current team total price and overall budget (price + remaining costCap)
     let current_team_price = 0;
@@ -92,7 +100,7 @@ exports.calculateBestTeams = function (jsonData) {
             const transfers_needed = transfers_drivers + transfers_cons;
     
             // Penalty: transfers beyond freeTransfers incur 10 points each.
-            const penalty = Math.max(0, transfers_needed - current_team.freeTransfers) * 10;
+            const penalty = Math.max(0, transfers_needed - freeTransfers) * 10;
     
             // Calculate projected points:
             // (total driver points with DRS bonus) + (total constructors points) - penalty.
@@ -135,7 +143,7 @@ exports.calculateBestTeams = function (jsonData) {
     return finalTeams;
 }
 
-exports.calculateChangesToTeam = function (currentTeam, targetTeam) {    
+exports.calculateChangesToTeam = function (currentTeam, targetTeam, selectedChip) {    
     // Determine drivers that need to be added and removed
     const driversToAdd = targetTeam.drivers.filter(driver => !currentTeam.drivers.includes(driver));
     const driversToRemove = currentTeam.drivers.filter(driver => !targetTeam.drivers.includes(driver));
@@ -147,12 +155,23 @@ exports.calculateChangesToTeam = function (currentTeam, targetTeam) {
     // Calculate DRS driver change:
     const drs_driver_change = currentTeam.drsBoost !== targetTeam.drs_driver;
     const newDRS = drs_driver_change ? targetTeam.drs_driver : undefined;
+
+    // Handle special chips
+    let chipToActivate;
+    if (selectedChip === WILDCARD_CHIP)
+    {
+        if (targetTeam.transfers_needed > currentTeam.freeTransfers)
+        {
+            chipToActivate = WILDCARD_CHIP;
+        }
+    }
     
     return {
         driversToAdd,
         driversToRemove,
         constructorsToAdd,
         constructorsToRemove,
-        newDRS
+        newDRS,
+        chipToActivate
     };
 };
