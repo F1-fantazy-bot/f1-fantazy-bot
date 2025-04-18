@@ -96,6 +96,57 @@ describe('calculateBestTeams', () => {
         }
     });
 
+    test('should set penalty to zero for all teams when WILDCARD_CHIP is active', () => {
+        const WILDCARD_CHIP = 'WILDCARD';
+        const mockCurrentTeamWithFewTransfers = {
+            ...mockCurrentTeam,
+            freeTransfers: 1
+        };
+        const mockJsonDataWithFewTransfers = {
+            ...mockJsonData,
+            CurrentTeam: mockCurrentTeamWithFewTransfers
+        };
+        const result = calculateBestTeams(mockJsonDataWithFewTransfers, WILDCARD_CHIP);
+        // All teams should have zero penalty since transfers_needed can't exceed 7 with WILDCARD_CHIP
+        result.forEach(team => {
+            expect(team.penalty).toBe(0);
+        });
+    });
+
+    test('calculateChangesToTeam should not activate chip if transfers_needed <= freeTransfers', () => {
+        const WILDCARD_CHIP = 'WILDCARD';
+        const currentTeam = {
+            drivers: ['VER', 'HAM', 'PER', 'SAI', 'LEC'],
+            constructors: ['RED', 'MER'],
+            drsBoost: 'VER',
+            freeTransfers: 3
+        };
+        const targetTeam = {
+            drivers: ['VER', 'HAM', 'PER', 'SAI', 'NOR'],
+            constructors: ['RED', 'FER'],
+            drs_driver: 'HAM',
+            transfers_needed: 2 // less than freeTransfers
+        };
+        const result = calculateChangesToTeam(currentTeam, targetTeam, WILDCARD_CHIP);
+        expect(result.chipToActivate).toBeUndefined();
+    });
+
+    test('should handle empty drivers and constructors gracefully', () => {
+        const emptyJsonData = {
+            Drivers: [],
+            Constructors: [],
+            CurrentTeam: {
+                drivers: [],
+                constructors: [],
+                drsBoost: '',
+                freeTransfers: 2,
+                costCapRemaining: 100
+            }
+        };
+        const result = calculateBestTeams(emptyJsonData);
+        expect(result).toEqual([]);
+    });
+
     describe('calculateChangesToTeam', () => {
 
         test('should correctly identify drivers and constructors to add/remove', () => {
@@ -140,6 +191,24 @@ describe('calculateBestTeams', () => {
             expect(result.constructorsToAdd).toEqual([]);
             expect(result.constructorsToRemove).toEqual([]);
             expect(result.newDRS).toBeUndefined();
+        });
+
+        test('calculateChangesToTeam should activate WILDCARD_CHIP if needed', () => {
+            const WILDCARD_CHIP = 'WILDCARD';
+            const currentTeam = {
+                drivers: ['VER', 'HAM', 'PER', 'SAI', 'LEC'],
+                constructors: ['RED', 'MER'],
+                drsBoost: 'VER',
+                freeTransfers: 2
+            };
+            const targetTeam = {
+                drivers: ['VER', 'HAM', 'PER', 'SAI', 'NOR'],
+                constructors: ['RED', 'FER'],
+                drs_driver: 'HAM',
+                transfers_needed: 3 // more than freeTransfers
+            };
+            const result = calculateChangesToTeam(currentTeam, targetTeam, WILDCARD_CHIP);
+            expect(result.chipToActivate).toBe(WILDCARD_CHIP);
         });
     });
 });

@@ -77,7 +77,7 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
       const changesToTeam = calculateChangesToTeam(
         currentTeam,
         selectedTeam,
-        teamRowRequested
+        selectedChipCache[chatId]
       );
 
       let changesToTeamMessage =
@@ -89,6 +89,11 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
 
       if (changesToTeam.newDRS !== undefined) {
         changesToTeamMessage += `\n*New DRS Driver:* ${changesToTeam.newDRS}`;
+      }
+
+      const selectedChip = selectedChipCache[chatId];
+      if (changesToTeam.chipToActivate !== undefined) {
+        changesToTeamMessage += `\n*Chip To Activate:* ${selectedChip.replace(/_/g, ' ')}`;
       }
 
       bot
@@ -176,7 +181,7 @@ function handleBestTeamsMessage(bot, chatId) {
     return;
   }
 
-  const bestTeams = calculateBestTeams(jsonData);
+  const bestTeams = calculateBestTeams(jsonData, selectedChipCache[chatId]);
   bestTeamsCache[chatId] = { currentTeam: jsonData.CurrentTeam, bestTeams };
 
   // Create the Markdown message by mapping over the bestTeams array
