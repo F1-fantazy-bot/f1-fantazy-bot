@@ -7,7 +7,7 @@ jest.mock('./utils', () => ({
 const { sendLogMessage } = require('./utils');
 
 jest.mock('openai', () => ({
-  AzureOpenAI: jest.fn().mockImplementation((options) => ({
+  AzureOpenAI: jest.fn().mockImplementation(() => ({
     chat: {
       completions: {
         create: jest.fn().mockResolvedValue({

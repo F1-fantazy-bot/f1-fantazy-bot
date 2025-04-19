@@ -52,7 +52,7 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught exception:', err);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason) => {
   sendLogMessage(bot, `Unhandled rejection: ${reason}`);
   console.error('Unhandled rejection:', reason);
 });

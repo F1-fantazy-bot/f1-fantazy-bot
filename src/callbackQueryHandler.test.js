@@ -9,7 +9,7 @@ const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 const cache = require('./cache');
 
 jest.mock('openai', () => ({
-  AzureOpenAI: jest.fn().mockImplementation((options) => ({
+  AzureOpenAI: jest.fn().mockImplementation(() => ({
     chat: {
       completions: {
         create: jest.fn().mockResolvedValue({

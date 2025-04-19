@@ -29,7 +29,9 @@ describe('handlePhotoMessage', () => {
       ],
     };
     // Clear cache before each test
-    for (const key in photoCache) delete photoCache[key];
+    for (const key in photoCache) {
+      delete photoCache[key];
+    }
   });
 
   it('should send inline buttons', async () => {

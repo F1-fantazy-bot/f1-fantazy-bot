@@ -2,7 +2,6 @@ const {
   DRIVERS_PHOTO_TYPE,
   CONSTRUCTORS_PHOTO_TYPE,
   CURRENT_TEAM_PHOTO_TYPE,
-  WITHOUT_CHIP,
 } = require('./constants');
 
 // In-memory cache for photos by unique file id
@@ -47,7 +46,9 @@ exports.getPrintableCache = function (chatId, type) {
       return null;
     }
 
-    return wrapWithCodeBlock(JSON.stringify(Object.values(driversData), null, 2));
+    return wrapWithCodeBlock(
+      JSON.stringify(Object.values(driversData), null, 2)
+    );
   }
 
   if (type === CONSTRUCTORS_PHOTO_TYPE) {
@@ -55,7 +56,9 @@ exports.getPrintableCache = function (chatId, type) {
       return null;
     }
 
-    return wrapWithCodeBlock(JSON.stringify(Object.values(constructorsData), null, 2));
+    return wrapWithCodeBlock(
+      JSON.stringify(Object.values(constructorsData), null, 2)
+    );
   }
 
   if (type === CURRENT_TEAM_PHOTO_TYPE) {

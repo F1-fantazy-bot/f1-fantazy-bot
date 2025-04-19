@@ -37,10 +37,12 @@ exports.handleTextMessage = function (bot, msg) {
     // Check if message text is a number and delegate to the number handler
     case /^\d+$/.test(textTrimmed):
       handleNumberMessage(bot, chatId, textTrimmed);
+
       return;
     // Handle the "/best_teams" command
     case msg.text === COMMAND_BEST_TEAMS:
       handleBestTeamsMessage(bot, chatId);
+
       return;
     // Handle the "/current_team_budget" command
     case msg.text === COMMAND_CURRENT_TEAM_BUDGET:
@@ -75,7 +77,10 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
     );
 
     if (selectedTeam) {
-      if (selectedTeam.transfers_needed === 0) {
+      if (
+        selectedTeam.transfers_needed === 0 &&
+        !selectedTeam.extra_drs_driver // if the user uses the extra drs chip we need to show the changes
+      ) {
         bot
           .sendMessage(
             chatId,
@@ -84,6 +89,7 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
           .catch((err) =>
             console.error('Error sending no changes message:', err)
           );
+
         return;
       }
 
@@ -123,8 +129,14 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
         )}\n`;
       }
 
+      if (changesToTeam.extraDrsDriver) {
+        changesToTeamMessage += `*Extra DRS Driver:* ${changesToTeam.extraDrsDriver}`;
+      }
+
       if (changesToTeam.newDRS !== undefined) {
-        changesToTeamMessage += `\n*New DRS Driver:* ${changesToTeam.newDRS}`;
+        changesToTeamMessage += `\n*${
+          changesToTeam.extraDrsDriver ? '' : 'New '
+        }DRS Driver:* ${changesToTeam.newDRS}`;
       }
 
       const selectedChip = selectedChipCache[chatId];
@@ -172,6 +184,7 @@ function handleJsonMessage(bot, msg, chatId) {
     bot
       .sendMessage(chatId, 'Invalid JSON format. Please send valid JSON.')
       .catch((err) => console.error('Error sending JSON error message:', err));
+
     return;
   }
 
@@ -206,6 +219,7 @@ function handleBestTeamsMessage(bot, chatId) {
       .catch((err) =>
         console.error('Error sending cache unavailable message:', err)
       );
+
     return;
   }
 
@@ -239,7 +253,7 @@ function handleBestTeamsMessage(bot, chatId) {
   };
 
   // Create the Markdown message by mapping over the bestTeams array
-  let messageMarkdown = bestTeams
+  const messageMarkdown = bestTeams
     .map((team) => {
       // If drivers or constructors are arrays, join them into a readable string.
       const drivers = Array.isArray(team.drivers)
@@ -249,12 +263,18 @@ function handleBestTeamsMessage(bot, chatId) {
         ? team.constructors.join(', ')
         : team.constructors;
 
-      return (
+      let teamMarkdown =
         `*Team ${team.row}${
           team.transfers_needed === 0 ? ' (Current Team)' : ''
         }*\n` +
         `*Drivers:* ${drivers}\n` +
-        `*Constructors:* ${constructors}\n` +
+        `*Constructors:* ${constructors}\n`;
+
+      if (team.extra_drs_driver) {
+        teamMarkdown += `*Extra DRS Driver:* ${team.extra_drs_driver}\n`;
+      }
+
+      teamMarkdown +=
         `*DRS Driver:* ${team.drs_driver}\n` +
         `*Total Price:* ${Number(team.total_price.toFixed(2))}\n` +
         `*Transfers Needed:* ${team.transfers_needed}\n` +
@@ -262,8 +282,9 @@ function handleBestTeamsMessage(bot, chatId) {
         `*Projected Points:* ${Number(team.projected_points.toFixed(2))}\n` +
         `*Expected Price Change:* ${Number(
           team.expected_price_change.toFixed(2)
-        )}`
-      );
+        )}`;
+
+      return teamMarkdown;
     })
     .join('\n\n');
 
@@ -291,6 +312,7 @@ function resetCacheForChat(chatId, bot) {
   bot
     .sendMessage(chatId, 'Cache has been reset for your chat.')
     .catch((err) => console.error('Error sending cache reset message:', err));
+
   return;
 }
 
@@ -342,12 +364,13 @@ function calcCurrentTeamBudget(bot, chatId) {
       .catch((err) =>
         console.error('Error sending cache unavailable message:', err)
       );
+
     return;
   }
 
   const teamBudget = calculateTeamBudget(currentTeam, drivers, constructors);
 
-  let message =
+  const message =
     `*Current Team Budget Calculation:*\n` +
     `*Drivers & Constructors Total Price:* ${teamBudget.totalPrice.toFixed(
       2
@@ -432,5 +455,6 @@ function displayHelpMessage(bot, chatId) {
       { parse_mode: 'Markdown' }
     )
     .catch((err) => console.error('Error sending help message:', err));
+
   return;
 }

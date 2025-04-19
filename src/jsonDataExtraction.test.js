@@ -3,6 +3,7 @@ const { mapPhotoTypeToSystemPrompt } = require('./utils');
 
 jest.mock('openai', () => {
   const createMock = jest.fn();
+
   return {
     AzureOpenAI: jest.fn().mockImplementation(() => ({
       chat: {

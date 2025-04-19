@@ -14,6 +14,7 @@ const {
 exports.sendLogMessage = function (bot, logMessage) {
   if (!LOG_CHANNEL_ID) {
     console.error('LOG_CHANNEL_ID is not set');
+
     return;
   }
 
@@ -41,6 +42,7 @@ exports.getChatName = function (msg) {
   if (msg.chat.first_name || msg.chat.last_name) {
     return `${msg.chat.first_name || ''} ${msg.chat.last_name || ''}`;
   }
+
   return 'Unknown Chat';
 };
 
@@ -62,6 +64,7 @@ exports.validateJsonData = function (bot, jsonData, chatId) {
         'Invalid JSON data. Please ensure it contains 20 drivers under "Drivers" property.'
       )
       .catch((err) => console.error('Error sending JSON error message:', err));
+
     return false;
   }
 
@@ -76,6 +79,7 @@ exports.validateJsonData = function (bot, jsonData, chatId) {
         'Invalid JSON data. Please ensure it contains 10 constructors under "Constructors" property.'
       )
       .catch((err) => console.error('Error sending JSON error message:', err));
+
     return false;
   }
 
@@ -86,10 +90,10 @@ exports.validateJsonData = function (bot, jsonData, chatId) {
     !jsonData.CurrentTeam.constructors ||
     jsonData.CurrentTeam.constructors.length !== 2 ||
     !jsonData.CurrentTeam.drsBoost ||
-    jsonData.CurrentTeam.freeTransfers == null ||
-    jsonData.CurrentTeam.freeTransfers == undefined ||
-    jsonData.CurrentTeam.costCapRemaining == null ||
-    jsonData.CurrentTeam.costCapRemaining == undefined
+    jsonData.CurrentTeam.freeTransfers === null ||
+    jsonData.CurrentTeam.freeTransfers === undefined ||
+    jsonData.CurrentTeam.costCapRemaining === null ||
+    jsonData.CurrentTeam.costCapRemaining === undefined
   ) {
     exports.sendLogMessage(
       bot,
@@ -101,6 +105,7 @@ exports.validateJsonData = function (bot, jsonData, chatId) {
         'Invalid JSON data. Please ensure it contains the required properties under "CurrentTeam" property.'
       )
       .catch((err) => console.error('Error sending JSON error message:', err));
+
     return false;
   }
 

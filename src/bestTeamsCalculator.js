@@ -40,6 +40,7 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip) {
     function helper(start, combo) {
       if (combo.length === k) {
         result.push([...combo]);
+
         return;
       }
       for (let i = start; i < arr.length; i++) {
@@ -48,7 +49,9 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip) {
         combo.pop();
       }
     }
+
     helper(0, []);
+
     return result;
   }
 
@@ -80,18 +83,26 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip) {
       0
     );
 
-    // Determine best candidate for DRS (highest expected points)
-    let drs_driver = driverCombo[0];
-    for (const dr of driverCombo) {
-      if (
-        drivers_dict[dr].expectedPoints >
-        drivers_dict[drs_driver].expectedPoints
-      ) {
-        drs_driver = dr;
-      }
+    let drs_driver;
+    let extra_drs_driver;
+    driverCombo.sort(
+      (a, b) => drivers_dict[b].expectedPoints - drivers_dict[a].expectedPoints
+    );
+    drs_driver = driverCombo[0];
+    if (selectedChip === EXTRA_DRS_CHIP) {
+      // the driver with the highest expected points is selected for extra DRS (x3 points)
+      // the driver with the second highest expected points is selected for DRS (x2 points)
+      extra_drs_driver = driverCombo[0];
+      drs_driver = driverCombo[1];
     }
+
     const bonus_drs_points = drivers_dict[drs_driver].expectedPoints;
-    const total_driver_points = driver_points_sum + bonus_drs_points;
+    let extra_drs_points = 0;
+    if (selectedChip === EXTRA_DRS_CHIP) {
+      extra_drs_points = drivers_dict[extra_drs_driver].expectedPoints * 2;
+    }
+    const total_driver_points =
+      driver_points_sum + bonus_drs_points + extra_drs_points;
 
     for (const consCombo of consCombos) {
       // Calculate total price and points for constructors
@@ -131,7 +142,7 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip) {
         // Sum expected price change for the entire team
         const total_price_change = driver_price_change + cons_price_change;
 
-        teams.push({
+        const team = {
           drivers: driverCombo,
           constructors: consCombo,
           drs_driver: drs_driver,
@@ -140,14 +151,19 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip) {
           penalty: penalty,
           projected_points: projected_points,
           expected_price_change: total_price_change,
-        });
+        };
+
+        if (selectedChip === EXTRA_DRS_CHIP) {
+          team.extra_drs_driver = extra_drs_driver;
+        }
+        teams.push(team);
       }
     }
   }
 
   // Sort the teams by projected points in descending order and select the top 20
   teams.sort((a, b) => b.projected_points - a.projected_points);
-  const top_teams = teams.slice(0, 20);
+  const top_teams = teams.slice(0, selectedChip === EXTRA_DRS_CHIP ? 19 : 20);
 
   // If LIMITLESS_CHIP is selected, set expected_price_change to current team's expected price change
   if (selectedChip === LIMITLESS_CHIP) {
@@ -170,15 +186,8 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip) {
 
   // Add a row number to each team and rearrange the output fields
   const finalTeams = top_teams.map((team, index) => ({
+    ...team,
     row: index + 1,
-    drivers: team.drivers,
-    constructors: team.constructors,
-    drs_driver: team.drs_driver,
-    total_price: team.total_price,
-    transfers_needed: team.transfers_needed,
-    penalty: team.penalty,
-    projected_points: team.projected_points,
-    expected_price_change: team.expected_price_change,
   }));
 
   return finalTeams;
@@ -209,7 +218,7 @@ exports.calculateChangesToTeam = function (
 
   // Calculate DRS driver change:
   const drs_driver_change = currentTeam.drsBoost !== targetTeam.drs_driver;
-  const newDRS = drs_driver_change ? targetTeam.drs_driver : undefined;
+  let newDRS = drs_driver_change ? targetTeam.drs_driver : undefined;
 
   // Handle special chips
   let chipToActivate;
@@ -217,7 +226,9 @@ exports.calculateChangesToTeam = function (
     if (targetTeam.transfers_needed > currentTeam.freeTransfers) {
       chipToActivate = WILDCARD_CHIP;
     }
-  } else if (selectedChip === LIMITLESS_CHIP) {
+  }
+
+  if (selectedChip === LIMITLESS_CHIP) {
     const currentTeamBudget = calculateTeamBudget(
       currentTeam,
       cachedJsonData.Drivers,
@@ -228,12 +239,20 @@ exports.calculateChangesToTeam = function (
     }
   }
 
+  let extraDrsDriver;
+  if (selectedChip === EXTRA_DRS_CHIP) {
+    chipToActivate = EXTRA_DRS_CHIP;
+    extraDrsDriver = targetTeam.extra_drs_driver;
+    newDRS = targetTeam.drs_driver;
+  }
+
   return {
     driversToAdd,
     driversToRemove,
     constructorsToAdd,
     constructorsToRemove,
     newDRS,
+    extraDrsDriver,
     chipToActivate,
   };
 };
