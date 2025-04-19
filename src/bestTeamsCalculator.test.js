@@ -176,6 +176,36 @@ describe('calculateBestTeams', () => {
         });
     });
 
+    test('should set expected_price_change to current team value when LIMITLESS_CHIP is active', () => {
+        const LIMITLESS_CHIP = 'LIMITLESS';
+        // Setup a team with different expected price changes
+        const mockCurrentTeamLowBudget = {
+            ...mockCurrentTeam,
+            drivers: ['LEC', 'HAM', 'PER', 'SAI', 'NOR'],
+            constructors: ['FER', 'MER'],
+            costCapRemaining: 0
+        };
+        const mockJsonDataLowBudget = {
+            ...mockJsonData,
+            CurrentTeam: mockCurrentTeamLowBudget
+        };
+
+        // Calculate expected price change for current team
+        const expectedDriversChange = mockCurrentTeamLowBudget.drivers.reduce(
+            (sum, dr) => sum + mockDrivers[dr].expectedPriceChange, 0
+        );
+        const expectedConstructorsChange = mockCurrentTeamLowBudget.constructors.reduce(
+            (sum, cn) => sum + mockConstructors[cn].expectedPriceChange, 0
+        );
+        const expectedTotalChange = expectedDriversChange + expectedConstructorsChange;
+
+        const result = calculateBestTeams(mockJsonDataLowBudget, LIMITLESS_CHIP);
+
+        result.forEach(team => {
+            expect(team.expected_price_change).toBeCloseTo(expectedTotalChange);
+        });
+    });
+
     describe('calculateChangesToTeam', () => {
         test('should correctly identify drivers and constructors to add/remove', () => {
             const targetTeam = {

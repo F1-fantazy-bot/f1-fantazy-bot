@@ -183,7 +183,7 @@ function handleBestTeamsMessage(bot, chatId) {
     CurrentTeam: currentTeam,
   };
 
-  if (!validateJsonData(bot, { ...cachedJsonData, Drivers: Object.values(drivers), Constructors: Object.values(constructors) }, chatId)) {
+  if (!validateJsonData(bot, { Drivers: Object.values(drivers), Constructors: Object.values(constructors), CurrentTeam: currentTeam }, chatId)) {
     return;
   }
   const bestTeams = calculateBestTeams(cachedJsonData, selectedChipCache[chatId]);

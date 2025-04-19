@@ -120,6 +120,18 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip) {
     teams.sort((a, b) => b.projected_points - a.projected_points);
     const top_teams = teams.slice(0, 20);
 
+    // If LIMITLESS_CHIP is selected, set expected_price_change to current team's expected price change
+    if (selectedChip === LIMITLESS_CHIP) {
+        const currentDrivers = current_team.drivers;
+        const currentConstructors = current_team.constructors;
+        const currentDriversPriceChange = currentDrivers.reduce((sum, dr) => sum + drivers_dict[dr].expectedPriceChange, 0);
+        const currentConstructorsPriceChange = currentConstructors.reduce((sum, cn) => sum + constructors_dict[cn].expectedPriceChange, 0);
+        const currentTeamPriceChange = currentDriversPriceChange + currentConstructorsPriceChange;
+        top_teams.forEach(team => {
+            team.expected_price_change = currentTeamPriceChange;
+        });
+    }
+
     // Add a row number to each team and rearrange the output fields
     const finalTeams = top_teams.map((team, index) => ({
         row: index + 1,
