@@ -12,8 +12,9 @@ const {
 jest.mock('./utils', () => ({
   getChatName: jest.fn().mockReturnValue('Unknown'),
   sendLogMessage: jest.fn(),
+  calculateTeamBudget: jest.fn(),
 }));
-const { sendLogMessage } = require('./utils');
+const { sendLogMessage, calculateTeamBudget } = require('./utils');
 const {
   driversCache,
   constructorsCache,
@@ -178,11 +179,18 @@ describe('handleTextMessage', () => {
       costCapRemaining: 3.5,
     };
 
-    handleMessage(botMock, msgMock);
-
     const expectedTotalPrice = 30.5 + 25.0 + 20.0 + 15.0; // 90.5
     const expectedCostCap = 3.5;
     const expectedBudget = expectedTotalPrice + expectedCostCap; // 94.0
+
+    // Mock the calculateTeamBudget function
+    calculateTeamBudget.mockReturnValue({
+      totalPrice: expectedTotalPrice,
+      costCapRemaining: expectedCostCap,
+      overallBudget: expectedBudget,
+    });
+
+    handleMessage(botMock, msgMock);
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
@@ -216,7 +224,7 @@ describe('handleTextMessage', () => {
       text: COMMAND_CURRENT_TEAM_BUDGET,
     };
     // Only constructors and currentTeam set
-    constructorsCache[KILZI_CHAT_ID] = { RBR: { PR: 20.0 } };
+    constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.0 } };
     currentTeamCache[KILZI_CHAT_ID] = {
       drivers: [],
       constructors: [],
@@ -257,7 +265,7 @@ describe('handleTextMessage', () => {
       text: COMMAND_CURRENT_TEAM_BUDGET,
     };
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
-    constructorsCache[KILZI_CHAT_ID] = { RBR: { PR: 20.0 } };
+    constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.0 } };
 
     handleMessage(botMock, msgMock);
 

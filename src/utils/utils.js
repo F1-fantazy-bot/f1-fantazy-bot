@@ -104,3 +104,20 @@ exports.validateJsonData = function (bot, jsonData, chatId) {
 
   return true;
 };
+
+// Calculate current team total price and overall budget (price + remaining costCap)
+exports.calculateTeamBudget = function (team, drivers, constructors) {
+  const totalPrice =
+    team.drivers.reduce((sum, dr) => sum + drivers[dr].price, 0) +
+    team.constructors.reduce((sum, cn) => sum + constructors[cn].price, 0);
+
+  // Add cost remaining
+  const costCapRemaining = team.costCapRemaining;
+  const overallBudget = totalPrice + costCapRemaining;
+
+  return {
+    totalPrice,
+    costCapRemaining,
+    overallBudget,
+  }
+}
