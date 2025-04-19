@@ -37,10 +37,12 @@ exports.handleTextMessage = function (bot, msg) {
     // Check if message text is a number and delegate to the number handler
     case /^\d+$/.test(textTrimmed):
       handleNumberMessage(bot, chatId, textTrimmed);
+
       return;
     // Handle the "/best_teams" command
     case msg.text === COMMAND_BEST_TEAMS:
       handleBestTeamsMessage(bot, chatId);
+
       return;
     // Handle the "/current_team_budget" command
     case msg.text === COMMAND_CURRENT_TEAM_BUDGET:
@@ -87,6 +89,7 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
           .catch((err) =>
             console.error('Error sending no changes message:', err)
           );
+
         return;
       }
 
@@ -181,6 +184,7 @@ function handleJsonMessage(bot, msg, chatId) {
     bot
       .sendMessage(chatId, 'Invalid JSON format. Please send valid JSON.')
       .catch((err) => console.error('Error sending JSON error message:', err));
+
     return;
   }
 
@@ -215,6 +219,7 @@ function handleBestTeamsMessage(bot, chatId) {
       .catch((err) =>
         console.error('Error sending cache unavailable message:', err)
       );
+
     return;
   }
 
@@ -248,7 +253,7 @@ function handleBestTeamsMessage(bot, chatId) {
   };
 
   // Create the Markdown message by mapping over the bestTeams array
-  let messageMarkdown = bestTeams
+  const messageMarkdown = bestTeams
     .map((team) => {
       // If drivers or constructors are arrays, join them into a readable string.
       const drivers = Array.isArray(team.drivers)
@@ -307,6 +312,7 @@ function resetCacheForChat(chatId, bot) {
   bot
     .sendMessage(chatId, 'Cache has been reset for your chat.')
     .catch((err) => console.error('Error sending cache reset message:', err));
+
   return;
 }
 
@@ -358,12 +364,13 @@ function calcCurrentTeamBudget(bot, chatId) {
       .catch((err) =>
         console.error('Error sending cache unavailable message:', err)
       );
+
     return;
   }
 
   const teamBudget = calculateTeamBudget(currentTeam, drivers, constructors);
 
-  let message =
+  const message =
     `*Current Team Budget Calculation:*\n` +
     `*Drivers & Constructors Total Price:* ${teamBudget.totalPrice.toFixed(
       2
@@ -448,5 +455,6 @@ function displayHelpMessage(bot, chatId) {
       { parse_mode: 'Markdown' }
     )
     .catch((err) => console.error('Error sending help message:', err));
+
   return;
 }

@@ -1,7 +1,9 @@
 {
-  "cSpell.words": [
-    "DORSE"
-  ],
+  "cSpell.words": ["DORSE"],
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
   "azureFunctions.deploySubpath": ".",
   "azureFunctions.postDeployTask": "npm install (functions)",
   "azureFunctions.projectLanguage": "JavaScript",

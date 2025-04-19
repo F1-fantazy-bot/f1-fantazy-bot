@@ -9,6 +9,7 @@ exports.handleMessage = function (bot, msg) {
 
   if (chatId !== KILZI_CHAT_ID && chatId !== DORSE_CHAT_ID) {
     sendLogMessage(bot, `Message from unknown chat: ${chatName} (${chatId})`);
+
     return;
   }
 
@@ -17,12 +18,14 @@ exports.handleMessage = function (bot, msg) {
   // Handle text messages
   if (msg.text) {
     handleTextMessage(bot, msg);
+
     return;
   }
 
   // Handle image messages (photos)
   if (msg.photo) {
     handlePhotoMessage(bot, msg);
+
     return;
   }
 

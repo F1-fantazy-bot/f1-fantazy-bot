@@ -40,6 +40,7 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip) {
     function helper(start, combo) {
       if (combo.length === k) {
         result.push([...combo]);
+
         return;
       }
       for (let i = start; i < arr.length; i++) {
@@ -48,7 +49,9 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip) {
         combo.pop();
       }
     }
+
     helper(0, []);
+
     return result;
   }
 

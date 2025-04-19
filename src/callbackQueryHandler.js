@@ -122,6 +122,7 @@ function storeInCache(chatId, type, extractedData) {
     for (const driver of jsonObject.Drivers) {
       driversCache[chatId][driver.DR] = driver;
     }
+
     return;
   }
   if (type === CONSTRUCTORS_PHOTO_TYPE) {
