@@ -23,34 +23,47 @@ exports.currentTeamCache = {};
 exports.selectedChipCache = {};
 
 exports.getPrintableCache = function (chatId, type) {
-  if (type === DRIVERS_PHOTO_TYPE) {
-    const data = exports.driversCache[chatId];
+  const driversData = exports.driversCache[chatId];
+  const constructorsData = exports.constructorsCache[chatId];
+  const currentTeamData = exports.currentTeamCache[chatId];
 
-    if (!data) {
+  // Handle the default scenario when no specific type is provided
+  if (!type) {
+    return wrapWithCodeBlock(
+      JSON.stringify(
+        {
+          Drivers: driversData ? Object.values(driversData) : [],
+          Constructors: constructorsData ? Object.values(constructorsData) : [],
+          CurrentTeam: currentTeamData || {},
+        },
+        null,
+        2
+      )
+    );
+  }
+
+  if (type === DRIVERS_PHOTO_TYPE) {
+    if (!driversData) {
       return null;
     }
 
-    return wrapWithCodeBlock(JSON.stringify(Object.values(data), null, 2));
+    return wrapWithCodeBlock(JSON.stringify(Object.values(driversData), null, 2));
   }
 
   if (type === CONSTRUCTORS_PHOTO_TYPE) {
-    const data = exports.constructorsCache[chatId];
-
-    if (!data) {
+    if (!constructorsData) {
       return null;
     }
 
-    return wrapWithCodeBlock(JSON.stringify(Object.values(data), null, 2));
+    return wrapWithCodeBlock(JSON.stringify(Object.values(constructorsData), null, 2));
   }
 
   if (type === CURRENT_TEAM_PHOTO_TYPE) {
-    const data = exports.currentTeamCache[chatId];
-
-    if (!data) {
+    if (!currentTeamData) {
       return null;
     }
 
-    return wrapWithCodeBlock(JSON.stringify(data, null, 2));
+    return wrapWithCodeBlock(JSON.stringify(currentTeamData, null, 2));
   }
 
   return null;
