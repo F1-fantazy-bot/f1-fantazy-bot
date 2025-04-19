@@ -74,6 +74,18 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
     );
 
     if (selectedTeam) {
+      if (selectedTeam.transfers_needed === 0) {
+        bot
+          .sendMessage(
+            chatId,
+            `You are already at team ${teamRowRequested}. No changes needed.`
+          )
+          .catch((err) =>
+            console.error('Error sending no changes message:', err)
+          );
+        return;
+      }
+
       // Build cachedJsonData object
       const cachedJsonData = {
         Drivers: driversCache[chatId],
@@ -201,7 +213,7 @@ function handleBestTeamsMessage(bot, chatId) {
         : team.constructors;
 
       return (
-        `*Team ${team.row}*\n` +
+        `*Team ${team.row}${team.transfers_needed === 0 ? ' (Current Team)' : ''}*\n` +
         `*Drivers:* ${drivers}\n` +
         `*Constructors:* ${constructors}\n` +
         `*DRS Driver:* ${team.drs_driver}\n` +
