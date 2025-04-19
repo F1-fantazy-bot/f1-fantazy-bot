@@ -256,20 +256,12 @@ function resetCacheForChat(chatId, bot) {
 }
 
 function sendPrintableCache(chatId, bot) {
-  const driversPrintable = getPrintableCache(chatId, DRIVERS_PHOTO_TYPE);
-  const constructorsPrintable = getPrintableCache(
-    chatId,
-    CONSTRUCTORS_PHOTO_TYPE
-  );
-  const currentTeamPrintable = getPrintableCache(
-    chatId,
-    CURRENT_TEAM_PHOTO_TYPE
-  );
+  const printableCache = getPrintableCache(chatId);
   const selectedChip = selectedChipCache[chatId];
 
-  if (driversPrintable) {
+  if (printableCache) {
     bot
-      .sendMessage(chatId, driversPrintable, { parse_mode: 'Markdown' })
+      .sendMessage(chatId, printableCache, { parse_mode: 'Markdown' })
       .catch((err) => console.error('Error sending drivers cache:', err));
   } else {
     bot
@@ -279,36 +271,6 @@ function sendPrintableCache(chatId, bot) {
       )
       .catch((err) =>
         console.error('Error sending empty drivers cache message:', err)
-      );
-  }
-
-  if (constructorsPrintable) {
-    bot
-      .sendMessage(chatId, constructorsPrintable, { parse_mode: 'Markdown' })
-      .catch((err) => console.error('Error sending constructors cache:', err));
-  } else {
-    bot
-      .sendMessage(
-        chatId,
-        'Constructors cache is empty. Please send constructors image or valid JSON data.'
-      )
-      .catch((err) =>
-        console.error('Error sending empty constructors cache message:', err)
-      );
-  }
-
-  if (currentTeamPrintable) {
-    bot
-      .sendMessage(chatId, currentTeamPrintable, { parse_mode: 'Markdown' })
-      .catch((err) => console.error('Error sending current team cache:', err));
-  } else {
-    bot
-      .sendMessage(
-        chatId,
-        'Current team cache is empty. Please send current team image or valid JSON data.'
-      )
-      .catch((err) =>
-        console.error('Error sending empty current team cache message:', err)
       );
   }
 

@@ -112,7 +112,7 @@ describe('handleTextMessage', () => {
     currentTeamCache[KILZI_CHAT_ID] = { some: 'data' };
 
     handleMessage(botMock, msgMock);
-    expect(botMock.sendMessage).toHaveBeenCalledTimes(4);
+    expect(botMock.sendMessage).toHaveBeenCalledTimes(2);
   });
 
   it('should handle /best_teams command and send missing cache message if no cache', () => {
