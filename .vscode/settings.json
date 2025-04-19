@@ -4,6 +4,7 @@
   "editor.formatOnSave": true,
   "editor.tabSize": 2,
   "editor.insertSpaces": true,
+  "prettier.singleQuote": true,
   "azureFunctions.deploySubpath": ".",
   "azureFunctions.postDeployTask": "npm install (functions)",
   "azureFunctions.projectLanguage": "JavaScript",
