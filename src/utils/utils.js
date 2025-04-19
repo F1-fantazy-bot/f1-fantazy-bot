@@ -86,8 +86,10 @@ exports.validateJsonData = function (bot, jsonData, chatId) {
     !jsonData.CurrentTeam.constructors ||
     jsonData.CurrentTeam.constructors.length !== 2 ||
     !jsonData.CurrentTeam.drsBoost ||
-    !jsonData.CurrentTeam.freeTransfers ||
-    !jsonData.CurrentTeam.costCapRemaining
+    jsonData.CurrentTeam.freeTransfers == null ||
+    jsonData.CurrentTeam.freeTransfers == undefined ||
+    jsonData.CurrentTeam.costCapRemaining == null ||
+    jsonData.CurrentTeam.costCapRemaining == undefined
   ) {
     exports.sendLogMessage(
       bot,
@@ -119,5 +121,5 @@ exports.calculateTeamBudget = function (team, drivers, constructors) {
     totalPrice,
     costCapRemaining,
     overallBudget,
-  }
-}
+  };
+};

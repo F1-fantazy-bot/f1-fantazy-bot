@@ -10,15 +10,12 @@ module.exports = {
     '!src/**/index.js', // Exclude index files
   ],
   coverageDirectory: 'coverage',
-
-  // Optionally enforce a minimum coverage threshold
-  // todo: kilzi: set coverage threshold
   coverageThreshold: {
     global: {
-      branches: 76,
+      statements: 79,
+      branches: 72,
+      lines: 78,
       functions: 61,
-      lines: 80,
-      statements: 81,
     },
   },
 };

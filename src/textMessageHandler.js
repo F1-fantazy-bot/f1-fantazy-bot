@@ -1,4 +1,8 @@
-const { sendLogMessage, validateJsonData, calculateTeamBudget } = require('./utils');
+const {
+  sendLogMessage,
+  validateJsonData,
+  calculateTeamBudget,
+} = require('./utils');
 const {
   calculateBestTeams,
   calculateChangesToTeam,
@@ -12,9 +16,6 @@ const {
   selectedChipCache,
 } = require('./cache');
 const {
-  DRIVERS_PHOTO_TYPE,
-  CONSTRUCTORS_PHOTO_TYPE,
-  CURRENT_TEAM_PHOTO_TYPE,
   COMMAND_BEST_TEAMS,
   COMMAND_CURRENT_TEAM_BUDGET,
   COMMAND_CHIPS,
@@ -98,12 +99,29 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
         selectedChipCache[chatId]
       );
 
-      let changesToTeamMessage =
-        `*Team ${teamRowRequested} Required Changes:*\n` +
-        `*Drivers To Add:* ${changesToTeam.driversToAdd}\n` +
-        `*Drivers To Remove:* ${changesToTeam.driversToRemove}\n` +
-        `*Constructors To Add:* ${changesToTeam.constructorsToAdd}\n` +
-        `*Constructors To Remove:* ${changesToTeam.constructorsToRemove}`;
+      let changesToTeamMessage = `*Team ${teamRowRequested} Required Changes:*\n`;
+      if (changesToTeam.driversToAdd.length) {
+        changesToTeamMessage += `*Drivers To Add:* ${changesToTeam.driversToAdd.join(
+          ', '
+        )}\n`;
+      }
+
+      if (changesToTeam.driversToRemove.length) {
+        changesToTeamMessage += `*Drivers To Remove:* ${changesToTeam.driversToRemove.join(
+          ', '
+        )}\n`;
+      }
+
+      if (changesToTeam.constructorsToAdd.length) {
+        changesToTeamMessage += `*Constructors To Add:* ${changesToTeam.constructorsToAdd.join(
+          ', '
+        )}\n`;
+      }
+      if (changesToTeam.constructorsToRemove.length) {
+        changesToTeamMessage += `*Constructors To Remove:* ${changesToTeam.constructorsToRemove.join(
+          ', '
+        )}\n`;
+      }
 
       if (changesToTeam.newDRS !== undefined) {
         changesToTeamMessage += `\n*New DRS Driver:* ${changesToTeam.newDRS}`;
@@ -111,7 +129,10 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
 
       const selectedChip = selectedChipCache[chatId];
       if (changesToTeam.chipToActivate !== undefined) {
-        changesToTeamMessage += `\n*Chip To Activate:* ${selectedChip.replace(/_/g, ' ')}`;
+        changesToTeamMessage += `\n*Chip To Activate:* ${selectedChip.replace(
+          /_/g,
+          ' '
+        )}`;
       }
 
       bot
@@ -195,11 +216,27 @@ function handleBestTeamsMessage(bot, chatId) {
     CurrentTeam: currentTeam,
   };
 
-  if (!validateJsonData(bot, { Drivers: Object.values(drivers), Constructors: Object.values(constructors), CurrentTeam: currentTeam }, chatId)) {
+  if (
+    !validateJsonData(
+      bot,
+      {
+        Drivers: Object.values(drivers),
+        Constructors: Object.values(constructors),
+        CurrentTeam: currentTeam,
+      },
+      chatId
+    )
+  ) {
     return;
   }
-  const bestTeams = calculateBestTeams(cachedJsonData, selectedChipCache[chatId]);
-  bestTeamsCache[chatId] = { currentTeam: cachedJsonData.CurrentTeam, bestTeams };
+  const bestTeams = calculateBestTeams(
+    cachedJsonData,
+    selectedChipCache[chatId]
+  );
+  bestTeamsCache[chatId] = {
+    currentTeam: cachedJsonData.CurrentTeam,
+    bestTeams,
+  };
 
   // Create the Markdown message by mapping over the bestTeams array
   let messageMarkdown = bestTeams
@@ -213,7 +250,9 @@ function handleBestTeamsMessage(bot, chatId) {
         : team.constructors;
 
       return (
-        `*Team ${team.row}${team.transfers_needed === 0 ? ' (Current Team)' : ''}*\n` +
+        `*Team ${team.row}${
+          team.transfers_needed === 0 ? ' (Current Team)' : ''
+        }*\n` +
         `*Drivers:* ${drivers}\n` +
         `*Constructors:* ${constructors}\n` +
         `*DRS Driver:* ${team.drs_driver}\n` +
@@ -310,7 +349,9 @@ function calcCurrentTeamBudget(bot, chatId) {
 
   let message =
     `*Current Team Budget Calculation:*\n` +
-    `*Drivers & Constructors Total Price:* ${teamBudget.totalPrice.toFixed(2)}\n` +
+    `*Drivers & Constructors Total Price:* ${teamBudget.totalPrice.toFixed(
+      2
+    )}\n` +
     `*Cost Cap Remaining:* ${teamBudget.costCapRemaining.toFixed(2)}\n` +
     `*Total Budget:* ${teamBudget.overallBudget.toFixed(2)}`;
 
@@ -360,34 +401,34 @@ function displayHelpMessage(bot, chatId) {
     .sendMessage(
       chatId,
       `*Available Commands:*\n` +
-      `${COMMAND_BEST_TEAMS.replace(
-        /_/g,
-        '\\_'
-      )} - Calculate and display the best possible teams based on your cached data.\n` +
-      `${COMMAND_CURRENT_TEAM_BUDGET.replace(
-        /_/g,
-        '\\_'
-      )} - Calculate the current team budget based on your cached data.\n` +
-      `${COMMAND_CHIPS.replace(
-        /_/g,
-        '\\_'
-      )} - choose a chip to use for the current race.\n` +
-      `${COMMAND_PRINT_CACHE.replace(
-        /_/g,
-        '\\_'
-      )} - Show the currently cached drivers, constructors, and current team.\n` +
-      `${COMMAND_RESET_CACHE.replace(
-        /_/g,
-        '\\_'
-      )} - Clear all cached data for this chat.\n` +
-      `${COMMAND_HELP.replace(/_/g, '\\_')} - Show this help message.\n\n` +
-      '*Other Messages:*\n' +
-      '- Send an image (drivers, constructors, or current team screenshot) to automatically extract and cache the relevant data.\n' +
-      '- Send valid JSON data to update your drivers, constructors, and current team cache.\n' +
-      `- Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using ${COMMAND_BEST_TEAMS.replace(
-        /_/g,
-        '\\_'
-      )}).`,
+        `${COMMAND_BEST_TEAMS.replace(
+          /_/g,
+          '\\_'
+        )} - Calculate and display the best possible teams based on your cached data.\n` +
+        `${COMMAND_CURRENT_TEAM_BUDGET.replace(
+          /_/g,
+          '\\_'
+        )} - Calculate the current team budget based on your cached data.\n` +
+        `${COMMAND_CHIPS.replace(
+          /_/g,
+          '\\_'
+        )} - choose a chip to use for the current race.\n` +
+        `${COMMAND_PRINT_CACHE.replace(
+          /_/g,
+          '\\_'
+        )} - Show the currently cached drivers, constructors, and current team.\n` +
+        `${COMMAND_RESET_CACHE.replace(
+          /_/g,
+          '\\_'
+        )} - Clear all cached data for this chat.\n` +
+        `${COMMAND_HELP.replace(/_/g, '\\_')} - Show this help message.\n\n` +
+        '*Other Messages:*\n' +
+        '- Send an image (drivers, constructors, or current team screenshot) to automatically extract and cache the relevant data.\n' +
+        '- Send valid JSON data to update your drivers, constructors, and current team cache.\n' +
+        `- Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using ${COMMAND_BEST_TEAMS.replace(
+          /_/g,
+          '\\_'
+        )}).`,
       { parse_mode: 'Markdown' }
     )
     .catch((err) => console.error('Error sending help message:', err));
