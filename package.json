@@ -8,7 +8,8 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "start": "node src/bot.js"
+    "start": "node src/bot.js",
+    "postinstall": "npx puppeteer install --install-deps"
   },
   "keywords": [],
   "author": "Doron Kilzi",

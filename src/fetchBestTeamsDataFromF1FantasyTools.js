@@ -17,7 +17,6 @@ exports.fetchBestTeamsDataFromF1FantasyTools = async function (bot) {
 async function fetchData(bot) {
   const url = 'https://f1fantasytools.com/team-calculator';
   const browser = await puppeteer.launch({ headless: 'new' });
-  // const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
 
   try {
