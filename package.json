@@ -8,8 +8,7 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "start": "node src/bot.js",
-    "postinstall": "npx puppeteer install --install-deps"
+    "start": "node src/bot.js"
   },
   "keywords": [],
   "author": "Doron Kilzi",
@@ -18,8 +17,7 @@
   "dependencies": {
     "dotenv": "^16.4.7",
     "node-telegram-bot-api": "^0.66.0",
-    "openai": "^4.93.0",
-    "puppeteer": "^24.7.1"
+    "openai": "^4.93.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.24.0",

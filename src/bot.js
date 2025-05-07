@@ -5,10 +5,6 @@ const { handleMessage } = require('./messageHandler');
 const { handleCallbackQuery } = require('./callbackQueryHandler');
 const { TELEGRAM_BOT_TOKEN, NODE_ENV } = process.env;
 const { sendLogMessage } = require('./utils');
-const {
-  fetchBestTeamsDataFromF1FantasyTools,
-} = require('./fetchBestTeamsDataFromF1FantasyTools');
-
 if (!TELEGRAM_BOT_TOKEN) {
   console.error('Error: TELEGRAM_BOT_TOKEN is not set in the .env file.');
   process.exit(1);
@@ -26,8 +22,6 @@ if (NODE_ENV !== 'production') {
 
 // Send a message to the log channel that the bot has started.
 sendLogMessage(bot, 'Bot started successfully.');
-
-fetchBestTeamsDataFromF1FantasyTools(bot);
 
 // Listen for any kind of message.
 bot.on('message', async (msg) => {
