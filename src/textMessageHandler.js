@@ -14,6 +14,7 @@ const {
   currentTeamCache,
   getPrintableCache,
   selectedChipCache,
+  sharedKey,
 } = require('./cache');
 const {
   COMMAND_BEST_TEAMS,
@@ -95,8 +96,8 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
 
       // Build cachedJsonData object
       const cachedJsonData = {
-        Drivers: driversCache[chatId],
-        Constructors: constructorsCache[chatId],
+        Drivers: driversCache[chatId] || driversCache[sharedKey],
+        Constructors: constructorsCache[chatId] || constructorsCache[sharedKey],
         CurrentTeam: currentTeam,
       };
       const changesToTeam = calculateChangesToTeam(
@@ -206,8 +207,9 @@ function handleJsonMessage(bot, msg, chatId) {
 
 function handleBestTeamsMessage(bot, chatId) {
   // Try to fetch cached data for this chat
-  const drivers = driversCache[chatId];
-  const constructors = constructorsCache[chatId];
+  const drivers = driversCache[chatId] || driversCache[sharedKey];
+  const constructors =
+    constructorsCache[chatId] || constructorsCache[sharedKey];
   const currentTeam = currentTeamCache[chatId];
 
   if (!drivers || !constructors || !currentTeam) {
@@ -351,8 +353,9 @@ function sendPrintableCache(chatId, bot) {
 }
 
 function calcCurrentTeamBudget(bot, chatId) {
-  const drivers = driversCache[chatId];
-  const constructors = constructorsCache[chatId];
+  const drivers = driversCache[chatId] || driversCache[sharedKey];
+  const constructors =
+    constructorsCache[chatId] || constructorsCache[sharedKey];
   const currentTeam = currentTeamCache[chatId];
 
   if (!drivers || !constructors || !currentTeam) {

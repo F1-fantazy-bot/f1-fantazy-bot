@@ -4,6 +4,7 @@ const {
   CURRENT_TEAM_PHOTO_TYPE,
 } = require('./constants');
 
+exports.sharedKey = 'defaultSharedKey';
 // In-memory cache for photos by unique file id
 exports.photoCache = {};
 
@@ -22,8 +23,11 @@ exports.currentTeamCache = {};
 exports.selectedChipCache = {};
 
 exports.getPrintableCache = function (chatId, type) {
-  const driversData = exports.driversCache[chatId];
-  const constructorsData = exports.constructorsCache[chatId];
+  const driversData =
+    exports.driversCache[chatId] || exports.driversCache[exports.sharedKey];
+  const constructorsData =
+    exports.constructorsCache[chatId] ||
+    exports.constructorsCache[exports.sharedKey];
   const currentTeamData = exports.currentTeamCache[chatId];
 
   // Handle the default scenario when no specific type is provided

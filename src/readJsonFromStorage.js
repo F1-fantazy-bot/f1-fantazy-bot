@@ -1,7 +1,7 @@
 const { BlobServiceClient } = require('@azure/storage-blob');
 const { sendLogMessage, validateJsonData } = require('./utils');
 const { LOG_CHANNEL_ID } = require('./constants');
-const { driversCache, constructorsCache } = require('./cache');
+const { driversCache, constructorsCache, sharedKey } = require('./cache');
 
 exports.readJsonFromStorage = async function (bot) {
   const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
@@ -31,10 +31,16 @@ exports.readJsonFromStorage = async function (bot) {
     return;
   }
 
-  driversCache[bot.chatId] = jsonFromStorage.Drivers;
-  constructorsCache[bot.chatId] = jsonFromStorage.Constructors;
+  driversCache[sharedKey] = {};
+  constructorsCache[sharedKey] = {};
 
-  // Send a message to the log channel that the JSON data has been read successfully.
+  for (const driver of jsonFromStorage.Drivers) {
+    driversCache[sharedKey][driver.DR] = driver;
+  }
+
+  for (const constructor of jsonFromStorage.Constructors) {
+    constructorsCache[sharedKey][constructor.CN] = constructor;
+  }
 };
 
 // Helper function to convert stream to string
