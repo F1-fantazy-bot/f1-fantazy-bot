@@ -18,7 +18,7 @@ exports.sendLogMessage = function (bot, logMessage) {
     return;
   }
 
-  let log = `${logMessage}
+  let log = `BOT: ${logMessage}
 env: ${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`;
 
   if (process.env.NODE_ENV === 'production') {
@@ -52,7 +52,12 @@ exports.mapPhotoTypeToSystemPrompt = {
   [CURRENT_TEAM_PHOTO_TYPE]: EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT,
 };
 
-exports.validateJsonData = function (bot, jsonData, chatId) {
+exports.validateJsonData = function (
+  bot,
+  jsonData,
+  chatId = LOG_CHANNEL_ID,
+  validateCurrentTeam = true
+) {
   if (!jsonData.Drivers || jsonData.Drivers.length !== 20) {
     exports.sendLogMessage(
       bot,
@@ -84,16 +89,17 @@ exports.validateJsonData = function (bot, jsonData, chatId) {
   }
 
   if (
-    !jsonData.CurrentTeam ||
-    !jsonData.CurrentTeam.drivers ||
-    jsonData.CurrentTeam.drivers.length !== 5 ||
-    !jsonData.CurrentTeam.constructors ||
-    jsonData.CurrentTeam.constructors.length !== 2 ||
-    !jsonData.CurrentTeam.drsBoost ||
-    jsonData.CurrentTeam.freeTransfers === null ||
-    jsonData.CurrentTeam.freeTransfers === undefined ||
-    jsonData.CurrentTeam.costCapRemaining === null ||
-    jsonData.CurrentTeam.costCapRemaining === undefined
+    validateCurrentTeam &&
+    (!jsonData.CurrentTeam ||
+      !jsonData.CurrentTeam.drivers ||
+      jsonData.CurrentTeam.drivers.length !== 5 ||
+      !jsonData.CurrentTeam.constructors ||
+      jsonData.CurrentTeam.constructors.length !== 2 ||
+      !jsonData.CurrentTeam.drsBoost ||
+      jsonData.CurrentTeam.freeTransfers === null ||
+      jsonData.CurrentTeam.freeTransfers === undefined ||
+      jsonData.CurrentTeam.costCapRemaining === null ||
+      jsonData.CurrentTeam.costCapRemaining === undefined)
   ) {
     exports.sendLogMessage(
       bot,
