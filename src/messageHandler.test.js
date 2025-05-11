@@ -1,10 +1,15 @@
-const { handleMessage } = require('./messageHandler');
 const { KILZI_CHAT_ID } = require('./constants');
-jest.mock('./utils', () => ({
+
+const mockIsAdmin = jest.fn((msg) => msg.chat.id === KILZI_CHAT_ID);
+
+jest.mock('./utils/utils', () => ({
   getChatName: jest.fn().mockReturnValue('Unknown'),
   sendLogMessage: jest.fn(),
+  isAdminMessage: mockIsAdmin,
 }));
-const { sendLogMessage } = require('./utils');
+
+const { handleMessage } = require('./messageHandler');
+const { sendLogMessage } = require('./utils/utils');
 
 jest.mock('openai', () => ({
   AzureOpenAI: jest.fn().mockImplementation(() => ({

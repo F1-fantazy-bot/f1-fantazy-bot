@@ -2,6 +2,8 @@ const {
   sendLogMessage,
   validateJsonData,
   calculateTeamBudget,
+  triggerScraping,
+  isAdminMessage,
 } = require('./utils');
 const {
   calculateBestTeams,
@@ -23,6 +25,7 @@ const {
   COMMAND_PRINT_CACHE,
   COMMAND_RESET_CACHE,
   COMMAND_HELP,
+  COMMAND_TRIGGER_SCRAPING,
   CHIP_CALLBACK_TYPE,
   EXTRA_DRS_CHIP,
   WILDCARD_CHIP,
@@ -59,7 +62,9 @@ exports.handleTextMessage = function (bot, msg) {
       return resetCacheForChat(chatId, bot);
     // Handle the "/help" command
     case msg.text === COMMAND_HELP:
-      return displayHelpMessage(bot, chatId);
+      return displayHelpMessage(bot, msg);
+    case msg.text === COMMAND_TRIGGER_SCRAPING:
+      return handleScrapingTrigger(bot, msg);
     default:
       // Delegate to the JSON handler for any other case
       handleJsonMessage(bot, msg, chatId);
@@ -422,7 +427,9 @@ function handleChipsMessage(bot, msg) {
   });
 }
 
-function displayHelpMessage(bot, chatId) {
+function displayHelpMessage(bot, msg) {
+  const chatId = msg.chat.id;
+  const isAdmin = isAdminMessage(msg);
   bot
     .sendMessage(
       chatId,
@@ -448,6 +455,15 @@ function displayHelpMessage(bot, chatId) {
           '\\_'
         )} - Clear all cached data for this chat.\n` +
         `${COMMAND_HELP.replace(/_/g, '\\_')} - Show this help message.\n\n` +
+        `${
+          isAdmin
+            ? '*Admin Commands:*\n' +
+              `${COMMAND_TRIGGER_SCRAPING.replace(
+                /_/g,
+                '\\_'
+              )} - Trigger web scraping for latest F1 Fantasy data.\n\n`
+            : ''
+        }` +
         '*Other Messages:*\n' +
         '- Send an image (drivers, constructors, or current team screenshot) to automatically extract and cache the relevant data.\n' +
         '- Send valid JSON data to update your drivers, constructors, and current team cache.\n' +
@@ -460,4 +476,21 @@ function displayHelpMessage(bot, chatId) {
     .catch((err) => console.error('Error sending help message:', err));
 
   return;
+}
+
+async function handleScrapingTrigger(bot, msg) {
+  const chatId = msg.chat.id;
+
+  if (!isAdminMessage(msg)) {
+    bot.sendMessage(chatId, 'Sorry, only admins can trigger scraping.');
+
+    return;
+  }
+
+  const result = await triggerScraping(bot);
+  if (result.success) {
+    bot.sendMessage(chatId, 'Web scraping triggered successfully.');
+  } else {
+    bot.sendMessage(chatId, `Failed to trigger web scraping: ${result.error}`);
+  }
 }

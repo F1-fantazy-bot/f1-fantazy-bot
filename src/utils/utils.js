@@ -3,6 +3,8 @@ const {
   DRIVERS_PHOTO_TYPE,
   CONSTRUCTORS_PHOTO_TYPE,
   CURRENT_TEAM_PHOTO_TYPE,
+  KILZI_CHAT_ID,
+  DORSE_CHAT_ID,
 } = require('../constants');
 
 const {
@@ -133,4 +135,35 @@ exports.calculateTeamBudget = function (team, drivers, constructors) {
     costCapRemaining,
     overallBudget,
   };
+};
+
+exports.triggerScraping = async function (bot) {
+  const url = process.env.AZURE_LOGICAPP_TRIGGER_URL;
+  if (!url) {
+    bot.sendMessage(chatId, 'Error: Scraping trigger URL is not configured.');
+
+    return;
+  }
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
+
+exports.isAdminMessage = function (msg) {
+  if (!msg || !msg.chat || !msg.chat.id) {
+    return false;
+  }
+
+  return msg.chat.id === KILZI_CHAT_ID || msg.chat.id === DORSE_CHAT_ID;
 };

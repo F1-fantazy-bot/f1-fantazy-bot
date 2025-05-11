@@ -1,5 +1,8 @@
-const { getChatName, sendLogMessage } = require('./utils');
-const { KILZI_CHAT_ID, DORSE_CHAT_ID } = require('./constants');
+const {
+  getChatName,
+  sendLogMessage,
+  isAdminMessage,
+} = require('./utils/utils');
 const { handleTextMessage } = require('./textMessageHandler');
 const { handlePhotoMessage } = require('./photoMessageHandler');
 
@@ -7,7 +10,7 @@ exports.handleMessage = function (bot, msg) {
   const chatId = msg.chat.id;
   const chatName = getChatName(msg);
 
-  if (chatId !== KILZI_CHAT_ID && chatId !== DORSE_CHAT_ID) {
+  if (!isAdminMessage(msg)) {
     sendLogMessage(bot, `Message from unknown chat: ${chatName} (${chatId})`);
 
     return;

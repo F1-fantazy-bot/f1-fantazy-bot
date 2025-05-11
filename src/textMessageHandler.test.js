@@ -1,4 +1,3 @@
-const { handleMessage } = require('./messageHandler');
 const {
   KILZI_CHAT_ID,
   COMMAND_BEST_TEAMS,
@@ -8,12 +7,19 @@ const {
   COMMAND_HELP,
 } = require('./constants');
 
-jest.mock('./utils', () => ({
-  getChatName: jest.fn().mockReturnValue('Unknown'),
-  sendLogMessage: jest.fn(),
-  calculateTeamBudget: jest.fn(),
+const mockIsAdmin = jest.fn().mockReturnValue(true);
+const mockGetChatName = jest.fn().mockReturnValue('Unknown');
+const mockSendLogMessage = jest.fn();
+const mockCalculateTeamBudget = jest.fn();
+
+jest.mock('./utils/utils', () => ({
+  getChatName: mockGetChatName,
+  sendLogMessage: mockSendLogMessage,
+  calculateTeamBudget: mockCalculateTeamBudget,
+  isAdminMessage: mockIsAdmin,
 }));
-const { sendLogMessage, calculateTeamBudget } = require('./utils');
+
+const { handleMessage } = require('./messageHandler');
 const {
   driversCache,
   constructorsCache,
@@ -48,10 +54,10 @@ describe('handleTextMessage', () => {
       msgMock.chat.id,
       'Invalid JSON format. Please send valid JSON.'
     );
-    expect(sendLogMessage).toHaveBeenCalledTimes(
+    expect(mockSendLogMessage).toHaveBeenCalledTimes(
       timesCalledSendLogMessageInMessageHandler + 1
     );
-    expect(sendLogMessage).toHaveBeenCalledWith(
+    expect(mockSendLogMessage).toHaveBeenCalledWith(
       botMock,
       expect.stringContaining(
         `Failed to parse JSON data: ${msgMock.text}. Error:`
@@ -151,7 +157,7 @@ describe('handleTextMessage', () => {
       msgMock.chat.id,
       'Invalid JSON format. Please send valid JSON.'
     );
-    expect(sendLogMessage).toHaveBeenCalledWith(
+    expect(mockSendLogMessage).toHaveBeenCalledWith(
       botMock,
       expect.stringContaining('Failed to parse JSON data')
     );
@@ -183,7 +189,7 @@ describe('handleTextMessage', () => {
     const expectedBudget = expectedTotalPrice + expectedCostCap; // 94.0
 
     // Mock the calculateTeamBudget function
-    calculateTeamBudget.mockReturnValue({
+    mockCalculateTeamBudget.mockReturnValue({
       totalPrice: expectedTotalPrice,
       costCapRemaining: expectedCostCap,
       overallBudget: expectedBudget,

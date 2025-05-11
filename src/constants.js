@@ -20,6 +20,7 @@ exports.COMMAND_CHIPS = '/chips';
 exports.COMMAND_PRINT_CACHE = '/print_cache';
 exports.COMMAND_RESET_CACHE = '/reset_cache';
 exports.COMMAND_HELP = '/help';
+exports.COMMAND_TRIGGER_SCRAPING = '/triggerScraping';
 
 exports.NAME_TO_CODE_MAPPING = {
   // Drivers
