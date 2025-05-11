@@ -5,6 +5,7 @@ const {
   triggerScraping,
   isAdminMessage,
 } = require('./utils');
+const { readJsonFromStorage } = require('./readJsonFromStorage');
 const {
   calculateBestTeams,
   calculateChangesToTeam,
@@ -26,6 +27,7 @@ const {
   COMMAND_RESET_CACHE,
   COMMAND_HELP,
   COMMAND_TRIGGER_SCRAPING,
+  COMMAND_FETCH_JSON_FROM_STORAGE,
   CHIP_CALLBACK_TYPE,
   EXTRA_DRS_CHIP,
   WILDCARD_CHIP,
@@ -38,6 +40,9 @@ exports.handleTextMessage = function (bot, msg) {
   const textTrimmed = msg.text.trim();
 
   switch (true) {
+    // Handle the "/fetchJsonFromStorage" command
+    case msg.text === COMMAND_FETCH_JSON_FROM_STORAGE:
+      return handleFetchJsonFromStorage(bot, msg);
     // Check if message text is a number and delegate to the number handler
     case /^\d+$/.test(textTrimmed):
       handleNumberMessage(bot, chatId, textTrimmed);
@@ -461,7 +466,11 @@ function displayHelpMessage(bot, msg) {
               `${COMMAND_TRIGGER_SCRAPING.replace(
                 /_/g,
                 '\\_'
-              )} - Trigger web scraping for latest F1 Fantasy data.\n\n`
+              )} - Trigger web scraping for latest F1 Fantasy data.\n` +
+              `${COMMAND_FETCH_JSON_FROM_STORAGE.replace(
+                /_/g,
+                '\\_'
+              )} - Fetch and cache latest JSON data from storage.\n\n`
             : ''
         }` +
         '*Other Messages:*\n' +
@@ -476,6 +485,23 @@ function displayHelpMessage(bot, msg) {
     .catch((err) => console.error('Error sending help message:', err));
 
   return;
+}
+
+async function handleFetchJsonFromStorage(bot, msg) {
+  const chatId = msg.chat.id;
+
+  if (!isAdminMessage(msg)) {
+    bot.sendMessage(chatId, 'Sorry, only admins can use this command.');
+
+    return;
+  }
+
+  try {
+    await readJsonFromStorage(bot);
+    bot.sendMessage(chatId, 'JSON data fetched and cached successfully.');
+  } catch (error) {
+    bot.sendMessage(chatId, `Failed to fetch JSON data: ${error.message}`);
+  }
 }
 
 async function handleScrapingTrigger(bot, msg) {
