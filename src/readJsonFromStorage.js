@@ -31,16 +31,17 @@ exports.readJsonFromStorage = async function (bot) {
     return;
   }
 
-  driversCache[sharedKey] = {};
-  constructorsCache[sharedKey] = {};
+  // Transform arrays to objects using Object.fromEntries
+  driversCache[sharedKey] = Object.fromEntries(
+    jsonFromStorage.Drivers.map((driver) => [driver.DR, driver])
+  );
 
-  for (const driver of jsonFromStorage.Drivers) {
-    driversCache[sharedKey][driver.DR] = driver;
-  }
-
-  for (const constructor of jsonFromStorage.Constructors) {
-    constructorsCache[sharedKey][constructor.CN] = constructor;
-  }
+  constructorsCache[sharedKey] = Object.fromEntries(
+    jsonFromStorage.Constructors.map((constructor) => [
+      constructor.CN,
+      constructor,
+    ])
+  );
 };
 
 // Helper function to convert stream to string
