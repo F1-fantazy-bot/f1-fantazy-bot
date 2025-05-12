@@ -20,8 +20,9 @@ exports.COMMAND_CHIPS = '/chips';
 exports.COMMAND_PRINT_CACHE = '/print_cache';
 exports.COMMAND_RESET_CACHE = '/reset_cache';
 exports.COMMAND_HELP = '/help';
-exports.COMMAND_TRIGGER_SCRAPING = '/triggerScraping';
-exports.COMMAND_FETCH_JSON_FROM_STORAGE = '/fetchJsonFromStorage';
+exports.COMMAND_TRIGGER_SCRAPING = '/trigger_scraping';
+exports.COMMAND_LOAD_SIMULATION = '/load_simulation';
+exports.COMMAND_GET_CURRENT_SIMULATION = '/get_current_simulation_name';
 
 exports.NAME_TO_CODE_MAPPING = {
   // Drivers

@@ -17,6 +17,7 @@ const {
   currentTeamCache,
   getPrintableCache,
   selectedChipCache,
+  simulationNameCache,
   sharedKey,
 } = require('./cache');
 const {
@@ -27,7 +28,8 @@ const {
   COMMAND_RESET_CACHE,
   COMMAND_HELP,
   COMMAND_TRIGGER_SCRAPING,
-  COMMAND_FETCH_JSON_FROM_STORAGE,
+  COMMAND_LOAD_SIMULATION,
+  COMMAND_GET_CURRENT_SIMULATION,
   CHIP_CALLBACK_TYPE,
   EXTRA_DRS_CHIP,
   WILDCARD_CHIP,
@@ -40,38 +42,32 @@ exports.handleTextMessage = function (bot, msg) {
   const textTrimmed = msg.text.trim();
 
   switch (true) {
-    // Handle the "/fetchJsonFromStorage" command
-    case msg.text === COMMAND_FETCH_JSON_FROM_STORAGE:
-      return handleFetchJsonFromStorage(bot, msg);
     // Check if message text is a number and delegate to the number handler
     case /^\d+$/.test(textTrimmed):
       handleNumberMessage(bot, chatId, textTrimmed);
 
       return;
-    // Handle the "/best_teams" command
     case msg.text === COMMAND_BEST_TEAMS:
       handleBestTeamsMessage(bot, chatId);
 
       return;
-    // Handle the "/current_team_budget" command
     case msg.text === COMMAND_CURRENT_TEAM_BUDGET:
       return calcCurrentTeamBudget(bot, chatId);
-    // Handle the "/chips" command
     case msg.text === COMMAND_CHIPS:
       return handleChipsMessage(bot, msg);
-    // Handle the "/print_cache" command
     case msg.text === COMMAND_PRINT_CACHE:
       return sendPrintableCache(chatId, bot);
-    // Handle the "/reset_cache" command
     case msg.text === COMMAND_RESET_CACHE:
       return resetCacheForChat(chatId, bot);
-    // Handle the "/help" command
+    case msg.text === COMMAND_LOAD_SIMULATION:
+      return handleLoadSimulation(bot, msg);
     case msg.text === COMMAND_HELP:
       return displayHelpMessage(bot, msg);
+    case msg.text === COMMAND_GET_CURRENT_SIMULATION:
+      return handleGetCurrentSimulation(bot, msg);
     case msg.text === COMMAND_TRIGGER_SCRAPING:
       return handleScrapingTrigger(bot, msg);
     default:
-      // Delegate to the JSON handler for any other case
       handleJsonMessage(bot, msg, chatId);
       break;
   }
@@ -459,6 +455,10 @@ function displayHelpMessage(bot, msg) {
           /_/g,
           '\\_'
         )} - Clear all cached data for this chat.\n` +
+        `${COMMAND_GET_CURRENT_SIMULATION.replace(
+          /_/g,
+          '\\_'
+        )} - Show the name of the currently loaded simulation.\n` +
         `${COMMAND_HELP.replace(/_/g, '\\_')} - Show this help message.\n\n` +
         `${
           isAdmin
@@ -467,10 +467,10 @@ function displayHelpMessage(bot, msg) {
                 /_/g,
                 '\\_'
               )} - Trigger web scraping for latest F1 Fantasy data.\n` +
-              `${COMMAND_FETCH_JSON_FROM_STORAGE.replace(
+              `${COMMAND_LOAD_SIMULATION.replace(
                 /_/g,
                 '\\_'
-              )} - Fetch and cache latest JSON data from storage.\n\n`
+              )} - load latest simulation.\n\n`
             : ''
         }` +
         '*Other Messages:*\n' +
@@ -487,7 +487,37 @@ function displayHelpMessage(bot, msg) {
   return;
 }
 
-async function handleFetchJsonFromStorage(bot, msg) {
+function handleGetCurrentSimulation(bot, msg) {
+  const chatId = msg.chat.id;
+  const drivers = driversCache[chatId];
+  const constructors = constructorsCache[chatId];
+
+  // Check if user has data in their cache
+  if (drivers || constructors) {
+    bot.sendMessage(
+      chatId,
+      `You currently have data in your cache. To use data from a simulation, please run ${COMMAND_RESET_CACHE} first.`
+    );
+
+    return;
+  }
+
+  const simulationName = simulationNameCache[sharedKey];
+  if (!simulationName) {
+    bot.sendMessage(
+      chatId,
+      `No simulation data is currently loaded. Please use ${COMMAND_LOAD_SIMULATION} to load simulation data.`
+    );
+
+    return;
+  }
+
+  bot.sendMessage(chatId, `Current simulation name: ${simulationName}`);
+
+  return;
+}
+
+async function handleLoadSimulation(bot, msg) {
   const chatId = msg.chat.id;
 
   if (!isAdminMessage(msg)) {

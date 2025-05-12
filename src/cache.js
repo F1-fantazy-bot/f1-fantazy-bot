@@ -20,6 +20,9 @@ exports.constructorsCache = {};
 // In-memory cache for current team by chat id
 exports.currentTeamCache = {};
 
+// In-memory cache for simulation name
+exports.simulationNameCache = {};
+
 exports.selectedChipCache = {};
 
 exports.getPrintableCache = function (chatId, type) {

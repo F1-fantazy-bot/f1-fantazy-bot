@@ -1,7 +1,12 @@
 const { BlobServiceClient } = require('@azure/storage-blob');
 const { sendLogMessage, validateJsonData } = require('./utils');
 const { LOG_CHANNEL_ID } = require('./constants');
-const { driversCache, constructorsCache, sharedKey } = require('./cache');
+const {
+  driversCache,
+  constructorsCache,
+  sharedKey,
+  simulationNameCache,
+} = require('./cache');
 
 exports.readJsonFromStorage = async function (bot) {
   const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
@@ -30,6 +35,9 @@ exports.readJsonFromStorage = async function (bot) {
   if (!isValid) {
     return;
   }
+
+  // Store the simulation name in cache
+  simulationNameCache[sharedKey] = jsonFromStorage.SimulationName;
 
   // Transform arrays to objects using Object.fromEntries
   driversCache[sharedKey] = Object.fromEntries(
