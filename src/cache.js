@@ -26,26 +26,21 @@ exports.simulationNameCache = {};
 exports.selectedChipCache = {};
 
 exports.getPrintableCache = function (chatId, type) {
-  const driversData =
-    exports.driversCache[chatId] || exports.driversCache[exports.sharedKey];
-  const constructorsData =
-    exports.constructorsCache[chatId] ||
-    exports.constructorsCache[exports.sharedKey];
+  const driversData = exports.driversCache[chatId];
+  const constructorsData = exports.constructorsCache[chatId];
   const currentTeamData = exports.currentTeamCache[chatId];
 
   // Handle the default scenario when no specific type is provided
   if (!type) {
-    return wrapWithCodeBlock(
-      JSON.stringify(
-        {
-          Drivers: driversData ? Object.values(driversData) : [],
-          Constructors: constructorsData ? Object.values(constructorsData) : [],
-          CurrentTeam: currentTeamData || {},
-        },
-        null,
-        2
-      )
-    );
+    const jsonData = {
+      Drivers: Object.values(driversData || {}),
+      Constructors: Object.values(constructorsData || {}),
+      ...(chatId !== exports.sharedKey && {
+        CurrentTeam: currentTeamData || {},
+      }),
+    };
+
+    return wrapWithCodeBlock(JSON.stringify(jsonData, null, 2));
   }
 
   if (type === DRIVERS_PHOTO_TYPE) {

@@ -458,7 +458,7 @@ function displayHelpMessage(bot, msg) {
         `${COMMAND_GET_CURRENT_SIMULATION.replace(
           /_/g,
           '\\_'
-        )} - Show the name of the currently loaded simulation.\n` +
+        )} - Show the current simulation data and name.\n` +
         `${COMMAND_HELP.replace(/_/g, '\\_')} - Show this help message.\n\n` +
         `${
           isAdmin
@@ -512,6 +512,9 @@ function handleGetCurrentSimulation(bot, msg) {
     return;
   }
 
+  const printableCache = getPrintableCache(sharedKey);
+
+  bot.sendMessage(chatId, printableCache, { parse_mode: 'Markdown' });
   bot.sendMessage(chatId, `Current simulation name: ${simulationName}`);
 
   return;
