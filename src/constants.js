@@ -22,7 +22,7 @@ exports.COMMAND_RESET_CACHE = '/reset_cache';
 exports.COMMAND_HELP = '/help';
 exports.COMMAND_TRIGGER_SCRAPING = '/trigger_scraping';
 exports.COMMAND_LOAD_SIMULATION = '/load_simulation';
-exports.COMMAND_GET_CURRENT_SIMULATION = '/get_current_simulation_name';
+exports.COMMAND_GET_CURRENT_SIMULATION = '/get_current_simulation';
 
 exports.NAME_TO_CODE_MAPPING = {
   // Drivers
