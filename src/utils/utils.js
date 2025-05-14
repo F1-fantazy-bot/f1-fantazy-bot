@@ -13,6 +13,16 @@ const {
   EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT,
 } = require('../prompts');
 
+exports.sendMessage = function (bot, chatId, message) {
+  if (!chatId) {
+    console.error('Chat ID is not set');
+
+    return;
+  }
+
+  bot.sendMessage(chatId, message);
+};
+
 exports.sendLogMessage = function (bot, logMessage) {
   if (!LOG_CHANNEL_ID) {
     console.error('LOG_CHANNEL_ID is not set');
@@ -28,7 +38,16 @@ env: ${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`;
 pid: ${process.pid}`;
   }
 
-  bot.sendMessage(LOG_CHANNEL_ID, log);
+  exports.sendMessage(bot, LOG_CHANNEL_ID, log);
+};
+
+exports.sendMessageToAdmins = function (bot, message) {
+  const adminChatIds = [KILZI_CHAT_ID, DORSE_CHAT_ID];
+  const msg = `BOT: ${message}`;
+
+  adminChatIds.forEach((chatId) => {
+    exports.sendMessage(bot, chatId, msg);
+  });
 };
 
 exports.getChatName = function (msg) {

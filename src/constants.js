@@ -24,8 +24,7 @@ exports.COMMAND_TRIGGER_SCRAPING = '/trigger_scraping';
 exports.COMMAND_LOAD_SIMULATION = '/load_simulation';
 exports.COMMAND_GET_CURRENT_SIMULATION = '/get_current_simulation';
 
-exports.NAME_TO_CODE_MAPPING = {
-  // Drivers
+exports.NAME_TO_CODE_DRIVERS_MAPPING = {
   'o. piastri': 'PIA',
   'l. norris': 'NOR',
   'g. russell': 'RUS',
@@ -46,8 +45,10 @@ exports.NAME_TO_CODE_MAPPING = {
   'j. doohan': 'DOO',
   'g. bortoleto': 'BOR',
   'k. antonelli': 'ANT',
+  'f. colapinto': 'COL',
+};
 
-  // Constructors
+exports.NAME_TO_CODE_CONSTRUCTORS_MAPPING = {
   mclaren: 'MCL',
   mercedes: 'MER',
   ferrari: 'FER',
@@ -58,4 +59,9 @@ exports.NAME_TO_CODE_MAPPING = {
   haas: 'HAA',
   'aston martin': 'AST',
   'kick sauber': 'KCK',
+};
+
+exports.NAME_TO_CODE_MAPPING = {
+  ...exports.NAME_TO_CODE_DRIVERS_MAPPING,
+  ...exports.NAME_TO_CODE_CONSTRUCTORS_MAPPING,
 };

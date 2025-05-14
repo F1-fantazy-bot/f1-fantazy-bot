@@ -1,6 +1,14 @@
 const { BlobServiceClient } = require('@azure/storage-blob');
-const { sendLogMessage, validateJsonData } = require('./utils');
-const { LOG_CHANNEL_ID } = require('./constants');
+const {
+  sendLogMessage,
+  sendMessageToAdmins,
+  validateJsonData,
+} = require('./utils');
+const {
+  LOG_CHANNEL_ID,
+  NAME_TO_CODE_DRIVERS_MAPPING,
+  NAME_TO_CODE_CONSTRUCTORS_MAPPING,
+} = require('./constants');
 const {
   driversCache,
   constructorsCache,
@@ -39,10 +47,22 @@ exports.readJsonFromStorage = async function (bot) {
   // Store the simulation name in cache
   simulationNameCache[sharedKey] = jsonFromStorage.SimulationName;
 
-  // Transform arrays to objects using Object.fromEntries
+  const notFounds = {
+    drivers: [],
+    constructors: [],
+  };
+
   driversCache[sharedKey] = Object.fromEntries(
     jsonFromStorage.Drivers.map((driver) => [driver.DR, driver])
   );
+
+  Object.values(driversCache[sharedKey]).forEach((driver) => {
+    const driverCode = driver.DR;
+    const driversCodeInMapping = Object.values(NAME_TO_CODE_DRIVERS_MAPPING);
+    if (!driversCodeInMapping.includes(driverCode)) {
+      notFounds.drivers.push(driverCode);
+    }
+  });
 
   constructorsCache[sharedKey] = Object.fromEntries(
     jsonFromStorage.Constructors.map((constructor) => [
@@ -50,6 +70,35 @@ exports.readJsonFromStorage = async function (bot) {
       constructor,
     ])
   );
+
+  Object.values(constructorsCache[sharedKey]).forEach((constructor) => {
+    const constructorCode = constructor.CN;
+    const constructorsCodeInMapping = Object.values(
+      NAME_TO_CODE_CONSTRUCTORS_MAPPING
+    );
+    if (!constructorsCodeInMapping.includes(constructorCode)) {
+      notFounds.constructors.push(constructorCode);
+    }
+  });
+
+  if (notFounds.drivers.length > 0) {
+    const message = `
+🔴🔴🔴
+Drivers not found in mapping: ${notFounds.drivers.join(', ')}
+🔴🔴🔴`;
+
+    sendLogMessage(bot, message);
+    sendMessageToAdmins(bot, message);
+  }
+  if (notFounds.constructors.length > 0) {
+    const message = `
+🔴🔴🔴
+Constructors not found in mapping: ${notFounds.constructors.join(', ')}
+🔴🔴🔴`;
+
+    sendLogMessage(bot, message);
+    sendMessageToAdmins(bot, message);
+  }
 };
 
 // Helper function to convert stream to string
