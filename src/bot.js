@@ -33,7 +33,7 @@ try {
 
 // Listen for any kind of message.
 bot.on('message', async (msg) => {
-  handleMessage(bot, msg);
+  await handleMessage(bot, msg);
 });
 
 bot.on('callback_query', async (query) => {
@@ -41,31 +41,33 @@ bot.on('callback_query', async (query) => {
 });
 
 // Log polling errors
-bot.on('polling_error', (err) =>
-  sendLogMessage(bot, `Polling error: ${err.message}`)
+bot.on(
+  'polling_error',
+  async (err) => await sendLogMessage(bot, `Polling error: ${err.message}`)
 );
 
-bot.on('webhook_error', (err) =>
-  sendLogMessage(bot, `Webhook error: ${err.message}`)
+bot.on(
+  'webhook_error',
+  async (err) => await sendLogMessage(bot, `Webhook error: ${err.message}`)
 );
 
 // Log any errors that occur
-bot.on('error', (err) => {
-  sendLogMessage(bot, `Error occurred: ${err.message}`);
+bot.on('error', async (err) => {
+  await sendLogMessage(bot, `Error occurred: ${err.message}`);
 });
 
-process.on('uncaughtException', (err) => {
-  sendLogMessage(bot, `Uncaught exception: ${err.message}`);
+process.on('uncaughtException', async (err) => {
+  await sendLogMessage(bot, `Uncaught exception: ${err.message}`);
   console.error('Uncaught exception:', err);
 });
 
-process.on('unhandledRejection', (reason) => {
-  sendLogMessage(bot, `Unhandled rejection: ${reason}`);
+process.on('unhandledRejection', async (reason) => {
+  await sendLogMessage(bot, `Unhandled rejection: ${reason}`);
   console.error('Unhandled rejection:', reason);
 });
 
-process.on('exit', (code) => {
-  sendLogMessage(bot, `Process exited with code: ${code}`);
+process.on('exit', async (code) => {
+  await sendLogMessage(bot, `Process exited with code: ${code}`);
   console.log(`Process exited with code: ${code}`);
 });
 

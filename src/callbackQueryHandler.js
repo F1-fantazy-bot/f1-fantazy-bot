@@ -25,9 +25,9 @@ exports.handleCallbackQuery = async function (bot, query) {
 
   switch (callbackType) {
     case PHOTO_CALLBACK_TYPE:
-      return handlePhotoCallback(bot, query);
+      return await handlePhotoCallback(bot, query);
     case CHIP_CALLBACK_TYPE:
-      return handleChipCallback(bot, query);
+      return await handleChipCallback(bot, query);
     default:
       await sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
   }

@@ -44,29 +44,29 @@ exports.handleTextMessage = async function (bot, msg) {
   switch (true) {
     // Check if message text is a number and delegate to the number handler
     case /^\d+$/.test(textTrimmed):
-      handleNumberMessage(bot, chatId, textTrimmed);
+      await handleNumberMessage(bot, chatId, textTrimmed);
 
       return;
     case msg.text === COMMAND_BEST_TEAMS:
-      handleBestTeamsMessage(bot, chatId);
+      await handleBestTeamsMessage(bot, chatId);
 
       return;
     case msg.text === COMMAND_CURRENT_TEAM_BUDGET:
-      return calcCurrentTeamBudget(bot, chatId);
+      return await calcCurrentTeamBudget(bot, chatId);
     case msg.text === COMMAND_CHIPS:
-      return handleChipsMessage(bot, msg);
+      return await handleChipsMessage(bot, msg);
     case msg.text === COMMAND_PRINT_CACHE:
-      return sendPrintableCache(chatId, bot);
+      return await sendPrintableCache(chatId, bot);
     case msg.text === COMMAND_RESET_CACHE:
-      return resetCacheForChat(chatId, bot);
+      return await resetCacheForChat(chatId, bot);
     case msg.text === COMMAND_LOAD_SIMULATION:
-      return handleLoadSimulation(bot, msg);
+      return await handleLoadSimulation(bot, msg);
     case msg.text === COMMAND_HELP:
-      return displayHelpMessage(bot, msg);
+      return await displayHelpMessage(bot, msg);
     case msg.text === COMMAND_GET_CURRENT_SIMULATION:
-      return handleGetCurrentSimulation(bot, msg);
+      return await handleGetCurrentSimulation(bot, msg);
     case msg.text === COMMAND_TRIGGER_SCRAPING:
-      return handleScrapingTrigger(bot, msg);
+      return await handleScrapingTrigger(bot, msg);
     default:
       handleJsonMessage(bot, msg, chatId);
       break;
@@ -184,7 +184,7 @@ async function handleJsonMessage(bot, msg, chatId) {
   try {
     jsonData = JSON.parse(msg.text);
   } catch (error) {
-    sendLogMessage(
+    await sendLogMessage(
       bot,
       `Failed to parse JSON data: ${msg.text}. Error: ${error.message}`
     );
@@ -208,7 +208,7 @@ async function handleJsonMessage(bot, msg, chatId) {
   currentTeamCache[chatId] = jsonData.CurrentTeam;
   delete bestTeamsCache[chatId];
 
-  sendPrintableCache(chatId, bot);
+  await sendPrintableCache(chatId, bot);
 }
 
 async function handleBestTeamsMessage(bot, chatId) {
