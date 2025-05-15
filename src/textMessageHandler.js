@@ -517,6 +517,13 @@ async function handleGetCurrentSimulation(bot, msg) {
   await bot.sendMessage(chatId, printableCache, { parse_mode: 'Markdown' });
   await bot.sendMessage(chatId, `Current simulation name: ${simulationName}`);
 
+  if (isAdminMessage(msg)) {
+    await bot.sendMessage(
+      chatId,
+      `💡 Tip: If the simulation seems outdated, you can run ${COMMAND_LOAD_SIMULATION} to update the current simulation.`
+    );
+  }
+
   return;
 }
 
