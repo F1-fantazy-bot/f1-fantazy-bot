@@ -13,14 +13,14 @@ const {
   EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT,
 } = require('../prompts');
 
-exports.sendMessage = function (bot, chatId, message) {
+exports.sendMessage = async function (bot, chatId, message) {
   if (!chatId) {
     console.error('Chat ID is not set');
 
     return;
   }
 
-  bot.sendMessage(chatId, message);
+  await bot.sendMessage(chatId, message);
 };
 
 exports.sendLogMessage = function (bot, logMessage) {
@@ -73,7 +73,7 @@ exports.mapPhotoTypeToSystemPrompt = {
   [CURRENT_TEAM_PHOTO_TYPE]: EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT,
 };
 
-exports.validateJsonData = function (
+exports.validateJsonData = async function (
   bot,
   jsonData,
   chatId = LOG_CHANNEL_ID,
@@ -84,7 +84,7 @@ exports.validateJsonData = function (
       bot,
       `Invalid JSON data. Expected 20 drivers under "Drivers" property'.`
     );
-    bot
+    await bot
       .sendMessage(
         chatId,
         'Invalid JSON data. Please ensure it contains 20 drivers under "Drivers" property.'
@@ -99,7 +99,7 @@ exports.validateJsonData = function (
       bot,
       `Invalid JSON data. Expected 10 constructors under "Constructors" property'.`
     );
-    bot
+    await bot
       .sendMessage(
         chatId,
         'Invalid JSON data. Please ensure it contains 10 constructors under "Constructors" property.'
@@ -126,7 +126,7 @@ exports.validateJsonData = function (
       bot,
       `Invalid JSON data. Expected 5 drivers, 2 constructors, drsBoost, freeTransfers, and costCapRemaining properties under "CurrentTeam" property'.`
     );
-    bot
+    await bot
       .sendMessage(
         chatId,
         'Invalid JSON data. Please ensure it contains the required properties under "CurrentTeam" property.'
@@ -156,10 +156,13 @@ exports.calculateTeamBudget = function (team, drivers, constructors) {
   };
 };
 
-exports.triggerScraping = async function (bot) {
+exports.triggerScraping = async function (bot, chatId) {
   const url = process.env.AZURE_LOGICAPP_TRIGGER_URL;
   if (!url) {
-    bot.sendMessage(chatId, 'Error: Scraping trigger URL is not configured.');
+    await bot.sendMessage(
+      chatId,
+      'Error: Scraping trigger URL is not configured.'
+    );
 
     return;
   }

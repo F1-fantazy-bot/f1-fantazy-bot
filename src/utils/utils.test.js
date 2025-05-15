@@ -51,7 +51,7 @@ describe('utils', () => {
   });
 
   describe('sendLogMessage', () => {
-    it('when LOG_CHANNEL_ID is undefined, bot.sendMessage does not have been called', () => {
+    it('when LOG_CHANNEL_ID is undefined, bot.sendMessage does not have been called', async () => {
       // Reset module registry to ensure the mocks take effect
       jest.resetModules();
       // Mock the constants module so that LOG_CHANNEL_ID is undefined
@@ -66,7 +66,7 @@ describe('utils', () => {
 
       // Re-require utils so it picks up the mocked constants
       const { sendLogMessage } = require('./utils');
-      sendLogMessage(botMock, 'Log message without channel ID');
+      await sendLogMessage(botMock, 'Log message without channel ID');
 
       expect(botMock.sendMessage).not.toHaveBeenCalled();
       expect(consoleErrorSpy).toHaveBeenCalledWith('LOG_CHANNEL_ID is not set');
@@ -74,12 +74,12 @@ describe('utils', () => {
       consoleErrorSpy.mockRestore();
     });
 
-    it('when LOG_CHANNEL_ID is defined, bot.sendMessage has been called', () => {
+    it('when LOG_CHANNEL_ID is defined, bot.sendMessage has been called', async () => {
       const botMock = {
         sendMessage: jest.fn(),
       };
 
-      sendLogMessage(botMock, 'Log message with channel ID');
+      await sendLogMessage(botMock, 'Log message with channel ID');
 
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         expect.any(Number), // LOG_CHANNEL_ID
@@ -87,13 +87,13 @@ describe('utils', () => {
       );
     });
 
-    it('when NODE_ENV is production, log message contains prod', () => {
+    it('when NODE_ENV is production, log message contains prod', async () => {
       process.env.NODE_ENV = 'production';
       const botMock = {
         sendMessage: jest.fn(),
       };
 
-      sendLogMessage(botMock, 'Log message in production');
+      await sendLogMessage(botMock, 'Log message in production');
 
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         expect.any(Number), // LOG_CHANNEL_ID
@@ -101,13 +101,13 @@ describe('utils', () => {
       );
     });
 
-    it('when NODE_ENV is not production, log message contains dev', () => {
+    it('when NODE_ENV is not production, log message contains dev', async () => {
       process.env.NODE_ENV = 'development';
       const botMock = {
         sendMessage: jest.fn(),
       };
 
-      sendLogMessage(botMock, 'Log message in development');
+      await sendLogMessage(botMock, 'Log message in development');
 
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         expect.any(Number), // LOG_CHANNEL_ID
@@ -267,14 +267,14 @@ describe('utils', () => {
     });
 
     it('returns true for valid JSON data', async () => {
-      const result = validateJsonData(botMock, validJsonData, 123);
+      const result = await validateJsonData(botMock, validJsonData, 123);
       expect(result).toBe(true);
       expect(botMock.sendMessage).not.toHaveBeenCalled();
     });
 
     it('returns false and sends message if Drivers is missing', async () => {
       const data = { ...validJsonData, Drivers: undefined };
-      const result = validateJsonData(botMock, data, 123);
+      const result = await validateJsonData(botMock, data, 123);
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
@@ -284,7 +284,7 @@ describe('utils', () => {
 
     it('returns false and sends message if Drivers length is not 20', async () => {
       const data = { ...validJsonData, Drivers: Array(19).fill({}) };
-      const result = validateJsonData(botMock, data, 123);
+      const result = await validateJsonData(botMock, data, 123);
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
@@ -294,7 +294,7 @@ describe('utils', () => {
 
     it('returns false and sends message if Constructors is missing', async () => {
       const data = { ...validJsonData, Constructors: undefined };
-      const result = validateJsonData(botMock, data, 123);
+      const result = await validateJsonData(botMock, data, 123);
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
@@ -304,7 +304,7 @@ describe('utils', () => {
 
     it('returns false and sends message if Constructors length is not 10', async () => {
       const data = { ...validJsonData, Constructors: Array(9).fill({}) };
-      const result = validateJsonData(botMock, data, 123);
+      const result = await validateJsonData(botMock, data, 123);
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
@@ -314,7 +314,7 @@ describe('utils', () => {
 
     it('returns false and sends message if CurrentTeam is missing', async () => {
       const data = { ...validJsonData, CurrentTeam: undefined };
-      const result = validateJsonData(botMock, data, 123);
+      const result = await validateJsonData(botMock, data, 123);
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
@@ -327,7 +327,7 @@ describe('utils', () => {
         ...validJsonData,
         CurrentTeam: { ...validJsonData.CurrentTeam, drivers: undefined },
       };
-      const result = validateJsonData(botMock, data, 123);
+      const result = await validateJsonData(botMock, data, 123);
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
@@ -343,7 +343,7 @@ describe('utils', () => {
           drivers: Array(4).fill('DRIVER'),
         },
       };
-      const result = validateJsonData(botMock, data, 123);
+      const result = await validateJsonData(botMock, data, 123);
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
@@ -356,7 +356,7 @@ describe('utils', () => {
         ...validJsonData,
         CurrentTeam: { ...validJsonData.CurrentTeam, constructors: undefined },
       };
-      const result = validateJsonData(botMock, data, 123);
+      const result = await validateJsonData(botMock, data, 123);
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
@@ -372,7 +372,7 @@ describe('utils', () => {
           constructors: Array(1).fill('CONSTRUCTOR'),
         },
       };
-      const result = validateJsonData(botMock, data, 123);
+      const result = await validateJsonData(botMock, data, 123);
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
@@ -382,7 +382,7 @@ describe('utils', () => {
 
     it('returns false and sends message if CurrentTeam.drsBoost is missing', async () => {
       delete validJsonData.CurrentTeam.drsBoost;
-      const result = validateJsonData(botMock, validJsonData, 123);
+      const result = await validateJsonData(botMock, validJsonData, 123);
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
@@ -392,7 +392,7 @@ describe('utils', () => {
 
     it('returns false and sends message if CurrentTeam.freeTransfers is missing', async () => {
       delete validJsonData.CurrentTeam.freeTransfers;
-      const result = validateJsonData(botMock, validJsonData, 123);
+      const result = await validateJsonData(botMock, validJsonData, 123);
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
@@ -402,7 +402,7 @@ describe('utils', () => {
 
     it('returns false and sends message if CurrentTeam.costCapRemaining is missing', async () => {
       delete validJsonData.CurrentTeam.costCapRemaining;
-      const result = validateJsonData(botMock, validJsonData, 123);
+      const result = await validateJsonData(botMock, validJsonData, 123);
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,

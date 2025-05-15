@@ -29,7 +29,7 @@ exports.handleCallbackQuery = async function (bot, query) {
     case CHIP_CALLBACK_TYPE:
       return handleChipCallback(bot, query);
     default:
-      sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
+      await sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
   }
 };
 
@@ -44,7 +44,7 @@ async function handlePhotoCallback(bot, query) {
   );
 
   // Optional: edit the message to confirm
-  bot.editMessageText(
+  await bot.editMessageText(
     `Photo labeled as ${type.toUpperCase()}. Wait for extracted JSON data...`,
     {
       chat_id: chatId,
@@ -53,7 +53,7 @@ async function handlePhotoCallback(bot, query) {
   );
 
   // Answer callback to remove "Loading..." spinner
-  bot.answerCallbackQuery(query.id);
+  await bot.answerCallbackQuery(query.id);
 
   const fileDetails = photoCache[fileId];
   try {
@@ -66,14 +66,14 @@ async function handlePhotoCallback(bot, query) {
     storeInCache(chatId, type, extractedData);
     delete bestTeamsCache[chatId];
 
-    bot
+    await bot
       .sendMessage(chatId, getPrintableCache(chatId, type), {
         parse_mode: 'Markdown',
       })
       .catch((err) => console.error('Error sending extracted data:', err));
   } catch (err) {
     console.error('Error extracting data from photo:', err);
-    bot
+    await bot
       .sendMessage(
         chatId,
         'An error occurred while extracting data from the photo.'
@@ -83,7 +83,7 @@ async function handlePhotoCallback(bot, query) {
       );
   }
 }
-function handleChipCallback(bot, query) {
+async function handleChipCallback(bot, query) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
   const chip = query.data.split(':')[1];
@@ -93,13 +93,13 @@ function handleChipCallback(bot, query) {
   }
 
   // Optional: edit the message to confirm
-  bot.editMessageText(`Selected chip: ${chip.toUpperCase()}.`, {
+  await bot.editMessageText(`Selected chip: ${chip.toUpperCase()}.`, {
     chat_id: chatId,
     message_id: messageId,
   });
 
   // Answer callback to remove "Loading..." spinner
-  bot.answerCallbackQuery(query.id);
+  await bot.answerCallbackQuery(query.id);
 }
 
 function storeInCache(chatId, type, extractedData) {

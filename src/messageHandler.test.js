@@ -38,7 +38,7 @@ describe('handleMessage', () => {
     jest.clearAllMocks();
   });
 
-  it('when got message from unknown sender, dont handle the message', () => {
+  it('when got message from unknown sender, dont handle the message', async () => {
     const msgMock = {
       chat: {
         id: 123456,
@@ -46,7 +46,7 @@ describe('handleMessage', () => {
       text: 'Hello',
     };
 
-    handleMessage(botMock, msgMock);
+    await handleMessage(botMock, msgMock);
     expect(botMock.sendMessage).not.toHaveBeenCalledWith(
       msgMock.chat.id,
       expect.any(String)
@@ -58,14 +58,14 @@ describe('handleMessage', () => {
     );
   });
 
-  it('when got unsupported message', () => {
+  it('when got unsupported message', async () => {
     const msgMock = {
       chat: {
         id: KILZI_CHAT_ID,
       },
       unsupportedField: 'Unsupported',
     };
-    handleMessage(botMock, msgMock);
+    await handleMessage(botMock, msgMock);
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
       'Sorry, I only support text and image messages.'

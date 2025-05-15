@@ -41,7 +41,7 @@ describe('handleTextMessage', () => {
     delete currentTeamCache[KILZI_CHAT_ID];
   });
 
-  it('when got message without json or number inside, return error', () => {
+  it('when got message without json or number inside, return error', async () => {
     const msgMock = {
       chat: {
         id: KILZI_CHAT_ID,
@@ -49,7 +49,7 @@ describe('handleTextMessage', () => {
       text: 'Hello',
     };
 
-    handleMessage(botMock, msgMock);
+    await handleMessage(botMock, msgMock);
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
       'Invalid JSON format. Please send valid JSON.'
@@ -65,13 +65,13 @@ describe('handleTextMessage', () => {
     );
   });
 
-  it('should handle /help command and send help message', () => {
+  it('should handle /help command and send help message', async () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
       text: COMMAND_HELP,
     };
 
-    handleMessage(botMock, msgMock);
+    await handleMessage(botMock, msgMock);
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
       expect.stringContaining('*Available Commands:*'),
@@ -79,7 +79,7 @@ describe('handleTextMessage', () => {
     );
   });
 
-  it('should handle /reset_cache command and send reset confirmation', () => {
+  it('should handle /reset_cache command and send reset confirmation', async () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
       text: COMMAND_RESET_CACHE,
@@ -92,7 +92,7 @@ describe('handleTextMessage', () => {
     bestTeamsCache[KILZI_CHAT_ID] = { some: 'data' };
     selectedChipCache[KILZI_CHAT_ID] = 'some_chip';
 
-    handleMessage(botMock, msgMock);
+    await handleMessage(botMock, msgMock);
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
@@ -105,7 +105,7 @@ describe('handleTextMessage', () => {
     expect(selectedChipCache[KILZI_CHAT_ID]).toBeUndefined();
   });
 
-  it('should handle /print_cache command and send cache messages', () => {
+  it('should handle /print_cache command and send cache messages', async () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
       text: COMMAND_PRINT_CACHE,
@@ -116,43 +116,43 @@ describe('handleTextMessage', () => {
     constructorsCache[KILZI_CHAT_ID] = { some: 'data' };
     currentTeamCache[KILZI_CHAT_ID] = { some: 'data' };
 
-    handleMessage(botMock, msgMock);
+    await handleMessage(botMock, msgMock);
     expect(botMock.sendMessage).toHaveBeenCalledTimes(2);
   });
 
-  it('should handle /best_teams command and send missing cache message if no cache', () => {
+  it('should handle /best_teams command and send missing cache message if no cache', async () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
       text: COMMAND_BEST_TEAMS,
     };
 
-    handleMessage(botMock, msgMock);
+    await handleMessage(botMock, msgMock);
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
       'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.'
     );
   });
 
-  it('should handle number message and send no cached teams message if no cache', () => {
+  it('should handle number message and send no cached teams message if no cache', async () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
       text: '1',
     };
 
-    handleMessage(botMock, msgMock);
+    await handleMessage(botMock, msgMock);
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
       expect.stringContaining('No cached teams available')
     );
   });
 
-  it('should handle invalid JSON and send error', () => {
+  it('should handle invalid JSON and send error', async () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
       text: '{invalidJson:}',
     };
 
-    handleMessage(botMock, msgMock);
+    await handleMessage(botMock, msgMock);
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
       'Invalid JSON format. Please send valid JSON.'
@@ -163,7 +163,7 @@ describe('handleTextMessage', () => {
     );
   });
 
-  it('should calculate and send current team budget correctly', () => {
+  it('should calculate and send current team budget correctly', async () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
       text: COMMAND_CURRENT_TEAM_BUDGET,
@@ -195,7 +195,7 @@ describe('handleTextMessage', () => {
       overallBudget: expectedBudget,
     });
 
-    handleMessage(botMock, msgMock);
+    await handleMessage(botMock, msgMock);
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
@@ -223,7 +223,7 @@ describe('handleTextMessage', () => {
     );
   });
 
-  it('should send missing cache message if drivers cache is missing', () => {
+  it('should send missing cache message if drivers cache is missing', async () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
       text: COMMAND_CURRENT_TEAM_BUDGET,
@@ -236,7 +236,7 @@ describe('handleTextMessage', () => {
       costCapRemaining: 0,
     };
 
-    handleMessage(botMock, msgMock);
+    await handleMessage(botMock, msgMock);
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
@@ -244,7 +244,7 @@ describe('handleTextMessage', () => {
     );
   });
 
-  it('should send missing cache message if constructors cache is missing', () => {
+  it('should send missing cache message if constructors cache is missing', async () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
       text: COMMAND_CURRENT_TEAM_BUDGET,
@@ -256,7 +256,7 @@ describe('handleTextMessage', () => {
       costCapRemaining: 0,
     };
 
-    handleMessage(botMock, msgMock);
+    await handleMessage(botMock, msgMock);
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
@@ -264,7 +264,7 @@ describe('handleTextMessage', () => {
     );
   });
 
-  it('should send missing cache message if current team cache is missing', () => {
+  it('should send missing cache message if current team cache is missing', async () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
       text: COMMAND_CURRENT_TEAM_BUDGET,
@@ -272,7 +272,7 @@ describe('handleTextMessage', () => {
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
     constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.0 } };
 
-    handleMessage(botMock, msgMock);
+    await handleMessage(botMock, msgMock);
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
