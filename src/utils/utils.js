@@ -23,7 +23,7 @@ exports.sendMessage = async function (bot, chatId, message) {
   await bot.sendMessage(chatId, message);
 };
 
-exports.sendLogMessage = function (bot, logMessage) {
+exports.sendLogMessage = async function (bot, logMessage) {
   if (!LOG_CHANNEL_ID) {
     console.error('LOG_CHANNEL_ID is not set');
 
@@ -38,16 +38,16 @@ env: ${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`;
 pid: ${process.pid}`;
   }
 
-  exports.sendMessage(bot, LOG_CHANNEL_ID, log);
+  await exports.sendMessage(bot, LOG_CHANNEL_ID, log);
 };
 
-exports.sendMessageToAdmins = function (bot, message) {
+exports.sendMessageToAdmins = async function (bot, message) {
   const adminChatIds = [KILZI_CHAT_ID, DORSE_CHAT_ID];
   const msg = `BOT: ${message}`;
 
-  adminChatIds.forEach((chatId) => {
-    exports.sendMessage(bot, chatId, msg);
-  });
+  for (const chatId of adminChatIds) {
+    await exports.sendMessage(bot, chatId, msg);
+  }
 };
 
 exports.getChatName = function (msg) {
@@ -80,7 +80,7 @@ exports.validateJsonData = async function (
   validateCurrentTeam = true
 ) {
   if (!jsonData.Drivers || jsonData.Drivers.length !== 20) {
-    exports.sendLogMessage(
+    await exports.sendLogMessage(
       bot,
       `Invalid JSON data. Expected 20 drivers under "Drivers" property'.`
     );
@@ -95,7 +95,7 @@ exports.validateJsonData = async function (
   }
 
   if (!jsonData.Constructors || jsonData.Constructors.length !== 10) {
-    exports.sendLogMessage(
+    await exports.sendLogMessage(
       bot,
       `Invalid JSON data. Expected 10 constructors under "Constructors" property'.`
     );
@@ -122,7 +122,7 @@ exports.validateJsonData = async function (
       jsonData.CurrentTeam.costCapRemaining === null ||
       jsonData.CurrentTeam.costCapRemaining === undefined)
   ) {
-    exports.sendLogMessage(
+    await exports.sendLogMessage(
       bot,
       `Invalid JSON data. Expected 5 drivers, 2 constructors, drsBoost, freeTransfers, and costCapRemaining properties under "CurrentTeam" property'.`
     );
