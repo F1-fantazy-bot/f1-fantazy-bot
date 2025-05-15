@@ -41,7 +41,7 @@ exports.extractJsonDataFromPhotos = async function (bot, type, fileLinks) {
 
   const azureOpenAiTokensString = `Azure OpenAI model - ${AZURE_OPEN_AI_MODEL}, tokens - prompt: ${completion.usage.prompt_tokens}, completion: ${completion.usage.completion_tokens}, total: ${completion.usage.total_tokens}`;
   console.log(azureOpenAiTokensString);
-  sendLogMessage(bot, azureOpenAiTokensString);
+  await sendLogMessage(bot, azureOpenAiTokensString);
 
   return completion.choices[0].message.content;
 };

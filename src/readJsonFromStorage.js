@@ -33,12 +33,17 @@ exports.readJsonFromStorage = async function (bot) {
   const jsonString = await streamToString(downloadResponse.readableStreamBody);
   const jsonFromStorage = JSON.parse(jsonString);
 
-  sendLogMessage(
+  await sendLogMessage(
     bot,
     `jsonFromStorage downloaded successfully. Simulation: ${jsonFromStorage?.SimulationName}`
   );
 
-  const isValid = validateJsonData(bot, jsonFromStorage, LOG_CHANNEL_ID, false);
+  const isValid = await validateJsonData(
+    bot,
+    jsonFromStorage,
+    LOG_CHANNEL_ID,
+    false
+  );
 
   if (!isValid) {
     return;
@@ -87,8 +92,8 @@ exports.readJsonFromStorage = async function (bot) {
 Drivers not found in mapping: ${notFounds.drivers.join(', ')}
 🔴🔴🔴`;
 
-    sendLogMessage(bot, message);
-    sendMessageToAdmins(bot, message);
+    await sendLogMessage(bot, message);
+    await sendMessageToAdmins(bot, message);
   }
   if (notFounds.constructors.length > 0) {
     const message = `
@@ -96,8 +101,8 @@ Drivers not found in mapping: ${notFounds.drivers.join(', ')}
 Constructors not found in mapping: ${notFounds.constructors.join(', ')}
 🔴🔴🔴`;
 
-    sendLogMessage(bot, message);
-    sendMessageToAdmins(bot, message);
+    await sendLogMessage(bot, message);
+    await sendMessageToAdmins(bot, message);
   }
 };
 

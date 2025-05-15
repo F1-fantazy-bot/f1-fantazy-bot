@@ -37,36 +37,36 @@ const {
   WITHOUT_CHIP,
 } = require('./constants');
 
-exports.handleTextMessage = function (bot, msg) {
+exports.handleTextMessage = async function (bot, msg) {
   const chatId = msg.chat.id;
   const textTrimmed = msg.text.trim();
 
   switch (true) {
     // Check if message text is a number and delegate to the number handler
     case /^\d+$/.test(textTrimmed):
-      handleNumberMessage(bot, chatId, textTrimmed);
+      await handleNumberMessage(bot, chatId, textTrimmed);
 
       return;
     case msg.text === COMMAND_BEST_TEAMS:
-      handleBestTeamsMessage(bot, chatId);
+      await handleBestTeamsMessage(bot, chatId);
 
       return;
     case msg.text === COMMAND_CURRENT_TEAM_BUDGET:
-      return calcCurrentTeamBudget(bot, chatId);
+      return await calcCurrentTeamBudget(bot, chatId);
     case msg.text === COMMAND_CHIPS:
-      return handleChipsMessage(bot, msg);
+      return await handleChipsMessage(bot, msg);
     case msg.text === COMMAND_PRINT_CACHE:
-      return sendPrintableCache(chatId, bot);
+      return await sendPrintableCache(chatId, bot);
     case msg.text === COMMAND_RESET_CACHE:
-      return resetCacheForChat(chatId, bot);
+      return await resetCacheForChat(chatId, bot);
     case msg.text === COMMAND_LOAD_SIMULATION:
-      return handleLoadSimulation(bot, msg);
+      return await handleLoadSimulation(bot, msg);
     case msg.text === COMMAND_HELP:
-      return displayHelpMessage(bot, msg);
+      return await displayHelpMessage(bot, msg);
     case msg.text === COMMAND_GET_CURRENT_SIMULATION:
-      return handleGetCurrentSimulation(bot, msg);
+      return await handleGetCurrentSimulation(bot, msg);
     case msg.text === COMMAND_TRIGGER_SCRAPING:
-      return handleScrapingTrigger(bot, msg);
+      return await handleScrapingTrigger(bot, msg);
     default:
       handleJsonMessage(bot, msg, chatId);
       break;
@@ -74,7 +74,7 @@ exports.handleTextMessage = function (bot, msg) {
 };
 
 // Handles the case when the message text is a number
-function handleNumberMessage(bot, chatId, textTrimmed) {
+async function handleNumberMessage(bot, chatId, textTrimmed) {
   const teamRowRequested = parseInt(textTrimmed, 10);
 
   if (bestTeamsCache[chatId]) {
@@ -88,7 +88,7 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
         selectedTeam.transfers_needed === 0 &&
         !selectedTeam.extra_drs_driver // if the user uses the extra drs chip we need to show the changes
       ) {
-        bot
+        await bot
           .sendMessage(
             chatId,
             `You are already at team ${teamRowRequested}. No changes needed.`
@@ -154,20 +154,20 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
         )}`;
       }
 
-      bot
+      await bot
         .sendMessage(chatId, changesToTeamMessage, { parse_mode: 'Markdown' })
         .catch((err) =>
           console.error('Error sending changes to team message:', err)
         );
     } else {
-      bot
+      await bot
         .sendMessage(chatId, `No team found for number ${teamRowRequested}.`)
         .catch((err) =>
           console.error('Error sending team not found message:', err)
         );
     }
   } else {
-    bot
+    await bot
       .sendMessage(
         chatId,
         `No cached teams available. Please send full JSON data or images first and then run the ${COMMAND_BEST_TEAMS} command.`
@@ -179,16 +179,16 @@ function handleNumberMessage(bot, chatId, textTrimmed) {
 }
 
 // Handles the case when the message text is JSON data
-function handleJsonMessage(bot, msg, chatId) {
+async function handleJsonMessage(bot, msg, chatId) {
   let jsonData;
   try {
     jsonData = JSON.parse(msg.text);
   } catch (error) {
-    sendLogMessage(
+    await sendLogMessage(
       bot,
       `Failed to parse JSON data: ${msg.text}. Error: ${error.message}`
     );
-    bot
+    await bot
       .sendMessage(chatId, 'Invalid JSON format. Please send valid JSON.')
       .catch((err) => console.error('Error sending JSON error message:', err));
 
@@ -208,10 +208,10 @@ function handleJsonMessage(bot, msg, chatId) {
   currentTeamCache[chatId] = jsonData.CurrentTeam;
   delete bestTeamsCache[chatId];
 
-  sendPrintableCache(chatId, bot);
+  await sendPrintableCache(chatId, bot);
 }
 
-function handleBestTeamsMessage(bot, chatId) {
+async function handleBestTeamsMessage(bot, chatId) {
   // Try to fetch cached data for this chat
   const drivers = driversCache[chatId] || driversCache[sharedKey];
   const constructors =
@@ -219,7 +219,7 @@ function handleBestTeamsMessage(bot, chatId) {
   const currentTeam = currentTeamCache[chatId];
 
   if (!drivers || !constructors || !currentTeam) {
-    bot
+    await bot
       .sendMessage(
         chatId,
         'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.'
@@ -296,11 +296,11 @@ function handleBestTeamsMessage(bot, chatId) {
     })
     .join('\n\n');
 
-  bot
+  await bot
     .sendMessage(chatId, messageMarkdown, { parse_mode: 'Markdown' })
     .catch((err) => console.error('Error sending JSON reply:', err));
 
-  bot
+  await bot
     .sendMessage(
       chatId,
       'Please send a number to get the required changes to that team.'
@@ -310,30 +310,30 @@ function handleBestTeamsMessage(bot, chatId) {
     );
 }
 
-function resetCacheForChat(chatId, bot) {
+async function resetCacheForChat(chatId, bot) {
   delete driversCache[chatId];
   delete constructorsCache[chatId];
   delete currentTeamCache[chatId];
   delete bestTeamsCache[chatId];
   delete selectedChipCache[chatId];
 
-  bot
+  await bot
     .sendMessage(chatId, 'Cache has been reset for your chat.')
     .catch((err) => console.error('Error sending cache reset message:', err));
 
   return;
 }
 
-function sendPrintableCache(chatId, bot) {
+async function sendPrintableCache(chatId, bot) {
   const printableCache = getPrintableCache(chatId);
   const selectedChip = selectedChipCache[chatId];
 
   if (printableCache) {
-    bot
+    await bot
       .sendMessage(chatId, printableCache, { parse_mode: 'Markdown' })
       .catch((err) => console.error('Error sending drivers cache:', err));
   } else {
-    bot
+    await bot
       .sendMessage(
         chatId,
         'Drivers cache is empty. Please send drivers image or valid JSON data.'
@@ -344,13 +344,13 @@ function sendPrintableCache(chatId, bot) {
   }
 
   if (selectedChip) {
-    bot
+    await bot
       .sendMessage(chatId, `Selected Chip: ${selectedChip}`)
       .catch((err) =>
         console.error('Error sending selected chip message:', err)
       );
   } else {
-    bot
+    await bot
       .sendMessage(chatId, 'No chip selected.')
       .catch((err) => console.error('Error sending no chip message:', err));
   }
@@ -358,14 +358,14 @@ function sendPrintableCache(chatId, bot) {
   return;
 }
 
-function calcCurrentTeamBudget(bot, chatId) {
+async function calcCurrentTeamBudget(bot, chatId) {
   const drivers = driversCache[chatId] || driversCache[sharedKey];
   const constructors =
     constructorsCache[chatId] || constructorsCache[sharedKey];
   const currentTeam = currentTeamCache[chatId];
 
   if (!drivers || !constructors || !currentTeam) {
-    bot
+    await bot
       .sendMessage(
         chatId,
         'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.'
@@ -387,7 +387,7 @@ function calcCurrentTeamBudget(bot, chatId) {
     `*Cost Cap Remaining:* ${teamBudget.costCapRemaining.toFixed(2)}\n` +
     `*Total Budget:* ${teamBudget.overallBudget.toFixed(2)}`;
 
-  bot
+  await bot
     .sendMessage(chatId, message, { parse_mode: 'Markdown' })
     .catch((err) =>
       console.error('Error sending current team budget message:', err)
@@ -396,12 +396,12 @@ function calcCurrentTeamBudget(bot, chatId) {
   return;
 }
 
-function handleChipsMessage(bot, msg) {
+async function handleChipsMessage(bot, msg) {
   const chatId = msg.chat.id;
   const messageId = msg.message_id;
 
   // Reply with inline buttons
-  bot.sendMessage(chatId, 'which chip do you want to use?', {
+  await bot.sendMessage(chatId, 'which chip do you want to use?', {
     reply_to_message_id: messageId,
     reply_markup: {
       inline_keyboard: [
@@ -428,10 +428,10 @@ function handleChipsMessage(bot, msg) {
   });
 }
 
-function displayHelpMessage(bot, msg) {
+async function displayHelpMessage(bot, msg) {
   const chatId = msg.chat.id;
   const isAdmin = isAdminMessage(msg);
-  bot
+  await bot
     .sendMessage(
       chatId,
       `*Available Commands:*\n` +
@@ -531,16 +531,19 @@ async function handleLoadSimulation(bot, msg) {
   const chatId = msg.chat.id;
 
   if (!isAdminMessage(msg)) {
-    bot.sendMessage(chatId, 'Sorry, only admins can use this command.');
+    await bot.sendMessage(chatId, 'Sorry, only admins can use this command.');
 
     return;
   }
 
   try {
     await readJsonFromStorage(bot);
-    bot.sendMessage(chatId, 'JSON data fetched and cached successfully.');
+    await bot.sendMessage(chatId, 'JSON data fetched and cached successfully.');
   } catch (error) {
-    bot.sendMessage(chatId, `Failed to fetch JSON data: ${error.message}`);
+    await bot.sendMessage(
+      chatId,
+      `Failed to fetch JSON data: ${error.message}`
+    );
   }
 }
 
@@ -548,15 +551,18 @@ async function handleScrapingTrigger(bot, msg) {
   const chatId = msg.chat.id;
 
   if (!isAdminMessage(msg)) {
-    bot.sendMessage(chatId, 'Sorry, only admins can trigger scraping.');
+    await bot.sendMessage(chatId, 'Sorry, only admins can trigger scraping.');
 
     return;
   }
 
   const result = await triggerScraping(bot);
   if (result.success) {
-    bot.sendMessage(chatId, 'Web scraping triggered successfully.');
+    await bot.sendMessage(chatId, 'Web scraping triggered successfully.');
   } else {
-    bot.sendMessage(chatId, `Failed to trigger web scraping: ${result.error}`);
+    await bot.sendMessage(
+      chatId,
+      `Failed to trigger web scraping: ${result.error}`
+    );
   }
 }
