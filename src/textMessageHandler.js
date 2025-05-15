@@ -487,14 +487,14 @@ function displayHelpMessage(bot, msg) {
   return;
 }
 
-function handleGetCurrentSimulation(bot, msg) {
+async function handleGetCurrentSimulation(bot, msg) {
   const chatId = msg.chat.id;
   const drivers = driversCache[chatId];
   const constructors = constructorsCache[chatId];
 
   // Check if user has data in their cache
   if (drivers || constructors) {
-    bot.sendMessage(
+    await bot.sendMessage(
       chatId,
       `You currently have data in your cache. To use data from a simulation, please run ${COMMAND_RESET_CACHE} first.`
     );
@@ -504,7 +504,7 @@ function handleGetCurrentSimulation(bot, msg) {
 
   const simulationName = simulationNameCache[sharedKey];
   if (!simulationName) {
-    bot.sendMessage(
+    await bot.sendMessage(
       chatId,
       `No simulation data is currently loaded. Please use ${COMMAND_LOAD_SIMULATION} to load simulation data.`
     );
@@ -514,8 +514,15 @@ function handleGetCurrentSimulation(bot, msg) {
 
   const printableCache = getPrintableCache(sharedKey);
 
-  bot.sendMessage(chatId, printableCache, { parse_mode: 'Markdown' });
-  bot.sendMessage(chatId, `Current simulation name: ${simulationName}`);
+  await bot.sendMessage(chatId, printableCache, { parse_mode: 'Markdown' });
+  await bot.sendMessage(chatId, `Current simulation name: ${simulationName}`);
+
+  if (isAdminMessage(msg)) {
+    await bot.sendMessage(
+      chatId,
+      `💡 Tip: If the simulation seems outdated, you can run ${COMMAND_LOAD_SIMULATION} to update the current simulation.`
+    );
+  }
 
   return;
 }
