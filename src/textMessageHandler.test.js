@@ -1,7 +1,7 @@
 const {
   KILZI_CHAT_ID,
   COMMAND_BEST_TEAMS,
-  COMMAND_CURRENT_TEAM_BUDGET,
+  COMMAND_CURRENT_TEAM_INFO: COMMAND_CURRENT_TEAM_BUDGET,
   COMMAND_PRINT_CACHE,
   COMMAND_RESET_CACHE,
   COMMAND_HELP,
@@ -12,12 +12,12 @@ const {
 const mockIsAdmin = jest.fn().mockReturnValue(true);
 const mockGetChatName = jest.fn().mockReturnValue('Unknown');
 const mockSendLogMessage = jest.fn();
-const mockCalculateTeamBudget = jest.fn();
+const mockCalculateTeamInfo = jest.fn();
 
 jest.mock('./utils/utils', () => ({
   getChatName: mockGetChatName,
   sendLogMessage: mockSendLogMessage,
-  calculateTeamBudget: mockCalculateTeamBudget,
+  calculateTeamInfo: mockCalculateTeamInfo,
   isAdminMessage: mockIsAdmin,
 }));
 
@@ -165,7 +165,7 @@ describe('handleTextMessage', () => {
     );
   });
 
-  it('should calculate and send current team budget correctly', async () => {
+  it('should calculate and send current team info correctly', async () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
       text: COMMAND_CURRENT_TEAM_BUDGET,
@@ -173,12 +173,12 @@ describe('handleTextMessage', () => {
 
     // Setup mock cache data
     driversCache[KILZI_CHAT_ID] = {
-      VER: { price: 30.5 },
-      HAM: { price: 25.0 },
+      VER: { price: 30.5, expectedPoints: 30, expectedPriceChange: 1 },
+      HAM: { price: 25.0, expectedPoints: 20, expectedPriceChange: 1 },
     };
     constructorsCache[KILZI_CHAT_ID] = {
-      RBR: { price: 20.0 },
-      MER: { price: 15.0 },
+      RBR: { price: 20.0, expectedPoints: 30, expectedPriceChange: 1 },
+      MER: { price: 15.0, expectedPoints: 30, expectedPriceChange: 1 },
     };
     currentTeamCache[KILZI_CHAT_ID] = {
       drivers: ['VER', 'HAM'],
@@ -189,19 +189,23 @@ describe('handleTextMessage', () => {
     const expectedTotalPrice = 30.5 + 25.0 + 20.0 + 15.0; // 90.5
     const expectedCostCap = 3.5;
     const expectedBudget = expectedTotalPrice + expectedCostCap; // 94.0
+    const expectedPoints = 30 + 20 + 30 + 30; // 110
+    const expectedPriceChange = 1 + 1 + 1 + 1; // 4
 
-    // Mock the calculateTeamBudget function
-    mockCalculateTeamBudget.mockReturnValue({
+    // Mock the calculateTeamInfo function
+    mockCalculateTeamInfo.mockReturnValue({
       totalPrice: expectedTotalPrice,
       costCapRemaining: expectedCostCap,
       overallBudget: expectedBudget,
+      teamExpectedPoints: expectedPoints,
+      teamPriceChange: expectedPriceChange,
     });
 
     await handleMessage(botMock, msgMock);
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
-      expect.stringContaining(`*Current Team Budget Calculation:*`),
+      expect.stringContaining(`*Current Team Info:*`),
       { parse_mode: 'Markdown' }
     );
     expect(botMock.sendMessage).toHaveBeenCalledWith(
@@ -221,6 +225,18 @@ describe('handleTextMessage', () => {
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
       expect.stringContaining(`*Total Budget:* ${expectedBudget.toFixed(2)}`),
+      { parse_mode: 'Markdown' }
+    );
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      msgMock.chat.id,
+      expect.stringContaining(`*Expected Points:* ${expectedPoints}`),
+      { parse_mode: 'Markdown' }
+    );
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      msgMock.chat.id,
+      expect.stringContaining(
+        `*Expected Price Change:* ${expectedPriceChange}`
+      ),
       { parse_mode: 'Markdown' }
     );
   });

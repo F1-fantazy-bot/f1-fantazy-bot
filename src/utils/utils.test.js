@@ -1,7 +1,7 @@
 const {
   getChatName,
   sendLogMessage,
-  calculateTeamBudget,
+  calculateTeamInfo,
   validateJsonData,
 } = require('./utils');
 
@@ -116,8 +116,8 @@ describe('utils', () => {
     });
   });
 
-  describe('calculateTeamBudget', () => {
-    it('calculates totalPrice, costCapRemaining, and overallBudget correctly', () => {
+  describe('calculateTeamInfo', () => {
+    it('calculates totalPrice, costCapRemaining, overallBudget, teamExpectedPoints, teamPriceChange correctly', () => {
       const mockDrivers = {
         VER: {
           DR: 'VER',
@@ -186,7 +186,7 @@ describe('utils', () => {
         costCapRemaining: 10,
       };
 
-      const result = calculateTeamBudget(
+      const result = calculateTeamInfo(
         mockCurrentTeam,
         mockDrivers,
         mockConstructors
@@ -195,10 +195,14 @@ describe('utils', () => {
       // totalPrice = 30+28+25+23+24 + 35+32 = 197
       // costCapRemaining = 10
       // overallBudget = 197 + 10 = 207
+      // teamExpectedPoints = 25+20+15+18+19 + 30+25 + 25 = 177
+      // teamPriceChange = 0.2 + 0.1 - 0.1 + 0.3 + 0.1 + 0.5 + 0.2 = 1.3 (1.2999999999999998 - JavaScript floating point behavior)
       expect(result).toEqual({
         totalPrice: 197,
         costCapRemaining: 10,
         overallBudget: 207,
+        teamExpectedPoints: 177,
+        teamPriceChange: 1.2999999999999998,
       });
     });
 
@@ -211,12 +215,14 @@ describe('utils', () => {
       const drivers = [];
       const constructors = [];
 
-      const result = calculateTeamBudget(team, drivers, constructors);
+      const result = calculateTeamInfo(team, drivers, constructors);
 
       expect(result).toEqual({
         totalPrice: 0,
         costCapRemaining: 10,
         overallBudget: 10,
+        teamExpectedPoints: 0,
+        teamPriceChange: 0,
       });
     });
 
@@ -226,16 +232,24 @@ describe('utils', () => {
         constructors: [1, 0],
         costCapRemaining: 0,
       };
-      const drivers = [{ price: 5 }, { price: 10 }];
-      const constructors = [{ price: 20 }, { price: 30 }];
+      const drivers = [
+        { price: 5, expectedPoints: 0, expectedPriceChange: 0 },
+        { price: 10, expectedPoints: 0, expectedPriceChange: 0 },
+      ];
+      const constructors = [
+        { price: 20, expectedPoints: 0, expectedPriceChange: 0 },
+        { price: 30, expectedPoints: 0, expectedPriceChange: 0 },
+      ];
 
-      const result = calculateTeamBudget(team, drivers, constructors);
+      const result = calculateTeamInfo(team, drivers, constructors);
 
       // drivers: 10 + 5, constructors: 30 + 20
       expect(result).toEqual({
         totalPrice: 65,
         costCapRemaining: 0,
         overallBudget: 65,
+        teamExpectedPoints: 0,
+        teamPriceChange: 0,
       });
     });
   });

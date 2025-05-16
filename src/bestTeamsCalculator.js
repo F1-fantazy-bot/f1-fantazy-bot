@@ -3,7 +3,7 @@ const {
   WILDCARD_CHIP,
   LIMITLESS_CHIP,
 } = require('./constants');
-const { calculateTeamBudget } = require('./utils');
+const { calculateTeamInfo } = require('./utils');
 
 exports.calculateBestTeams = function (cachedJsonData, selectedChip) {
   // Data for drivers
@@ -17,12 +17,12 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip) {
 
   // Determine free transfers and budget based on selected chip
   let freeTransfers = current_team.freeTransfers;
-  const teamBudget = calculateTeamBudget(
+  const teamInfo = calculateTeamInfo(
     current_team,
     drivers_dict,
     constructors_dict
   );
-  let budget = teamBudget.overallBudget;
+  let budget = teamInfo.overallBudget;
 
   switch (selectedChip) {
     case WILDCARD_CHIP:
@@ -199,6 +199,11 @@ exports.calculateChangesToTeam = function (
   selectedChip
 ) {
   const currentTeam = cachedJsonData.CurrentTeam;
+  const currentTeamInfo = calculateTeamInfo(
+    currentTeam,
+    cachedJsonData.Drivers,
+    cachedJsonData.Constructors
+  );
 
   // Determine drivers that need to be added and removed
   const driversToAdd = targetTeam.drivers.filter(
@@ -229,12 +234,7 @@ exports.calculateChangesToTeam = function (
   }
 
   if (selectedChip === LIMITLESS_CHIP) {
-    const currentTeamBudget = calculateTeamBudget(
-      currentTeam,
-      cachedJsonData.Drivers,
-      cachedJsonData.Constructors
-    );
-    if (targetTeam.total_price > currentTeamBudget.overallBudget) {
+    if (targetTeam.total_price > currentTeamInfo.overallBudget) {
       chipToActivate = LIMITLESS_CHIP;
     }
   }
@@ -246,6 +246,11 @@ exports.calculateChangesToTeam = function (
     newDRS = targetTeam.drs_driver;
   }
 
+  const deltaPoints =
+    targetTeam.projected_points - currentTeamInfo.teamExpectedPoints;
+  const deltaPrice =
+    targetTeam.expected_price_change - currentTeamInfo.teamPriceChange;
+
   return {
     driversToAdd,
     driversToRemove,
@@ -254,5 +259,7 @@ exports.calculateChangesToTeam = function (
     newDRS,
     extraDrsDriver,
     chipToActivate,
+    deltaPoints,
+    deltaPrice,
   };
 };
