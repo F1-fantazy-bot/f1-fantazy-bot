@@ -72,6 +72,7 @@ exports.ADMIN_COMMANDS_CONFIG = [
     description: 'Get commands for BotFather.',
   },
 ];
+
 exports.NAME_TO_CODE_DRIVERS_MAPPING = {
   'o. piastri': 'PIA',
   'l. norris': 'NOR',
