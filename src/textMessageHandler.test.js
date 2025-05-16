@@ -5,6 +5,8 @@ const {
   COMMAND_PRINT_CACHE,
   COMMAND_RESET_CACHE,
   COMMAND_HELP,
+  COMMAND_GET_BOTFATHER_COMMANDS,
+  USER_COMMANDS_CONFIG,
 } = require('./constants');
 
 const mockIsAdmin = jest.fn().mockReturnValue(true);
@@ -278,5 +280,25 @@ describe('handleTextMessage', () => {
       msgMock.chat.id,
       'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.'
     );
+  });
+
+  it('should send formatted command list if user is admin', async () => {
+    mockIsAdmin.mockReturnValueOnce(true);
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: COMMAND_GET_BOTFATHER_COMMANDS,
+    };
+
+    const expectedBotFatherCommands = USER_COMMANDS_CONFIG.map(
+      (cmd) => `${cmd.constant.substring(1)} - ${cmd.description}`
+    ).join('\n');
+
+    await handleMessage(botMock, msgMock);
+
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      msgMock.chat.id,
+      expectedBotFatherCommands
+    );
+    expect(mockIsAdmin).toHaveBeenCalledWith(msgMock);
   });
 });
