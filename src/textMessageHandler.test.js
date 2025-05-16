@@ -290,7 +290,7 @@ describe('handleTextMessage', () => {
     };
 
     const expectedBotFatherCommands = USER_COMMANDS_CONFIG.map(
-      (cmd) => `${cmd.name} - ${cmd.description}`
+      (cmd) => `${cmd.constant.substring(1)} - ${cmd.description}`
     ).join('\n');
 
     await handleMessage(botMock, msgMock);
