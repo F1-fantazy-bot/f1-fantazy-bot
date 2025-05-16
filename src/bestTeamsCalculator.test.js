@@ -391,5 +391,45 @@ describe('calculateBestTeams', () => {
       );
       expect(result.chipToActivate).toBe(EXTRA_DRS_CHIP);
     });
+
+    it('should correctly calculate deltaPoints and deltaPrice', () => {
+      const targetTeam = {
+        drivers: ['VER', 'HAM', 'PER', 'SAI', 'NOR'], // NOR replaces LEC
+        constructors: ['RED', 'FER'], // FER replaces MER
+        drs_driver: 'HAM', // VER was DRS
+        projected_points: 160, // Arbitrary, chosen to give a specific delta
+        expected_price_change: 0.7, // Arbitrary, chosen to give a specific delta
+      };
+
+      const actualCurrentTeamExpectedPoints =
+        mockCurrentTeam.drivers.reduce(
+          (sum, dr) => sum + mockDrivers[dr].expectedPoints,
+          0
+        ) +
+        mockCurrentTeam.constructors.reduce(
+          (sum, cn) => sum + mockConstructors[cn].expectedPoints,
+          0
+        ) +
+        mockDrivers[mockCurrentTeam.drsBoost].expectedPoints; // DRS bonus
+
+      const actualCurrentTeamPriceChange =
+        mockCurrentTeam.drivers.reduce(
+          (sum, dr) => sum + mockDrivers[dr].expectedPriceChange,
+          0
+        ) +
+        mockCurrentTeam.constructors.reduce(
+          (sum, cn) => sum + mockConstructors[cn].expectedPriceChange,
+          0
+        );
+      const result = calculateChangesToTeam(mockJsonData, targetTeam);
+
+      const expectedDeltaPoints =
+        targetTeam.projected_points - actualCurrentTeamExpectedPoints;
+      const expectedDeltaPrice =
+        targetTeam.expected_price_change - actualCurrentTeamPriceChange;
+
+      expect(result.deltaPoints).toBeCloseTo(expectedDeltaPoints);
+      expect(result.deltaPrice).toBeCloseTo(expectedDeltaPrice);
+    });
   });
 });

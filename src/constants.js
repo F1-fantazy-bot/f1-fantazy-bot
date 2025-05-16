@@ -15,7 +15,7 @@ exports.PHOTO_CALLBACK_TYPE = 'PHOTO';
 exports.CHIP_CALLBACK_TYPE = 'CHIP';
 
 exports.COMMAND_BEST_TEAMS = '/best_teams';
-exports.COMMAND_CURRENT_TEAM_BUDGET = '/current_team_budget';
+exports.COMMAND_CURRENT_TEAM_INFO = '/current_team_info';
 exports.COMMAND_CHIPS = '/chips';
 exports.COMMAND_PRINT_CACHE = '/print_cache';
 exports.COMMAND_RESET_CACHE = '/reset_cache';
@@ -36,8 +36,8 @@ exports.USER_COMMANDS_CONFIG = [
       'Calculate and display the best possible teams based on your cached data.',
   },
   {
-    constant: exports.COMMAND_CURRENT_TEAM_BUDGET,
-    description: 'Calculate the current team budget based on your cached data.',
+    constant: exports.COMMAND_CURRENT_TEAM_INFO,
+    description: 'Calculate the current team info based on your cached data.',
   },
   {
     constant: exports.COMMAND_CHIPS,

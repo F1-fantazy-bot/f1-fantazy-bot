@@ -1,7 +1,7 @@
 const {
   sendLogMessage,
   validateJsonData,
-  calculateTeamBudget,
+  calculateTeamInfo,
   triggerScraping,
   isAdminMessage,
 } = require('./utils');
@@ -22,7 +22,7 @@ const {
 } = require('./cache');
 const {
   COMMAND_BEST_TEAMS,
-  COMMAND_CURRENT_TEAM_BUDGET,
+  COMMAND_CURRENT_TEAM_INFO,
   COMMAND_CHIPS,
   COMMAND_PRINT_CACHE,
   COMMAND_RESET_CACHE,
@@ -54,8 +54,8 @@ exports.handleTextMessage = async function (bot, msg) {
       await handleBestTeamsMessage(bot, chatId);
 
       return;
-    case msg.text === COMMAND_CURRENT_TEAM_BUDGET:
-      return await calcCurrentTeamBudget(bot, chatId);
+    case msg.text === COMMAND_CURRENT_TEAM_INFO:
+      return await calcCurrentTeamInfo(bot, chatId);
     case msg.text === COMMAND_CHIPS:
       return await handleChipsMessage(bot, msg);
     case msg.text === COMMAND_PRINT_CACHE:
@@ -142,21 +142,32 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
       }
 
       if (changesToTeam.extraDrsDriver) {
-        changesToTeamMessage += `*Extra DRS Driver:* ${changesToTeam.extraDrsDriver}`;
+        changesToTeamMessage += `*Extra DRS Driver:* ${changesToTeam.extraDrsDriver}\n`;
       }
 
       if (changesToTeam.newDRS !== undefined) {
-        changesToTeamMessage += `\n*${
+        changesToTeamMessage += `*${
           changesToTeam.extraDrsDriver ? '' : 'New '
-        }DRS Driver:* ${changesToTeam.newDRS}`;
+        }DRS Driver:* ${changesToTeam.newDRS}\n`;
       }
 
       const selectedChip = selectedChipCache[chatId];
       if (changesToTeam.chipToActivate !== undefined) {
-        changesToTeamMessage += `\n*Chip To Activate:* ${selectedChip.replace(
+        changesToTeamMessage += `*Chip To Activate:* ${selectedChip.replace(
           /_/g,
           ' '
-        )}`;
+        )}\n`;
+      }
+
+      if (changesToTeam.deltaPoints !== undefined) {
+        changesToTeamMessage += `*Δ Points:* ${
+          changesToTeam.deltaPoints > 0 ? '+' : ''
+        }${changesToTeam.deltaPoints.toFixed(2)}\n`;
+      }
+      if (changesToTeam.deltaPrice !== undefined) {
+        changesToTeamMessage += `*Δ Price:* ${
+          changesToTeam.deltaPrice > 0 ? '+' : ''
+        }${changesToTeam.deltaPrice.toFixed(2)}M`;
       }
 
       await bot
@@ -363,7 +374,7 @@ async function sendPrintableCache(chatId, bot) {
   return;
 }
 
-async function calcCurrentTeamBudget(bot, chatId) {
+async function calcCurrentTeamInfo(bot, chatId) {
   const drivers = driversCache[chatId] || driversCache[sharedKey];
   const constructors =
     constructorsCache[chatId] || constructorsCache[sharedKey];
@@ -382,20 +393,22 @@ async function calcCurrentTeamBudget(bot, chatId) {
     return;
   }
 
-  const teamBudget = calculateTeamBudget(currentTeam, drivers, constructors);
+  const teamInfo = calculateTeamInfo(currentTeam, drivers, constructors);
 
   const message =
-    `*Current Team Budget Calculation:*\n` +
-    `*Drivers & Constructors Total Price:* ${teamBudget.totalPrice.toFixed(
+    `*Current Team Info:*\n` +
+    `*Drivers & Constructors Total Price:* ${teamInfo.totalPrice.toFixed(
       2
     )}\n` +
-    `*Cost Cap Remaining:* ${teamBudget.costCapRemaining.toFixed(2)}\n` +
-    `*Total Budget:* ${teamBudget.overallBudget.toFixed(2)}`;
+    `*Cost Cap Remaining:* ${teamInfo.costCapRemaining.toFixed(2)}\n` +
+    `*Total Budget:* ${teamInfo.overallBudget.toFixed(2)}\n` +
+    `*Expected Points:* ${teamInfo.teamExpectedPoints.toFixed(2)}\n` +
+    `*Expected Price Change:* ${teamInfo.teamPriceChange.toFixed(2)}`;
 
   await bot
     .sendMessage(chatId, message, { parse_mode: 'Markdown' })
     .catch((err) =>
-      console.error('Error sending current team budget message:', err)
+      console.error('Error sending current team info message:', err)
     );
 
   return;

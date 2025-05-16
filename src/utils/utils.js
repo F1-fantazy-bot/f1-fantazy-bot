@@ -139,8 +139,8 @@ exports.validateJsonData = async function (
   return true;
 };
 
-// Calculate current team total price and overall budget (price + remaining costCap)
-exports.calculateTeamBudget = function (team, drivers, constructors) {
+// Calculate current team info: total price, overall budget (price + remaining costCap), expected points and price change
+exports.calculateTeamInfo = function (team, drivers, constructors) {
   const totalPrice =
     team.drivers.reduce((sum, dr) => sum + drivers[dr].price, 0) +
     team.constructors.reduce((sum, cn) => sum + constructors[cn].price, 0);
@@ -149,10 +149,32 @@ exports.calculateTeamBudget = function (team, drivers, constructors) {
   const costCapRemaining = team.costCapRemaining;
   const overallBudget = totalPrice + costCapRemaining;
 
+  // calculate current team expected points and price change
+  let teamExpectedPoints =
+    team.drivers.reduce((sum, dr) => sum + drivers[dr].expectedPoints, 0) +
+    team.constructors.reduce(
+      (sum, cn) => sum + constructors[cn].expectedPoints,
+      0
+    );
+
+  // Only add drsBoost points if it exists
+  if (team.drsBoost && drivers[team.drsBoost]) {
+    teamExpectedPoints += drivers[team.drsBoost].expectedPoints;
+  }
+
+  const teamPriceChange =
+    team.drivers.reduce((sum, dr) => sum + drivers[dr].expectedPriceChange, 0) +
+    team.constructors.reduce(
+      (sum, cn) => sum + constructors[cn].expectedPriceChange,
+      0
+    );
+
   return {
     totalPrice,
     costCapRemaining,
     overallBudget,
+    teamExpectedPoints,
+    teamPriceChange,
   };
 };
 
