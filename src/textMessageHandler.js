@@ -30,6 +30,9 @@ const {
   COMMAND_TRIGGER_SCRAPING,
   COMMAND_LOAD_SIMULATION,
   COMMAND_GET_CURRENT_SIMULATION,
+  COMMAND_GET_BOTFATHER_COMMANDS,
+  USER_COMMANDS_CONFIG,
+  ADMIN_COMMANDS_CONFIG,
   CHIP_CALLBACK_TYPE,
   EXTRA_DRS_CHIP,
   WILDCARD_CHIP,
@@ -67,6 +70,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleGetCurrentSimulation(bot, msg);
     case msg.text === COMMAND_TRIGGER_SCRAPING:
       return await handleScrapingTrigger(bot, msg);
+    case msg.text === COMMAND_GET_BOTFATHER_COMMANDS:
+      return await handleGetBotfatherCommands(bot, msg);
     default:
       handleJsonMessage(bot, msg, chatId);
       break;
@@ -431,57 +436,36 @@ async function handleChipsMessage(bot, msg) {
 async function displayHelpMessage(bot, msg) {
   const chatId = msg.chat.id;
   const isAdmin = isAdminMessage(msg);
+
+  let helpMessage = '*Available Commands:*\n';
+  USER_COMMANDS_CONFIG.forEach((cmd) => {
+    helpMessage += `${cmd.constant.replace(/_/g, '\\_')} - ${
+      cmd.description
+    }\n`;
+  });
+  helpMessage += '\n';
+
+  if (isAdmin) {
+    helpMessage += '*Admin Commands:*\n';
+    ADMIN_COMMANDS_CONFIG.forEach((cmd) => {
+      helpMessage += `${cmd.constant.replace(/_/g, '\\_')} - ${
+        cmd.description
+      }\n`;
+    });
+    helpMessage += '\n';
+  }
+
+  helpMessage +=
+    '*Other Messages:*\n' +
+    '- Send an image (drivers, constructors, or current team screenshot) to automatically extract and cache the relevant data.\n' +
+    '- Send valid JSON data to update your drivers, constructors, and current team cache.\n' +
+    `- Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using ${COMMAND_BEST_TEAMS.replace(
+      /_/g,
+      '\\_'
+    )}).`;
+
   await bot
-    .sendMessage(
-      chatId,
-      `*Available Commands:*\n` +
-        `${COMMAND_HELP.replace(/_/g, '\\_')} - Show this help message.\n` +
-        `${COMMAND_BEST_TEAMS.replace(
-          /_/g,
-          '\\_'
-        )} - Calculate and display the best possible teams based on your cached data.\n` +
-        `${COMMAND_CURRENT_TEAM_BUDGET.replace(
-          /_/g,
-          '\\_'
-        )} - Calculate the current team budget based on your cached data.\n` +
-        `${COMMAND_CHIPS.replace(
-          /_/g,
-          '\\_'
-        )} - choose a chip to use for the current race.\n` +
-        `${COMMAND_PRINT_CACHE.replace(
-          /_/g,
-          '\\_'
-        )} - Show the currently cached drivers, constructors, and current team.\n` +
-        `${COMMAND_RESET_CACHE.replace(
-          /_/g,
-          '\\_'
-        )} - Clear all cached data for this chat.\n` +
-        `${COMMAND_GET_CURRENT_SIMULATION.replace(
-          /_/g,
-          '\\_'
-        )} - Show the current simulation data and name.\n\n` +
-        `${
-          isAdmin
-            ? '*Admin Commands:*\n' +
-              `${COMMAND_TRIGGER_SCRAPING.replace(
-                /_/g,
-                '\\_'
-              )} - Trigger web scraping for latest F1 Fantasy data.\n` +
-              `${COMMAND_LOAD_SIMULATION.replace(
-                /_/g,
-                '\\_'
-              )} - load latest simulation.\n\n`
-            : ''
-        }` +
-        '*Other Messages:*\n' +
-        '- Send an image (drivers, constructors, or current team screenshot) to automatically extract and cache the relevant data.\n' +
-        '- Send valid JSON data to update your drivers, constructors, and current team cache.\n' +
-        `- Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using ${COMMAND_BEST_TEAMS.replace(
-          /_/g,
-          '\\_'
-        )}).`,
-      { parse_mode: 'Markdown' }
-    )
+    .sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' })
     .catch((err) => console.error('Error sending help message:', err));
 
   return;
@@ -565,4 +549,27 @@ async function handleScrapingTrigger(bot, msg) {
       `Failed to trigger web scraping: ${result.error}`
     );
   }
+}
+
+async function handleGetBotfatherCommands(bot, msg) {
+  const chatId = msg.chat.id;
+
+  if (!isAdminMessage(msg)) {
+    await bot.sendMessage(
+      chatId,
+      'Sorry, only admins can get BotFather commands.'
+    );
+
+    return;
+  }
+
+  const botFatherCommands = USER_COMMANDS_CONFIG.map(
+    (cmd) => `${cmd.name} - ${cmd.description}`
+  ).join('\n');
+
+  await bot
+    .sendMessage(chatId, botFatherCommands)
+    .catch((err) =>
+      console.error('Error sending BotFather commands message:', err)
+    );
 }

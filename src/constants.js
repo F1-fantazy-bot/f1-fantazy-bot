@@ -23,6 +23,65 @@ exports.COMMAND_HELP = '/help';
 exports.COMMAND_TRIGGER_SCRAPING = '/trigger_scraping';
 exports.COMMAND_LOAD_SIMULATION = '/load_simulation';
 exports.COMMAND_GET_CURRENT_SIMULATION = '/get_current_simulation';
+exports.COMMAND_GET_BOTFATHER_COMMANDS = '/get_botfather_commands';
+
+exports.USER_COMMANDS_CONFIG = [
+  {
+    constant: exports.COMMAND_HELP,
+    name: 'help',
+    description: 'Show this help message.',
+  },
+  {
+    constant: exports.COMMAND_BEST_TEAMS,
+    name: 'best_teams',
+    description:
+      'Calculate and display the best possible teams based on your cached data.',
+  },
+  {
+    constant: exports.COMMAND_CURRENT_TEAM_BUDGET,
+    name: 'current_team_budget',
+    description: 'Calculate the current team budget based on your cached data.',
+  },
+  {
+    constant: exports.COMMAND_CHIPS,
+    name: 'chips',
+    description: 'choose a chip to use for the current race.',
+  },
+  {
+    constant: exports.COMMAND_PRINT_CACHE,
+    name: 'print_cache',
+    description:
+      'Show the currently cached drivers, constructors, and current team.',
+  },
+  {
+    constant: exports.COMMAND_RESET_CACHE,
+    name: 'reset_cache',
+    description: 'Clear all cached data for this chat.',
+  },
+  {
+    constant: exports.COMMAND_GET_CURRENT_SIMULATION,
+    name: 'get_current_simulation',
+    description: 'Show the current simulation data and name.',
+  },
+];
+
+exports.ADMIN_COMMANDS_CONFIG = [
+  {
+    constant: exports.COMMAND_TRIGGER_SCRAPING,
+    name: 'trigger_scraping',
+    description: 'Trigger web scraping for latest F1 Fantasy data.',
+  },
+  {
+    constant: exports.COMMAND_LOAD_SIMULATION,
+    name: 'load_simulation',
+    description: 'load latest simulation.',
+  },
+  {
+    constant: exports.COMMAND_GET_BOTFATHER_COMMANDS,
+    name: 'get_botfather_commands',
+    description: 'Get commands for BotFather.',
+  },
+];
 
 exports.NAME_TO_CODE_DRIVERS_MAPPING = {
   'o. piastri': 'PIA',
