@@ -435,6 +435,7 @@ async function displayHelpMessage(bot, msg) {
     .sendMessage(
       chatId,
       `*Available Commands:*\n` +
+        `${COMMAND_HELP.replace(/_/g, '\\_')} - Show this help message.\n` +
         `${COMMAND_BEST_TEAMS.replace(
           /_/g,
           '\\_'
@@ -458,8 +459,7 @@ async function displayHelpMessage(bot, msg) {
         `${COMMAND_GET_CURRENT_SIMULATION.replace(
           /_/g,
           '\\_'
-        )} - Show the current simulation data and name.\n` +
-        `${COMMAND_HELP.replace(/_/g, '\\_')} - Show this help message.\n\n` +
+        )} - Show the current simulation data and name.\n\n` +
         `${
           isAdmin
             ? '*Admin Commands:*\n' +
