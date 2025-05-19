@@ -14,11 +14,20 @@ const mockGetChatName = jest.fn().mockReturnValue('Unknown');
 const mockSendLogMessage = jest.fn();
 const mockCalculateTeamInfo = jest.fn();
 
+const mockValidateJsonData = jest.fn().mockReturnValue(true);
+
 jest.mock('./utils/utils', () => ({
   getChatName: mockGetChatName,
   sendLogMessage: mockSendLogMessage,
   calculateTeamInfo: mockCalculateTeamInfo,
   isAdminMessage: mockIsAdmin,
+  validateJsonData: mockValidateJsonData,
+}));
+
+const azureStorageService = require('./azureStorageService');
+jest.mock('./azureStorageService', () => ({
+  saveUserTeam: jest.fn().mockResolvedValue(undefined),
+  deleteUserTeam: jest.fn().mockResolvedValue(undefined),
 }));
 
 const { handleMessage } = require('./messageHandler');
@@ -38,6 +47,10 @@ describe('handleTextMessage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockValidateJsonData.mockReset();
+    mockValidateJsonData.mockReturnValue(true);
+    azureStorageService.saveUserTeam.mockClear();
+    azureStorageService.deleteUserTeam.mockClear();
     delete driversCache[KILZI_CHAT_ID];
     delete constructorsCache[KILZI_CHAT_ID];
     delete currentTeamCache[KILZI_CHAT_ID];
@@ -95,6 +108,12 @@ describe('handleTextMessage', () => {
     selectedChipCache[KILZI_CHAT_ID] = 'some_chip';
 
     await handleMessage(botMock, msgMock);
+
+    // Verify Azure Storage team was deleted
+    expect(azureStorageService.deleteUserTeam).toHaveBeenCalledWith(
+      expect.any(Object), // mockBot
+      KILZI_CHAT_ID
+    );
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       msgMock.chat.id,
@@ -162,6 +181,43 @@ describe('handleTextMessage', () => {
     expect(mockSendLogMessage).toHaveBeenCalledWith(
       botMock,
       expect.stringContaining('Failed to parse JSON data')
+    );
+  });
+
+  it('should store JSON data and save to Azure Storage when validation passes', async () => {
+    const jsonData = {
+      Drivers: [
+        { DR: 'VER', price: 30.5 },
+        { DR: 'HAM', price: 25.0 },
+      ],
+      Constructors: [
+        { CN: 'RBR', price: 20.0 },
+        { CN: 'MER', price: 15.0 },
+      ],
+      CurrentTeam: {
+        drivers: ['VER', 'HAM'],
+        constructors: ['RBR', 'MER'],
+        costCapRemaining: 3.5,
+      },
+    };
+
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: JSON.stringify(jsonData),
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    // Verify data was stored in cache
+    expect(driversCache[KILZI_CHAT_ID]).toBeDefined();
+    expect(constructorsCache[KILZI_CHAT_ID]).toBeDefined();
+    expect(currentTeamCache[KILZI_CHAT_ID]).toEqual(jsonData.CurrentTeam);
+
+    // Verify team was saved to Azure Storage
+    expect(azureStorageService.saveUserTeam).toHaveBeenCalledWith(
+      expect.any(Object), // mockBot
+      KILZI_CHAT_ID,
+      jsonData.CurrentTeam
     );
   });
 

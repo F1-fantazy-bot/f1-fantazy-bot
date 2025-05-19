@@ -1,4 +1,5 @@
 const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
+const azureStorageService = require('./azureStorageService');
 const {
   photoCache,
   currentTeamCache,
@@ -63,7 +64,7 @@ async function handlePhotoCallback(bot, query) {
       fileLink,
     ]);
 
-    storeInCache(chatId, type, extractedData);
+    await storeInCache(bot, chatId, type, extractedData);
     delete bestTeamsCache[chatId];
 
     await bot
@@ -102,7 +103,7 @@ async function handleChipCallback(bot, query) {
   await bot.answerCallbackQuery(query.id);
 }
 
-function storeInCache(chatId, type, extractedData) {
+async function storeInCache(bot, chatId, type, extractedData) {
   const cleanedJsonString = extractedData
     .replace(/^```json\s*/, '')
     .replace(/\s*```$/, '');
@@ -148,13 +149,15 @@ function storeInCache(chatId, type, extractedData) {
       jsonObject.CurrentTeam.drsBoost
     );
 
-    currentTeamCache[chatId] = {
+    const updatedTeam = {
       ...currentTeamCache[chatId],
       ...jsonObject.CurrentTeam,
     };
 
+    currentTeamCache[chatId] = updatedTeam;
+    await azureStorageService.saveUserTeam(bot, chatId, updatedTeam);
+
     return;
-    // Store in current team cache
   }
 
   console.error('Unknown photo type:', type);

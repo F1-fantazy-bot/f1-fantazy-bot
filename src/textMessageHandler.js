@@ -5,7 +5,7 @@ const {
   triggerScraping,
   isAdminMessage,
 } = require('./utils');
-const { readJsonFromStorage } = require('./readJsonFromStorage');
+const azureStorageService = require('./azureStorageService');
 const {
   calculateBestTeams,
   calculateChangesToTeam,
@@ -222,6 +222,7 @@ async function handleJsonMessage(bot, msg, chatId) {
     jsonData.Constructors.map((constructor) => [constructor.CN, constructor])
   );
   currentTeamCache[chatId] = jsonData.CurrentTeam;
+  await azureStorageService.saveUserTeam(bot, chatId, jsonData.CurrentTeam);
   delete bestTeamsCache[chatId];
 
   await sendPrintableCache(chatId, bot);
@@ -330,6 +331,7 @@ async function resetCacheForChat(chatId, bot) {
   delete driversCache[chatId];
   delete constructorsCache[chatId];
   delete currentTeamCache[chatId];
+  await azureStorageService.deleteUserTeam(bot, chatId);
   delete bestTeamsCache[chatId];
   delete selectedChipCache[chatId];
 

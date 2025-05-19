@@ -7,6 +7,7 @@ const {
 } = require('./constants');
 const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 const cache = require('./cache');
+const azureStorageService = require('./azureStorageService');
 
 jest.mock('openai', () => ({
   AzureOpenAI: jest.fn().mockImplementation(() => ({
@@ -27,6 +28,10 @@ jest.mock('openai', () => ({
 }));
 
 jest.mock('./jsonDataExtraction');
+jest.mock('./azureStorageService', () => ({
+  saveUserTeam: jest.fn().mockResolvedValue(undefined),
+  deleteUserTeam: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('./cache', () => ({
   photoCache: {},
   currentTeamCache: {},
@@ -45,6 +50,8 @@ describe('handleCallbackQuery', () => {
   let type;
 
   beforeEach(() => {
+    // Reset all mocks
+    jest.clearAllMocks();
     chatId = 123;
     messageId = 456;
     fileId = 'file123';
@@ -131,6 +138,19 @@ describe('handleCallbackQuery', () => {
     );
 
     await handleCallbackQuery(bot, query);
+
+    // Verify Azure Storage was updated
+    expect(azureStorageService.saveUserTeam).toHaveBeenCalledWith(
+      expect.any(Object), // mockBot
+      chatId,
+      {
+        drivers: ['HAM'],
+        constructors: ['MER'],
+        drsBoost: 'HAM',
+        freeTransfers: 2,
+        costCapRemaining: 10,
+      }
+    );
 
     expect(cache.getPrintableCache).toHaveBeenCalledWith(
       chatId,
