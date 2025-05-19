@@ -5,7 +5,11 @@ const {
   simulationNameCache,
   sharedKey,
 } = require('./cache');
-const { validateJsonData } = require('./utils');
+const {
+  sendLogMessage,
+  sendMessageToAdmins,
+  validateJsonData,
+} = require('./utils');
 const {
   LOG_CHANNEL_ID,
   NAME_TO_CODE_DRIVERS_MAPPING,
@@ -22,8 +26,8 @@ async function initializeCaches(bot) {
   // Get main fantasy data
   const jsonFromStorage = await azureStorageService.getFantasyData();
 
-  await bot.sendMessage(
-    LOG_CHANNEL_ID,
+  await sendLogMessage(
+    bot,
     `jsonFromStorage downloaded successfully. Simulation: ${jsonFromStorage?.SimulationName}`
   );
 
@@ -85,7 +89,8 @@ async function initializeCaches(bot) {
 Drivers not found in mapping: ${notFounds.drivers.join(', ')}
 🔴🔴🔴`;
 
-    await bot.sendMessage(LOG_CHANNEL_ID, message);
+    await sendLogMessage(bot, message);
+    await sendMessageToAdmins(bot, message);
   }
 
   if (notFounds.constructors.length > 0) {
@@ -94,18 +99,17 @@ Drivers not found in mapping: ${notFounds.drivers.join(', ')}
 Constructors not found in mapping: ${notFounds.constructors.join(', ')}
 🔴🔴🔴`;
 
-    await bot.sendMessage(LOG_CHANNEL_ID, message);
+    await sendLogMessage(bot, message);
+    await sendMessageToAdmins(bot, message);
   }
 
   // Load all user teams into cache
   const userTeams = await azureStorageService.listAllUserTeamData();
-  for (const { chatId, teamData } of userTeams) {
-    currentTeamCache[chatId] = teamData;
-  }
+  Object.assign(currentTeamCache, userTeams);
 
-  await bot.sendMessage(
-    LOG_CHANNEL_ID,
-    `Loaded ${userTeams.length} user teams from storage`
+  await sendLogMessage(
+    bot,
+    `Loaded ${Object.keys(userTeams).length} user teams from storage`
   );
 }
 

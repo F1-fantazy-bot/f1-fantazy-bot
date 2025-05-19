@@ -6,13 +6,16 @@ const {
   simulationNameCache,
   sharedKey,
 } = require('./cache');
-const { LOG_CHANNEL_ID } = require('./constants');
 const azureStorageService = require('./azureStorageService');
 const { initializeCaches } = require('./cacheInitializer');
 
 // Mock dependencies
+const utils = require('./utils');
 jest.mock('./utils', () => ({
   validateJsonData: jest.fn().mockResolvedValue(true),
+  sendLogMessage: jest.fn().mockResolvedValue(undefined),
+  sendMessageToAdmins: jest.fn().mockResolvedValue(undefined),
+  sendMessage: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('./azureStorageService', () => ({
@@ -40,22 +43,16 @@ describe('cacheInitializer', () => {
   };
 
   // Mock user teams data
-  const mockUserTeams = [
-    {
-      chatId: '123',
-      teamData: {
-        drivers: ['VER', 'HAM'],
-        constructors: ['RBR', 'MER'],
-      },
+  const mockUserTeams = {
+    123: {
+      drivers: ['VER', 'HAM'],
+      constructors: ['RBR', 'MER'],
     },
-    {
-      chatId: '456',
-      teamData: {
-        drivers: ['VER'],
-        constructors: ['RBR'],
-      },
+    456: {
+      drivers: ['VER'],
+      constructors: ['RBR'],
     },
-  ];
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -84,9 +81,9 @@ describe('cacheInitializer', () => {
     expect(azureStorageService.getFantasyData).toHaveBeenCalled();
     expect(azureStorageService.listAllUserTeamData).toHaveBeenCalled();
 
-    // Verify success message was sent
-    expect(mockBot.sendMessage).toHaveBeenCalledWith(
-      LOG_CHANNEL_ID,
+    // Verify success message was sent via utils
+    expect(utils.sendLogMessage).toHaveBeenCalledWith(
+      mockBot,
       expect.stringContaining('downloaded successfully')
     );
 
@@ -106,14 +103,14 @@ describe('cacheInitializer', () => {
     });
 
     // Verify user teams were cached correctly
-    mockUserTeams.forEach(({ chatId, teamData }) => {
-      expect(currentTeamCache[chatId]).toEqual(teamData);
-    });
+    expect(currentTeamCache).toEqual(mockUserTeams);
 
     // Verify user teams loaded message
-    expect(mockBot.sendMessage).toHaveBeenCalledWith(
-      LOG_CHANNEL_ID,
-      expect.stringContaining(`Loaded ${mockUserTeams.length} user teams`)
+    expect(utils.sendLogMessage).toHaveBeenCalledWith(
+      mockBot,
+      expect.stringContaining(
+        `Loaded ${Object.keys(mockUserTeams).length} user teams`
+      )
     );
   });
 

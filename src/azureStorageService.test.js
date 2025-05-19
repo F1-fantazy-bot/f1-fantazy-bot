@@ -193,10 +193,10 @@ describe('azureStorageService', () => {
 
       const result = await azureStorageService.listAllUserTeamData();
 
-      expect(result).toEqual([
-        { chatId: '123', teamData: mockTeam1 },
-        { chatId: '456', teamData: mockTeam2 },
-      ]);
+      expect(result).toEqual({
+        123: mockTeam1,
+        456: mockTeam2,
+      });
     });
   });
 });
