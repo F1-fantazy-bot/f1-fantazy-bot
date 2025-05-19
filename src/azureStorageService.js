@@ -160,7 +160,7 @@ async function listAllUserTeamData() {
       initializeAzureStorage();
     }
 
-    const userTeams = [];
+    const userTeams = {};
     const prefix = 'user-teams/';
 
     // List all blobs in the user-teams directory
@@ -171,7 +171,7 @@ async function listAllUserTeamData() {
       // Get the team data for this user
       const teamData = await getUserTeam(chatId);
       if (teamData) {
-        userTeams.push({ chatId, teamData });
+        userTeams[chatId] = teamData;
       }
     }
 
