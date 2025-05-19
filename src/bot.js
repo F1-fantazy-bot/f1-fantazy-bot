@@ -3,7 +3,7 @@ require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const { handleMessage } = require('./messageHandler');
 const { handleCallbackQuery } = require('./callbackQueryHandler');
-const { readJsonFromStorage } = require('./readJsonFromStorage');
+const { initializeCaches } = require('./cacheInitializer');
 const { TELEGRAM_BOT_TOKEN, NODE_ENV } = process.env;
 const { sendLogMessage } = require('./utils');
 if (!TELEGRAM_BOT_TOKEN) {
@@ -25,10 +25,10 @@ if (NODE_ENV !== 'production') {
 sendLogMessage(bot, 'Bot started successfully.');
 
 try {
-  // Read JSON data from Azure Storage
-  readJsonFromStorage(bot);
+  // Initialize application caches with data from Azure Storage
+  initializeCaches(bot);
 } catch (error) {
-  sendLogMessage(bot, `Error reading JSON data from Azure Storage: ${error}`);
+  sendLogMessage(bot, `Error initializing caches from Azure Storage: ${error}`);
 }
 
 // Listen for any kind of message.

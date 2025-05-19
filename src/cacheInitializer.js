@@ -1,43 +1,33 @@
-const { BlobServiceClient } = require('@azure/storage-blob');
 const {
-  sendLogMessage,
-  sendMessageToAdmins,
-  validateJsonData,
-} = require('./utils');
+  driversCache,
+  constructorsCache,
+  currentTeamCache,
+  simulationNameCache,
+  sharedKey,
+} = require('./cache');
+const { validateJsonData } = require('./utils');
 const {
   LOG_CHANNEL_ID,
   NAME_TO_CODE_DRIVERS_MAPPING,
   NAME_TO_CODE_CONSTRUCTORS_MAPPING,
 } = require('./constants');
-const {
-  driversCache,
-  constructorsCache,
-  sharedKey,
-  simulationNameCache,
-} = require('./cache');
+const azureStorageService = require('./azureStorageService');
 
-exports.readJsonFromStorage = async function (bot) {
-  const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
-  const containerName = process.env.AZURE_STORAGE_CONTAINER_NAME;
+/**
+ * Initialize all application caches with data from Azure Storage
+ * @param {TelegramBot} bot - The Telegram bot instance for logging
+ * @throws {Error} If data validation fails or there are critical errors
+ */
+async function initializeCaches(bot) {
+  // Get main fantasy data
+  const jsonFromStorage = await azureStorageService.getFantasyData();
 
-  if (!connectionString || !containerName) {
-    throw new Error('Missing required Azure storage configuration');
-  }
-
-  const blobServiceClient =
-    BlobServiceClient.fromConnectionString(connectionString);
-  const containerClient = blobServiceClient.getContainerClient(containerName);
-  const blobName = `f1-fantasy-data.json`;
-  const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-  const downloadResponse = await blockBlobClient.download();
-  const jsonString = await streamToString(downloadResponse.readableStreamBody);
-  const jsonFromStorage = JSON.parse(jsonString);
-
-  await sendLogMessage(
-    bot,
+  await bot.sendMessage(
+    LOG_CHANNEL_ID,
     `jsonFromStorage downloaded successfully. Simulation: ${jsonFromStorage?.SimulationName}`
   );
 
+  // Validate the main fantasy data
   const isValid = await validateJsonData(
     bot,
     jsonFromStorage,
@@ -46,10 +36,10 @@ exports.readJsonFromStorage = async function (bot) {
   );
 
   if (!isValid) {
-    return;
+    throw new Error('Fantasy data validation failed');
   }
 
-  // Store the simulation name in cache
+  // Store simulation name in cache
   simulationNameCache[sharedKey] = jsonFromStorage.SimulationName;
 
   const notFounds = {
@@ -57,6 +47,7 @@ exports.readJsonFromStorage = async function (bot) {
     constructors: [],
   };
 
+  // Process drivers data
   driversCache[sharedKey] = Object.fromEntries(
     jsonFromStorage.Drivers.map((driver) => [driver.DR, driver])
   );
@@ -69,6 +60,7 @@ exports.readJsonFromStorage = async function (bot) {
     }
   });
 
+  // Process constructors data
   constructorsCache[sharedKey] = Object.fromEntries(
     jsonFromStorage.Constructors.map((constructor) => [
       constructor.CN,
@@ -86,36 +78,37 @@ exports.readJsonFromStorage = async function (bot) {
     }
   });
 
+  // Log any missing mappings
   if (notFounds.drivers.length > 0) {
     const message = `
 🔴🔴🔴
 Drivers not found in mapping: ${notFounds.drivers.join(', ')}
 🔴🔴🔴`;
 
-    await sendLogMessage(bot, message);
-    await sendMessageToAdmins(bot, message);
+    await bot.sendMessage(LOG_CHANNEL_ID, message);
   }
+
   if (notFounds.constructors.length > 0) {
     const message = `
 🔴🔴🔴
 Constructors not found in mapping: ${notFounds.constructors.join(', ')}
 🔴🔴🔴`;
 
-    await sendLogMessage(bot, message);
-    await sendMessageToAdmins(bot, message);
+    await bot.sendMessage(LOG_CHANNEL_ID, message);
   }
-};
 
-// Helper function to convert stream to string
-async function streamToString(readableStream) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    readableStream.on('data', (data) => {
-      chunks.push(data.toString());
-    });
-    readableStream.on('end', () => {
-      resolve(chunks.join(''));
-    });
-    readableStream.on('error', reject);
-  });
+  // Load all user teams into cache
+  const userTeams = await azureStorageService.listAllUserTeamData();
+  for (const { chatId, teamData } of userTeams) {
+    currentTeamCache[chatId] = teamData;
+  }
+
+  await bot.sendMessage(
+    LOG_CHANNEL_ID,
+    `Loaded ${userTeams.length} user teams from storage`
+  );
 }
+
+module.exports = {
+  initializeCaches,
+};
