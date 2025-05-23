@@ -673,19 +673,17 @@ async function handleNextRaceInfoCommand(bot, chatId) {
         nextRaceInfo.location.long,
         ...datesForWeatherApi
       );
-      qualifyingWeather = weatherForecastCache.qualifyingWeather;
-      raceWeather = weatherForecastCache.raceWeather;
-
       qualifyingWeather = weatherForecastsMap[qualifyingDate.toISOString()];
       raceWeather = weatherForecastsMap[raceDate.toISOString()];
+      weatherForecastCache.qualifyingWeather = qualifyingWeather;
+      weatherForecastCache.raceWeather = raceWeather;
 
       if (isSprintWeekend) {
-        sprintQualifyingWeather = weatherForecastCache.sprintQualifyingWeather;
-        sprintWeather = weatherForecastCache.sprintWeather;
-
         sprintQualifyingWeather =
           weatherForecastsMap[sprintQualifyingDate.toISOString()];
         sprintWeather = weatherForecastsMap[sprintDate.toISOString()];
+        weatherForecastCache.sprintQualifyingWeather = sprintQualifyingWeather;
+        weatherForecastCache.sprintWeather = sprintWeather;
       }
 
       await sendLogMessage(

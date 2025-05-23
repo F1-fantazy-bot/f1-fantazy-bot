@@ -396,8 +396,9 @@ describe('handleNextRaceInfoCommand', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete nextRaceInfoCache.defaultSharedKey;
-    delete weatherForecastCache.qualifyingWeather;
-    delete weatherForecastCache.raceWeather;
+    Object.keys(weatherForecastCache).forEach(
+      (key) => delete weatherForecastCache[key]
+    );
   });
 
   it('should handle unavailable next race info', async () => {
