@@ -3,18 +3,22 @@
 const fetch = require('node-fetch');
 
 /**
- * Fetches weather forecast for two given lat/lon and dates.
- * Returns an object with forecasts for both dates.
+ * Fetches weather forecast for multiple given lat/lon and dates.
+ * Returns a map with ISO string keys and forecast objects as values.
  * @param {number} lat
  * @param {number} lon
- * @param {Date} date1 - First JS Date object (UTC)
- * @param {Date} date2 - Second JS Date object (UTC)
- * @returns {Promise<{date1Forecast: {temperature: number, precipitation: number, wind: number}, date2Forecast: {temperature: number, precipitation: number, wind: number}}>}
+ * @param {Date[]} datesToFetch - Array of JS Date objects (UTC)
+ * @returns {Promise<Object<string, {temperature: number, precipitation: number, wind: number}>>}
  */
-async function getWeatherForecast(lat, lon, date1, date2) {
-  // Determine start and end dates for the API call
-  const apiStartDate = date1 < date2 ? date1 : date2;
-  const apiEndDate = date1 > date2 ? date1 : date2;
+async function getWeatherForecast(lat, lon, ...datesToFetch) {
+  if (!Array.isArray(datesToFetch) || datesToFetch.length === 0) {
+    throw new Error('datesToFetch must be a non-empty array of Date objects');
+  }
+
+  // Find min and max dates for API range
+  const sortedDates = datesToFetch.slice().sort((a, b) => a - b);
+  const apiStartDate = sortedDates[0];
+  const apiEndDate = sortedDates[sortedDates.length - 1];
   const startDateStr = formatToYYYYMMDD(apiStartDate);
   const endDateStr = formatToYYYYMMDD(apiEndDate);
 
@@ -41,13 +45,13 @@ async function getWeatherForecast(lat, lon, date1, date2) {
   }
   const data = await res.json();
 
-  const forecast1 = extractHourlyForecast(data, date1);
-  const forecast2 = extractHourlyForecast(data, date2);
+  // Map each date's ISO string to its forecast
+  const forecastsMap = {};
+  for (const date of datesToFetch) {
+    forecastsMap[date.toISOString()] = extractHourlyForecast(data, date);
+  }
 
-  return {
-    date1Forecast: forecast1,
-    date2Forecast: forecast2,
-  };
+  return forecastsMap;
 }
 
 // Helper to format date as YYYY-MM-DD

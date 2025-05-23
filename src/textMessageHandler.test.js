@@ -443,13 +443,15 @@ describe('handleNextRaceInfoCommand', () => {
     };
 
     // Mock weather forecasts
+    const qualifyingDate = new Date('2025-05-24T14:00:00Z');
+    const raceDate = new Date('2025-05-25T13:00:00Z');
     getWeatherForecast.mockResolvedValue({
-      date1Forecast: {
+      [qualifyingDate.toISOString()]: {
         temperature: 22.5,
         precipitation: 30,
         wind: 15.2,
       },
-      date2Forecast: {
+      [raceDate.toISOString()]: {
         temperature: 24.0,
         precipitation: 10,
         wind: 12.5,
@@ -491,8 +493,8 @@ describe('handleNextRaceInfoCommand', () => {
     expect(getWeatherForecast).toHaveBeenCalledWith(
       '43.7347',
       '7.42056',
-      expect.any(Date),
-      expect.any(Date)
+      qualifyingDate,
+      raceDate
     );
 
     // Verify log message for location
@@ -501,6 +503,111 @@ describe('handleNextRaceInfoCommand', () => {
       expect.stringContaining(
         'Weather forecast fetched for location: Monte-Carlo, Monaco'
       )
+    );
+  });
+
+  it('should display next race info with sprint sessions and weather for sprint weekend', async () => {
+    const mockNextRaceInfo = {
+      circuitName: 'Silverstone Circuit',
+      location: {
+        lat: '52.0786',
+        long: '-1.0169',
+        locality: 'Silverstone',
+        country: 'UK',
+      },
+      sessions: {
+        sprintQualifying: '2025-07-05T14:00:00Z',
+        sprint: '2025-07-05T18:00:00Z',
+        qualifying: '2025-07-04T16:00:00Z',
+        race: '2025-07-06T14:00:00Z',
+      },
+      weekendFormat: 'sprint',
+      historicalData: [
+        {
+          season: 2024,
+          winner: 'Lewis Hamilton',
+          carsFinished: 18,
+        },
+        {
+          season: 2023,
+          winner: 'Max Verstappen',
+          carsFinished: 20,
+        },
+      ],
+    };
+
+    const sprintQualifyingDate = new Date('2025-07-05T14:00:00Z');
+    const sprintDate = new Date('2025-07-05T18:00:00Z');
+    const qualifyingDate = new Date('2025-07-04T16:00:00Z');
+    const raceDate = new Date('2025-07-06T14:00:00Z');
+
+    getWeatherForecast.mockResolvedValue({
+      [sprintQualifyingDate.toISOString()]: {
+        temperature: 20,
+        precipitation: 10,
+        wind: 8,
+      },
+      [sprintDate.toISOString()]: {
+        temperature: 22,
+        precipitation: 5,
+        wind: 10,
+      },
+      [qualifyingDate.toISOString()]: {
+        temperature: 19,
+        precipitation: 15,
+        wind: 7,
+      },
+      [raceDate.toISOString()]: {
+        temperature: 23,
+        precipitation: 0,
+        wind: 12,
+      },
+    });
+
+    nextRaceInfoCache.defaultSharedKey = mockNextRaceInfo;
+
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: COMMAND_NEXT_RACE_INFO,
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    const expectedMessage =
+      `*Next Race Information*\n\n` +
+      `🏁 *Track:* Silverstone Circuit\n` +
+      `📍 *Location:* Silverstone, UK\n` +
+      `📅 *Sprint Qualifying Date:* Saturday, 5 July 2025\n` +
+      `⏰ *Sprint Qualifying Time:* 17:00 GMT+3\n` +
+      `📅 *Sprint Date:* Saturday, 5 July 2025\n` +
+      `⏰ *Sprint Time:* 21:00 GMT+3\n` +
+      `📅 *Qualifying Date:* Friday, 4 July 2025\n` +
+      `⏰ *Qualifying Time:* 19:00 GMT+3\n` +
+      `📅 *Race Date:* Sunday, 6 July 2025\n` +
+      `⏰ *Race Time:* 17:00 GMT+3\n` +
+      `📝 *Weekend Format:* Sprint\n\n` +
+      `*Weather Forecast:*\n` +
+      `*Sprint Qualifying:*\n🌡️ Temp: 20°C\n🌧️ Rain: 10%\n💨 Wind: 8 km/h\n` +
+      `*Sprint:*\n🌡️ Temp: 22°C\n🌧️ Rain: 5%\n💨 Wind: 10 km/h\n` +
+      `*Qualifying:*\n🌡️ Temp: 19°C\n🌧️ Rain: 15%\n💨 Wind: 7 km/h\n` +
+      `*Race:*\n🌡️ Temp: 23°C\n🌧️ Rain: 0%\n💨 Wind: 12 km/h\n\n` +
+      `*Historical Data (Last Decade):*\n` +
+      `*2024:*\n🏆 Winner: Lewis Hamilton\n🏎️ Cars Finished: 18\n\n` +
+      `*2023:*\n🏆 Winner: Max Verstappen\n🏎️ Cars Finished: 20\n\n`;
+
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      expectedMessage,
+      { parse_mode: 'Markdown' }
+    );
+
+    expect(getWeatherForecast).toHaveBeenCalledWith(
+      '52.0786',
+      '-1.0169',
+      qualifyingDate,
+      raceDate,
+      sprintQualifyingDate,
+      sprintDate
     );
   });
 

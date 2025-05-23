@@ -32,12 +32,12 @@ describe('getWeatherForecast', () => {
     const result = await getWeatherForecast(lat, lon, date1, date2);
 
     expect(result).toEqual({
-      date1Forecast: {
+      [date1.toISOString()]: {
         temperature: 22.5,
         precipitation: 10,
         wind: 5.2,
       },
-      date2Forecast: {
+      [date2.toISOString()]: {
         temperature: 23.1,
         precipitation: 20,
         wind: 6.1,
@@ -48,9 +48,9 @@ describe('getWeatherForecast', () => {
 
   it('throws if fetch fails', async () => {
     fetch.mockResolvedValue({ ok: false });
-    await expect(
-      getWeatherForecast(1, 2, new Date(), new Date())
-    ).rejects.toThrow('Failed to fetch weather data');
+    await expect(getWeatherForecast(1, 2)).rejects.toThrow(
+      'datesToFetch must be a non-empty array of Date objects'
+    );
   });
 
   it('returns null values if hour not found', async () => {
@@ -72,12 +72,12 @@ describe('getWeatherForecast', () => {
     const result = await getWeatherForecast(1, 2, date1, date2);
 
     expect(result).toEqual({
-      date1Forecast: {
+      [date1.toISOString()]: {
         temperature: null,
         precipitation: null,
         wind: null,
       },
-      date2Forecast: {
+      [date2.toISOString()]: {
         temperature: null,
         precipitation: null,
         wind: null,
