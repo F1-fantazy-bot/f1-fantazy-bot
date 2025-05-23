@@ -21,6 +21,7 @@ const {
   simulationNameCache,
   nextRaceInfoCache,
   sharedKey,
+  weatherForecastCache,
 } = require('./cache');
 const {
   COMMAND_BEST_TEAMS,
@@ -628,24 +629,37 @@ async function handleNextRaceInfoCommand(bot, chatId) {
 
   // Weather forecast section
   let weatherSection = '';
-  try {
-    // Fetch weather for qualifying and race
-    const qualifyingWeather = await getWeatherForecast(
-      nextRaceInfo.location.lat,
-      nextRaceInfo.location.long,
-      qualifyingDate
-    );
-    const raceWeather = await getWeatherForecast(
-      nextRaceInfo.location.lat,
-      nextRaceInfo.location.long,
-      raceDate
-    );
-
+  let qualifyingWeather, raceWeather;
+  const cachedWeatherData = weatherForecastCache[sharedKey];
+  if (cachedWeatherData) {
+    qualifyingWeather = cachedWeatherData.qualifyingWeather;
+    raceWeather = cachedWeatherData.raceWeather;
+  } else {
+    try {
+      const apiForecastData = await getWeatherForecast(
+        nextRaceInfo.location.lat,
+        nextRaceInfo.location.long,
+        qualifyingDate,
+        raceDate
+      );
+      qualifyingWeather = apiForecastData.date1Forecast;
+      raceWeather = apiForecastData.date2Forecast;
+      await sendLogMessage(
+        bot,
+        `Weather forecast fetched for location: ${nextRaceInfo.location.locality}, ${nextRaceInfo.location.country}`
+      );
+      weatherForecastCache[sharedKey] = {
+        qualifyingWeather,
+        raceWeather,
+      };
+    } catch (err) {
+      await sendLogMessage(bot, `Weather API error: ${err.message}`);
+    }
+  }
+  if (qualifyingWeather && raceWeather) {
     weatherSection += '*Weather Forecast:*\n';
     weatherSection += `*Qualifying:*\n🌡️ Temp: ${qualifyingWeather.temperature}°C\n🌧️ Rain: ${qualifyingWeather.precipitation}%\n💨 Wind: ${qualifyingWeather.wind} km/h\n`;
     weatherSection += `*Race:*\n🌡️ Temp: ${raceWeather.temperature}°C\n🌧️ Rain: ${raceWeather.precipitation}%\n💨 Wind: ${raceWeather.wind} km/h\n\n`;
-  } catch (err) {
-    await sendLogMessage(bot, `Weather API error: ${err.message}`);
   }
 
   // Create message with next race information

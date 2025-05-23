@@ -10,7 +10,7 @@ describe('getWeatherForecast', () => {
     jest.clearAllMocks();
   });
 
-  it('returns correct weather data for a given date and location', async () => {
+  it('returns correct weather data for two given dates and location', async () => {
     const mockData = {
       hourly: {
         time: ['2025-05-25T13:00', '2025-05-25T14:00'],
@@ -26,26 +26,34 @@ describe('getWeatherForecast', () => {
 
     const lat = 43.7347;
     const lon = 7.42056;
-    const date = new Date(Date.UTC(2025, 4, 25, 13, 0)); // 2025-05-25T13:00:00Z
+    const date1 = new Date(Date.UTC(2025, 4, 25, 13, 0)); // 2025-05-25T13:00:00Z
+    const date2 = new Date(Date.UTC(2025, 4, 25, 14, 0)); // 2025-05-25T14:00:00Z
 
-    const result = await getWeatherForecast(lat, lon, date);
+    const result = await getWeatherForecast(lat, lon, date1, date2);
 
     expect(result).toEqual({
-      temperature: 22.5,
-      precipitation: 10,
-      wind: 5.2,
+      date1Forecast: {
+        temperature: 22.5,
+        precipitation: 10,
+        wind: 5.2,
+      },
+      date2Forecast: {
+        temperature: 23.1,
+        precipitation: 20,
+        wind: 6.1,
+      },
     });
     expect(fetch).toHaveBeenCalled();
   });
 
   it('throws if fetch fails', async () => {
     fetch.mockResolvedValue({ ok: false });
-    await expect(getWeatherForecast(1, 2, new Date())).rejects.toThrow(
-      'Failed to fetch weather data'
-    );
+    await expect(
+      getWeatherForecast(1, 2, new Date(), new Date())
+    ).rejects.toThrow('Failed to fetch weather data');
   });
 
-  it('returns undefined values if hour not found', async () => {
+  it('returns null values if hour not found', async () => {
     const mockData = {
       hourly: {
         time: ['2025-05-25T10:00'],
@@ -59,13 +67,21 @@ describe('getWeatherForecast', () => {
       json: async () => mockData,
     });
 
-    const date = new Date(Date.UTC(2025, 4, 25, 13, 0)); // 2025-05-25T13:00:00Z
-    const result = await getWeatherForecast(1, 2, date);
+    const date1 = new Date(Date.UTC(2025, 4, 25, 13, 0)); // 2025-05-25T13:00:00Z
+    const date2 = new Date(Date.UTC(2025, 4, 25, 14, 0)); // 2025-05-25T14:00:00Z
+    const result = await getWeatherForecast(1, 2, date1, date2);
 
     expect(result).toEqual({
-      temperature: undefined,
-      precipitation: undefined,
-      wind: undefined,
+      date1Forecast: {
+        temperature: null,
+        precipitation: null,
+        wind: null,
+      },
+      date2Forecast: {
+        temperature: null,
+        precipitation: null,
+        wind: null,
+      },
     });
   });
 });

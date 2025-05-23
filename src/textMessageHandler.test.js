@@ -44,6 +44,7 @@ const {
   bestTeamsCache,
   selectedChipCache,
   nextRaceInfoCache,
+  weatherForecastCache,
 } = require('./cache');
 
 const timesCalledSendLogMessageInMessageHandler = 1;
@@ -390,6 +391,7 @@ describe('handleNextRaceInfoCommand', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete nextRaceInfoCache.defaultSharedKey;
+    delete weatherForecastCache.defaultSharedKey;
   });
 
   it('should handle unavailable next race info', async () => {
@@ -406,7 +408,7 @@ describe('handleNextRaceInfoCommand', () => {
     );
   });
 
-  it('should display next race info with weather forecast when available', async () => {
+  it('should display next race info with weather forecast when available and log location', async () => {
     const mockNextRaceInfo = {
       circuitName: 'Circuit de Monaco',
       location: {
@@ -435,17 +437,18 @@ describe('handleNextRaceInfoCommand', () => {
     };
 
     // Mock weather forecasts
-    getWeatherForecast
-      .mockResolvedValueOnce({
+    getWeatherForecast.mockResolvedValue({
+      date1Forecast: {
         temperature: 22.5,
         precipitation: 30,
         wind: 15.2,
-      }) // Qualifying
-      .mockResolvedValueOnce({
+      },
+      date2Forecast: {
         temperature: 24.0,
         precipitation: 10,
         wind: 12.5,
-      }); // Race
+      },
+    });
 
     nextRaceInfoCache.defaultSharedKey = mockNextRaceInfo;
 
@@ -476,12 +479,77 @@ describe('handleNextRaceInfoCommand', () => {
       { parse_mode: 'Markdown' }
     );
 
-    // Verify weather API was called twice with correct parameters
-    expect(getWeatherForecast).toHaveBeenNthCalledWith(
-      2,
+    // Verify weather API was called with correct parameters
+    expect(getWeatherForecast).toHaveBeenCalledWith(
       '43.7347',
       '7.42056',
+      expect.any(Date),
       expect.any(Date)
+    );
+
+    // Verify log message for location
+    expect(mockSendLogMessage).toHaveBeenCalledWith(
+      botMock,
+      expect.stringContaining(
+        'Weather forecast fetched for location: Monte-Carlo, Monaco'
+      )
+    );
+  });
+
+  it('should use cached weather forecast if available and not call getWeatherForecast again', async () => {
+    const mockNextRaceInfo = {
+      circuitName: 'Circuit de Monaco',
+      location: {
+        lat: '43.7347',
+        long: '7.42056',
+        locality: 'Monte-Carlo',
+        country: 'Monaco',
+      },
+      sessions: {
+        qualifying: '2025-05-24T14:00:00Z',
+        race: '2025-05-25T13:00:00Z',
+      },
+      weekendFormat: 'regular',
+      historicalData: [],
+    };
+
+    weatherForecastCache.defaultSharedKey = {
+      qualifyingWeather: {
+        temperature: 20,
+        precipitation: 5,
+        wind: 10,
+      },
+      raceWeather: {
+        temperature: 21,
+        precipitation: 10,
+        wind: 12,
+      },
+    };
+
+    nextRaceInfoCache.defaultSharedKey = mockNextRaceInfo;
+
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: COMMAND_NEXT_RACE_INFO,
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(getWeatherForecast).not.toHaveBeenCalled();
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      expect.stringContaining('🌡️ Temp: 20°C'),
+      expect.any(Object)
+    );
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      expect.stringContaining('🌡️ Temp: 21°C'),
+      expect.any(Object)
+    );
+    // Should not log fetching for location again
+    expect(mockSendLogMessage).not.toHaveBeenCalledWith(
+      botMock,
+      expect.stringContaining('Weather forecast fetched for location:')
     );
   });
 

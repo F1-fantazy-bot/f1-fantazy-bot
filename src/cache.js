@@ -27,6 +27,8 @@ exports.selectedChipCache = {};
 
 // In-memory cache for next race info
 exports.nextRaceInfoCache = {};
+// In-memory cache for weather forecast
+exports.weatherForecastCache = {};
 
 exports.getPrintableCache = function (chatId, type) {
   const driversData = exports.driversCache[chatId];
