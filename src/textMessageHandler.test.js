@@ -25,6 +25,11 @@ jest.mock('./utils/utils', () => ({
   validateJsonData: mockValidateJsonData,
 }));
 
+const { getWeatherForecast } = require('./utils/weatherApi');
+jest.mock('./utils/weatherApi', () => ({
+  getWeatherForecast: jest.fn(),
+}));
+
 const azureStorageService = require('./azureStorageService');
 jest.mock('./azureStorageService', () => ({
   saveUserTeam: jest.fn().mockResolvedValue(undefined),
@@ -401,14 +406,17 @@ describe('handleNextRaceInfoCommand', () => {
     );
   });
 
-  it('should display next race info when available', async () => {
+  it('should display next race info with weather forecast when available', async () => {
     const mockNextRaceInfo = {
       circuitName: 'Circuit de Monaco',
       location: {
+        lat: '43.7347',
+        long: '7.42056',
         locality: 'Monte-Carlo',
         country: 'Monaco',
       },
       sessions: {
+        qualifying: '2025-05-24T14:00:00Z',
         race: '2025-05-25T13:00:00Z',
       },
       weekendFormat: 'regular',
@@ -426,6 +434,19 @@ describe('handleNextRaceInfoCommand', () => {
       ],
     };
 
+    // Mock weather forecasts
+    getWeatherForecast
+      .mockResolvedValueOnce({
+        temperature: 22.5,
+        precipitation: 30,
+        wind: 15.2,
+      }) // Qualifying
+      .mockResolvedValueOnce({
+        temperature: 24.0,
+        precipitation: 10,
+        wind: 12.5,
+      }); // Race
+
     nextRaceInfoCache.defaultSharedKey = mockNextRaceInfo;
 
     const msgMock = {
@@ -435,46 +456,67 @@ describe('handleNextRaceInfoCommand', () => {
 
     await handleMessage(botMock, msgMock);
 
-    expect(botMock.sendMessage).toHaveBeenCalledWith(
-      KILZI_CHAT_ID,
-      expect.stringContaining('*Next Race Information*'),
-      { parse_mode: 'Markdown' }
-    );
+    const expectedMessage =
+      `*Next Race Information*\n\n` +
+      `🏁 *Track:* Circuit de Monaco\n` +
+      `📍 *Location:* Monte-Carlo, Monaco\n` +
+      `📅 *Race Date:* Sunday, 25 May 2025\n` +
+      `⏰ *Race Time:* 16:00 GMT+3\n` +
+      `📝 *Weekend Format:* Regular\n\n` +
+      `*Weather Forecast:*\n` +
+      `*Qualifying:*\n🌡️ Temp: 22.5°C\n🌧️ Rain: 30%\n💨 Wind: 15.2 km/h\n` +
+      `*Race:*\n🌡️ Temp: 24°C\n🌧️ Rain: 10%\n💨 Wind: 12.5 km/h\n\n` +
+      `*Historical Data (Last Decade):*\n` +
+      `*2024:*\n🏆 Winner: Charles Leclerc\n🏎️ Cars Finished: 16\n\n` +
+      `*2023:*\n🏆 Winner: Max Verstappen\n🏎️ Cars Finished: 19\n\n`;
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      expect.stringContaining('Circuit de Monaco'),
+      expectedMessage,
       { parse_mode: 'Markdown' }
     );
 
-    expect(botMock.sendMessage).toHaveBeenCalledWith(
-      KILZI_CHAT_ID,
-      expect.stringContaining('Monte-Carlo, Monaco'),
-      { parse_mode: 'Markdown' }
+    // Verify weather API was called twice with correct parameters
+    expect(getWeatherForecast).toHaveBeenNthCalledWith(
+      2,
+      '43.7347',
+      '7.42056',
+      expect.any(Date)
     );
+  });
 
-    expect(botMock.sendMessage).toHaveBeenCalledWith(
-      KILZI_CHAT_ID,
-      expect.stringContaining('Regular'),
-      { parse_mode: 'Markdown' }
-    );
+  it('should handle weather API errors gracefully', async () => {
+    const mockNextRaceInfo = {
+      circuitName: 'Circuit de Monaco',
+      location: {
+        lat: '43.7347',
+        long: '7.42056',
+        locality: 'Monte-Carlo',
+        country: 'Monaco',
+      },
+      sessions: {
+        qualifying: '2025-05-24T14:00:00Z',
+        race: '2025-05-25T13:00:00Z',
+      },
+      weekendFormat: 'regular',
+      historicalData: [],
+    };
 
-    expect(botMock.sendMessage).toHaveBeenCalledWith(
-      KILZI_CHAT_ID,
-      expect.stringContaining('2024:'),
-      { parse_mode: 'Markdown' }
-    );
+    nextRaceInfoCache.defaultSharedKey = mockNextRaceInfo;
 
-    expect(botMock.sendMessage).toHaveBeenCalledWith(
-      KILZI_CHAT_ID,
-      expect.stringContaining('Charles Leclerc'),
-      { parse_mode: 'Markdown' }
-    );
+    // Mock weather API to throw an error
+    getWeatherForecast.mockRejectedValue(new Error('API error'));
 
-    expect(botMock.sendMessage).toHaveBeenCalledWith(
-      KILZI_CHAT_ID,
-      expect.stringContaining('Cars Finished: 16'),
-      { parse_mode: 'Markdown' }
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: COMMAND_NEXT_RACE_INFO,
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(mockSendLogMessage).toHaveBeenCalledWith(
+      botMock,
+      expect.stringContaining(`Weather API error:`)
     );
   });
 });

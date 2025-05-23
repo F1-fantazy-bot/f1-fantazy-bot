@@ -6,6 +6,7 @@ const {
   isAdminMessage,
 } = require('./utils');
 const azureStorageService = require('./azureStorageService');
+const { getWeatherForecast } = require('./utils/weatherApi');
 const {
   calculateBestTeams,
   calculateChangesToTeam,
@@ -608,6 +609,7 @@ async function handleNextRaceInfoCommand(bot, chatId) {
 
   // Format session date and time
   const raceDate = new Date(nextRaceInfo.sessions.race);
+  const qualifyingDate = new Date(nextRaceInfo.sessions.qualifying);
   const timezone = 'Asia/Jerusalem';
   const locale = 'en-GB';
   const raceDateStr = raceDate.toLocaleDateString(locale, {
@@ -624,6 +626,28 @@ async function handleNextRaceInfoCommand(bot, chatId) {
     timeZone: timezone,
   });
 
+  // Weather forecast section
+  let weatherSection = '';
+  try {
+    // Fetch weather for qualifying and race
+    const qualifyingWeather = await getWeatherForecast(
+      nextRaceInfo.location.lat,
+      nextRaceInfo.location.long,
+      qualifyingDate
+    );
+    const raceWeather = await getWeatherForecast(
+      nextRaceInfo.location.lat,
+      nextRaceInfo.location.long,
+      raceDate
+    );
+
+    weatherSection += '*Weather Forecast:*\n';
+    weatherSection += `*Qualifying:*\n🌡️ Temp: ${qualifyingWeather.temperature}°C\n🌧️ Rain: ${qualifyingWeather.precipitation}%\n💨 Wind: ${qualifyingWeather.wind} km/h\n`;
+    weatherSection += `*Race:*\n🌡️ Temp: ${raceWeather.temperature}°C\n🌧️ Rain: ${raceWeather.precipitation}%\n💨 Wind: ${raceWeather.wind} km/h\n\n`;
+  } catch (err) {
+    await sendLogMessage(bot, `Weather API error: ${err.message}`);
+  }
+
   // Create message with next race information
   let message = `*Next Race Information*\n\n`;
   message += `🏁 *Track:* ${nextRaceInfo.circuitName}\n`;
@@ -634,6 +658,7 @@ async function handleNextRaceInfoCommand(bot, chatId) {
     nextRaceInfo.weekendFormat.charAt(0).toUpperCase() +
     nextRaceInfo.weekendFormat.slice(1)
   }\n\n`;
+  message += weatherSection;
 
   // Add historical data section
   message += '*Historical Data (Last Decade):*\n';
