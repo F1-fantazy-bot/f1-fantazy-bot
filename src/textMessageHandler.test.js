@@ -17,13 +17,18 @@ const mockCalculateTeamInfo = jest.fn();
 
 const mockValidateJsonData = jest.fn().mockReturnValue(true);
 
-jest.mock('./utils/utils', () => ({
-  getChatName: mockGetChatName,
-  sendLogMessage: mockSendLogMessage,
-  calculateTeamInfo: mockCalculateTeamInfo,
-  isAdminMessage: mockIsAdmin,
-  validateJsonData: mockValidateJsonData,
-}));
+jest.mock('./utils/utils', () => {
+  const originalUtils = jest.requireActual('./utils/utils');
+
+  return {
+    getChatName: mockGetChatName,
+    sendLogMessage: mockSendLogMessage,
+    calculateTeamInfo: mockCalculateTeamInfo,
+    isAdminMessage: mockIsAdmin,
+    validateJsonData: mockValidateJsonData,
+    formatSessionDateTime: originalUtils.formatSessionDateTime,
+  };
+});
 
 const { getWeatherForecast } = require('./utils/weatherApi');
 jest.mock('./utils/weatherApi', () => ({
@@ -391,7 +396,8 @@ describe('handleNextRaceInfoCommand', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete nextRaceInfoCache.defaultSharedKey;
-    delete weatherForecastCache.defaultSharedKey;
+    delete weatherForecastCache.qualifyingWeather;
+    delete weatherForecastCache.raceWeather;
   });
 
   it('should handle unavailable next race info', async () => {
@@ -463,6 +469,8 @@ describe('handleNextRaceInfoCommand', () => {
       `*Next Race Information*\n\n` +
       `🏁 *Track:* Circuit de Monaco\n` +
       `📍 *Location:* Monte-Carlo, Monaco\n` +
+      `📅 *Qualifying Date:* Saturday, 24 May 2025\n` +
+      `⏰ *Qualifying Time:* 17:00 GMT+3\n` +
       `📅 *Race Date:* Sunday, 25 May 2025\n` +
       `⏰ *Race Time:* 16:00 GMT+3\n` +
       `📝 *Weekend Format:* Regular\n\n` +
@@ -513,17 +521,15 @@ describe('handleNextRaceInfoCommand', () => {
       historicalData: [],
     };
 
-    weatherForecastCache.defaultSharedKey = {
-      qualifyingWeather: {
-        temperature: 20,
-        precipitation: 5,
-        wind: 10,
-      },
-      raceWeather: {
-        temperature: 21,
-        precipitation: 10,
-        wind: 12,
-      },
+    weatherForecastCache.qualifyingWeather = {
+      temperature: 20,
+      precipitation: 5,
+      wind: 10,
+    };
+    weatherForecastCache.raceWeather = {
+      temperature: 21,
+      precipitation: 10,
+      wind: 12,
     };
 
     nextRaceInfoCache.defaultSharedKey = mockNextRaceInfo;

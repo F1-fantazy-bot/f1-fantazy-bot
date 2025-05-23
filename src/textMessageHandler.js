@@ -6,6 +6,7 @@ const {
   isAdminMessage,
 } = require('./utils');
 const azureStorageService = require('./azureStorageService');
+const { formatSessionDateTime } = require('./utils/utils');
 const { getWeatherForecast } = require('./utils/weatherApi');
 const {
   calculateBestTeams,
@@ -613,25 +614,19 @@ async function handleNextRaceInfoCommand(bot, chatId) {
   const qualifyingDate = new Date(nextRaceInfo.sessions.qualifying);
   const timezone = 'Asia/Jerusalem';
   const locale = 'en-GB';
-  const raceDateStr = raceDate.toLocaleDateString(locale, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: timezone,
-  });
-  const raceTimeStr = raceDate.toLocaleTimeString(locale, {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZoneName: 'short',
-    timeZone: timezone,
-  });
+  const { dateStr: qualifyingDateStr, timeStr: qualifyingTimeStr } =
+    formatSessionDateTime(qualifyingDate, locale, timezone);
+  const { dateStr: raceDateStr, timeStr: raceTimeStr } = formatSessionDateTime(
+    raceDate,
+    locale,
+    timezone
+  );
 
   // Weather forecast section
   let weatherSection = '';
   let qualifyingWeather, raceWeather;
-  const cachedWeatherData = weatherForecastCache[sharedKey];
-  if (cachedWeatherData) {
+  const cachedWeatherData = weatherForecastCache;
+  if (cachedWeatherData && Object.keys(cachedWeatherData).length > 0) {
     qualifyingWeather = cachedWeatherData.qualifyingWeather;
     raceWeather = cachedWeatherData.raceWeather;
   } else {
@@ -648,10 +643,8 @@ async function handleNextRaceInfoCommand(bot, chatId) {
         bot,
         `Weather forecast fetched for location: ${nextRaceInfo.location.locality}, ${nextRaceInfo.location.country}`
       );
-      weatherForecastCache[sharedKey] = {
-        qualifyingWeather,
-        raceWeather,
-      };
+      weatherForecastCache.qualifyingWeather = qualifyingWeather;
+      weatherForecastCache.raceWeather = raceWeather;
     } catch (err) {
       await sendLogMessage(bot, `Weather API error: ${err.message}`);
     }
@@ -666,6 +659,8 @@ async function handleNextRaceInfoCommand(bot, chatId) {
   let message = `*Next Race Information*\n\n`;
   message += `🏁 *Track:* ${nextRaceInfo.circuitName}\n`;
   message += `📍 *Location:* ${nextRaceInfo.location.locality}, ${nextRaceInfo.location.country}\n`;
+  message += `📅 *Qualifying Date:* ${qualifyingDateStr}\n`;
+  message += `⏰ *Qualifying Time:* ${qualifyingTimeStr}\n`;
   message += `📅 *Race Date:* ${raceDateStr}\n`;
   message += `⏰ *Race Time:* ${raceTimeStr}\n`;
   message += `📝 *Weekend Format:* ${
