@@ -213,7 +213,10 @@ exports.isAdminMessage = function (msg) {
 };
 
 // Formats a Date object into { dateStr, timeStr } using locale and timezone
-exports.formatSessionDateTime = function (dateObj, locale, timezone) {
+exports.formatSessionDateTime = function (dateObj) {
+  const locale = 'en-GB';
+  const timezone = 'Asia/Jerusalem';
+
   return {
     dateStr: dateObj.toLocaleDateString(locale, {
       weekday: 'long',

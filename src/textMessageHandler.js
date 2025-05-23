@@ -621,17 +621,11 @@ async function handleNextRaceInfoCommand(bot, chatId) {
     sprintDate = new Date(nextRaceInfo.sessions.sprint);
   }
 
-  const timezone = 'Asia/Jerusalem';
-  const locale = 'en-GB';
-
   // Format session dates and times
   const { dateStr: qualifyingDateStr, timeStr: qualifyingTimeStr } =
-    formatSessionDateTime(qualifyingDate, locale, timezone);
-  const { dateStr: raceDateStr, timeStr: raceTimeStr } = formatSessionDateTime(
-    raceDate,
-    locale,
-    timezone
-  );
+    formatSessionDateTime(qualifyingDate);
+  const { dateStr: raceDateStr, timeStr: raceTimeStr } =
+    formatSessionDateTime(raceDate);
 
   let sprintQualifyingDateStr = '',
     sprintQualifyingTimeStr = '';
@@ -639,13 +633,10 @@ async function handleNextRaceInfoCommand(bot, chatId) {
     sprintTimeStr = '';
   if (isSprintWeekend) {
     ({ dateStr: sprintQualifyingDateStr, timeStr: sprintQualifyingTimeStr } =
-      formatSessionDateTime(sprintQualifyingDate, locale, timezone));
+      formatSessionDateTime(sprintQualifyingDate));
 
-    ({ dateStr: sprintDateStr, timeStr: sprintTimeStr } = formatSessionDateTime(
-      sprintDate,
-      locale,
-      timezone
-    ));
+    ({ dateStr: sprintDateStr, timeStr: sprintTimeStr } =
+      formatSessionDateTime(sprintDate));
   }
 
   // Prepare array of dates for weather API
