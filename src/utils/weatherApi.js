@@ -19,7 +19,22 @@ async function getWeatherForecast(lat, lon, date) {
 
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation_probability,wind_speed_10m&start_date=${dateStr}&end_date=${dateStr}&timezone=UTC`;
 
-  const res = await fetch(url);
+  // Set up a 30-second timeout using AbortController
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+
+  let res;
+  try {
+    res = await fetch(url, { signal: controller.signal });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error('Weather API request timed out after 30 seconds');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
+
   if (!res.ok) {
     throw new Error('Failed to fetch weather data');
   }
