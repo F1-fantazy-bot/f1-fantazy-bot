@@ -6,6 +6,7 @@ const {
   COMMAND_RESET_CACHE,
   COMMAND_HELP,
   COMMAND_GET_BOTFATHER_COMMANDS,
+  COMMAND_NEXT_RACE_INFO,
   USER_COMMANDS_CONFIG,
 } = require('./constants');
 
@@ -37,6 +38,7 @@ const {
   currentTeamCache,
   bestTeamsCache,
   selectedChipCache,
+  nextRaceInfoCache,
 } = require('./cache');
 
 const timesCalledSendLogMessageInMessageHandler = 1;
@@ -372,5 +374,107 @@ describe('handleTextMessage', () => {
       expectedBotFatherCommands
     );
     expect(mockIsAdmin).toHaveBeenCalledWith(msgMock);
+  });
+});
+
+describe('handleNextRaceInfoCommand', () => {
+  const botMock = {
+    sendMessage: jest.fn().mockResolvedValue(),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete nextRaceInfoCache.defaultSharedKey;
+  });
+
+  it('should handle unavailable next race info', async () => {
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: COMMAND_NEXT_RACE_INFO,
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'Next race information is currently unavailable.'
+    );
+  });
+
+  it('should display next race info when available', async () => {
+    const mockNextRaceInfo = {
+      circuitName: 'Circuit de Monaco',
+      location: {
+        locality: 'Monte-Carlo',
+        country: 'Monaco',
+      },
+      sessions: {
+        race: '2025-05-25T13:00:00Z',
+      },
+      weekendFormat: 'regular',
+      historicalData: [
+        {
+          season: 2024,
+          winner: 'Charles Leclerc',
+          carsFinished: 16,
+        },
+        {
+          season: 2023,
+          winner: 'Max Verstappen',
+          carsFinished: 19,
+        },
+      ],
+    };
+
+    nextRaceInfoCache.defaultSharedKey = mockNextRaceInfo;
+
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: COMMAND_NEXT_RACE_INFO,
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      expect.stringContaining('*Next Race Information*'),
+      { parse_mode: 'Markdown' }
+    );
+
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      expect.stringContaining('Circuit de Monaco'),
+      { parse_mode: 'Markdown' }
+    );
+
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      expect.stringContaining('Monte-Carlo, Monaco'),
+      { parse_mode: 'Markdown' }
+    );
+
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      expect.stringContaining('Regular'),
+      { parse_mode: 'Markdown' }
+    );
+
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      expect.stringContaining('2024:'),
+      { parse_mode: 'Markdown' }
+    );
+
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      expect.stringContaining('Charles Leclerc'),
+      { parse_mode: 'Markdown' }
+    );
+
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      expect.stringContaining('Cars Finished: 16'),
+      { parse_mode: 'Markdown' }
+    );
   });
 });
