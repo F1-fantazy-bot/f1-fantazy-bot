@@ -5,8 +5,13 @@ const {
   currentTeamCache,
   simulationNameCache,
   sharedKey,
+  nextRaceInfoCache,
 } = require('./cache');
-const azureStorageService = require('./azureStorageService');
+const {
+  getFantasyData,
+  listAllUserTeamData,
+  getNextRaceInfoData,
+} = require('./azureStorageService');
 const { initializeCaches } = require('./cacheInitializer');
 
 // Mock dependencies
@@ -21,6 +26,7 @@ jest.mock('./utils', () => ({
 jest.mock('./azureStorageService', () => ({
   getFantasyData: jest.fn(),
   listAllUserTeamData: jest.fn(),
+  getNextRaceInfoData: jest.fn(),
 }));
 
 describe('cacheInitializer', () => {
@@ -67,28 +73,46 @@ describe('cacheInitializer', () => {
     Object.keys(simulationNameCache).forEach(
       (key) => delete simulationNameCache[key]
     );
+    Object.keys(nextRaceInfoCache).forEach(
+      (key) => delete nextRaceInfoCache[key]
+    );
 
     // Setup mock implementations
     validateJsonData.mockResolvedValue(true);
-    azureStorageService.getFantasyData.mockResolvedValue(mockFantasyData);
-    azureStorageService.listAllUserTeamData.mockResolvedValue(mockUserTeams);
+    getFantasyData.mockResolvedValue(mockFantasyData);
+    listAllUserTeamData.mockResolvedValue(mockUserTeams);
+    getNextRaceInfoData.mockResolvedValue({
+      raceName: 'Test Race',
+      season: '2025',
+    });
   });
 
   it('should initialize all caches with data from Azure Storage', async () => {
     await initializeCaches(mockBot);
 
     // Verify Azure Storage was queried
-    expect(azureStorageService.getFantasyData).toHaveBeenCalled();
-    expect(azureStorageService.listAllUserTeamData).toHaveBeenCalled();
+    expect(getFantasyData).toHaveBeenCalled();
+    expect(listAllUserTeamData).toHaveBeenCalled();
+    expect(getNextRaceInfoData).toHaveBeenCalled();
 
     // Verify success message was sent via utils
     expect(utils.sendLogMessage).toHaveBeenCalledWith(
       mockBot,
-      expect.stringContaining('downloaded successfully')
+      expect.stringContaining('Fantasy data json downloaded successfully')
+    );
+    expect(utils.sendLogMessage).toHaveBeenCalledWith(
+      mockBot,
+      expect.stringContaining('Next race info loaded successfully')
     );
 
     // Verify simulation name was cached
     expect(simulationNameCache[sharedKey]).toBe(mockFantasyData.SimulationName);
+
+    // Verify next race info was cached
+    expect(nextRaceInfoCache[sharedKey]).toEqual({
+      raceName: 'Test Race',
+      season: '2025',
+    });
 
     // Verify drivers were cached correctly
     expect(driversCache[sharedKey]).toEqual({
@@ -124,7 +148,7 @@ describe('cacheInitializer', () => {
   });
 
   it('should handle missing Azure configuration', async () => {
-    azureStorageService.getFantasyData.mockRejectedValue(
+    getFantasyData.mockRejectedValue(
       new Error('Missing required Azure storage configuration')
     );
 

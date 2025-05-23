@@ -18,6 +18,7 @@ const {
   getPrintableCache,
   selectedChipCache,
   simulationNameCache,
+  nextRaceInfoCache,
   sharedKey,
 } = require('./cache');
 const {
@@ -31,6 +32,7 @@ const {
   COMMAND_LOAD_SIMULATION,
   COMMAND_GET_CURRENT_SIMULATION,
   COMMAND_GET_BOTFATHER_COMMANDS,
+  COMMAND_NEXT_RACE_INFO,
   USER_COMMANDS_CONFIG,
   ADMIN_COMMANDS_CONFIG,
   CHIP_CALLBACK_TYPE,
@@ -72,6 +74,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleScrapingTrigger(bot, msg);
     case msg.text === COMMAND_GET_BOTFATHER_COMMANDS:
       return await handleGetBotfatherCommands(bot, msg);
+    case msg.text === COMMAND_NEXT_RACE_INFO:
+      return await handleNextRaceInfoCommand(bot, chatId);
     default:
       handleJsonMessage(bot, msg, chatId);
       break;
@@ -586,5 +590,68 @@ async function handleGetBotfatherCommands(bot, msg) {
     .sendMessage(chatId, botFatherCommands)
     .catch((err) =>
       console.error('Error sending BotFather commands message:', err)
+    );
+}
+
+async function handleNextRaceInfoCommand(bot, chatId) {
+  const nextRaceInfo = nextRaceInfoCache[sharedKey];
+
+  if (!nextRaceInfo) {
+    await bot
+      .sendMessage(chatId, 'Next race information is currently unavailable.')
+      .catch((err) =>
+        console.error('Error sending next race info unavailable message:', err)
+      );
+
+    return;
+  }
+
+  // Format session date and time
+  const raceDate = new Date(nextRaceInfo.sessions.race);
+  const timezone = 'Asia/Jerusalem';
+  const locale = 'en-GB';
+  const raceDateStr = raceDate.toLocaleDateString(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: timezone,
+  });
+  const raceTimeStr = raceDate.toLocaleTimeString(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+    timeZone: timezone,
+  });
+
+  // Create message with next race information
+  let message = `*Next Race Information*\n\n`;
+  message += `🏁 *Track:* ${nextRaceInfo.circuitName}\n`;
+  message += `📍 *Location:* ${nextRaceInfo.location.locality}, ${nextRaceInfo.location.country}\n`;
+  message += `📅 *Race Date:* ${raceDateStr}\n`;
+  message += `⏰ *Race Time:* ${raceTimeStr}\n`;
+  message += `📝 *Weekend Format:* ${
+    nextRaceInfo.weekendFormat.charAt(0).toUpperCase() +
+    nextRaceInfo.weekendFormat.slice(1)
+  }\n\n`;
+
+  // Add historical data section
+  message += '*Historical Data (Last Decade):*\n';
+  if (nextRaceInfo.historicalData && nextRaceInfo.historicalData.length > 0) {
+    nextRaceInfo.historicalData
+      .sort((a, b) => b.season - a.season)
+      .forEach((data) => {
+        message += `*${data.season}:*\n`;
+        message += `🏆 Winner: ${data.winner}\n`;
+        message += `🏎️ Cars Finished: ${data.carsFinished}\n\n`;
+      });
+  } else {
+    message += 'No historical data available for this track.\n';
+  }
+
+  await bot
+    .sendMessage(chatId, message, { parse_mode: 'Markdown' })
+    .catch((err) =>
+      console.error('Error sending next race info message:', err)
     );
 }

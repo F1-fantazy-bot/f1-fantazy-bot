@@ -25,6 +25,9 @@ exports.simulationNameCache = {};
 
 exports.selectedChipCache = {};
 
+// In-memory cache for next race info
+exports.nextRaceInfoCache = {};
+
 exports.getPrintableCache = function (chatId, type) {
   const driversData = exports.driversCache[chatId];
   const constructorsData = exports.constructorsCache[chatId];

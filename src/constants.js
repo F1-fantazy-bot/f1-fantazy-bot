@@ -24,6 +24,7 @@ exports.COMMAND_TRIGGER_SCRAPING = '/trigger_scraping';
 exports.COMMAND_LOAD_SIMULATION = '/load_simulation';
 exports.COMMAND_GET_CURRENT_SIMULATION = '/get_current_simulation';
 exports.COMMAND_GET_BOTFATHER_COMMANDS = '/get_botfather_commands';
+exports.COMMAND_NEXT_RACE_INFO = '/next_race_info';
 
 exports.USER_COMMANDS_CONFIG = [
   {
@@ -55,6 +56,10 @@ exports.USER_COMMANDS_CONFIG = [
   {
     constant: exports.COMMAND_GET_CURRENT_SIMULATION,
     description: 'Show the current simulation data and name.',
+  },
+  {
+    constant: exports.COMMAND_NEXT_RACE_INFO,
+    description: 'Get detailed information about the next F1 race.',
   },
 ];
 

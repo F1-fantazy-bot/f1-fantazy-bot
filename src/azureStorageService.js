@@ -63,6 +63,30 @@ async function getFantasyData() {
 }
 
 /**
+ * Get the next race info data from Azure Storage
+ * @returns {Promise<Object>} The parsed next race info data
+ * @throws {Error} If the data cannot be retrieved or parsed
+ */
+async function getNextRaceInfoData() {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = 'next-race-info.json';
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    const downloadResponse = await blockBlobClient.download();
+    const jsonString = await streamToString(
+      downloadResponse.readableStreamBody
+    );
+
+    return JSON.parse(jsonString);
+  } catch (error) {
+    throw new Error(`Failed to get next race info data: ${error.message}`);
+  }
+}
+
+/**
  * Get a user's team data from Azure Storage
  * @param {string} chatId - The chat ID of the user
  * @returns {Promise<Object|null>} The parsed team data or null if not found
@@ -187,4 +211,5 @@ module.exports = {
   saveUserTeam,
   deleteUserTeam,
   listAllUserTeamData,
+  getNextRaceInfoData,
 };

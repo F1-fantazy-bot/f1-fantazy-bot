@@ -4,6 +4,7 @@ const {
   currentTeamCache,
   simulationNameCache,
   sharedKey,
+  nextRaceInfoCache,
 } = require('./cache');
 const {
   sendLogMessage,
@@ -15,7 +16,11 @@ const {
   NAME_TO_CODE_DRIVERS_MAPPING,
   NAME_TO_CODE_CONSTRUCTORS_MAPPING,
 } = require('./constants');
-const azureStorageService = require('./azureStorageService');
+const {
+  getFantasyData,
+  listAllUserTeamData,
+  getNextRaceInfoData,
+} = require('./azureStorageService');
 
 /**
  * Initialize all application caches with data from Azure Storage
@@ -24,17 +29,17 @@ const azureStorageService = require('./azureStorageService');
  */
 async function initializeCaches(bot) {
   // Get main fantasy data
-  const jsonFromStorage = await azureStorageService.getFantasyData();
+  const fantasyDataJson = await getFantasyData();
 
   await sendLogMessage(
     bot,
-    `jsonFromStorage downloaded successfully. Simulation: ${jsonFromStorage?.SimulationName}`
+    `Fantasy data json downloaded successfully. Simulation: ${fantasyDataJson?.SimulationName}`
   );
 
   // Validate the main fantasy data
   const isValid = await validateJsonData(
     bot,
-    jsonFromStorage,
+    fantasyDataJson,
     LOG_CHANNEL_ID,
     false
   );
@@ -44,7 +49,19 @@ async function initializeCaches(bot) {
   }
 
   // Store simulation name in cache
-  simulationNameCache[sharedKey] = jsonFromStorage.SimulationName;
+  simulationNameCache[sharedKey] = fantasyDataJson.SimulationName;
+
+  // Load next race info into cache
+  try {
+    const nextRaceInfo = await getNextRaceInfoData();
+    nextRaceInfoCache[sharedKey] = nextRaceInfo;
+    await sendLogMessage(bot, `Next race info loaded successfully`);
+  } catch (error) {
+    await sendLogMessage(
+      bot,
+      `Failed to load next race info: ${error.message}`
+    );
+  }
 
   const notFounds = {
     drivers: [],
@@ -53,7 +70,7 @@ async function initializeCaches(bot) {
 
   // Process drivers data
   driversCache[sharedKey] = Object.fromEntries(
-    jsonFromStorage.Drivers.map((driver) => [driver.DR, driver])
+    fantasyDataJson.Drivers.map((driver) => [driver.DR, driver])
   );
 
   Object.values(driversCache[sharedKey]).forEach((driver) => {
@@ -66,7 +83,7 @@ async function initializeCaches(bot) {
 
   // Process constructors data
   constructorsCache[sharedKey] = Object.fromEntries(
-    jsonFromStorage.Constructors.map((constructor) => [
+    fantasyDataJson.Constructors.map((constructor) => [
       constructor.CN,
       constructor,
     ])
@@ -104,7 +121,7 @@ Constructors not found in mapping: ${notFounds.constructors.join(', ')}
   }
 
   // Load all user teams into cache
-  const userTeams = await azureStorageService.listAllUserTeamData();
+  const userTeams = await listAllUserTeamData();
   Object.assign(currentTeamCache, userTeams);
 
   await sendLogMessage(
