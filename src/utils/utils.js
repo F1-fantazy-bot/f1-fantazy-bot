@@ -211,3 +211,25 @@ exports.isAdminMessage = function (msg) {
 
   return msg.chat.id === KILZI_CHAT_ID || msg.chat.id === DORSE_CHAT_ID;
 };
+
+// Formats a Date object into { dateStr, timeStr } using locale and timezone
+exports.formatSessionDateTime = function (dateObj) {
+  const locale = 'en-GB';
+  const timezone = 'Asia/Jerusalem';
+
+  return {
+    dateStr: dateObj.toLocaleDateString(locale, {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: timezone,
+    }),
+    timeStr: dateObj.toLocaleTimeString(locale, {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short',
+      timeZone: timezone,
+    }),
+  };
+};

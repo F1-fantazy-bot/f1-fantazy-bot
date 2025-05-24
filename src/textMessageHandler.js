@@ -6,6 +6,7 @@ const {
   isAdminMessage,
 } = require('./utils');
 const azureStorageService = require('./azureStorageService');
+const { formatSessionDateTime } = require('./utils/utils');
 const { getWeatherForecast } = require('./utils/weatherApi');
 const {
   calculateBestTeams,
@@ -607,57 +608,91 @@ async function handleNextRaceInfoCommand(bot, chatId) {
 
     return;
   }
-
-  // Format session date and time
+  // Prepare session dates
   const raceDate = new Date(nextRaceInfo.sessions.race);
   const qualifyingDate = new Date(nextRaceInfo.sessions.qualifying);
-  const timezone = 'Asia/Jerusalem';
-  const locale = 'en-GB';
-  const raceDateStr = raceDate.toLocaleDateString(locale, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: timezone,
-  });
-  const raceTimeStr = raceDate.toLocaleTimeString(locale, {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZoneName: 'short',
-    timeZone: timezone,
-  });
+  const isSprintWeekend = nextRaceInfo.weekendFormat === 'sprint';
+
+  // If sprint weekend, get sprint session dates
+  let sprintQualifyingDate = null;
+  let sprintDate = null;
+  if (isSprintWeekend) {
+    sprintQualifyingDate = new Date(nextRaceInfo.sessions.sprintQualifying);
+    sprintDate = new Date(nextRaceInfo.sessions.sprint);
+  }
+
+  // Format session dates and times
+  const { dateStr: qualifyingDateStr, timeStr: qualifyingTimeStr } =
+    formatSessionDateTime(qualifyingDate);
+  const { dateStr: raceDateStr, timeStr: raceTimeStr } =
+    formatSessionDateTime(raceDate);
+
+  let sprintQualifyingDateStr = '',
+    sprintQualifyingTimeStr = '';
+  let sprintDateStr = '',
+    sprintTimeStr = '';
+  if (isSprintWeekend) {
+    ({ dateStr: sprintQualifyingDateStr, timeStr: sprintQualifyingTimeStr } =
+      formatSessionDateTime(sprintQualifyingDate));
+
+    ({ dateStr: sprintDateStr, timeStr: sprintTimeStr } =
+      formatSessionDateTime(sprintDate));
+  }
+
+  // Prepare array of dates for weather API
+  const datesForWeatherApi = [];
+  datesForWeatherApi.push(qualifyingDate, raceDate);
+  if (isSprintWeekend) {
+    datesForWeatherApi.push(sprintQualifyingDate, sprintDate);
+  }
 
   // Weather forecast section
   let weatherSection = '';
-  let qualifyingWeather, raceWeather;
-  const cachedWeatherData = weatherForecastCache[sharedKey];
-  if (cachedWeatherData) {
+  let sprintQualifyingWeather, sprintWeather, qualifyingWeather, raceWeather;
+  const cachedWeatherData = weatherForecastCache;
+  if (cachedWeatherData && Object.keys(cachedWeatherData).length > 0) {
     qualifyingWeather = cachedWeatherData.qualifyingWeather;
     raceWeather = cachedWeatherData.raceWeather;
+    if (isSprintWeekend) {
+      sprintQualifyingWeather = cachedWeatherData.sprintQualifyingWeather;
+      sprintWeather = cachedWeatherData.sprintWeather;
+    }
   } else {
     try {
-      const apiForecastData = await getWeatherForecast(
+      const weatherForecastsMap = await getWeatherForecast(
         nextRaceInfo.location.lat,
         nextRaceInfo.location.long,
-        qualifyingDate,
-        raceDate
+        ...datesForWeatherApi
       );
-      qualifyingWeather = apiForecastData.date1Forecast;
-      raceWeather = apiForecastData.date2Forecast;
+      qualifyingWeather = weatherForecastsMap[qualifyingDate.toISOString()];
+      raceWeather = weatherForecastsMap[raceDate.toISOString()];
+      weatherForecastCache.qualifyingWeather = qualifyingWeather;
+      weatherForecastCache.raceWeather = raceWeather;
+
+      if (isSprintWeekend) {
+        sprintQualifyingWeather =
+          weatherForecastsMap[sprintQualifyingDate.toISOString()];
+        sprintWeather = weatherForecastsMap[sprintDate.toISOString()];
+        weatherForecastCache.sprintQualifyingWeather = sprintQualifyingWeather;
+        weatherForecastCache.sprintWeather = sprintWeather;
+      }
+
       await sendLogMessage(
         bot,
         `Weather forecast fetched for location: ${nextRaceInfo.location.locality}, ${nextRaceInfo.location.country}`
       );
-      weatherForecastCache[sharedKey] = {
-        qualifyingWeather,
-        raceWeather,
-      };
     } catch (err) {
       await sendLogMessage(bot, `Weather API error: ${err.message}`);
     }
   }
+
+  // Build weather section
   if (qualifyingWeather && raceWeather) {
     weatherSection += '*Weather Forecast:*\n';
+    if (isSprintWeekend) {
+      weatherSection += `*Sprint Qualifying:*\n🌡️ Temp: ${sprintQualifyingWeather.temperature}°C\n🌧️ Rain: ${sprintQualifyingWeather.precipitation}%\n💨 Wind: ${sprintQualifyingWeather.wind} km/h\n`;
+      weatherSection += `*Sprint:*\n🌡️ Temp: ${sprintWeather.temperature}°C\n🌧️ Rain: ${sprintWeather.precipitation}%\n💨 Wind: ${sprintWeather.wind} km/h\n`;
+    }
     weatherSection += `*Qualifying:*\n🌡️ Temp: ${qualifyingWeather.temperature}°C\n🌧️ Rain: ${qualifyingWeather.precipitation}%\n💨 Wind: ${qualifyingWeather.wind} km/h\n`;
     weatherSection += `*Race:*\n🌡️ Temp: ${raceWeather.temperature}°C\n🌧️ Rain: ${raceWeather.precipitation}%\n💨 Wind: ${raceWeather.wind} km/h\n\n`;
   }
@@ -666,6 +701,14 @@ async function handleNextRaceInfoCommand(bot, chatId) {
   let message = `*Next Race Information*\n\n`;
   message += `🏁 *Track:* ${nextRaceInfo.circuitName}\n`;
   message += `📍 *Location:* ${nextRaceInfo.location.locality}, ${nextRaceInfo.location.country}\n`;
+  if (isSprintWeekend) {
+    message += `📅 *Sprint Qualifying Date:* ${sprintQualifyingDateStr}\n`;
+    message += `⏰ *Sprint Qualifying Time:* ${sprintQualifyingTimeStr}\n`;
+    message += `📅 *Sprint Date:* ${sprintDateStr}\n`;
+    message += `⏰ *Sprint Time:* ${sprintTimeStr}\n`;
+  }
+  message += `📅 *Qualifying Date:* ${qualifyingDateStr}\n`;
+  message += `⏰ *Qualifying Time:* ${qualifyingTimeStr}\n`;
   message += `📅 *Race Date:* ${raceDateStr}\n`;
   message += `⏰ *Race Time:* ${raceTimeStr}\n`;
   message += `📝 *Weekend Format:* ${
