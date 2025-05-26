@@ -724,8 +724,15 @@ async function handleNextRaceInfoCommand(bot, chatId) {
       .sort((a, b) => b.season - a.season)
       .forEach((data) => {
         message += `*${data.season}:*\n`;
-        message += `🏆 Winner: ${data.winner}\n`;
-        message += `🏎️ Cars Finished: ${data.carsFinished}\n\n`;
+        message += `🏆 Winner: ${data.winner} (${data.constructor})\n`;
+        message += `🏎️ Cars Finished: ${data.carsFinished}\n`;
+        if (data.safetyCars !== undefined) {
+          message += `🛡️ Safety Cars: ${data.safetyCars}\n`;
+        }
+        if (data.safetyCars !== undefined) {
+          message += `🚩 Red Flags: ${data.redFlags}\n`;
+        }
+        message += `\n`;
       });
   } else {
     message += 'No historical data available for this track.\n';
