@@ -727,7 +727,7 @@ async function handleNextRaceInfoCommand(bot, chatId) {
         message += `🏆 Winner: ${data.winner} (${data.constructor})\n`;
         message += `🏎️ Cars Finished: ${data.carsFinished}\n`;
         if (data.safetyCars !== undefined) {
-          message += `🛡️ Safety Cars: ${data.safetyCars}\n`;
+          message += `⚠️🚓 Safety Cars: ${data.safetyCars}\n`;
         }
         if (data.safetyCars !== undefined) {
           message += `🚩 Red Flags: ${data.redFlags}\n`;
