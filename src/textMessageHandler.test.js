@@ -680,7 +680,7 @@ describe('handleNextRaceInfoCommand', () => {
     expect(historicalSection).toContain('*2025:*');
     expect(historicalSection).toContain('🏆 Winner: Test Winner');
     expect(historicalSection).toContain('🏎️ Cars Finished: 15');
-    expect(historicalSection).toContain('🛡️ Safety Cars: 2');
+    expect(historicalSection).toContain('⚠️🚓 Safety Cars: 2');
     expect(historicalSection).toContain('🚩 Red Flags: 1');
 
     expect(historicalSection).toContain('*2024:*');
@@ -688,7 +688,7 @@ describe('handleNextRaceInfoCommand', () => {
     expect(historicalSection).toContain('🏎️ Cars Finished: 18');
     // Extract just the 2024 entry and check it does not contain the new fields
     const entry2024 = historicalSection.split('*2024:*')[1].split('*')[0];
-    expect(entry2024).not.toContain('🛡️ Safety Cars:');
+    expect(entry2024).not.toContain('⚠️🚓 Safety Cars:');
     expect(entry2024).not.toContain('🚩 Red Flags:');
   });
 
