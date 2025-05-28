@@ -417,6 +417,7 @@ describe('handleNextRaceInfoCommand', () => {
 
   it('should display next race info with weather forecast when available and log location', async () => {
     const mockNextRaceInfo = {
+      raceName: 'Monaco Grand Prix',
       circuitName: 'Circuit de Monaco',
       location: {
         lat: '43.7347',
@@ -429,7 +430,7 @@ describe('handleNextRaceInfoCommand', () => {
         race: '2025-05-25T13:00:00Z',
       },
       weekendFormat: 'regular',
-      historicalData: [
+      historicalRaceStats: [
         {
           season: 2024,
           winner: 'Charles Leclerc',
@@ -472,6 +473,7 @@ describe('handleNextRaceInfoCommand', () => {
 
     const expectedMessage =
       `*Next Race Information*\n\n` +
+      `🏎️ *Race Name:* Monaco Grand Prix\n` +
       `🏁 *Track:* Circuit de Monaco\n` +
       `📍 *Location:* Monte-Carlo, Monaco\n` +
       `📅 *Qualifying Date:* Saturday, 24 May 2025\n` +
@@ -482,7 +484,7 @@ describe('handleNextRaceInfoCommand', () => {
       `*Weather Forecast:*\n` +
       `*Qualifying:*\n🌡️ Temp: 22.5°C\n🌧️ Rain: 30%\n💨 Wind: 15.2 km/h\n` +
       `*Race:*\n🌡️ Temp: 24°C\n🌧️ Rain: 10%\n💨 Wind: 12.5 km/h\n\n` +
-      `*Historical Data (Last Decade):*\n` +
+      `*Historical Race Stats (Last Decade):*\n` +
       `*2024:*\n🏆 Winner: Charles Leclerc (Ferrari)\n🏎️ Cars Finished: 16\n\n` +
       `*2023:*\n🏆 Winner: Max Verstappen (Red Bull)\n🏎️ Cars Finished: 19\n\n`;
 
@@ -511,6 +513,7 @@ describe('handleNextRaceInfoCommand', () => {
 
   it('should display next race info with sprint sessions and weather for sprint weekend', async () => {
     const mockNextRaceInfo = {
+      raceName: 'British Grand Prix',
       circuitName: 'Silverstone Circuit',
       location: {
         lat: '52.0786',
@@ -525,7 +528,7 @@ describe('handleNextRaceInfoCommand', () => {
         race: '2025-07-06T14:00:00Z',
       },
       weekendFormat: 'sprint',
-      historicalData: [
+      historicalRaceStats: [
         {
           season: 2024,
           winner: 'Lewis Hamilton',
@@ -580,6 +583,7 @@ describe('handleNextRaceInfoCommand', () => {
 
     const expectedMessage =
       `*Next Race Information*\n\n` +
+      `🏎️ *Race Name:* British Grand Prix\n` +
       `🏁 *Track:* Silverstone Circuit\n` +
       `📍 *Location:* Silverstone, UK\n` +
       `📅 *Sprint Qualifying Date:* Saturday, 5 July 2025\n` +
@@ -596,7 +600,7 @@ describe('handleNextRaceInfoCommand', () => {
       `*Sprint:*\n🌡️ Temp: 22°C\n🌧️ Rain: 5%\n💨 Wind: 10 km/h\n` +
       `*Qualifying:*\n🌡️ Temp: 19°C\n🌧️ Rain: 15%\n💨 Wind: 7 km/h\n` +
       `*Race:*\n🌡️ Temp: 23°C\n🌧️ Rain: 0%\n💨 Wind: 12 km/h\n\n` +
-      `*Historical Data (Last Decade):*\n` +
+      `*Historical Race Stats (Last Decade):*\n` +
       `*2024:*\n🏆 Winner: Lewis Hamilton (Mercedes)\n🏎️ Cars Finished: 18\n\n` +
       `*2023:*\n🏆 Winner: Max Verstappen (Red Bull)\n🏎️ Cars Finished: 20\n\n`;
 
@@ -630,7 +634,7 @@ describe('handleNextRaceInfoCommand', () => {
         race: '2025-01-02T10:00:00Z',
       },
       weekendFormat: 'regular',
-      historicalData: [
+      historicalRaceStats: [
         {
           season: 2025,
           winner: 'Test Winner',
@@ -674,7 +678,7 @@ describe('handleNextRaceInfoCommand', () => {
     // Find the message containing historical data
     const sentMessages = botMock.sendMessage.mock.calls.map((call) => call[1]);
     const historicalSection = sentMessages.find((m) =>
-      m.includes('*Historical Data (Last Decade):*')
+      m.includes('*Historical Race Stats (Last Decade):*')
     );
 
     expect(historicalSection).toContain('*2025:*');
@@ -694,6 +698,7 @@ describe('handleNextRaceInfoCommand', () => {
 
   it('should use cached weather forecast if available and not call getWeatherForecast again', async () => {
     const mockNextRaceInfo = {
+      raceName: 'Monaco Grand Prix',
       circuitName: 'Circuit de Monaco',
       location: {
         lat: '43.7347',
@@ -706,7 +711,7 @@ describe('handleNextRaceInfoCommand', () => {
         race: '2025-05-25T13:00:00Z',
       },
       weekendFormat: 'regular',
-      historicalData: [],
+      historicalRaceStats: [],
     };
 
     weatherForecastCache.qualifyingWeather = {
@@ -749,6 +754,7 @@ describe('handleNextRaceInfoCommand', () => {
 
   it('should handle weather API errors gracefully', async () => {
     const mockNextRaceInfo = {
+      raceName: 'Monaco Grand Prix',
       circuitName: 'Circuit de Monaco',
       location: {
         lat: '43.7347',
@@ -761,7 +767,7 @@ describe('handleNextRaceInfoCommand', () => {
         race: '2025-05-25T13:00:00Z',
       },
       weekendFormat: 'regular',
-      historicalData: [],
+      historicalRaceStats: [],
     };
 
     nextRaceInfoCache.defaultSharedKey = mockNextRaceInfo;

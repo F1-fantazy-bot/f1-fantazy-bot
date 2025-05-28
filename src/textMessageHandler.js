@@ -699,6 +699,7 @@ async function handleNextRaceInfoCommand(bot, chatId) {
 
   // Create message with next race information
   let message = `*Next Race Information*\n\n`;
+  message += `🏎️ *Race Name:* ${nextRaceInfo.raceName}\n`;
   message += `🏁 *Track:* ${nextRaceInfo.circuitName}\n`;
   message += `📍 *Location:* ${nextRaceInfo.location.locality}, ${nextRaceInfo.location.country}\n`;
   if (isSprintWeekend) {
@@ -718,9 +719,12 @@ async function handleNextRaceInfoCommand(bot, chatId) {
   message += weatherSection;
 
   // Add historical data section
-  message += '*Historical Data (Last Decade):*\n';
-  if (nextRaceInfo.historicalData && nextRaceInfo.historicalData.length > 0) {
-    nextRaceInfo.historicalData
+  message += '*Historical Race Stats (Last Decade):*\n';
+  if (
+    nextRaceInfo.historicalRaceStats &&
+    nextRaceInfo.historicalRaceStats.length > 0
+  ) {
+    nextRaceInfo.historicalRaceStats
       .sort((a, b) => b.season - a.season)
       .forEach((data) => {
         message += `*${data.season}:*\n`;
@@ -735,7 +739,14 @@ async function handleNextRaceInfoCommand(bot, chatId) {
         message += `\n`;
       });
   } else {
-    message += 'No historical data available for this track.\n';
+    message += 'No historical data available for this track.\n\n';
+  }
+
+  if (nextRaceInfo.trackHistory) {
+    // Add track History section
+    message += '*Track History:*\n';
+    message += nextRaceInfo.trackHistory;
+    message += `\n`;
   }
 
   await bot
