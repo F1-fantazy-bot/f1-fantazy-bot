@@ -98,6 +98,7 @@ exports.NAME_TO_CODE_DRIVERS_MAPPING = {
   'l. lawson': 'LAW',
   'j. doohan': 'DOO',
   'g. bortoleto': 'BOR',
+  'g. bortoletto': 'BOR',
   'k. antonelli': 'ANT',
   'f. colapinto': 'COL',
 };
