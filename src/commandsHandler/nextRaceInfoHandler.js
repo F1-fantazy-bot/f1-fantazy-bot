@@ -147,6 +147,9 @@ async function handleNextRaceInfoCommand(bot, chatId) {
         if (data.safetyCars !== undefined) {
           message += `🚩 Red Flags: ${data.redFlags}\n`;
         }
+        if (data.overtakes !== undefined) {
+          message += `🔄 Overtakes: ${data.overtakes}\n`;
+        }
         message += `\n`;
       });
   } else {
