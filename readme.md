@@ -28,7 +28,12 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
 
 ### Race Information & Updates
 
-- **Next Race Info**: Get detailed information about upcoming F1 races
+- **Next Race Info**: Get detailed information about upcoming F1 races, including:
+  - Race schedule and session times with weather forecasts
+  - Historical race statistics for the last decade
+  - Qualifying results (pole position, 2nd place, 3rd place) and race winners for each season
+  - Track safety statistics (safety cars, red flags, overtakes)
+  - Track history and background information
 - **Automated Data Updates**: Trigger web scraping for the latest F1 Fantasy data (admin feature)
 - **Real-time Updates**: Stay current with the latest fantasy prices and availability
 
@@ -103,7 +108,7 @@ All users can access these commands:
 - **`/print_cache`** - Show the currently cached drivers, constructors, and current team
 - **`/reset_cache`** - Clear all cached data for this chat
 - **`/get_current_simulation`** - Show the current simulation data and name
-- **`/next_race_info`** - Get detailed information about the next F1 race
+- **`/next_race_info`** - Get comprehensive information about the next F1 race including schedule, weather forecast, historical statistics with qualifying results and race winners, safety data, and track information
 
 ### Admin Commands
 

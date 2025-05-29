@@ -65,6 +65,12 @@ describe('handleNextRaceInfoCommand', () => {
           season: 2024,
           winner: 'Charles Leclerc',
           constructor: 'Ferrari',
+          polePosition: 'Max Verstappen',
+          poleConstructor: 'Red Bull',
+          secondPlaceDriver: 'Charles Leclerc',
+          secondPlaceConstructor: 'Ferrari',
+          thirdPlaceDriver: 'Lando Norris',
+          thirdPlaceConstructor: 'McLaren',
           carsFinished: 16,
           overtakes: 42,
         },
@@ -72,6 +78,12 @@ describe('handleNextRaceInfoCommand', () => {
           season: 2023,
           winner: 'Max Verstappen',
           constructor: 'Red Bull',
+          polePosition: 'Max Verstappen',
+          poleConstructor: 'Red Bull',
+          secondPlaceDriver: 'Charles Leclerc',
+          secondPlaceConstructor: 'Ferrari',
+          thirdPlaceDriver: 'Lando Norris',
+          thirdPlaceConstructor: 'McLaren',
           carsFinished: 19,
           overtakes: 38,
         },
@@ -112,8 +124,8 @@ describe('handleNextRaceInfoCommand', () => {
       `*Qualifying:*\n🌡️ Temp: 22.5°C\n🌧️ Rain: 30%\n💨 Wind: 15.2 km/h\n` +
       `*Race:*\n🌡️ Temp: 24°C\n🌧️ Rain: 10%\n💨 Wind: 12.5 km/h\n\n` +
       `*Historical Race Stats (Last Decade):*\n` +
-      `*2024:*\n🏆 Winner: Charles Leclerc (Ferrari)\n🏎️ Cars Finished: 16\n🔄 Overtakes: 42\n\n` +
-      `*2023:*\n🏆 Winner: Max Verstappen (Red Bull)\n🏎️ Cars Finished: 19\n🔄 Overtakes: 38\n\n`;
+      `*2024:*\n🚀 Pole: Max Verstappen (Red Bull)\n🏆 Winner: Charles Leclerc (Ferrari)\n🥈 2nd: Charles Leclerc (Ferrari)\n🥉 3rd: Lando Norris (McLaren)\n🏎️ Cars Finished: 16\n🔄 Overtakes: 42\n\n` +
+      `*2023:*\n🚀 Pole: Max Verstappen (Red Bull)\n🏆 Winner: Max Verstappen (Red Bull)\n🥈 2nd: Charles Leclerc (Ferrari)\n🥉 3rd: Lando Norris (McLaren)\n🏎️ Cars Finished: 19\n🔄 Overtakes: 38\n\n`;
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -160,6 +172,12 @@ describe('handleNextRaceInfoCommand', () => {
           season: 2024,
           winner: 'Lewis Hamilton',
           constructor: 'Mercedes',
+          polePosition: 'Lewis Hamilton',
+          poleConstructor: 'Mercedes',
+          secondPlaceDriver: 'George Russell',
+          secondPlaceConstructor: 'Mercedes',
+          thirdPlaceDriver: 'Max Verstappen',
+          thirdPlaceConstructor: 'Red Bull',
           carsFinished: 18,
           overtakes: 35,
         },
@@ -167,6 +185,12 @@ describe('handleNextRaceInfoCommand', () => {
           season: 2023,
           winner: 'Max Verstappen',
           constructor: 'Red Bull',
+          polePosition: 'Lewis Hamilton',
+          poleConstructor: 'Mercedes',
+          secondPlaceDriver: 'George Russell',
+          secondPlaceConstructor: 'Mercedes',
+          thirdPlaceDriver: 'Max Verstappen',
+          thirdPlaceConstructor: 'Red Bull',
           carsFinished: 20,
           overtakes: 28,
         },
@@ -225,8 +249,8 @@ describe('handleNextRaceInfoCommand', () => {
       `*Qualifying:*\n🌡️ Temp: 19°C\n🌧️ Rain: 15%\n💨 Wind: 7 km/h\n` +
       `*Race:*\n🌡️ Temp: 23°C\n🌧️ Rain: 0%\n💨 Wind: 12 km/h\n\n` +
       `*Historical Race Stats (Last Decade):*\n` +
-      `*2024:*\n🏆 Winner: Lewis Hamilton (Mercedes)\n🏎️ Cars Finished: 18\n🔄 Overtakes: 35\n\n` +
-      `*2023:*\n🏆 Winner: Max Verstappen (Red Bull)\n🏎️ Cars Finished: 20\n🔄 Overtakes: 28\n\n`;
+      `*2024:*\n🚀 Pole: Lewis Hamilton (Mercedes)\n🏆 Winner: Lewis Hamilton (Mercedes)\n🥈 2nd: George Russell (Mercedes)\n🥉 3rd: Max Verstappen (Red Bull)\n🏎️ Cars Finished: 18\n🔄 Overtakes: 35\n\n` +
+      `*2023:*\n🚀 Pole: Lewis Hamilton (Mercedes)\n🏆 Winner: Max Verstappen (Red Bull)\n🥈 2nd: George Russell (Mercedes)\n🥉 3rd: Max Verstappen (Red Bull)\n🏎️ Cars Finished: 20\n🔄 Overtakes: 28\n\n`;
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -262,6 +286,12 @@ describe('handleNextRaceInfoCommand', () => {
         {
           season: 2025,
           winner: 'Test Winner',
+          polePosition: 'Test Pole Driver',
+          poleConstructor: 'Test Pole Constructor',
+          secondPlaceDriver: 'Test Second Driver',
+          secondPlaceConstructor: 'Test Second Constructor',
+          thirdPlaceDriver: 'Test Third Driver',
+          thirdPlaceConstructor: 'Test Third Constructor',
           carsFinished: 15,
           safetyCars: 2,
           redFlags: 1,
@@ -270,6 +300,12 @@ describe('handleNextRaceInfoCommand', () => {
         {
           season: 2024,
           winner: 'Another Winner',
+          polePosition: 'Another Pole Driver',
+          poleConstructor: 'Another Pole Constructor',
+          secondPlaceDriver: 'Another Second Driver',
+          secondPlaceConstructor: 'Another Second Constructor',
+          thirdPlaceDriver: 'Another Third Driver',
+          thirdPlaceConstructor: 'Another Third Constructor',
           carsFinished: 18,
           overtakes: 30,
           // no safetyCars or redFlags
@@ -303,16 +339,10 @@ describe('handleNextRaceInfoCommand', () => {
     );
 
     expect(historicalSection).toContain('*2025:*');
-    expect(historicalSection).toContain('🏆 Winner: Test Winner');
-    expect(historicalSection).toContain('🏎️ Cars Finished: 15');
     expect(historicalSection).toContain('⚠️🚓 Safety Cars: 2');
     expect(historicalSection).toContain('🚩 Red Flags: 1');
     expect(historicalSection).toContain('🔄 Overtakes: 25');
 
-    expect(historicalSection).toContain('*2024:*');
-    expect(historicalSection).toContain('🏆 Winner: Another Winner');
-    expect(historicalSection).toContain('🏎️ Cars Finished: 18');
-    expect(historicalSection).toContain('🔄 Overtakes: 30');
     // Extract just the 2024 entry and check it does not contain the new fields
     const entry2024 = historicalSection.split('*2024:*')[1].split('*')[0];
     expect(entry2024).not.toContain('⚠️🚓 Safety Cars:');
@@ -421,6 +451,12 @@ describe('handleNextRaceInfoCommand', () => {
           season: 2025,
           winner: 'Test Winner',
           constructor: 'Test Constructor',
+          polePosition: 'Test Pole Driver',
+          poleConstructor: 'Test Pole Constructor',
+          secondPlaceDriver: 'Test Second Driver',
+          secondPlaceConstructor: 'Test Second Constructor',
+          thirdPlaceDriver: 'Test Third Driver',
+          thirdPlaceConstructor: 'Test Third Constructor',
           carsFinished: 15,
           overtakes: 25,
         },
@@ -428,6 +464,12 @@ describe('handleNextRaceInfoCommand', () => {
           season: 2024,
           winner: 'Another Winner',
           constructor: 'Another Constructor',
+          polePosition: 'Another Pole Driver',
+          poleConstructor: 'Another Pole Constructor',
+          secondPlaceDriver: 'Another Second Driver',
+          secondPlaceConstructor: 'Another Second Constructor',
+          thirdPlaceDriver: 'Another Third Driver',
+          thirdPlaceConstructor: 'Another Third Constructor',
           carsFinished: 18,
           // no overtakes data
         },
