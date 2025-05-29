@@ -144,14 +144,14 @@ async function handleNextRaceInfoCommand(bot, chatId) {
         message += `🥈 2nd: ${data.secondPlaceDriver} (${data.secondPlaceConstructor})\n`;
         message += `🥉 3rd: ${data.thirdPlaceDriver} (${data.thirdPlaceConstructor})\n`;
         message += `🏎️ Cars Finished: ${data.carsFinished}\n`;
+        if (data.overtakes !== undefined) {
+          message += `🔄 Overtakes: ${data.overtakes}\n`;
+        }
         if (data.safetyCars !== undefined) {
           message += `⚠️🚓 Safety Cars: ${data.safetyCars}\n`;
         }
         if (data.safetyCars !== undefined) {
           message += `🚩 Red Flags: ${data.redFlags}\n`;
-        }
-        if (data.overtakes !== undefined) {
-          message += `🔄 Overtakes: ${data.overtakes}\n`;
         }
         message += `\n`;
       });
