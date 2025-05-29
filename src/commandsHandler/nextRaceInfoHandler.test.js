@@ -66,12 +66,14 @@ describe('handleNextRaceInfoCommand', () => {
           winner: 'Charles Leclerc',
           constructor: 'Ferrari',
           carsFinished: 16,
+          overtakes: 42,
         },
         {
           season: 2023,
           winner: 'Max Verstappen',
           constructor: 'Red Bull',
           carsFinished: 19,
+          overtakes: 38,
         },
       ],
     };
@@ -110,8 +112,8 @@ describe('handleNextRaceInfoCommand', () => {
       `*Qualifying:*\n🌡️ Temp: 22.5°C\n🌧️ Rain: 30%\n💨 Wind: 15.2 km/h\n` +
       `*Race:*\n🌡️ Temp: 24°C\n🌧️ Rain: 10%\n💨 Wind: 12.5 km/h\n\n` +
       `*Historical Race Stats (Last Decade):*\n` +
-      `*2024:*\n🏆 Winner: Charles Leclerc (Ferrari)\n🏎️ Cars Finished: 16\n\n` +
-      `*2023:*\n🏆 Winner: Max Verstappen (Red Bull)\n🏎️ Cars Finished: 19\n\n`;
+      `*2024:*\n🏆 Winner: Charles Leclerc (Ferrari)\n🏎️ Cars Finished: 16\n🔄 Overtakes: 42\n\n` +
+      `*2023:*\n🏆 Winner: Max Verstappen (Red Bull)\n🏎️ Cars Finished: 19\n🔄 Overtakes: 38\n\n`;
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -159,12 +161,14 @@ describe('handleNextRaceInfoCommand', () => {
           winner: 'Lewis Hamilton',
           constructor: 'Mercedes',
           carsFinished: 18,
+          overtakes: 35,
         },
         {
           season: 2023,
           winner: 'Max Verstappen',
           constructor: 'Red Bull',
           carsFinished: 20,
+          overtakes: 28,
         },
       ],
     };
@@ -221,8 +225,8 @@ describe('handleNextRaceInfoCommand', () => {
       `*Qualifying:*\n🌡️ Temp: 19°C\n🌧️ Rain: 15%\n💨 Wind: 7 km/h\n` +
       `*Race:*\n🌡️ Temp: 23°C\n🌧️ Rain: 0%\n💨 Wind: 12 km/h\n\n` +
       `*Historical Race Stats (Last Decade):*\n` +
-      `*2024:*\n🏆 Winner: Lewis Hamilton (Mercedes)\n🏎️ Cars Finished: 18\n\n` +
-      `*2023:*\n🏆 Winner: Max Verstappen (Red Bull)\n🏎️ Cars Finished: 20\n\n`;
+      `*2024:*\n🏆 Winner: Lewis Hamilton (Mercedes)\n🏎️ Cars Finished: 18\n🔄 Overtakes: 35\n\n` +
+      `*2023:*\n🏆 Winner: Max Verstappen (Red Bull)\n🏎️ Cars Finished: 20\n🔄 Overtakes: 28\n\n`;
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -261,11 +265,13 @@ describe('handleNextRaceInfoCommand', () => {
           carsFinished: 15,
           safetyCars: 2,
           redFlags: 1,
+          overtakes: 25,
         },
         {
           season: 2024,
           winner: 'Another Winner',
           carsFinished: 18,
+          overtakes: 30,
           // no safetyCars or redFlags
         },
       ],
@@ -301,10 +307,12 @@ describe('handleNextRaceInfoCommand', () => {
     expect(historicalSection).toContain('🏎️ Cars Finished: 15');
     expect(historicalSection).toContain('⚠️🚓 Safety Cars: 2');
     expect(historicalSection).toContain('🚩 Red Flags: 1');
+    expect(historicalSection).toContain('🔄 Overtakes: 25');
 
     expect(historicalSection).toContain('*2024:*');
     expect(historicalSection).toContain('🏆 Winner: Another Winner');
     expect(historicalSection).toContain('🏎️ Cars Finished: 18');
+    expect(historicalSection).toContain('🔄 Overtakes: 30');
     // Extract just the 2024 entry and check it does not contain the new fields
     const entry2024 = historicalSection.split('*2024:*')[1].split('*')[0];
     expect(entry2024).not.toContain('⚠️🚓 Safety Cars:');
@@ -391,5 +399,73 @@ describe('handleNextRaceInfoCommand', () => {
       botMock,
       expect.stringContaining(`Weather API error:`)
     );
+  });
+
+  it('should handle missing overtakes data gracefully', async () => {
+    const mockNextRaceInfo = {
+      raceName: 'Test Grand Prix',
+      circuitName: 'Test Circuit',
+      location: {
+        lat: '0',
+        long: '0',
+        locality: 'Testville',
+        country: 'Testland',
+      },
+      sessions: {
+        qualifying: '2025-01-01T10:00:00Z',
+        race: '2025-01-02T10:00:00Z',
+      },
+      weekendFormat: 'regular',
+      historicalRaceStats: [
+        {
+          season: 2025,
+          winner: 'Test Winner',
+          constructor: 'Test Constructor',
+          carsFinished: 15,
+          overtakes: 25,
+        },
+        {
+          season: 2024,
+          winner: 'Another Winner',
+          constructor: 'Another Constructor',
+          carsFinished: 18,
+          // no overtakes data
+        },
+      ],
+    };
+
+    const qualifyingDate = new Date('2025-01-01T10:00:00Z');
+    const raceDate = new Date('2025-01-02T10:00:00Z');
+    getWeatherForecast.mockResolvedValue({
+      [qualifyingDate.toISOString()]: {
+        temperature: 20,
+        precipitation: 10,
+        wind: 5,
+      },
+      [raceDate.toISOString()]: {
+        temperature: 22,
+        precipitation: 0,
+        wind: 7,
+      },
+    });
+
+    nextRaceInfoCache.defaultSharedKey = mockNextRaceInfo;
+
+    await handleNextRaceInfoCommand(botMock, KILZI_CHAT_ID);
+
+    // Find the message containing historical data
+    const sentMessages = botMock.sendMessage.mock.calls.map((call) => call[1]);
+    const historicalSection = sentMessages.find((m) =>
+      m.includes('*Historical Race Stats (Last Decade):*')
+    );
+
+    // Check that 2025 entry has overtakes
+    expect(historicalSection).toContain('*2025:*');
+    expect(historicalSection).toContain('🔄 Overtakes: 25');
+
+    // Check that 2024 entry doesn't have overtakes line
+    expect(historicalSection).toContain('*2024:*');
+    const entry2024 = historicalSection.split('*2024:*')[1].split('*')[0];
+    expect(entry2024).not.toContain('🔄 Overtakes:');
   });
 });
