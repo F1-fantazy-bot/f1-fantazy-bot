@@ -139,7 +139,10 @@ async function handleNextRaceInfoCommand(bot, chatId) {
       .sort((a, b) => b.season - a.season)
       .forEach((data) => {
         message += `*${data.season}:*\n`;
+        message += `🚀 Pole: ${data.polePosition} (${data.poleConstructor})\n`;
         message += `🏆 Winner: ${data.winner} (${data.constructor})\n`;
+        message += `🥈 2nd: ${data.secondPlaceDriver} (${data.secondPlaceConstructor})\n`;
+        message += `🥉 3rd: ${data.thirdPlaceDriver} (${data.thirdPlaceConstructor})\n`;
         message += `🏎️ Cars Finished: ${data.carsFinished}\n`;
         if (data.safetyCars !== undefined) {
           message += `⚠️🚓 Safety Cars: ${data.safetyCars}\n`;
