@@ -12,7 +12,7 @@ const {
   listAllUserTeamData,
   getNextRaceInfoData,
 } = require('./azureStorageService');
-const { initializeCaches } = require('./cacheInitializer');
+const { initializeCaches, loadSimulationData } = require('./cacheInitializer');
 
 // Mock dependencies
 const utils = require('./utils');
@@ -154,6 +154,50 @@ describe('cacheInitializer', () => {
 
     await expect(initializeCaches(mockBot)).rejects.toThrow(
       'Missing required Azure storage configuration'
+    );
+  });
+
+  it('should load simulation data with loadSimulationData', async () => {
+    // Ensure validation returns true for this test
+    validateJsonData.mockResolvedValue(true);
+
+    await loadSimulationData(mockBot);
+
+    // Verify Azure Storage was queried for fantasy data
+    expect(getFantasyData).toHaveBeenCalled();
+
+    // Verify success message was sent via utils
+    expect(utils.sendLogMessage).toHaveBeenCalledWith(
+      mockBot,
+      expect.stringContaining('Fantasy data json downloaded successfully')
+    );
+    expect(utils.sendLogMessage).toHaveBeenCalledWith(
+      mockBot,
+      expect.stringContaining('Simulation data loaded successfully')
+    );
+
+    // Verify simulation name was cached
+    expect(simulationNameCache[sharedKey]).toBe(mockFantasyData.SimulationName);
+
+    // Verify drivers were cached correctly
+    expect(driversCache[sharedKey]).toEqual({
+      VER: mockFantasyData.Drivers[0],
+      HAM: mockFantasyData.Drivers[1],
+    });
+
+    // Verify constructors were cached correctly
+    expect(constructorsCache[sharedKey]).toEqual({
+      RBR: mockFantasyData.Constructors[0],
+      MER: mockFantasyData.Constructors[1],
+    });
+  });
+
+  it('should throw error if simulation data validation fails', async () => {
+    // Make validation fail
+    validateJsonData.mockResolvedValue(false);
+
+    await expect(loadSimulationData(mockBot)).rejects.toThrow(
+      'Fantasy data validation failed'
     );
   });
 });

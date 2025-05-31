@@ -28,6 +28,37 @@ const {
  * @throws {Error} If data validation fails or there are critical errors
  */
 async function initializeCaches(bot) {
+  // Load simulation data first
+  await loadSimulationData(bot);
+
+  // Load next race info into cache
+  try {
+    const nextRaceInfo = await getNextRaceInfoData();
+    nextRaceInfoCache[sharedKey] = nextRaceInfo;
+    await sendLogMessage(bot, `Next race info loaded successfully`);
+  } catch (error) {
+    await sendLogMessage(
+      bot,
+      `Failed to load next race info: ${error.message}`
+    );
+  }
+
+  // Load all user teams into cache
+  const userTeams = await listAllUserTeamData();
+  Object.assign(currentTeamCache, userTeams);
+
+  await sendLogMessage(
+    bot,
+    `Loaded ${Object.keys(userTeams).length} user teams from storage`
+  );
+}
+
+/**
+ * Load simulation data from Azure Storage and update simulation-related caches
+ * @param {TelegramBot} bot - The Telegram bot instance for logging
+ * @throws {Error} If data validation fails or there are critical errors
+ */
+async function loadSimulationData(bot) {
   // Get main fantasy data
   const fantasyDataJson = await getFantasyData();
 
@@ -50,18 +81,6 @@ async function initializeCaches(bot) {
 
   // Store simulation name in cache
   simulationNameCache[sharedKey] = fantasyDataJson.SimulationName;
-
-  // Load next race info into cache
-  try {
-    const nextRaceInfo = await getNextRaceInfoData();
-    nextRaceInfoCache[sharedKey] = nextRaceInfo;
-    await sendLogMessage(bot, `Next race info loaded successfully`);
-  } catch (error) {
-    await sendLogMessage(
-      bot,
-      `Failed to load next race info: ${error.message}`
-    );
-  }
 
   const notFounds = {
     drivers: [],
@@ -120,16 +139,13 @@ Constructors not found in mapping: ${notFounds.constructors.join(', ')}
     await sendMessageToAdmins(bot, message);
   }
 
-  // Load all user teams into cache
-  const userTeams = await listAllUserTeamData();
-  Object.assign(currentTeamCache, userTeams);
-
   await sendLogMessage(
     bot,
-    `Loaded ${Object.keys(userTeams).length} user teams from storage`
+    `Simulation data loaded successfully: ${fantasyDataJson.SimulationName}`
   );
 }
 
 module.exports = {
   initializeCaches,
+  loadSimulationData,
 };

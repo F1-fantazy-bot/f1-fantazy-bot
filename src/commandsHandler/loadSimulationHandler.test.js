@@ -1,9 +1,14 @@
 const { KILZI_CHAT_ID } = require('../constants');
 
 const mockIsAdminMessage = jest.fn().mockReturnValue(true);
+const mockLoadSimulationData = jest.fn().mockResolvedValue();
 
 jest.mock('../utils', () => ({
   isAdminMessage: mockIsAdminMessage,
+}));
+
+jest.mock('../cacheInitializer', () => ({
+  loadSimulationData: mockLoadSimulationData,
 }));
 
 const { handleLoadSimulation } = require('./loadSimulationHandler');
@@ -17,6 +22,8 @@ describe('handleLoadSimulation', () => {
     jest.clearAllMocks();
     mockIsAdminMessage.mockReset();
     mockIsAdminMessage.mockReturnValue(true);
+    mockLoadSimulationData.mockReset();
+    mockLoadSimulationData.mockResolvedValue();
   });
 
   it('should deny access if user is not admin', async () => {
@@ -36,22 +43,6 @@ describe('handleLoadSimulation', () => {
     );
   });
 
-  it('should handle missing readJsonFromStorage function', async () => {
-    const msgMock = {
-      chat: { id: KILZI_CHAT_ID },
-      text: '/load_simulation',
-    };
-
-    // The function catches the ReferenceError and sends an error message
-    await handleLoadSimulation(botMock, msgMock);
-
-    expect(mockIsAdminMessage).toHaveBeenCalledWith(msgMock);
-    expect(botMock.sendMessage).toHaveBeenCalledWith(
-      KILZI_CHAT_ID,
-      expect.stringContaining('Failed to fetch JSON data:')
-    );
-  });
-
   it('should work with different chat IDs for admin users', async () => {
     const differentChatId = 'admin_chat_789';
     const msgMock = {
@@ -62,9 +53,10 @@ describe('handleLoadSimulation', () => {
     await handleLoadSimulation(botMock, msgMock);
 
     expect(mockIsAdminMessage).toHaveBeenCalledWith(msgMock);
+    expect(mockLoadSimulationData).toHaveBeenCalledWith(botMock);
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       differentChatId,
-      expect.stringContaining('Failed to fetch JSON data:')
+      'Simulation data fetched and cached successfully.'
     );
   });
 
@@ -85,5 +77,40 @@ describe('handleLoadSimulation', () => {
       'Sorry, only admins can use this command.'
     );
     expect(botMock.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('should successfully load simulation data and send success message', async () => {
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: '/load_simulation',
+    };
+
+    await handleLoadSimulation(botMock, msgMock);
+
+    expect(mockIsAdminMessage).toHaveBeenCalledWith(msgMock);
+    expect(mockLoadSimulationData).toHaveBeenCalledWith(botMock);
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'Simulation data fetched and cached successfully.'
+    );
+  });
+
+  it('should handle loadSimulationData failure and send error message', async () => {
+    const errorMessage = 'Network connection failed';
+    mockLoadSimulationData.mockRejectedValue(new Error(errorMessage));
+
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: '/load_simulation',
+    };
+
+    await handleLoadSimulation(botMock, msgMock);
+
+    expect(mockIsAdminMessage).toHaveBeenCalledWith(msgMock);
+    expect(mockLoadSimulationData).toHaveBeenCalledWith(botMock);
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      `Failed to load simulation data: ${errorMessage}`
+    );
   });
 });
