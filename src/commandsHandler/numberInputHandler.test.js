@@ -99,6 +99,8 @@ describe('handleNumberMessage', () => {
       row: 2,
       transfers_needed: 2,
       extra_drs_driver: null,
+      projected_points: 0,
+      expected_price_change: 0,
     };
 
     bestTeamsCache[KILZI_CHAT_ID] = {
@@ -106,8 +108,34 @@ describe('handleNumberMessage', () => {
       bestTeams: [mockSelectedTeam],
     };
 
-    driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
-    constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.0 } };
+    driversCache[KILZI_CHAT_ID] = {
+      VER: {
+        DR: 'VER',
+        price: 30.5,
+        expectedPoints: 25,
+        expectedPriceChange: 0.2,
+      },
+      HAM: {
+        DR: 'HAM',
+        price: 28.0,
+        expectedPoints: 30,
+        expectedPriceChange: 0.1,
+      },
+    };
+    constructorsCache[KILZI_CHAT_ID] = {
+      RBR: {
+        CN: 'RBR',
+        price: 20.0,
+        expectedPoints: 35,
+        expectedPriceChange: 0.3,
+      },
+      MER: {
+        CN: 'MER',
+        price: 18.0,
+        expectedPoints: 32,
+        expectedPriceChange: 0.2,
+      },
+    };
     selectedChipCache[KILZI_CHAT_ID] = 'LIMITLESS_CHIP';
 
     const mockChanges = {
@@ -148,8 +176,15 @@ describe('handleNumberMessage', () => {
       `*Constructors To Remove:* RBR\n` +
       `*New DRS Driver:* HAM\n` +
       `*Chip To Activate:* LIMITLESS CHIP\n` +
+      `\n*Team ${teamRowRequested} Info:*\n` +
+      `*Projected Points:* 0.00\n` +
+      `*Expected Price Change:* 0.00M\n` +
       `*Δ Points:* +10.50\n` +
-      `*Δ Price:* -2.30M`;
+      `*Δ Price:* -2.30M\n` +
+      `\n*Drivers:*\n` +
+      `HAM (DRS): 60.00 (0.10M) (New)\n` +
+      `\n*Constructors:*\n` +
+      `MER: 32.00 (0.20M) (New)\n`;
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -165,6 +200,8 @@ describe('handleNumberMessage', () => {
       row: 1,
       transfers_needed: 0,
       extra_drs_driver: 'HAM', // has extra DRS
+      projected_points: 0,
+      expected_price_change: 0,
     };
 
     bestTeamsCache[KILZI_CHAT_ID] = {
@@ -172,8 +209,28 @@ describe('handleNumberMessage', () => {
       bestTeams: [mockSelectedTeam],
     };
 
-    driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
-    constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.0 } };
+    driversCache[KILZI_CHAT_ID] = {
+      VER: {
+        DR: 'VER',
+        price: 30.5,
+        expectedPoints: 25,
+        expectedPriceChange: 0.2,
+      },
+      HAM: {
+        DR: 'HAM',
+        price: 28.0,
+        expectedPoints: 30,
+        expectedPriceChange: 0.1,
+      },
+    };
+    constructorsCache[KILZI_CHAT_ID] = {
+      RBR: {
+        CN: 'RBR',
+        price: 20.0,
+        expectedPoints: 35,
+        expectedPriceChange: 0.3,
+      },
+    };
 
     const mockChanges = {
       driversToAdd: [],
@@ -198,8 +255,15 @@ describe('handleNumberMessage', () => {
       `*Team ${teamRowRequested} Required Changes:*\n` +
       `*Extra DRS Driver:* HAM\n` +
       `*DRS Driver:* VER\n` +
+      `\n*Team ${teamRowRequested} Info:*\n` +
+      `*Projected Points:* 0.00\n` +
+      `*Expected Price Change:* 0.00M\n` +
       `*Δ Points:* +5.00\n` +
-      `*Δ Price:* 0.00M`;
+      `*Δ Price:* 0.00M\n` +
+      `\n*Drivers:*\n` +
+      `VER (DRS): 50.00 (0.20M) (New)\n` +
+      `\n*Constructors:*\n` +
+      `RBR: 35.00 (0.30M)\n`;
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -214,6 +278,8 @@ describe('handleNumberMessage', () => {
     const mockSelectedTeam = {
       row: 1,
       transfers_needed: 1,
+      projected_points: 0,
+      expected_price_change: 0,
     };
 
     bestTeamsCache[KILZI_CHAT_ID] = {
@@ -222,8 +288,22 @@ describe('handleNumberMessage', () => {
     };
 
     // Set shared cache instead of chat-specific
-    driversCache[sharedKey] = { VER: { price: 30.5 } };
-    constructorsCache[sharedKey] = { RBR: { price: 20.0 } };
+    driversCache[sharedKey] = {
+      VER: {
+        DR: 'VER',
+        price: 30.5,
+        expectedPoints: 25,
+        expectedPriceChange: 0.2,
+      },
+    };
+    constructorsCache[sharedKey] = {
+      RBR: {
+        CN: 'RBR',
+        price: 20.0,
+        expectedPoints: 35,
+        expectedPriceChange: 0.3,
+      },
+    };
 
     const mockChanges = {
       driversToAdd: [],
