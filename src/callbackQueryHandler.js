@@ -93,6 +93,9 @@ async function handleChipCallback(bot, query) {
     delete selectedChipCache[chatId];
   }
 
+  // Clear best teams cache when user selects a chip
+  delete bestTeamsCache[chatId];
+
   // Optional: edit the message to confirm
   await bot.editMessageText(`Selected chip: ${chip.toUpperCase()}.`, {
     chat_id: chatId,

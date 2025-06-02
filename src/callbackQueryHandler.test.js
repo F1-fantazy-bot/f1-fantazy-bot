@@ -4,6 +4,11 @@ const {
   CONSTRUCTORS_PHOTO_TYPE,
   CURRENT_TEAM_PHOTO_TYPE,
   PHOTO_CALLBACK_TYPE,
+  CHIP_CALLBACK_TYPE,
+  EXTRA_DRS_CHIP,
+  WILDCARD_CHIP,
+  LIMITLESS_CHIP,
+  WITHOUT_CHIP,
 } = require('./constants');
 const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 const cache = require('./cache');
@@ -38,6 +43,7 @@ jest.mock('./cache', () => ({
   constructorsCache: {},
   driversCache: {},
   bestTeamsCache: {},
+  selectedChipCache: {},
   getPrintableCache: jest.fn(),
 }));
 
@@ -193,5 +199,113 @@ describe('handleCallbackQuery', () => {
       expect.any(Error)
     );
     spy.mockRestore();
+  });
+
+  describe('chip callback handling', () => {
+    beforeEach(() => {
+      // Reset cache before each test
+      Object.keys(cache.selectedChipCache).forEach(
+        (key) => delete cache.selectedChipCache[key]
+      );
+      Object.keys(cache.bestTeamsCache).forEach(
+        (key) => delete cache.bestTeamsCache[key]
+      );
+    });
+
+    it('should handle EXTRA_DRS chip selection and clear bestTeamsCache', async () => {
+      const chipQuery = {
+        message: {
+          chat: { id: chatId },
+          message_id: messageId,
+        },
+        data: `${CHIP_CALLBACK_TYPE}:${EXTRA_DRS_CHIP}`,
+        id: 'chipQueryId',
+      };
+
+      // Set up bestTeamsCache with some data
+      cache.bestTeamsCache[chatId] = { someData: 'test' };
+
+      await handleCallbackQuery(bot, chipQuery);
+
+      expect(cache.selectedChipCache[chatId]).toBe(EXTRA_DRS_CHIP);
+      expect(cache.bestTeamsCache[chatId]).toBeUndefined();
+      expect(bot.editMessageText).toHaveBeenCalledWith(
+        'Selected chip: EXTRA_DRS.',
+        expect.objectContaining({ chat_id: chatId, message_id: messageId })
+      );
+      expect(bot.answerCallbackQuery).toHaveBeenCalledWith('chipQueryId');
+    });
+
+    it('should handle WITHOUT_CHIP selection and clear both caches', async () => {
+      const chipQuery = {
+        message: {
+          chat: { id: chatId },
+          message_id: messageId,
+        },
+        data: `${CHIP_CALLBACK_TYPE}:${WITHOUT_CHIP}`,
+        id: 'chipQueryId',
+      };
+
+      // Set up caches with some data
+      cache.selectedChipCache[chatId] = WILDCARD_CHIP;
+      cache.bestTeamsCache[chatId] = { someData: 'test' };
+
+      await handleCallbackQuery(bot, chipQuery);
+
+      expect(cache.selectedChipCache[chatId]).toBeUndefined();
+      expect(cache.bestTeamsCache[chatId]).toBeUndefined();
+      expect(bot.editMessageText).toHaveBeenCalledWith(
+        'Selected chip: WITHOUT_CHIP.',
+        expect.objectContaining({ chat_id: chatId, message_id: messageId })
+      );
+      expect(bot.answerCallbackQuery).toHaveBeenCalledWith('chipQueryId');
+    });
+
+    it('should handle LIMITLESS chip selection and clear bestTeamsCache', async () => {
+      const chipQuery = {
+        message: {
+          chat: { id: chatId },
+          message_id: messageId,
+        },
+        data: `${CHIP_CALLBACK_TYPE}:${LIMITLESS_CHIP}`,
+        id: 'chipQueryId',
+      };
+
+      // Set up bestTeamsCache with some data
+      cache.bestTeamsCache[chatId] = { someData: 'test' };
+
+      await handleCallbackQuery(bot, chipQuery);
+
+      expect(cache.selectedChipCache[chatId]).toBe(LIMITLESS_CHIP);
+      expect(cache.bestTeamsCache[chatId]).toBeUndefined();
+      expect(bot.editMessageText).toHaveBeenCalledWith(
+        'Selected chip: LIMITLESS.',
+        expect.objectContaining({ chat_id: chatId, message_id: messageId })
+      );
+      expect(bot.answerCallbackQuery).toHaveBeenCalledWith('chipQueryId');
+    });
+
+    it('should clear bestTeamsCache even when it was already empty', async () => {
+      const chipQuery = {
+        message: {
+          chat: { id: chatId },
+          message_id: messageId,
+        },
+        data: `${CHIP_CALLBACK_TYPE}:${WILDCARD_CHIP}`,
+        id: 'chipQueryId',
+      };
+
+      // bestTeamsCache is already empty
+      expect(cache.bestTeamsCache[chatId]).toBeUndefined();
+
+      await handleCallbackQuery(bot, chipQuery);
+
+      expect(cache.selectedChipCache[chatId]).toBe(WILDCARD_CHIP);
+      expect(cache.bestTeamsCache[chatId]).toBeUndefined();
+      expect(bot.editMessageText).toHaveBeenCalledWith(
+        'Selected chip: WILDCARD.',
+        expect.objectContaining({ chat_id: chatId, message_id: messageId })
+      );
+    });
   });
 });
