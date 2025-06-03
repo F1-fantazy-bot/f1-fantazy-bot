@@ -17,6 +17,7 @@ const {
   PHOTO_CALLBACK_TYPE,
   CHIP_CALLBACK_TYPE,
   WITHOUT_CHIP,
+  COMMAND_BEST_TEAMS,
 } = require('./constants');
 
 const { sendLogMessage } = require('./utils');
@@ -93,11 +94,20 @@ async function handleChipCallback(bot, query) {
     delete selectedChipCache[chatId];
   }
 
+  const isThereDataInBestTeamsCache =
+    bestTeamsCache[chatId] && bestTeamsCache[chatId].bestTeams;
+
   // Clear best teams cache when user selects a chip
   delete bestTeamsCache[chatId];
 
-  // Optional: edit the message to confirm
-  await bot.editMessageText(`Selected chip: ${chip.toUpperCase()}.`, {
+  let message = `Selected chip: ${chip.toUpperCase()}.`;
+
+  if (isThereDataInBestTeamsCache) {
+    message += `\nNote: best team calculation was deleted.
+rerun ${COMMAND_BEST_TEAMS} command to recalculate best teams.`;
+  }
+
+  await bot.editMessageText(message, {
     chat_id: chatId,
     message_id: messageId,
   });
