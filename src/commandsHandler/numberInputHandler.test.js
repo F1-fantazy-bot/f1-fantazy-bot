@@ -182,9 +182,9 @@ describe('handleNumberMessage', () => {
       `*Δ Points:* +10.50\n` +
       `*Δ Price:* -2.30M\n` +
       `\n*Drivers:*\n` +
-      `HAM (DRS): 60.00 (0.10M) (New)\n` +
+      `HAM (DRS): 60.00 (0.10M) 🆕\n` +
       `\n*Constructors:*\n` +
-      `MER: 32.00 (0.20M) (New)\n`;
+      `MER: 32.00 (0.20M) 🆕\n`;
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -261,7 +261,7 @@ describe('handleNumberMessage', () => {
       `*Δ Points:* +5.00\n` +
       `*Δ Price:* 0.00M\n` +
       `\n*Drivers:*\n` +
-      `VER (DRS): 50.00 (0.20M) (New)\n` +
+      `VER (DRS): 50.00 (0.20M) 🆕\n` +
       `\n*Constructors:*\n` +
       `RBR: 35.00 (0.30M)\n`;
 
