@@ -25,6 +25,7 @@ exports.COMMAND_LOAD_SIMULATION = '/load_simulation';
 exports.COMMAND_GET_CURRENT_SIMULATION = '/get_current_simulation';
 exports.COMMAND_GET_BOTFATHER_COMMANDS = '/get_botfather_commands';
 exports.COMMAND_NEXT_RACE_INFO = '/next_race_info';
+exports.COMMAND_BILLING_STATS = '/billing_stats';
 
 exports.USER_COMMANDS_CONFIG = [
   {
@@ -75,6 +76,10 @@ exports.ADMIN_COMMANDS_CONFIG = [
   {
     constant: exports.COMMAND_GET_BOTFATHER_COMMANDS,
     description: 'Get commands for BotFather.',
+  },
+  {
+    constant: exports.COMMAND_BILLING_STATS,
+    description: 'Get Azure billing statistics for the current month.',
   },
 ];
 

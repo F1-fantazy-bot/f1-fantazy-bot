@@ -13,6 +13,7 @@ const {
   handleScrapingTrigger,
   handleGetBotfatherCommands,
   handleNextRaceInfoCommand,
+  handleBillingStats,
 } = require('./commandsHandler');
 
 // Import constants
@@ -28,6 +29,7 @@ const {
   COMMAND_GET_CURRENT_SIMULATION,
   COMMAND_GET_BOTFATHER_COMMANDS,
   COMMAND_NEXT_RACE_INFO,
+  COMMAND_BILLING_STATS,
 } = require('./constants');
 
 exports.handleTextMessage = async function (bot, msg) {
@@ -64,6 +66,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleGetBotfatherCommands(bot, msg);
     case msg.text === COMMAND_NEXT_RACE_INFO:
       return await handleNextRaceInfoCommand(bot, chatId);
+    case msg.text === COMMAND_BILLING_STATS:
+      return await handleBillingStats(bot, msg);
     default:
       handleJsonMessage(bot, msg, chatId);
       break;

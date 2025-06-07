@@ -37,6 +37,13 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
 - **Automated Data Updates**: Trigger web scraping for the latest F1 Fantasy data (admin feature)
 - **Real-time Updates**: Stay current with the latest fantasy prices and availability
 
+### Azure Cost Management
+
+- **Real-time Billing Stats**: View current and previous month Azure spending with service breakdown
+- **Cost Monitoring**: Track Azure service usage and costs for budget management
+- **Service Analytics**: Detailed breakdown by Azure service (Functions, Storage, OpenAI, etc.)
+- **Admin-Only Access**: Secure access to sensitive billing information
+
 ### Bot Administration
 
 - **BotFather Integration**: Generate command lists for easy bot setup
@@ -75,6 +82,12 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
    AZURE_STORAGE_CONNECTION_STRING=your_azure_storage_connection_string
    AZURE_STORAGE_CONTAINER_NAME=your_azure_storage_container_name
 
+   # Azure Cost Management (Optional - for billing stats)
+   AZURE_SUBSCRIPTION_ID=your_azure_subscription_id
+   AZURE_CLIENT_ID=your_azure_service_principal_client_id
+   AZURE_CLIENT_SECRET=your_azure_service_principal_client_secret
+   AZURE_TENANT_ID=your_azure_tenant_id
+
    # External Services
    AZURE_LOGICAPP_TRIGGER_URL=your_scraping_trigger_url
    ```
@@ -86,6 +99,8 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
    - **Azure OpenAI**: Get your endpoint, API key, and model deployment name from the [Azure AI portal](https://ai.azure.com/).
 
    - **Azure Storage**: Create a storage account in Azure and get the connection string from the portal. Create a container for the bot's data storage.
+
+   - **Azure Cost Management**: Create a service principal in Azure with Cost Management Reader permissions. Get the client ID, client secret, tenant ID, and subscription ID from the Azure portal.
 
 4. **Run the bot**
 
@@ -116,6 +131,7 @@ Restricted to authorized administrators:
 
 - **`/trigger_scraping`** - Trigger web scraping for latest F1 Fantasy data
 - **`/load_simulation`** - Load the latest simulation data
+- **`/billing_stats`** - View current month Azure billing statistics with service breakdown
 - **`/get_botfather_commands`** - Get commands formatted for BotFather setup
 
 ### Other Input Methods
@@ -158,6 +174,8 @@ Enter numbers when prompted by various commands for:
 ### Key Dependencies
 
 - **`@azure/storage-blob`**: Azure Blob Storage integration for data persistence
+- **`@azure/arm-costmanagement`**: Azure Cost Management integration for billing analytics
+- **`@azure/identity`**: Azure authentication for cost management services
 - **`openai`**: Azure OpenAI integration for image processing and data extraction
 - **`dotenv`**: Environment variable management
 - **`jest`**: Testing framework
@@ -193,6 +211,7 @@ f1-fantazy-bot/
 │   ├── callbackQueryHandler.js    # Inline button handling
 │   ├── cache.js                   # In-memory data cache
 │   ├── azureStorageService.js     # Azure Blob Storage integration
+│   ├── azureBillingService.js     # Azure Cost Management integration
 │   ├── jsonDataExtraction.js      # AI-powered data extraction
 │   ├── constants.js               # Application constants
 │   ├── commandsHandler/           # Individual command implementations
