@@ -228,7 +228,7 @@ function getDriverAndConstructorsDetailsMessage(cachedJsonData, changesToTeam) {
     )} (${driver.priceChange.toFixed(2)}M)`;
 
     if (driver.isNew) {
-      message += ' (New)';
+      message += ' 🆕';
     }
     message += '\n';
   });
@@ -240,7 +240,7 @@ function getDriverAndConstructorsDetailsMessage(cachedJsonData, changesToTeam) {
     )} (${constructor.priceChange.toFixed(2)}M)`;
 
     if (constructor.isNew) {
-      message += ' (New)';
+      message += ' 🆕';
     }
     message += '\n';
   });
