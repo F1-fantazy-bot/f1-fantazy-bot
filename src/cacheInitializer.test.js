@@ -3,7 +3,7 @@ const {
   driversCache,
   constructorsCache,
   currentTeamCache,
-  simulationNameCache,
+  simulationInfoCache,
   sharedKey,
   nextRaceInfoCache,
 } = require('./cache');
@@ -38,6 +38,7 @@ describe('cacheInitializer', () => {
   // Mock fantasy data
   const mockFantasyData = {
     SimulationName: 'Test Simulation',
+    SimulationLastUpdate: '2025-06-14T09:24:00.000Z',
     Drivers: [
       { DR: 'VER', price: 30.5 },
       { DR: 'HAM', price: 25.0 },
@@ -70,8 +71,8 @@ describe('cacheInitializer', () => {
     Object.keys(currentTeamCache).forEach(
       (key) => delete currentTeamCache[key]
     );
-    Object.keys(simulationNameCache).forEach(
-      (key) => delete simulationNameCache[key]
+    Object.keys(simulationInfoCache).forEach(
+      (key) => delete simulationInfoCache[key]
     );
     Object.keys(nextRaceInfoCache).forEach(
       (key) => delete nextRaceInfoCache[key]
@@ -105,8 +106,11 @@ describe('cacheInitializer', () => {
       expect.stringContaining('Next race info loaded successfully')
     );
 
-    // Verify simulation name was cached
-    expect(simulationNameCache[sharedKey]).toBe(mockFantasyData.SimulationName);
+    // Verify simulation info was cached
+    expect(simulationInfoCache[sharedKey]).toEqual({
+      name: mockFantasyData.SimulationName,
+      lastUpdate: mockFantasyData.SimulationLastUpdate,
+    });
 
     // Verify next race info was cached
     expect(nextRaceInfoCache[sharedKey]).toEqual({
@@ -176,8 +180,11 @@ describe('cacheInitializer', () => {
       expect.stringContaining('Simulation data loaded successfully')
     );
 
-    // Verify simulation name was cached
-    expect(simulationNameCache[sharedKey]).toBe(mockFantasyData.SimulationName);
+    // Verify simulation info was cached
+    expect(simulationInfoCache[sharedKey]).toEqual({
+      name: mockFantasyData.SimulationName,
+      lastUpdate: mockFantasyData.SimulationLastUpdate,
+    });
 
     // Verify drivers were cached correctly
     expect(driversCache[sharedKey]).toEqual({

@@ -3,7 +3,7 @@ const {
   sendLogMessage,
   calculateTeamInfo,
   validateJsonData,
-  formatSessionDateTime,
+  formatDateTime,
 } = require('./utils');
 
 describe('utils', () => {
@@ -426,17 +426,17 @@ describe('utils', () => {
     });
   });
 
-  describe('formatSessionDateTime', () => {
+  describe('formatDateTime', () => {
     it('formats date and time correctly for a typical UTC date', () => {
       const date = new Date('2025-05-24T14:00:00Z');
-      const { dateStr, timeStr } = formatSessionDateTime(date);
+      const { dateStr, timeStr } = formatDateTime(date);
       expect(dateStr).toMatch('Saturday, 24 May 2025');
       expect(timeStr).toMatch('17:00 GMT+3');
     });
 
     it('formats date and time correctly for another UTC date', () => {
       const date = new Date('2025-05-25T13:00:00Z');
-      const { dateStr, timeStr } = formatSessionDateTime(date);
+      const { dateStr, timeStr } = formatDateTime(date);
       expect(dateStr).toMatch('Sunday, 25 May 2025');
       expect(timeStr).toMatch('16:00 GMT+3');
     });

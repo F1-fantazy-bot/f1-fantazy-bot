@@ -1,5 +1,5 @@
 const { sendLogMessage } = require('../utils');
-const { formatSessionDateTime } = require('../utils/utils');
+const { formatDateTime } = require('../utils/utils');
 const { getWeatherForecast } = require('../utils/weatherApi');
 const {
   nextRaceInfoCache,
@@ -34,9 +34,9 @@ async function handleNextRaceInfoCommand(bot, chatId) {
 
   // Format session dates and times
   const { dateStr: qualifyingDateStr, timeStr: qualifyingTimeStr } =
-    formatSessionDateTime(qualifyingDate);
+    formatDateTime(qualifyingDate);
   const { dateStr: raceDateStr, timeStr: raceTimeStr } =
-    formatSessionDateTime(raceDate);
+    formatDateTime(raceDate);
 
   let sprintQualifyingDateStr = '',
     sprintQualifyingTimeStr = '';
@@ -44,10 +44,10 @@ async function handleNextRaceInfoCommand(bot, chatId) {
     sprintTimeStr = '';
   if (isSprintWeekend) {
     ({ dateStr: sprintQualifyingDateStr, timeStr: sprintQualifyingTimeStr } =
-      formatSessionDateTime(sprintQualifyingDate));
+      formatDateTime(sprintQualifyingDate));
 
     ({ dateStr: sprintDateStr, timeStr: sprintTimeStr } =
-      formatSessionDateTime(sprintDate));
+      formatDateTime(sprintDate));
   }
 
   // Prepare array of dates for weather API

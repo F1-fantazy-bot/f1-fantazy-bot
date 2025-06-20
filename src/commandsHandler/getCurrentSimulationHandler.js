@@ -1,8 +1,8 @@
-const { isAdminMessage } = require('../utils');
+const { isAdminMessage, formatDateTime } = require('../utils');
 const {
   driversCache,
   constructorsCache,
-  simulationNameCache,
+  simulationInfoCache,
   getPrintableCache,
   sharedKey,
 } = require('../cache');
@@ -26,8 +26,8 @@ async function handleGetCurrentSimulation(bot, msg) {
     return;
   }
 
-  const simulationName = simulationNameCache[sharedKey];
-  if (!simulationName) {
+  const simulationInfo = simulationInfoCache[sharedKey];
+  if (!simulationInfo) {
     await bot.sendMessage(
       chatId,
       `No simulation data is currently loaded. Please use ${COMMAND_LOAD_SIMULATION} to load simulation data.`
@@ -39,7 +39,22 @@ async function handleGetCurrentSimulation(bot, msg) {
   const printableCache = getPrintableCache(sharedKey);
 
   await bot.sendMessage(chatId, printableCache, { parse_mode: 'Markdown' });
-  await bot.sendMessage(chatId, `Current simulation name: ${simulationName}`);
+  let timeText = 'Unknown';
+  if (simulationInfo.lastUpdate) {
+    try {
+      const date = new Date(simulationInfo.lastUpdate);
+      const { dateStr, timeStr } = formatDateTime(date);
+      timeText = `${dateStr} at ${timeStr}`;
+    } catch (error) {
+      timeText = 'Invalid date';
+    }
+  }
+  const lastUpdateText = `Last updated: ${timeText}`;
+
+  await bot.sendMessage(
+    chatId,
+    `Current simulation: ${simulationInfo.name}\n${lastUpdateText}`
+  );
 
   if (isAdminMessage(msg)) {
     await bot.sendMessage(
