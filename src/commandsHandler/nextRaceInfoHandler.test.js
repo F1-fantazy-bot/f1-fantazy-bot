@@ -10,7 +10,7 @@ jest.mock('../utils/utils', () => {
   const originalUtils = jest.requireActual('../utils/utils');
 
   return {
-    formatSessionDateTime: originalUtils.formatSessionDateTime,
+    formatDateTime: originalUtils.formatDateTime,
   };
 });
 

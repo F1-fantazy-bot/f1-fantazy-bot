@@ -2,7 +2,7 @@ const {
   driversCache,
   constructorsCache,
   currentTeamCache,
-  simulationNameCache,
+  simulationInfoCache,
   sharedKey,
   nextRaceInfoCache,
 } = require('./cache');
@@ -64,7 +64,13 @@ async function loadSimulationData(bot) {
 
   await sendLogMessage(
     bot,
-    `Fantasy data json downloaded successfully. Simulation: ${fantasyDataJson?.SimulationName}`
+    `Fantasy data json downloaded successfully. Simulation: ${
+      fantasyDataJson?.SimulationName
+    }${
+      fantasyDataJson?.SimulationLastUpdate
+        ? ` (Last updated: ${fantasyDataJson.SimulationLastUpdate})`
+        : ''
+    }`
   );
 
   // Validate the main fantasy data
@@ -79,8 +85,11 @@ async function loadSimulationData(bot) {
     throw new Error('Fantasy data validation failed');
   }
 
-  // Store simulation name in cache
-  simulationNameCache[sharedKey] = fantasyDataJson.SimulationName;
+  // Store simulation info in cache
+  simulationInfoCache[sharedKey] = {
+    name: fantasyDataJson.SimulationName,
+    lastUpdate: fantasyDataJson.SimulationLastUpdate || null,
+  };
 
   const notFounds = {
     drivers: [],

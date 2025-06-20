@@ -122,7 +122,7 @@ All users can access these commands:
 - **`/chips`** - Choose a chip to use for the current race (Extra DRS, Wildcard, Limitless)
 - **`/print_cache`** - Show the currently cached drivers, constructors, and current team
 - **`/reset_cache`** - Clear all cached data for this chat
-- **`/get_current_simulation`** - Show the current simulation data and name
+- **`/get_current_simulation`** - Show the current simulation data, name, and last update timestamp
 - **`/next_race_info`** - Get comprehensive information about the next F1 race including schedule, weather forecast, historical statistics with qualifying results and race winners, safety data, and track information
 
 ### Admin Commands

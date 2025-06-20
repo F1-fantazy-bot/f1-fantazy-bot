@@ -20,8 +20,8 @@ exports.constructorsCache = {};
 // In-memory cache for current team by chat id
 exports.currentTeamCache = {};
 
-// In-memory cache for simulation name
-exports.simulationNameCache = {};
+// In-memory cache for simulation info (name and last update)
+exports.simulationInfoCache = {};
 
 exports.selectedChipCache = {};
 

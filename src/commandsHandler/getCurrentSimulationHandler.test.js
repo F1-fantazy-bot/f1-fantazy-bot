@@ -5,22 +5,27 @@ const {
 } = require('../constants');
 
 const mockIsAdminMessage = jest.fn().mockReturnValue(false);
+const mockFormatDateTime = jest.fn().mockReturnValue({
+  dateStr: 'Saturday, 14 June 2025',
+  timeStr: '12:24 GMT+3',
+});
 
 jest.mock('../utils', () => ({
   isAdminMessage: mockIsAdminMessage,
+  formatDateTime: mockFormatDateTime,
 }));
 
 const {
   getPrintableCache,
   driversCache,
   constructorsCache,
-  simulationNameCache,
+  simulationInfoCache,
   sharedKey,
 } = require('../cache');
 jest.mock('../cache', () => ({
   driversCache: {},
   constructorsCache: {},
-  simulationNameCache: {},
+  simulationInfoCache: {},
   getPrintableCache: jest.fn(),
   sharedKey: 'defaultSharedKey',
 }));
@@ -38,7 +43,7 @@ describe('handleGetCurrentSimulation', () => {
     mockIsAdminMessage.mockReturnValue(false);
     delete driversCache[KILZI_CHAT_ID];
     delete constructorsCache[KILZI_CHAT_ID];
-    delete simulationNameCache[sharedKey];
+    delete simulationInfoCache[sharedKey];
   });
 
   it('should tell user to reset cache when they have data in their cache', async () => {
@@ -92,7 +97,10 @@ describe('handleGetCurrentSimulation', () => {
     const mockSimulationName = 'Test Simulation v1.0';
 
     getPrintableCache.mockReturnValue(mockPrintableCache);
-    simulationNameCache[sharedKey] = mockSimulationName;
+    simulationInfoCache[sharedKey] = {
+      name: mockSimulationName,
+      lastUpdate: '2025-06-14T09:24:00.000Z',
+    };
 
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
@@ -111,7 +119,7 @@ describe('handleGetCurrentSimulation', () => {
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      `Current simulation name: ${mockSimulationName}`
+      `Current simulation: ${mockSimulationName}\nLast updated: Saturday, 14 June 2025 at 12:24 GMT+3`
     );
   });
 
@@ -122,7 +130,10 @@ describe('handleGetCurrentSimulation', () => {
     const mockSimulationName = 'Admin Simulation';
 
     getPrintableCache.mockReturnValue(mockPrintableCache);
-    simulationNameCache[sharedKey] = mockSimulationName;
+    simulationInfoCache[sharedKey] = {
+      name: mockSimulationName,
+      lastUpdate: null,
+    };
 
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
@@ -144,7 +155,10 @@ describe('handleGetCurrentSimulation', () => {
     const mockSimulationName = 'User Simulation';
 
     getPrintableCache.mockReturnValue(mockPrintableCache);
-    simulationNameCache[sharedKey] = mockSimulationName;
+    simulationInfoCache[sharedKey] = {
+      name: mockSimulationName,
+      lastUpdate: '2025-06-20T15:30:00.000Z',
+    };
 
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
@@ -161,6 +175,6 @@ describe('handleGetCurrentSimulation', () => {
       expect.stringContaining('💡 Tip:')
     );
 
-    expect(botMock.sendMessage).toHaveBeenCalledTimes(2); // Only cache data and simulation name
+    expect(botMock.sendMessage).toHaveBeenCalledTimes(2); // Cache data and combined simulation info
   });
 });
