@@ -112,25 +112,60 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
 
 ## Available Commands and Inputs
 
+### Command Organization
+
+Commands are organized into logical categories for better usability:
+
+- **❓ Help & Menu**: Essential navigation and help commands
+- **🏎️ Team Management**: Fantasy team optimization and chip management
+- **📊 Analysis & Stats**: Race information and simulation data
+- **🔧 Utilities**: Data management and cache operations
+- **👤 Admin Commands**: Administrative tools (admin-only access)
+
+### Interactive Menu System
+
+- **`/menu`** - Launch the interactive menu with organized command categories for easy navigation
+  - **🏎️ Team Management**: Best teams, current team info, chips selection
+  - **📊 Analysis & Stats**: Next race info, current simulation data
+  - **🔧 Utilities**: Cache management and data operations
+  - **👤 Admin Commands**: Administrative tools (admin only)
+  - **❓ Help**: Direct access to help information
+
+### Help Command
+
+The **`/help`** command displays all available commands organized by the same categories as the interactive menu, providing a comprehensive text-based reference that mirrors the menu structure for consistency.
+
 ### User Commands
 
 All users can access these commands:
 
-- **`/help`** - Show help message with all available commands
+#### Help & Menu
+
+- **`/help`** - Show help message with commands organized by categories
+- **`/menu`** - Show interactive menu with organized command categories
+
+#### Team Management
+
 - **`/best_teams`** - Calculate and display the best possible teams based on your cached data
 - **`/current_team_info`** - Calculate current team info and budget based on your cached data
 - **`/chips`** - Choose a chip to use for the current race (Extra DRS, Wildcard, Limitless)
+
+#### Analysis & Stats
+
+- **`/next_race_info`** - Get comprehensive information about the next F1 race including schedule, weather forecast, historical statistics with qualifying results and race winners, safety data, and track information
+- **`/get_current_simulation`** - Show the current simulation data, name, and last update timestamp
+
+#### Utilities
+
 - **`/print_cache`** - Show the currently cached drivers, constructors, and current team
 - **`/reset_cache`** - Clear all cached data for this chat
-- **`/get_current_simulation`** - Show the current simulation data, name, and last update timestamp
-- **`/next_race_info`** - Get comprehensive information about the next F1 race including schedule, weather forecast, historical statistics with qualifying results and race winners, safety data, and track information
 
 ### Admin Commands
 
 Restricted to authorized administrators:
 
-- **`/trigger_scraping`** - Trigger web scraping for latest F1 Fantasy data
 - **`/load_simulation`** - Load the latest simulation data
+- **`/trigger_scraping`** - Trigger web scraping for latest F1 Fantasy data
 - **`/billing_stats`** - View current month Azure billing statistics with service breakdown
 - **`/get_botfather_commands`** - Get commands formatted for BotFather setup
 
