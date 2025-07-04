@@ -47,91 +47,6 @@ const COMMAND_HANDLERS = {
   [COMMAND_BILLING_STATS]: handleBillingStats,
 };
 
-function buildKeyboard(items, buttonBuilder, itemsPerRow = 2) {
-  const keyboard = [];
-
-  for (let i = 0; i < items.length; i += itemsPerRow) {
-    const row = [];
-
-    // Add items to the row up to itemsPerRow limit
-    for (let j = 0; j < itemsPerRow && i + j < items.length; j++) {
-      const item = items[i + j];
-      row.push(buttonBuilder(item));
-    }
-
-    keyboard.push(row);
-  }
-
-  return keyboard;
-}
-
-function buildMainMenuKeyboard(isAdmin) {
-  // Filter visible categories
-  const visibleCategories = Object.values(MENU_CATEGORIES).filter(
-    (category) => {
-      // Skip admin-only categories for non-admin users
-      // Skip categories marked as hideFromMenu
-      return !(category.adminOnly && !isAdmin) && !category.hideFromMenu;
-    }
-  );
-
-  // Build category buttons (2 per row)
-  const keyboard = buildKeyboard(
-    visibleCategories,
-    (category) => ({
-      text: category.title,
-      callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.CATEGORY}:${category.id}`,
-    }),
-    2
-  );
-
-  // Add direct help button
-  keyboard.push([
-    {
-      text: '❓ Help',
-      callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.HELP}`,
-    },
-  ]);
-
-  return keyboard;
-}
-
-function buildCategoryMenuKeyboard(category, isAdmin) {
-  // Filter visible commands
-  const visibleCommands = category.commands.filter((command) => {
-    // Skip admin-only commands for non-admin users
-    return !(command.adminOnly && !isAdmin);
-  });
-
-  // Build command buttons (2 per row)
-  const keyboard = buildKeyboard(
-    visibleCommands,
-    (command) => ({
-      text: command.title,
-      callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.COMMAND}:${command.constant}`,
-    }),
-    2
-  );
-
-  // Add back button
-  keyboard.push([
-    {
-      text: '⬅️ Back to Main Menu',
-      callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.MAIN_MENU}`,
-    },
-  ]);
-
-  return keyboard;
-}
-
-function buildMainMenuMessage() {
-  const menuMessage = '🎯 *F1 Fantasy Bot Menu*\n\nChoose a category:';
-  const tipMessage =
-    menuMessage + `\n\n💡 *Tip:* Use ${COMMAND_HELP} for quick text-based help`;
-
-  return tipMessage;
-}
-
 async function displayMenuMessage(bot, msg) {
   const chatId = msg.chat.id;
   const isAdmin = isAdminMessage(msg);
@@ -181,6 +96,91 @@ async function handleMenuCallback(bot, query) {
   }
 
   await bot.answerCallbackQuery(query.id);
+}
+
+function buildMainMenuMessage() {
+  const menuMessage = '🎯 *F1 Fantasy Bot Menu*\n\nChoose a category:';
+  const tipMessage =
+    menuMessage + `\n\n💡 *Tip:* Use ${COMMAND_HELP} for quick text-based help`;
+
+  return tipMessage;
+}
+
+function buildMainMenuKeyboard(isAdmin) {
+  // Filter visible categories
+  const visibleCategories = Object.values(MENU_CATEGORIES).filter(
+    (category) => {
+      // Skip admin-only categories for non-admin users
+      // Skip categories marked as hideFromMenu
+      return !(category.adminOnly && !isAdmin) && !category.hideFromMenu;
+    }
+  );
+
+  // Build category buttons (2 per row)
+  const keyboard = buildKeyboard(
+    visibleCategories,
+    (category) => ({
+      text: category.title,
+      callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.CATEGORY}:${category.id}`,
+    }),
+    2
+  );
+
+  // Add direct help button
+  keyboard.push([
+    {
+      text: '❓ Help',
+      callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.HELP}`,
+    },
+  ]);
+
+  return keyboard;
+}
+
+function buildKeyboard(items, buttonBuilder, itemsPerRow = 2) {
+  const keyboard = [];
+
+  for (let i = 0; i < items.length; i += itemsPerRow) {
+    const row = [];
+
+    // Add items to the row up to itemsPerRow limit
+    for (let j = 0; j < itemsPerRow && i + j < items.length; j++) {
+      const item = items[i + j];
+      row.push(buttonBuilder(item));
+    }
+
+    keyboard.push(row);
+  }
+
+  return keyboard;
+}
+
+function buildCategoryMenuKeyboard(category, isAdmin) {
+  // Filter visible commands
+  const visibleCommands = category.commands.filter((command) => {
+    // Skip admin-only commands for non-admin users
+    return !(command.adminOnly && !isAdmin);
+  });
+
+  // Build command buttons (2 per row)
+  const keyboard = buildKeyboard(
+    visibleCommands,
+    (command) => ({
+      text: command.title,
+      callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.COMMAND}:${command.constant}`,
+    }),
+    2
+  );
+
+  // Add back button
+  keyboard.push([
+    {
+      text: '⬅️ Back to Main Menu',
+      callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.MAIN_MENU}`,
+    },
+  ]);
+
+  return keyboard;
 }
 
 async function showMainMenu(bot, chatId, messageId, isAdmin) {
