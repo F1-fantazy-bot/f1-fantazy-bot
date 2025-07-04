@@ -1,8 +1,8 @@
 const {
   KILZI_CHAT_ID,
-  USER_COMMANDS_CONFIG,
-  ADMIN_COMMANDS_CONFIG,
+  MENU_CATEGORIES,
   COMMAND_BEST_TEAMS,
+  USER_COMMANDS_CONFIG,
 } = require('../constants');
 
 const mockIsAdminMessage = jest.fn().mockReturnValue(false);
@@ -36,7 +36,7 @@ describe('displayHelpMessage', () => {
 
     const sentMessage = botMock.sendMessage.mock.calls[0][1];
 
-    expect(sentMessage).toContain('*Available Commands:*');
+    expect(sentMessage).toContain('*F1 Fantasy Bot - Available Commands*');
     expect(sentMessage).toContain('*Other Messages:*');
     expect(sentMessage).toContain(
       'Send an image (drivers, constructors, or current team screenshot)'
@@ -51,14 +51,32 @@ describe('displayHelpMessage', () => {
       )})`
     );
 
-    // Should include user commands
-    USER_COMMANDS_CONFIG.forEach((cmd) => {
-      const escapedCommand = cmd.constant.replace(/_/g, '\\_');
-      expect(sentMessage).toContain(`${escapedCommand} - ${cmd.description}`);
-    });
+    // Should include non-admin category titles
+    expect(sentMessage).toContain('🏎️ Team Management');
+    expect(sentMessage).toContain('📊 Analysis & Stats');
+    expect(sentMessage).toContain('🔧 Utilities');
+    expect(sentMessage).toContain('❓ Help & Menu');
 
-    // Should NOT include admin commands for regular users
-    expect(sentMessage).not.toContain('*Admin Commands:*');
+    // Should NOT include admin category for regular users
+    expect(sentMessage).not.toContain('👤 Admin Commands');
+
+    // Should include help and menu commands
+    const helpCommand = USER_COMMANDS_CONFIG.find(
+      (cmd) => cmd.constant === '/help'
+    );
+    const menuCommand = USER_COMMANDS_CONFIG.find(
+      (cmd) => cmd.constant === '/menu'
+    );
+    expect(sentMessage).toContain(
+      `${helpCommand.constant.replace(/_/g, '\\_')} - ${
+        helpCommand.description
+      }`
+    );
+    expect(sentMessage).toContain(
+      `${menuCommand.constant.replace(/_/g, '\\_')} - ${
+        menuCommand.description
+      }`
+    );
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -81,18 +99,39 @@ describe('displayHelpMessage', () => {
 
     const sentMessage = botMock.sendMessage.mock.calls[0][1];
 
-    expect(sentMessage).toContain('*Available Commands:*');
-    expect(sentMessage).toContain('*Admin Commands:*');
+    expect(sentMessage).toContain('*F1 Fantasy Bot - Available Commands*');
     expect(sentMessage).toContain('*Other Messages:*');
 
-    // Should include user commands
-    USER_COMMANDS_CONFIG.forEach((cmd) => {
-      const escapedCommand = cmd.constant.replace(/_/g, '\\_');
-      expect(sentMessage).toContain(`${escapedCommand} - ${cmd.description}`);
-    });
+    // Should include all category titles including admin
+    expect(sentMessage).toContain('🏎️ Team Management');
+    expect(sentMessage).toContain('📊 Analysis & Stats');
+    expect(sentMessage).toContain('🔧 Utilities');
+    expect(sentMessage).toContain('👤 Admin Commands');
+    expect(sentMessage).toContain('❓ Help & Menu');
 
-    // Should include admin commands
-    ADMIN_COMMANDS_CONFIG.forEach((cmd) => {
+    // Should include help and menu commands
+    const helpCommand = USER_COMMANDS_CONFIG.find(
+      (cmd) => cmd.constant === '/help'
+    );
+    const menuCommand = USER_COMMANDS_CONFIG.find(
+      (cmd) => cmd.constant === '/menu'
+    );
+    expect(sentMessage).toContain(
+      `${helpCommand.constant.replace(/_/g, '\\_')} - ${
+        helpCommand.description
+      }`
+    );
+    expect(sentMessage).toContain(
+      `${menuCommand.constant.replace(/_/g, '\\_')} - ${
+        menuCommand.description
+      }`
+    );
+
+    // Should include admin category commands
+    const adminCategory = Object.values(MENU_CATEGORIES).find(
+      (cat) => cat.adminOnly
+    );
+    adminCategory.commands.forEach((cmd) => {
       const escapedCommand = cmd.constant.replace(/_/g, '\\_');
       expect(sentMessage).toContain(`${escapedCommand} - ${cmd.description}`);
     });
@@ -119,6 +158,8 @@ describe('displayHelpMessage', () => {
   });
 
   it('should properly escape underscores in command names', async () => {
+    mockIsAdminMessage.mockReturnValue(true); // Set as admin to test all commands
+
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
       text: '/help',
@@ -129,7 +170,23 @@ describe('displayHelpMessage', () => {
     const sentMessage = botMock.sendMessage.mock.calls[0][1];
 
     // Check that commands with underscores are properly escaped for Markdown
-    const commandsWithUnderscores = USER_COMMANDS_CONFIG.filter((cmd) =>
+    const allCommands = [];
+    Object.values(MENU_CATEGORIES).forEach((category) => {
+      category.commands.forEach((cmd) => {
+        allCommands.push(cmd);
+      });
+    });
+
+    // Add help and menu commands from USER_COMMANDS_CONFIG
+    const helpCommand = USER_COMMANDS_CONFIG.find(
+      (cmd) => cmd.constant === '/help'
+    );
+    const menuCommand = USER_COMMANDS_CONFIG.find(
+      (cmd) => cmd.constant === '/menu'
+    );
+    allCommands.push(helpCommand, menuCommand);
+
+    const commandsWithUnderscores = allCommands.filter((cmd) =>
       cmd.constant.includes('_')
     );
 
@@ -155,11 +212,19 @@ describe('displayHelpMessage', () => {
 
     // Check message structure
     const sections = sentMessage.split('\n\n');
-    expect(sections.length).toBeGreaterThanOrEqual(3); // Available Commands, Admin Commands, Other Messages
+    expect(sections.length).toBeGreaterThanOrEqual(5); // Header, Team Management, Analysis & Stats, Utilities, Admin Commands, Help & Menu, Other Messages
 
-    // Check that sections are properly separated
-    expect(sentMessage).toMatch(
-      /\*Available Commands:\*\n.*\n\n\*Admin Commands:\*\n.*\n\n\*Other Messages:\*/s
-    );
+    // Check that the message starts with the correct header
+    expect(sentMessage).toMatch(/^\*F1 Fantasy Bot - Available Commands\*/);
+
+    // Check that menu categories are included
+    expect(sentMessage).toMatch(/🏎️ Team Management/);
+    expect(sentMessage).toMatch(/📊 Analysis & Stats/);
+    expect(sentMessage).toMatch(/🔧 Utilities/);
+    expect(sentMessage).toMatch(/👤 Admin Commands/);
+    expect(sentMessage).toMatch(/❓ Help & Menu/);
+
+    // Check that the message ends with Other Messages
+    expect(sentMessage).toMatch(/\*Other Messages:\*/);
   });
 });

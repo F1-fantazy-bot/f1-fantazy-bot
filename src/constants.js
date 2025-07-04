@@ -13,6 +13,7 @@ exports.WITHOUT_CHIP = 'WITHOUT_CHIP';
 
 exports.PHOTO_CALLBACK_TYPE = 'PHOTO';
 exports.CHIP_CALLBACK_TYPE = 'CHIP';
+exports.MENU_CALLBACK_TYPE = 'MENU';
 
 exports.COMMAND_BEST_TEAMS = '/best_teams';
 exports.COMMAND_CURRENT_TEAM_INFO = '/current_team_info';
@@ -26,62 +27,157 @@ exports.COMMAND_GET_CURRENT_SIMULATION = '/get_current_simulation';
 exports.COMMAND_GET_BOTFATHER_COMMANDS = '/get_botfather_commands';
 exports.COMMAND_NEXT_RACE_INFO = '/next_race_info';
 exports.COMMAND_BILLING_STATS = '/billing_stats';
+exports.COMMAND_MENU = '/menu';
 
-exports.USER_COMMANDS_CONFIG = [
-  {
-    constant: exports.COMMAND_HELP,
-    description: 'Show this help message.',
+// Menu configuration for interactive menu command
+exports.MENU_CATEGORIES = {
+  HELP_MENU: {
+    id: 'help_menu',
+    title: '❓ Help & Menu',
+    description: 'Help and navigation commands',
+    hideFromMenu: true, // Don't show in interactive menu
+    commands: [
+      {
+        constant: exports.COMMAND_HELP,
+        title: '❓ Help',
+        description: 'Show this help message.',
+      },
+      {
+        constant: exports.COMMAND_MENU,
+        title: '📱 Menu',
+        description: 'Show interactive menu with all available commands.',
+      },
+    ],
   },
-  {
-    constant: exports.COMMAND_BEST_TEAMS,
-    description:
-      'Calculate and display the best possible teams based on your cached data.',
+  TEAM_MANAGEMENT: {
+    id: 'team_management',
+    title: '🏎️ Team Management',
+    description: 'Manage and optimize your F1 Fantasy team',
+    commands: [
+      {
+        constant: exports.COMMAND_BEST_TEAMS,
+        title: '🏆 Best Teams',
+        description:
+          'Calculate and display the best possible teams based on your cached data',
+      },
+      {
+        constant: exports.COMMAND_CURRENT_TEAM_INFO,
+        title: '👥 Current Team Info',
+        description:
+          'Calculate the current team info based on your cached data',
+      },
+      {
+        constant: exports.COMMAND_CHIPS,
+        title: '🎯 Chips Selection',
+        description: 'Choose a chip to use for the current race',
+      },
+    ],
   },
-  {
-    constant: exports.COMMAND_CURRENT_TEAM_INFO,
-    description: 'Calculate the current team info based on your cached data.',
+  ANALYSIS_STATS: {
+    id: 'analysis_stats',
+    title: '📊 Analysis & Stats',
+    description: 'View race information and performance data',
+    commands: [
+      {
+        constant: exports.COMMAND_NEXT_RACE_INFO,
+        title: '🏁 Next Race Info',
+        description: 'Get detailed information about the next F1 race',
+      },
+      {
+        constant: exports.COMMAND_GET_CURRENT_SIMULATION,
+        title: '📈 Current Simulation',
+        description: 'Show the current simulation data and name',
+      },
+    ],
   },
-  {
-    constant: exports.COMMAND_CHIPS,
-    description: 'choose a chip to use for the current race.',
+  UTILITIES: {
+    id: 'utilities',
+    title: '🔧 Utilities',
+    description: 'Data management and maintenance tools',
+    commands: [
+      {
+        constant: exports.COMMAND_PRINT_CACHE,
+        title: '📄 Print Cache',
+        description:
+          'Show the currently cached drivers, constructors, and current team',
+      },
+      {
+        constant: exports.COMMAND_RESET_CACHE,
+        title: '🗑️ Reset Cache',
+        description: 'Clear all cached data for this chat',
+      },
+    ],
   },
-  {
-    constant: exports.COMMAND_PRINT_CACHE,
-    description:
-      'Show the currently cached drivers, constructors, and current team.',
+  ADMIN_COMMANDS: {
+    id: 'admin_commands',
+    title: '👤 Admin Commands',
+    description: 'Administrative tools and functions',
+    adminOnly: true,
+    commands: [
+      {
+        constant: exports.COMMAND_LOAD_SIMULATION,
+        title: '📋 Load Simulation',
+        description: 'Load latest simulation data',
+      },
+      {
+        constant: exports.COMMAND_TRIGGER_SCRAPING,
+        title: '🔄 Trigger Scraping',
+        description: 'Trigger web scraping for latest F1 Fantasy data',
+      },
+      {
+        constant: exports.COMMAND_GET_BOTFATHER_COMMANDS,
+        title: '🤖 BotFather Commands',
+        description: 'Get commands for BotFather setup',
+      },
+      {
+        constant: exports.COMMAND_BILLING_STATS,
+        title: '💰 Billing Stats',
+        description: 'Get Azure billing statistics for the current month',
+      },
+    ],
   },
-  {
-    constant: exports.COMMAND_RESET_CACHE,
-    description: 'Clear all cached data for this chat.',
-  },
-  {
-    constant: exports.COMMAND_GET_CURRENT_SIMULATION,
-    description: 'Show the current simulation data and name.',
-  },
-  {
-    constant: exports.COMMAND_NEXT_RACE_INFO,
-    description: 'Get detailed information about the next F1 race.',
-  },
-];
+};
 
-exports.ADMIN_COMMANDS_CONFIG = [
-  {
-    constant: exports.COMMAND_TRIGGER_SCRAPING,
-    description: 'Trigger web scraping for latest F1 Fantasy data.',
-  },
-  {
-    constant: exports.COMMAND_LOAD_SIMULATION,
-    description: 'load latest simulation.',
-  },
-  {
-    constant: exports.COMMAND_GET_BOTFATHER_COMMANDS,
-    description: 'Get commands for BotFather.',
-  },
-  {
-    constant: exports.COMMAND_BILLING_STATS,
-    description: 'Get Azure billing statistics for the current month.',
-  },
-];
+// Generate USER_COMMANDS_CONFIG from MENU_CATEGORIES
+function generateUserCommandsConfig() {
+  const commands = [];
+
+  // Add all non-admin commands from menu categories (including help/menu)
+  Object.values(exports.MENU_CATEGORIES).forEach((category) => {
+    if (!category.adminOnly) {
+      category.commands.forEach((command) => {
+        commands.push({
+          constant: command.constant,
+          description: command.description,
+        });
+      });
+    }
+  });
+
+  return commands;
+}
+
+// Generate ADMIN_COMMANDS_CONFIG from MENU_CATEGORIES
+function generateAdminCommandsConfig() {
+  const commands = [];
+
+  // Add all admin commands from menu categories
+  Object.values(exports.MENU_CATEGORIES).forEach((category) => {
+    if (category.adminOnly) {
+      category.commands.forEach((command) => {
+        commands.push({
+          constant: command.constant,
+          description: command.description,
+        });
+      });
+    }
+  });
+
+  return commands;
+}
+
+exports.USER_COMMANDS_CONFIG = generateUserCommandsConfig();
+exports.ADMIN_COMMANDS_CONFIG = generateAdminCommandsConfig();
 
 exports.NAME_TO_CODE_DRIVERS_MAPPING = {
   'o. piastri': 'PIA',
@@ -124,4 +220,12 @@ exports.NAME_TO_CODE_CONSTRUCTORS_MAPPING = {
 exports.NAME_TO_CODE_MAPPING = {
   ...exports.NAME_TO_CODE_DRIVERS_MAPPING,
   ...exports.NAME_TO_CODE_CONSTRUCTORS_MAPPING,
+};
+
+// Menu callback actions
+exports.MENU_ACTIONS = {
+  MAIN_MENU: 'main_menu',
+  CATEGORY: 'category',
+  COMMAND: 'command',
+  HELP: 'help',
 };

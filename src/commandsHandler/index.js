@@ -13,6 +13,7 @@ const { sendPrintableCache } = require('./printCacheHandler');
 const { resetCacheForChat } = require('./resetCacheHandler');
 const { handleScrapingTrigger } = require('./scrapingTriggerHandler');
 const { handleBillingStats } = require('./billingStatsHandler');
+const { displayMenuMessage } = require('./menuHandler');
 
 module.exports = {
   handleBestTeamsMessage,
@@ -29,4 +30,5 @@ module.exports = {
   resetCacheForChat,
   handleScrapingTrigger,
   handleBillingStats,
+  displayMenuMessage,
 };
