@@ -9,6 +9,7 @@ const {
   WILDCARD_CHIP,
   LIMITLESS_CHIP,
   WITHOUT_CHIP,
+  CONTACT_CALLBACK_TYPE,
 } = require('./constants');
 const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 const cache = require('./cache');
@@ -49,6 +50,9 @@ jest.mock('./cache', () => ({
   bestTeamsCache: {},
   selectedChipCache: {},
   getPrintableCache: jest.fn(),
+}));
+jest.mock('./commandsHandler/contactUsHandler', () => ({
+  handleContactCallback: jest.fn(),
 }));
 
 describe('handleCallbackQuery', () => {
@@ -341,6 +345,22 @@ describe('handleCallbackQuery', () => {
         expect.stringContaining('rerun /best_teams command'),
         expect.objectContaining({ chat_id: chatId, message_id: messageId })
       );
+    });
+  });
+
+  describe('contact callback handling', () => {
+    it('should forward to handleContactCallback', async () => {
+      const contactQuery = {
+        message: { chat: { id: chatId }, message_id: messageId },
+        data: `${CONTACT_CALLBACK_TYPE}:start`,
+        id: 'contactId',
+      };
+
+      const { handleContactCallback } = require('./commandsHandler/contactUsHandler');
+
+      await handleCallbackQuery(bot, contactQuery);
+
+      expect(handleContactCallback).toHaveBeenCalledWith(bot, contactQuery);
     });
   });
 

@@ -11,6 +11,7 @@ const {
   COMMAND_GET_BOTFATHER_COMMANDS,
   COMMAND_NEXT_RACE_INFO,
   COMMAND_CHIPS,
+  COMMAND_CONTACT_US,
 } = require('./constants');
 
 // Mock all command handlers
@@ -41,6 +42,7 @@ const {
 const {
   handleNextRaceInfoCommand,
 } = require('./commandsHandler/nextRaceInfoHandler');
+const { handleContactUsCommand } = require('./commandsHandler/contactUsHandler');
 
 jest.mock('./commandsHandler/numberInputHandler');
 jest.mock('./commandsHandler/jsonInputHandler');
@@ -55,6 +57,7 @@ jest.mock('./commandsHandler/loadSimulationHandler');
 jest.mock('./commandsHandler/scrapingTriggerHandler');
 jest.mock('./commandsHandler/getBotfatherCommandsHandler');
 jest.mock('./commandsHandler/nextRaceInfoHandler');
+jest.mock('./commandsHandler/contactUsHandler');
 
 const { handleTextMessage } = require('./textMessageHandler');
 
@@ -219,6 +222,18 @@ describe('handleTextMessage', () => {
         botMock,
         KILZI_CHAT_ID
       );
+      expect(handleJsonMessage).not.toHaveBeenCalled();
+    });
+
+    it('should route /contact_us command to handleContactUsCommand', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: COMMAND_CONTACT_US,
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(handleContactUsCommand).toHaveBeenCalledWith(botMock, msgMock);
       expect(handleJsonMessage).not.toHaveBeenCalled();
     });
 

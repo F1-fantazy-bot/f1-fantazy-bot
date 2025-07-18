@@ -8,6 +8,15 @@ jest.mock('./utils/utils', () => ({
   isAdminMessage: mockIsAdmin,
 }));
 
+const mockHandleContactUsCommand = jest.fn();
+const mockHandleContactCallback = jest.fn();
+const mockProcessContactUsResponse = jest.fn();
+jest.mock('./commandsHandler/contactUsHandler', () => ({
+  handleContactUsCommand: mockHandleContactUsCommand,
+  handleContactCallback: mockHandleContactCallback,
+  processContactUsResponse: mockProcessContactUsResponse,
+}));
+
 const { handleMessage } = require('./messageHandler');
 const { sendLogMessage } = require('./utils/utils');
 
@@ -56,6 +65,31 @@ describe('handleMessage', () => {
       botMock,
       'Message from unknown chat: Unknown (123456)'
     );
+  });
+
+  it('should handle /contact_us command from unknown sender', async () => {
+    const msgMock = {
+      chat: { id: 123456 },
+      text: '/contact_us',
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(mockHandleContactUsCommand).toHaveBeenCalledWith(botMock, msgMock);
+    expect(sendLogMessage).not.toHaveBeenCalled();
+  });
+
+  it('should process contact reply when from unknown sender', async () => {
+    const msgMock = {
+      chat: { id: 123456 },
+      text: 'hi there',
+    };
+    mockProcessContactUsResponse.mockResolvedValue(true);
+
+    await handleMessage(botMock, msgMock);
+
+    expect(mockProcessContactUsResponse).toHaveBeenCalledWith(botMock, msgMock);
+    expect(sendLogMessage).not.toHaveBeenCalled();
   });
 
   it('when got unsupported message', async () => {

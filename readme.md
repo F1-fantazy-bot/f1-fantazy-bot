@@ -130,6 +130,7 @@ Commands are organized into logical categories for better usability:
   - **🔧 Utilities**: Cache management and data operations
   - **👤 Admin Commands**: Administrative tools (admin only)
   - **❓ Help**: Direct access to help information
+  - **✉️ Contact Us**: Send a message to the bot admins
 
 ### Help Command
 
@@ -143,6 +144,7 @@ All users can access these commands:
 
 - **`/help`** - Show help message with commands organized by categories
 - **`/menu`** - Show interactive menu with organized command categories
+- **`/contact_us`** - Send a message to the bot admins
 
 #### Team Management
 

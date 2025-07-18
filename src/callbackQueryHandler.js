@@ -17,12 +17,14 @@ const {
   PHOTO_CALLBACK_TYPE,
   CHIP_CALLBACK_TYPE,
   MENU_CALLBACK_TYPE,
+  CONTACT_CALLBACK_TYPE,
   WITHOUT_CHIP,
   COMMAND_BEST_TEAMS,
 } = require('./constants');
 
 const { sendLogMessage } = require('./utils');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
+const { handleContactCallback } = require('./commandsHandler/contactUsHandler');
 
 exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
@@ -34,6 +36,8 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handleChipCallback(bot, query);
     case MENU_CALLBACK_TYPE:
       return await handleMenuCallback(bot, query);
+    case CONTACT_CALLBACK_TYPE:
+      return await handleContactCallback(bot, query);
     default:
       await sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
   }

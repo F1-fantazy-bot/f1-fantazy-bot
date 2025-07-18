@@ -14,6 +14,11 @@ const { resetCacheForChat } = require('./resetCacheHandler');
 const { handleScrapingTrigger } = require('./scrapingTriggerHandler');
 const { handleBillingStats } = require('./billingStatsHandler');
 const { displayMenuMessage } = require('./menuHandler');
+const {
+  handleContactUsCommand,
+  handleContactCallback,
+  processContactUsResponse,
+} = require('./contactUsHandler');
 
 module.exports = {
   handleBestTeamsMessage,
@@ -31,4 +36,7 @@ module.exports = {
   handleScrapingTrigger,
   handleBillingStats,
   displayMenuMessage,
+  handleContactUsCommand,
+  handleContactCallback,
+  processContactUsResponse,
 };
