@@ -30,10 +30,17 @@ exports.sendLogMessage = async function (bot, logMessage) {
     return;
   }
 
-  let log = `BOT: ${logMessage}
-env: ${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`;
-
+  let env = 'dev';
   if (process.env.NODE_ENV === 'production') {
+    env = 'prod';
+  } else if (process.env.NODE_ENV === 'test') {
+    env = 'test';
+  }
+
+  let log = `BOT: ${logMessage}
+env: ${env}`;
+
+  if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
     log += `
 pid: ${process.pid}`;
   }
