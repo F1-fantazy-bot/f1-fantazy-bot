@@ -150,7 +150,7 @@ async function handleNextRaceInfoCommand(bot, chatId) {
         if (data.safetyCars !== undefined) {
           message += `⚠️🚓 Safety Cars: ${data.safetyCars}\n`;
         }
-        if (data.safetyCars !== undefined) {
+        if (data.redFlags !== undefined) {
           message += `🚩 Red Flags: ${data.redFlags}\n`;
         }
         message += `\n`;
