@@ -45,6 +45,8 @@ env: ${env}`;
 pid: ${process.pid}`;
   }
 
+  console.log(log);
+
   await exports.sendMessage(bot, LOG_CHANNEL_ID, log);
 };
 
