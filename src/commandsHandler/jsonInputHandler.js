@@ -7,6 +7,7 @@ const {
   bestTeamsCache,
 } = require('../cache');
 const { sendPrintableCache } = require('./printCacheHandler');
+const { displayMenuMessage } = require('./menuHandler');
 
 // Handles the case when the message text is JSON data
 async function handleJsonMessage(bot, msg, chatId) {
@@ -22,10 +23,15 @@ async function handleJsonMessage(bot, msg, chatId) {
       .sendMessage(chatId, 'Invalid JSON format. Please send valid JSON.')
       .catch((err) => console.error('Error sending JSON error message:', err));
 
+    // Offer the menu as a fallback for unsupported text
+    await displayMenuMessage(bot, msg);
+
     return;
   }
 
   if (!validateJsonData(bot, jsonData, chatId)) {
+    await displayMenuMessage(bot, msg);
+
     return;
   }
 
