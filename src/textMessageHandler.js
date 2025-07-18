@@ -74,8 +74,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await displayMenuMessage(bot, msg);
     default:
       try {
-        JSON.parse(textTrimmed);
-        await handleJsonMessage(bot, msg, chatId);
+        const jsonData = JSON.parse(textTrimmed);
+        await handleJsonMessage(bot, msg, chatId, jsonData);
       } catch {
         await displayMenuMessage(bot, msg);
       }
