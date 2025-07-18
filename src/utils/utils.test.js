@@ -102,7 +102,21 @@ describe('utils', () => {
       );
     });
 
-    it('when NODE_ENV is not production, log message contains dev', async () => {
+    it('when NODE_ENV is test, log message contains test', async () => {
+      process.env.NODE_ENV = 'test';
+      const botMock = {
+        sendMessage: jest.fn(),
+      };
+
+      await sendLogMessage(botMock, 'Log message in test');
+
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number), // LOG_CHANNEL_ID
+        expect.stringContaining('env: test')
+      );
+    });
+
+    it('when NODE_ENV is development, log message contains dev', async () => {
       process.env.NODE_ENV = 'development';
       const botMock = {
         sendMessage: jest.fn(),

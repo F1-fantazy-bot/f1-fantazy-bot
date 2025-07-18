@@ -13,12 +13,12 @@ if (!TELEGRAM_BOT_TOKEN) {
 
 // Create a bot instance.
 let bot;
-if (NODE_ENV !== 'production') {
+if (NODE_ENV === 'production' || NODE_ENV === 'test') {
+  console.log(`Running in ${NODE_ENV} mode`);
+  bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });
+} else {
   console.log('Running in development mode');
   bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
-} else {
-  console.log('Running in production mode');
-  bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });
 }
 
 // Send a message to the log channel that the bot has started.

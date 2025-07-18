@@ -234,6 +234,10 @@ Enter numbers when prompted by various commands for:
 - Uses webhook mode for efficient production operation
 - Integrates with Azure ecosystem for scalability
 
+#### Test Deployment
+
+- Mirrors production configuration using webhook mode
+
 ## Project Structure
 
 ```
