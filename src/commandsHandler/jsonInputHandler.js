@@ -1,4 +1,4 @@
-const { sendLogMessage, validateJsonData } = require('../utils');
+const { validateJsonData } = require('../utils');
 const azureStorageService = require('../azureStorageService');
 const {
   driversCache,
@@ -9,23 +9,8 @@ const {
 const { sendPrintableCache } = require('./printCacheHandler');
 
 // Handles the case when the message text is JSON data
-async function handleJsonMessage(bot, msg, chatId, jsonData) {
-  let parsedData = jsonData;
-  if (!parsedData) {
-    try {
-      parsedData = JSON.parse(msg.text);
-    } catch (error) {
-      await sendLogMessage(
-        bot,
-        `Failed to parse JSON data: ${msg.text}. Error: ${error.message}`
-      );
-      await bot
-        .sendMessage(chatId, 'Invalid JSON format. Please send valid JSON.')
-        .catch((err) => console.error('Error sending JSON error message:', err));
-
-      return;
-    }
-  }
+async function handleJsonMessage(bot, chatId, jsonData) {
+  const parsedData = jsonData;
 
   if (!validateJsonData(bot, parsedData, chatId)) {
     return;

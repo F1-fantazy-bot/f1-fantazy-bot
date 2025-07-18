@@ -249,7 +249,6 @@ describe('handleTextMessage', () => {
 
       expect(handleJsonMessage).toHaveBeenCalledWith(
         botMock,
-        msgMock,
         KILZI_CHAT_ID,
         JSON.parse(jsonText)
       );
@@ -326,7 +325,6 @@ describe('handleTextMessage', () => {
 
       expect(handleJsonMessage).toHaveBeenCalledWith(
         botMock,
-        msgMock,
         KILZI_CHAT_ID,
         JSON.parse('1.5')
       );
