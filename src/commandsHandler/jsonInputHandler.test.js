@@ -18,9 +18,6 @@ jest.mock('./printCacheHandler', () => ({
   sendPrintableCache: jest.fn(),
 }));
 
-jest.mock('./menuHandler', () => ({
-  displayMenuMessage: jest.fn(),
-}));
 
 const {
   driversCache,
@@ -30,7 +27,6 @@ const {
 } = require('../cache');
 
 const { handleJsonMessage } = require('./jsonInputHandler');
-const { displayMenuMessage } = require('./menuHandler');
 
 describe('handleJsonMessage', () => {
   const botMock = {
@@ -64,7 +60,6 @@ describe('handleJsonMessage', () => {
       botMock,
       expect.stringContaining('Failed to parse JSON data')
     );
-    expect(displayMenuMessage).toHaveBeenCalledWith(botMock, msgMock);
   });
 
   it('should return early if validation fails', async () => {
@@ -90,7 +85,6 @@ describe('handleJsonMessage', () => {
     );
     expect(azureStorageService.saveUserTeam).not.toHaveBeenCalled();
     expect(sendPrintableCache).not.toHaveBeenCalled();
-    expect(displayMenuMessage).toHaveBeenCalledWith(botMock, msgMock);
   });
 
   it('should store JSON data and save to Azure Storage when validation passes', async () => {

@@ -73,7 +73,12 @@ exports.handleTextMessage = async function (bot, msg) {
     case msg.text === COMMAND_MENU:
       return await displayMenuMessage(bot, msg);
     default:
-      handleJsonMessage(bot, msg, chatId);
+      try {
+        JSON.parse(textTrimmed);
+        await handleJsonMessage(bot, msg, chatId);
+      } catch {
+        await displayMenuMessage(bot, msg);
+      }
       break;
   }
 };
