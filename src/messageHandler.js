@@ -46,5 +46,4 @@ exports.handleMessage = async function (bot, msg) {
     .catch((err) =>
       console.error('Error sending unsupported type reply:', err)
     );
-
 };

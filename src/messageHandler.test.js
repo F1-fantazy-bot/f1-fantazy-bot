@@ -8,7 +8,6 @@ jest.mock('./utils/utils', () => ({
   isAdminMessage: mockIsAdmin,
 }));
 
-
 const { handleMessage } = require('./messageHandler');
 const { sendLogMessage } = require('./utils/utils');
 
