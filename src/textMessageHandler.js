@@ -15,6 +15,7 @@ const {
   handleNextRaceInfoCommand,
   handleBillingStats,
   displayMenuMessage,
+  handleContactUsCommand,
 } = require('./commandsHandler');
 
 // Import constants
@@ -32,6 +33,7 @@ const {
   COMMAND_NEXT_RACE_INFO,
   COMMAND_BILLING_STATS,
   COMMAND_MENU,
+  COMMAND_CONTACT_US,
 } = require('./constants');
 
 exports.handleTextMessage = async function (bot, msg) {
@@ -72,6 +74,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleBillingStats(bot, msg);
     case msg.text === COMMAND_MENU:
       return await displayMenuMessage(bot, msg);
+    case msg.text === COMMAND_CONTACT_US:
+      return await handleContactUsCommand(bot, msg);
     default:
       handleJsonMessage(bot, msg, chatId);
       break;
