@@ -8,13 +8,9 @@ jest.mock('./utils/utils', () => ({
   isAdminMessage: mockIsAdmin,
 }));
 
-jest.mock('./commandsHandler', () => ({
-  displayMenuMessage: jest.fn(),
-}));
 
 const { handleMessage } = require('./messageHandler');
 const { sendLogMessage } = require('./utils/utils');
-const { displayMenuMessage } = require('./commandsHandler');
 
 jest.mock('openai', () => ({
   AzureOpenAI: jest.fn().mockImplementation(() => ({
@@ -75,7 +71,6 @@ describe('handleMessage', () => {
       msgMock.chat.id,
       'Sorry, I only support text and image messages.'
     );
-    expect(displayMenuMessage).toHaveBeenCalledWith(botMock, msgMock);
     expect(sendLogMessage).toHaveBeenCalledTimes(2);
     expect(sendLogMessage).toHaveBeenCalledWith(
       botMock,

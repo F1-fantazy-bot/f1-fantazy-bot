@@ -5,7 +5,6 @@ const {
 } = require('./utils/utils');
 const { handleTextMessage } = require('./textMessageHandler');
 const { handlePhotoMessage } = require('./photoMessageHandler');
-const { displayMenuMessage } = require('./commandsHandler');
 
 exports.handleMessage = async function (bot, msg) {
   const chatId = msg.chat.id;
@@ -48,6 +47,4 @@ exports.handleMessage = async function (bot, msg) {
       console.error('Error sending unsupported type reply:', err)
     );
 
-  // Show interactive menu as a fallback
-  await displayMenuMessage(bot, msg);
 };
