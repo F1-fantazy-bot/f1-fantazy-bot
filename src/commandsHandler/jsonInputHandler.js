@@ -10,20 +10,18 @@ const { sendPrintableCache } = require('./printCacheHandler');
 
 // Handles the case when the message text is JSON data
 async function handleJsonMessage(bot, chatId, jsonData) {
-  const parsedData = jsonData;
-
-  if (!validateJsonData(bot, parsedData, chatId)) {
+  if (!validateJsonData(bot, jsonData, chatId)) {
     return;
   }
 
   driversCache[chatId] = Object.fromEntries(
-    parsedData.Drivers.map((driver) => [driver.DR, driver])
+    jsonData.Drivers.map((driver) => [driver.DR, driver])
   );
   constructorsCache[chatId] = Object.fromEntries(
-    parsedData.Constructors.map((constructor) => [constructor.CN, constructor])
+    jsonData.Constructors.map((constructor) => [constructor.CN, constructor])
   );
-  currentTeamCache[chatId] = parsedData.CurrentTeam;
-  await azureStorageService.saveUserTeam(bot, chatId, parsedData.CurrentTeam);
+  currentTeamCache[chatId] = jsonData.CurrentTeam;
+  await azureStorageService.saveUserTeam(bot, chatId, jsonData.CurrentTeam);
   delete bestTeamsCache[chatId];
 
   await sendPrintableCache(chatId, bot);
