@@ -41,6 +41,7 @@ const {
 const {
   handleNextRaceInfoCommand,
 } = require('./commandsHandler/nextRaceInfoHandler');
+const { displayMenuMessage } = require('./commandsHandler/menuHandler');
 
 jest.mock('./commandsHandler/numberInputHandler');
 jest.mock('./commandsHandler/jsonInputHandler');
@@ -55,6 +56,7 @@ jest.mock('./commandsHandler/loadSimulationHandler');
 jest.mock('./commandsHandler/scrapingTriggerHandler');
 jest.mock('./commandsHandler/getBotfatherCommandsHandler');
 jest.mock('./commandsHandler/nextRaceInfoHandler');
+jest.mock('./commandsHandler/menuHandler');
 
 const { handleTextMessage } = require('./textMessageHandler');
 
@@ -222,7 +224,7 @@ describe('handleTextMessage', () => {
       expect(handleJsonMessage).not.toHaveBeenCalled();
     });
 
-    it('should route default case to handleJsonMessage', async () => {
+    it('should show menu for unsupported text', async () => {
       const msgMock = {
         chat: { id: KILZI_CHAT_ID },
         text: 'some random text',
@@ -230,11 +232,8 @@ describe('handleTextMessage', () => {
 
       await handleTextMessage(botMock, msgMock);
 
-      expect(handleJsonMessage).toHaveBeenCalledWith(
-        botMock,
-        msgMock,
-        KILZI_CHAT_ID
-      );
+      expect(displayMenuMessage).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleJsonMessage).not.toHaveBeenCalled();
       expect(handleNumberMessage).not.toHaveBeenCalled();
       expect(handleBestTeamsMessage).not.toHaveBeenCalled();
     });
@@ -250,8 +249,8 @@ describe('handleTextMessage', () => {
 
       expect(handleJsonMessage).toHaveBeenCalledWith(
         botMock,
-        msgMock,
-        KILZI_CHAT_ID
+        KILZI_CHAT_ID,
+        JSON.parse(jsonText)
       );
       expect(handleNumberMessage).not.toHaveBeenCalled();
     });
@@ -303,7 +302,7 @@ describe('handleTextMessage', () => {
       );
     });
 
-    it('should not match numbers with spaces', async () => {
+    it('should show menu when number has spaces', async () => {
       const msgMock = {
         chat: { id: KILZI_CHAT_ID },
         text: '1 23',
@@ -311,15 +310,12 @@ describe('handleTextMessage', () => {
 
       await handleTextMessage(botMock, msgMock);
 
-      expect(handleJsonMessage).toHaveBeenCalledWith(
-        botMock,
-        msgMock,
-        KILZI_CHAT_ID
-      );
+      expect(displayMenuMessage).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleJsonMessage).not.toHaveBeenCalled();
       expect(handleNumberMessage).not.toHaveBeenCalled();
     });
 
-    it('should not match decimal numbers', async () => {
+    it('should route decimal numbers as JSON text', async () => {
       const msgMock = {
         chat: { id: KILZI_CHAT_ID },
         text: '1.5',
@@ -329,9 +325,10 @@ describe('handleTextMessage', () => {
 
       expect(handleJsonMessage).toHaveBeenCalledWith(
         botMock,
-        msgMock,
-        KILZI_CHAT_ID
+        KILZI_CHAT_ID,
+        JSON.parse('1.5')
       );
+      expect(displayMenuMessage).not.toHaveBeenCalled();
       expect(handleNumberMessage).not.toHaveBeenCalled();
     });
   });

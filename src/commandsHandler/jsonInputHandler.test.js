@@ -1,10 +1,8 @@
 const { KILZI_CHAT_ID } = require('../constants');
 
-const mockSendLogMessage = jest.fn();
 const mockValidateJsonData = jest.fn().mockReturnValue(true);
 
 jest.mock('../utils', () => ({
-  sendLogMessage: mockSendLogMessage,
   validateJsonData: mockValidateJsonData,
 }));
 
@@ -17,6 +15,7 @@ const { sendPrintableCache } = require('./printCacheHandler');
 jest.mock('./printCacheHandler', () => ({
   sendPrintableCache: jest.fn(),
 }));
+
 
 const {
   driversCache,
@@ -43,23 +42,6 @@ describe('handleJsonMessage', () => {
     delete bestTeamsCache[KILZI_CHAT_ID];
   });
 
-  it('should handle invalid JSON and send error', async () => {
-    const msgMock = {
-      chat: { id: KILZI_CHAT_ID },
-      text: '{invalidJson:}',
-    };
-
-    await handleJsonMessage(botMock, msgMock, KILZI_CHAT_ID);
-
-    expect(botMock.sendMessage).toHaveBeenCalledWith(
-      KILZI_CHAT_ID,
-      'Invalid JSON format. Please send valid JSON.'
-    );
-    expect(mockSendLogMessage).toHaveBeenCalledWith(
-      botMock,
-      expect.stringContaining('Failed to parse JSON data')
-    );
-  });
 
   it('should return early if validation fails', async () => {
     mockValidateJsonData.mockReturnValue(false);
@@ -70,12 +52,7 @@ describe('handleJsonMessage', () => {
       CurrentTeam: {},
     };
 
-    const msgMock = {
-      chat: { id: KILZI_CHAT_ID },
-      text: JSON.stringify(jsonData),
-    };
-
-    await handleJsonMessage(botMock, msgMock, KILZI_CHAT_ID);
+    await handleJsonMessage(botMock, KILZI_CHAT_ID, jsonData);
 
     expect(mockValidateJsonData).toHaveBeenCalledWith(
       botMock,
@@ -103,12 +80,7 @@ describe('handleJsonMessage', () => {
       },
     };
 
-    const msgMock = {
-      chat: { id: KILZI_CHAT_ID },
-      text: JSON.stringify(jsonData),
-    };
-
-    await handleJsonMessage(botMock, msgMock, KILZI_CHAT_ID);
+    await handleJsonMessage(botMock, KILZI_CHAT_ID, jsonData);
 
     // Verify validation was called
     expect(mockValidateJsonData).toHaveBeenCalledWith(
