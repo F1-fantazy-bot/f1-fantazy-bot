@@ -90,5 +90,18 @@ jobs:
         with:
           app-name: 'f1-fantazy-bot-func'
           slot-name: 'Production'
-          app-settings-json: '[{"COMMIT_ID": "${{ env.COMMIT_ID }}", "COMMIT_MESSAGE": "${{ env.COMMIT_MESSAGE }}", "COMMIT_LINK": "${{ env.COMMIT_LINK }}" }]'
           mask-inputs: false
+          app-settings-json: |
+            [
+              { "name": "COMMIT_ID",
+                "value": "${{ env.COMMIT_ID }}",
+                "slotSetting": false },
+
+              { "name": "COMMIT_MESSAGE",
+                "value": "${{ env.COMMIT_MESSAGE }}",
+                "slotSetting": false },
+
+              { "name": "COMMIT_LINK",
+                "value": "${{ env.COMMIT_LINK }}",
+                "slotSetting": false }
+            ]
