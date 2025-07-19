@@ -15,6 +15,7 @@ const {
   handleNextRaceInfoCommand,
   handleBillingStats,
   displayMenuMessage,
+  handleVersionCommand,
 } = require('./commandsHandler');
 
 // Import constants
@@ -31,6 +32,7 @@ const {
   COMMAND_GET_BOTFATHER_COMMANDS,
   COMMAND_NEXT_RACE_INFO,
   COMMAND_BILLING_STATS,
+  COMMAND_VERSION,
   COMMAND_MENU,
 } = require('./constants');
 
@@ -70,6 +72,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleNextRaceInfoCommand(bot, chatId);
     case msg.text === COMMAND_BILLING_STATS:
       return await handleBillingStats(bot, msg);
+    case msg.text === COMMAND_VERSION:
+      return await handleVersionCommand(bot, msg);
     case msg.text === COMMAND_MENU:
       return await displayMenuMessage(bot, msg);
     default:
