@@ -26,6 +26,11 @@ jobs:
       - name: 'Checkout GitHub Action'
         uses: actions/checkout@v4
 
+      - name: Extract commit title
+        run: |
+          title=$(printf '%s\n' "${{ env.COMMIT_MESSAGE }}" | head -n 1)
+          echo "COMMIT_MESSAGE=$title" >> "$GITHUB_ENV"
+
       - name: Setup Node ${{ env.NODE_VERSION }} Environment
         uses: actions/setup-node@v3
         with:
