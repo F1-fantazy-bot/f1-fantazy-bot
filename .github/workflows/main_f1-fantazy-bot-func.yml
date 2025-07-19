@@ -98,3 +98,4 @@ jobs:
                 "COMMIT_LINK": "${{ env.COMMIT_LINK }}"
               }
             ]
+          mask-inputs: false
