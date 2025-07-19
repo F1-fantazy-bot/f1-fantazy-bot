@@ -24,12 +24,9 @@ if (NODE_ENV === 'production' || NODE_ENV === 'test') {
 // Send a message to the log channel that the bot has started.
 sendLogMessage(bot, 'Bot started successfully.');
 
-try {
-  // Initialize application caches with data from Azure Storage
-  initializeCaches(bot);
-} catch (error) {
+initializeCaches(bot).catch((error) => {
   sendLogMessage(bot, `Error initializing caches from Azure Storage: ${error}`);
-}
+});
 
 // Listen for any kind of message.
 bot.on('message', async (msg) => {
