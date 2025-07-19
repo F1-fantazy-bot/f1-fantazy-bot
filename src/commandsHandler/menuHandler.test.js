@@ -43,6 +43,9 @@ jest.mock('./scrapingTriggerHandler', () => ({
 jest.mock('./billingStatsHandler', () => ({
   handleBillingStats: jest.fn(),
 }));
+jest.mock('./versionHandler', () => ({
+  handleVersionCommand: jest.fn(),
+}));
 
 const { isAdminMessage } = require('../utils');
 
@@ -51,6 +54,7 @@ const { handleBestTeamsMessage } = require('./bestTeamsHandler');
 const { displayHelpMessage } = require('./helpHandler');
 const { sendPrintableCache } = require('./printCacheHandler');
 const { resetCacheForChat } = require('./resetCacheHandler');
+const { handleVersionCommand } = require('./versionHandler');
 
 describe('Menu Handler', () => {
   let mockBot;
@@ -278,6 +282,20 @@ describe('Menu Handler', () => {
         }
       );
       expect(resetCacheForChat).toHaveBeenCalledWith(123, mockBot);
+    });
+
+    it('should handle version command callback', async () => {
+      mockQuery.data = `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.COMMAND}:/version`;
+
+      await handleMenuCallback(mockBot, mockQuery);
+
+      expect(mockBot.answerCallbackQuery).toHaveBeenCalledWith('callback_query_id', {
+        text: 'Executing /version...',
+      });
+      expect(handleVersionCommand).toHaveBeenCalledWith(
+        mockBot,
+        expect.objectContaining({ chat: { id: 123 }, text: '/version', message_id: 456 })
+      );
     });
 
     it('should handle unknown callback action', async () => {

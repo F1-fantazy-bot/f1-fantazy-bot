@@ -49,6 +49,7 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
 - **BotFather Integration**: Generate command lists for easy bot setup
 - **Logging & Monitoring**: Comprehensive logging to dedicated channels
 - **Admin Controls**: Restricted commands for data management and system control
+- **Version Reporting**: `/version` command reveals the deployed commit details
 
 ## How to Run Locally
 
@@ -168,6 +169,7 @@ Restricted to authorized administrators:
 - **`/trigger_scraping`** - Trigger web scraping for latest F1 Fantasy data
 - **`/billing_stats`** - View current month Azure billing statistics with service breakdown
 - **`/get_botfather_commands`** - Get commands formatted for BotFather setup
+- **`/version`** - Display commit ID, commit message, and link for the deployed version
 
 ### Other Input Methods
 
