@@ -12,6 +12,9 @@ on:
 env:
   AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
   NODE_VERSION: '22.x' # set this to the node version to use (supports 8.x, 10.x, 12.x)
+  COMMIT_ID: ${{ github.sha }}
+  COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+  COMMIT_LINK: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
 
 jobs:
   build:
@@ -36,6 +39,12 @@ jobs:
           npm run lint
           npm run test:coverage
           popd
+
+      - name: Write version information
+        run: |
+          echo "COMMIT_ID=${{ env.COMMIT_ID }}" >> .env
+          echo "COMMIT_MESSAGE=${{ env.COMMIT_MESSAGE }}" >> .env
+          echo "COMMIT_LINK=${{ env.COMMIT_LINK }}" >> .env
 
       - name: Zip artifact for deployment
         run: zip release.zip ./* -r

@@ -9,6 +9,9 @@ on:
 env:
   AZURE_FUNCTIONAPP_PACKAGE_PATH: '.'
   NODE_VERSION: '22.x'
+  COMMIT_ID: ${{ github.event.pull_request.head.sha }}
+  COMMIT_MESSAGE: ${{ github.event.pull_request.title }}
+  COMMIT_LINK: ${{ github.event.pull_request.html_url }}
 
 jobs:
   build:
@@ -18,6 +21,8 @@ jobs:
     steps:
       - name: 'Checkout GitHub Action'
         uses: actions/checkout@v4
+      - name: Set commit message
+        run: echo "COMMIT_MESSAGE=$(git log -1 --pretty=%B)" >> $GITHUB_ENV
       - name: Setup Node ${{ env.NODE_VERSION }} Environment
         uses: actions/setup-node@v3
         with:
@@ -30,6 +35,13 @@ jobs:
           npm run lint
           npm run test:coverage
           popd
+
+      - name: Write version information
+        run: |
+          echo "COMMIT_ID=${{ env.COMMIT_ID }}" >> .env
+          echo "COMMIT_MESSAGE=${{ env.COMMIT_MESSAGE }}" >> .env
+          echo "COMMIT_LINK=${{ env.COMMIT_LINK }}" >> .env
+
       - name: Zip artifact for deployment
         run: zip release.zip ./* -r
       - name: Upload artifact for deployment job
