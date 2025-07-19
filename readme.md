@@ -237,6 +237,7 @@ Enter numbers when prompted by various commands for:
 #### Test Deployment
 
 - Mirrors production configuration using webhook mode
+For detailed steps on setting up Azure Functions and integrating GitHub Actions, see [docs/azure-function-deployment.md](docs/azure-function-deployment.md).
 
 ## Project Structure
 
@@ -256,6 +257,7 @@ f1-fantazy-bot/
 │   ├── commandsHandler/           # Individual command implementations
 │   └── utils/                     # Utility functions
 ├── telegramWebhook/               # Azure Functions webhook handler
+├── docs/                          # Project documentation
 ├── package.json                   # Project dependencies and scripts
 └── .env                          # Environment variables (create this)
 ```
