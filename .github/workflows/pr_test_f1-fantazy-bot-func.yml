@@ -74,3 +74,14 @@ jobs:
           app-name: 'f1-fantazy-bot-func'
           slot-name: 'test'
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+      - name: 'Set Function App Environment Variables'
+        uses: azure/appservice-settings@v1
+        with:
+          app-name: 'f1-fantazy-bot-func'
+          slot-name: 'test'
+          app-settings-json: |
+            {
+              "COMMIT_ID": "${{ env.COMMIT_ID }}",
+              "COMMIT_MESSAGE": "${{ env.COMMIT_MESSAGE }}",
+              "COMMIT_LINK": "${{ env.COMMIT_LINK }}"
+            }
