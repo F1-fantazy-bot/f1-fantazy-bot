@@ -24,9 +24,13 @@ const {
 
 const { sendLogMessage } = require('./utils');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
-const { t, setLanguage } = require('./i18n');
+const { t, setLanguage, setCurrentChatId } = require('./i18n');
 
 exports.handleCallbackQuery = async function (bot, query) {
+  const chatId = query.message?.chat?.id;
+  if (chatId) {
+    setCurrentChatId(chatId);
+  }
   const callbackType = query.data.split(':')[0];
 
   switch (callbackType) {
@@ -134,7 +138,7 @@ async function handleLanguageCallback(bot, query) {
   const messageId = query.message.message_id;
   const lang = query.data.split(':')[1];
 
-  setLanguage(lang);
+  setLanguage(lang, chatId);
 
   await bot.editMessageText(t('Language changed to {LANG}.', { LANG: lang }), {
     chat_id: chatId,

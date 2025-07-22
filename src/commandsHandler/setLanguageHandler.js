@@ -24,7 +24,7 @@ async function handleSetLanguage(bot, msg) {
     return;
   }
 
-  if (setLanguage(lang)) {
+  if (setLanguage(lang, chatId)) {
     await bot
       .sendMessage(chatId, t('Language changed to {LANG}.', { LANG: lang }))
       .catch((err) => console.error('Error sending language changed message:', err));

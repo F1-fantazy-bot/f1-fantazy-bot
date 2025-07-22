@@ -14,7 +14,7 @@ const {
 const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 const cache = require('./cache');
 const azureStorageService = require('./azureStorageService');
-const { t } = require('./i18n');
+const { t, getLanguage, languageCache } = require('./i18n');
 
 jest.mock('./utils', () => ({
   sendLogMessage: jest.fn().mockResolvedValue(undefined),
@@ -50,6 +50,7 @@ jest.mock('./cache', () => ({
   driversCache: {},
   bestTeamsCache: {},
   selectedChipCache: {},
+  languageCache: {},
   getPrintableCache: jest.fn(),
 }));
 
@@ -349,6 +350,7 @@ describe('handleCallbackQuery', () => {
   describe('language selection handling', () => {
     beforeEach(() => {
       jest.clearAllMocks();
+      Object.keys(languageCache).forEach((key) => delete languageCache[key]);
     });
 
     it('should set language and edit message', async () => {
@@ -368,6 +370,7 @@ describe('handleCallbackQuery', () => {
         expect.objectContaining({ chat_id: chatId, message_id: messageId })
       );
       expect(bot.answerCallbackQuery).toHaveBeenCalledWith('langQueryId');
+      expect(getLanguage(chatId)).toBe('he');
     });
   });
 

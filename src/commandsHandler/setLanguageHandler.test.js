@@ -1,5 +1,5 @@
 const { KILZI_CHAT_ID } = require('../constants');
-const { setLanguage, getLanguage, t } = require('../i18n');
+const { setLanguage, getLanguage, languageCache, t } = require('../i18n');
 const { handleSetLanguage } = require('./setLanguageHandler');
 
 describe('handleSetLanguage', () => {
@@ -9,6 +9,7 @@ describe('handleSetLanguage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    Object.keys(languageCache).forEach((key) => delete languageCache[key]);
     setLanguage('en');
   });
 
@@ -17,7 +18,7 @@ describe('handleSetLanguage', () => {
 
     await handleSetLanguage(botMock, msgMock);
 
-    expect(getLanguage()).toBe('he');
+    expect(getLanguage(KILZI_CHAT_ID)).toBe('he');
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
       t('Language changed to {LANG}.', { LANG: 'he' })
@@ -29,7 +30,7 @@ describe('handleSetLanguage', () => {
 
     await handleSetLanguage(botMock, msgMock);
 
-    expect(getLanguage()).toBe('en');
+    expect(getLanguage(KILZI_CHAT_ID)).toBe('en');
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
       t('Invalid language. Supported languages: {LANGS}', { LANGS: 'en, he' })
@@ -41,7 +42,7 @@ describe('handleSetLanguage', () => {
 
     await handleSetLanguage(botMock, msgMock);
 
-    expect(getLanguage()).toBe('en');
+    expect(getLanguage(KILZI_CHAT_ID)).toBe('en');
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
       t('Please select a language:'),

@@ -126,28 +126,41 @@ const translations = {
     'Change bot language for this session': 'שנה את שפת הבוט להפעלה זו'
   }
 };
+const { languageCache } = require('./cache');
+let defaultLanguage = process.env.BOT_LANGUAGE || 'en';
+let currentChatId;
 
-let currentLanguage = process.env.BOT_LANGUAGE || 'en';
-
-function setLanguage(lang) {
-  if (translations[lang]) {
-    currentLanguage = lang;
-
-    return true;
+function setLanguage(lang, chatId) {
+  if (!translations[lang]) {
+    return false;
   }
 
-  return false;
+  if (chatId !== undefined) {
+    languageCache[chatId] = lang;
+  } else {
+    defaultLanguage = lang;
+  }
+
+  return true;
 }
 
-function getLanguage() {
-  return currentLanguage;
+function getLanguage(chatId) {
+  if (chatId !== undefined) {
+    return languageCache[chatId] || defaultLanguage;
+  }
+
+  return defaultLanguage;
+}
+
+function setCurrentChatId(chatId) {
+  currentChatId = chatId;
 }
 
 function getSupportedLanguages() {
   return Object.keys(translations);
 }
 
-function t(message, params = {}, lang = currentLanguage) {
+function t(message, params = {}, lang = getLanguage(currentChatId)) {
   let text = (translations[lang] && translations[lang][message]) || message;
   for (const [key, value] of Object.entries(params)) {
     text = text.replace(new RegExp(`{${key}}`, 'g'), value);
@@ -156,4 +169,11 @@ function t(message, params = {}, lang = currentLanguage) {
   return text;
 }
 
-module.exports = { t, setLanguage, getLanguage, getSupportedLanguages };
+module.exports = {
+  t,
+  setLanguage,
+  getLanguage,
+  getSupportedLanguages,
+  setCurrentChatId,
+  languageCache,
+};

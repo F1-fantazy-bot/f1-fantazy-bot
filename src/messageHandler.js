@@ -5,11 +5,13 @@ const {
 } = require('./utils/utils');
 const { handleTextMessage } = require('./textMessageHandler');
 const { handlePhotoMessage } = require('./photoMessageHandler');
-const { t } = require('./i18n');
+const { t, setCurrentChatId } = require('./i18n');
 
 exports.handleMessage = async function (bot, msg) {
   const chatId = msg.chat.id;
   const chatName = getChatName(msg);
+
+  setCurrentChatId(chatId);
 
   if (!isAdminMessage(msg)) {
     await sendLogMessage(

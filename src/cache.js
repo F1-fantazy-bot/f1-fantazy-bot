@@ -25,6 +25,9 @@ exports.simulationInfoCache = {};
 
 exports.selectedChipCache = {};
 
+// In-memory cache for language by chat id
+exports.languageCache = {};
+
 // In-memory cache for next race info
 exports.nextRaceInfoCache = {};
 // In-memory cache for weather forecast
