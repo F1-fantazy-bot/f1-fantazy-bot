@@ -1,5 +1,5 @@
 const { KILZI_CHAT_ID } = require('../constants');
-const { setLanguage, getLanguage, languageCache, t } = require('../i18n');
+const { setLanguage, getLanguage, languageCache, t, getLanguageName } = require('../i18n');
 const { handleSetLanguage } = require('./setLanguageHandler');
 
 describe('handleSetLanguage', () => {
@@ -21,7 +21,7 @@ describe('handleSetLanguage', () => {
     expect(getLanguage(KILZI_CHAT_ID)).toBe('he');
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      t('Language changed to {LANG}.', KILZI_CHAT_ID, { LANG: 'he' })
+      t('Language changed to {LANG}.', KILZI_CHAT_ID, { LANG: getLanguageName('he', KILZI_CHAT_ID) })
     );
   });
 

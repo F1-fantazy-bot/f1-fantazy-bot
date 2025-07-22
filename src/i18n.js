@@ -194,6 +194,11 @@ const translations = {
       'מזהה קומיט: {ID}\nהודעת קומיט: {MSG}\nקישור: {LINK}'
   }
 };
+
+const LANGUAGE_NAME_KEYS = {
+  en: 'English',
+  he: 'Hebrew',
+};
 const { languageCache } = require('./cache');
 let defaultLanguage = process.env.BOT_LANGUAGE || 'en';
 
@@ -235,10 +240,17 @@ function t(message, chatId, params = {}) {
   return text;
 }
 
+function getLanguageName(code, chatId) {
+  const key = LANGUAGE_NAME_KEYS[code] || code;
+
+  return t(key, chatId);
+}
+
 module.exports = {
   t,
   setLanguage,
   getLanguage,
   getSupportedLanguages,
   languageCache,
+  getLanguageName,
 };

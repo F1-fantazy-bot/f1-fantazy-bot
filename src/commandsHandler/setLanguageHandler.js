@@ -1,4 +1,4 @@
-const { t, setLanguage, getSupportedLanguages } = require('../i18n');
+const { t, setLanguage, getSupportedLanguages, getLanguageName } = require('../i18n');
 const { LANG_CALLBACK_TYPE } = require('../constants');
 
 async function handleSetLanguage(bot, msg) {
@@ -9,7 +9,7 @@ async function handleSetLanguage(bot, msg) {
   if (!lang) {
     const keyboard = getSupportedLanguages().map((code) => [
       {
-        text: t(code === 'en' ? 'English' : 'Hebrew', chatId),
+        text: getLanguageName(code, chatId),
         callback_data: `${LANG_CALLBACK_TYPE}:${code}`,
       },
     ]);
@@ -26,7 +26,10 @@ async function handleSetLanguage(bot, msg) {
 
   if (setLanguage(lang, chatId)) {
     await bot
-      .sendMessage(chatId, t('Language changed to {LANG}.', chatId, { LANG: lang }))
+      .sendMessage(
+        chatId,
+        t('Language changed to {LANG}.', chatId, { LANG: getLanguageName(lang, chatId) })
+      )
       .catch((err) => console.error('Error sending language changed message:', err));
   } else {
     const langs = getSupportedLanguages().join(', ');

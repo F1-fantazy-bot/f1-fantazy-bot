@@ -24,7 +24,7 @@ const {
 
 const { sendLogMessage } = require('./utils');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
-const { t, setLanguage } = require('./i18n');
+const { t, setLanguage, getLanguageName } = require('./i18n');
 
 exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
@@ -138,10 +138,13 @@ async function handleLanguageCallback(bot, query) {
 
   setLanguage(lang, chatId);
 
-  await bot.editMessageText(t('Language changed to {LANG}.', chatId, { LANG: lang }), {
-    chat_id: chatId,
-    message_id: messageId,
-  });
+  await bot.editMessageText(
+    t('Language changed to {LANG}.', chatId, { LANG: getLanguageName(lang, chatId) }),
+    {
+      chat_id: chatId,
+      message_id: messageId,
+    }
+  );
 
   await bot.answerCallbackQuery(query.id);
 }

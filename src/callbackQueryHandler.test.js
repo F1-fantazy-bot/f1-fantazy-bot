@@ -14,7 +14,7 @@ const {
 const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 const cache = require('./cache');
 const azureStorageService = require('./azureStorageService');
-const { t, getLanguage, languageCache } = require('./i18n');
+const { t, getLanguage, languageCache, getLanguageName } = require('./i18n');
 
 jest.mock('./utils', () => ({
   sendLogMessage: jest.fn().mockResolvedValue(undefined),
@@ -366,7 +366,7 @@ describe('handleCallbackQuery', () => {
       await handleCallbackQuery(bot, langQuery);
 
       expect(bot.editMessageText).toHaveBeenCalledWith(
-        t('Language changed to {LANG}.', chatId, { LANG: 'he' }),
+        t('Language changed to {LANG}.', chatId, { LANG: getLanguageName('he', chatId) }),
         expect.objectContaining({ chat_id: chatId, message_id: messageId })
       );
       expect(bot.answerCallbackQuery).toHaveBeenCalledWith('langQueryId');
