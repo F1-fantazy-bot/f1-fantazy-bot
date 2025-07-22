@@ -21,7 +21,7 @@ async function handleGetCurrentSimulation(bot, msg) {
   if (drivers || constructors) {
     await bot.sendMessage(
       chatId,
-      t('You currently have data in your cache. To use data from a simulation, please run {CMD} first.', { CMD: COMMAND_RESET_CACHE }, chatId)
+      t('You currently have data in your cache. To use data from a simulation, please run {CMD} first.', chatId, { CMD: COMMAND_RESET_CACHE })
     );
 
     return;
@@ -31,7 +31,7 @@ async function handleGetCurrentSimulation(bot, msg) {
   if (!simulationInfo) {
     await bot.sendMessage(
       chatId,
-      t('No simulation data is currently loaded. Please use {CMD} to load simulation data.', { CMD: COMMAND_LOAD_SIMULATION }, chatId)
+      t('No simulation data is currently loaded. Please use {CMD} to load simulation data.', chatId, { CMD: COMMAND_LOAD_SIMULATION })
     );
 
     return;
@@ -40,32 +40,34 @@ async function handleGetCurrentSimulation(bot, msg) {
   const printableCache = getPrintableCache(sharedKey);
 
   await bot.sendMessage(chatId, printableCache, { parse_mode: 'Markdown' });
-  let timeText = t('Unknown', {}, chatId);
+  let timeText = t('Unknown', chatId);
   if (simulationInfo.lastUpdate) {
     try {
       const date = new Date(simulationInfo.lastUpdate);
       const { dateStr, timeStr } = formatDateTime(date);
       timeText = `${dateStr} at ${timeStr}`;
     } catch (error) {
-      timeText = t('Invalid date', {}, chatId);
+      timeText = t('Invalid date', chatId);
     }
   }
-  const lastUpdateText = t('Last updated: {TIME}', { TIME: timeText }, chatId);
+  const lastUpdateText = t('Last updated: {TIME}', chatId, { TIME: timeText });
 
   await bot.sendMessage(
     chatId,
-    t('Current simulation: {NAME}\n{UPDATE}', {
+    t('Current simulation: {NAME}\n{UPDATE}', chatId, {
       NAME: simulationInfo.name,
       UPDATE: lastUpdateText,
-    }, chatId)
+    })
   );
 
   if (isAdminMessage(msg)) {
     await bot.sendMessage(
       chatId,
-      t('💡 Tip: If the simulation seems outdated, you can run {CMD} to update the current simulation.', {
-        CMD: COMMAND_LOAD_SIMULATION,
-      }, chatId)
+      t(
+        '💡 Tip: If the simulation seems outdated, you can run {CMD} to update the current simulation.',
+        chatId,
+        { CMD: COMMAND_LOAD_SIMULATION }
+      )
     );
   }
 

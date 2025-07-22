@@ -25,21 +25,21 @@ exports.handlePhotoMessage = async function (bot, msg) {
   };
 
   // Reply with inline buttons
-  await bot.sendMessage(chatId, t('What type is this photo?', {}, chatId), {
+  await bot.sendMessage(chatId, t('What type is this photo?', chatId), {
     reply_to_message_id: messageId,
     reply_markup: {
       inline_keyboard: [
         [
           {
-            text: t('Drivers', {}, chatId),
+            text: t('Drivers', chatId),
             callback_data: `${PHOTO_CALLBACK_TYPE}:${DRIVERS_PHOTO_TYPE}:${fileUniqueId}`,
           },
           {
-            text: t('Constructors', {}, chatId),
+            text: t('Constructors', chatId),
             callback_data: `${PHOTO_CALLBACK_TYPE}:${CONSTRUCTORS_PHOTO_TYPE}:${fileUniqueId}`,
           },
           {
-            text: t('Current Team', {}, chatId),
+            text: t('Current Team', chatId),
             callback_data: `${PHOTO_CALLBACK_TYPE}:${CURRENT_TEAM_PHOTO_TYPE}:${fileUniqueId}`,
           },
         ],

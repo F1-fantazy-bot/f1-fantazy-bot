@@ -214,15 +214,8 @@ function getSupportedLanguages() {
   return Object.keys(translations);
 }
 
-function t(message, params = {}, langOrChatId) {
-  let lang;
-  if (typeof langOrChatId === 'string' && translations[langOrChatId]) {
-    lang = langOrChatId;
-  } else if (langOrChatId !== undefined) {
-    lang = getLanguage(langOrChatId);
-  } else {
-    lang = defaultLanguage;
-  }
+function t(message, chatId, params = {}) {
+  const lang = chatId !== undefined ? getLanguage(chatId) : defaultLanguage;
 
   let text = (translations[lang] && translations[lang][message]) || message;
   for (const [key, value] of Object.entries(params)) {

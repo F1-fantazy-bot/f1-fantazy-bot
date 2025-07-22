@@ -6,7 +6,7 @@ async function displayHelpMessage(bot, msg) {
   const chatId = msg.chat.id;
   const isAdmin = isAdminMessage(msg);
 
-  let helpMessage = `*${t('F1 Fantasy Bot - Available Commands', {}, chatId)}*\n\n`;
+  let helpMessage = `*${t('F1 Fantasy Bot - Available Commands', chatId)}*\n\n`;
 
   // Add each menu category section in their natural order
   Object.values(MENU_CATEGORIES).forEach((category) => {
@@ -38,7 +38,7 @@ function buildCategoryHelpSection(category, isAdmin, chatId) {
     return '';
   }
 
-  let categorySection = `${t(category.title, {}, chatId)}\n`;
+  let categorySection = `${t(category.title, chatId)}\n`;
 
   // Filter visible commands for this category
   const visibleCommands = category.commands.filter((command) => {
@@ -48,7 +48,6 @@ function buildCategoryHelpSection(category, isAdmin, chatId) {
   visibleCommands.forEach((command) => {
     categorySection += `${command.constant.replace(/_/g, '\\_')} - ${t(
       command.description,
-      {},
       chatId
     )}\n`;
   });
@@ -62,12 +61,14 @@ function buildCategoryHelpSection(category, isAdmin, chatId) {
  */
 function buildOtherMessagesSection(chatId) {
   return (
-    `*${t('Other Messages', {}, chatId)}:*\n` +
-    `${t('Send an image (drivers, constructors, or current team screenshot) to automatically extract and cache the relevant data.', {}, chatId)}\n` +
-    `${t('Send valid JSON data to update your drivers, constructors, and current team cache.', {}, chatId)}\n` +
-    `${t('Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using {CMD}).', {
-      CMD: COMMAND_BEST_TEAMS.replace(/_/g, '\\_'),
-    }, chatId)}`
+    `*${t('Other Messages', chatId)}:*\n` +
+    `${t('Send an image (drivers, constructors, or current team screenshot) to automatically extract and cache the relevant data.', chatId)}\n` +
+    `${t('Send valid JSON data to update your drivers, constructors, and current team cache.', chatId)}\n` +
+    `${t(
+      'Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using {CMD}).',
+      chatId,
+      { CMD: COMMAND_BEST_TEAMS.replace(/_/g, '\\_') }
+    )}`
   );
 }
 

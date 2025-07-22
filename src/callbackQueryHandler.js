@@ -55,9 +55,9 @@ async function handlePhotoCallback(bot, query) {
 
   // Optional: edit the message to confirm
   await bot.editMessageText(
-    t('Photo labeled as {TYPE}. Wait for extracted JSON data...', {
+    t('Photo labeled as {TYPE}. Wait for extracted JSON data...', chatId, {
       TYPE: type.toUpperCase(),
-    }, chatId),
+    }),
     {
       chat_id: chatId,
       message_id: messageId,
@@ -88,7 +88,7 @@ async function handlePhotoCallback(bot, query) {
     await bot
       .sendMessage(
         chatId,
-        t('An error occurred while extracting data from the photo.', {}, chatId)
+        t('An error occurred while extracting data from the photo.', chatId)
       )
       .catch((err) =>
         console.error('Error sending extraction error message:', err)
@@ -110,14 +110,16 @@ async function handleChipCallback(bot, query) {
   // Clear best teams cache when user selects a chip
   delete bestTeamsCache[chatId];
 
-  let message = t('Selected chip: {CHIP}.', { CHIP: chip.toUpperCase() }, chatId);
+  let message = t('Selected chip: {CHIP}.', chatId, { CHIP: chip.toUpperCase() });
 
   if (isThereDataInBestTeamsCache) {
     message +=
       '\n' +
-      t('Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.', {
-        CMD: COMMAND_BEST_TEAMS,
-      }, chatId);
+      t(
+        'Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.',
+        chatId,
+        { CMD: COMMAND_BEST_TEAMS }
+      );
   }
 
   await bot.editMessageText(message, {
@@ -136,7 +138,7 @@ async function handleLanguageCallback(bot, query) {
 
   setLanguage(lang, chatId);
 
-  await bot.editMessageText(t('Language changed to {LANG}.', { LANG: lang }, chatId), {
+  await bot.editMessageText(t('Language changed to {LANG}.', chatId, { LANG: lang }), {
     chat_id: chatId,
     message_id: messageId,
   });

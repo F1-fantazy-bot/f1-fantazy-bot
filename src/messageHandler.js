@@ -44,7 +44,7 @@ exports.handleMessage = async function (bot, msg) {
 
   // For unsupported message types
   await bot
-    .sendMessage(chatId, t('Sorry, I only support text and image messages.', {}, chatId))
+    .sendMessage(chatId, t('Sorry, I only support text and image messages.', chatId))
     .catch((err) =>
       console.error('Error sending unsupported type reply:', err)
     );

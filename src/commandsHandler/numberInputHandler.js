@@ -27,9 +27,9 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
         await bot
           .sendMessage(
             chatId,
-            t('You are already at team {TEAM}. No changes needed.', {
+            t('You are already at team {TEAM}. No changes needed.', chatId, {
               TEAM: teamRowRequested,
-            }, chatId)
+            })
           )
           .catch((err) =>
             console.error('Error sending no changes message:', err)
@@ -78,7 +78,7 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
       await bot
         .sendMessage(
           chatId,
-          t('No team found for number {NUM}.', { NUM: teamRowRequested }, chatId)
+          t('No team found for number {NUM}.', chatId, { NUM: teamRowRequested })
         )
         .catch((err) =>
           console.error('Error sending team not found message:', err)
@@ -88,7 +88,7 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
     await bot
       .sendMessage(
         chatId,
-        t('No cached teams available. Please send full JSON data or images first and then run the {CMD} command.', { CMD: COMMAND_BEST_TEAMS }, chatId)
+        t('No cached teams available. Please send full JSON data or images first and then run the {CMD} command.', chatId, { CMD: COMMAND_BEST_TEAMS })
       )
       .catch((err) =>
         console.error('Error sending cache unavailable message:', err)
@@ -104,61 +104,61 @@ function getRequiredChangesMessage(
   selectedChip,
   chatId
 ) {
-  let message = `*${t('Team {NUM} Required Changes:', { NUM: teamRowRequested }, chatId)}*\n`;
+  let message = `*${t('Team {NUM} Required Changes:', chatId, { NUM: teamRowRequested })}*\n`;
   if (changesToTeam.driversToAdd.length) {
-    message += `*${t('Drivers To Add', {}, chatId)}:* ${changesToTeam.driversToAdd.join(', ')}\n`;
+    message += `*${t('Drivers To Add', chatId)}:* ${changesToTeam.driversToAdd.join(', ')}\n`;
   }
 
   if (changesToTeam.driversToRemove.length) {
-    message += `*${t('Drivers To Remove', {}, chatId)}:* ${changesToTeam.driversToRemove.join(
+    message += `*${t('Drivers To Remove', chatId)}:* ${changesToTeam.driversToRemove.join(
       ', '
     )}\n`;
   }
 
   if (changesToTeam.constructorsToAdd.length) {
-    message += `*${t('Constructors To Add', {}, chatId)}:* ${changesToTeam.constructorsToAdd.join(
+    message += `*${t('Constructors To Add', chatId)}:* ${changesToTeam.constructorsToAdd.join(
       ', '
     )}\n`;
   }
   if (changesToTeam.constructorsToRemove.length) {
-    message += `*${t('Constructors To Remove', {}, chatId)}:* ${changesToTeam.constructorsToRemove.join(
+    message += `*${t('Constructors To Remove', chatId)}:* ${changesToTeam.constructorsToRemove.join(
       ', '
     )}\n`;
   }
 
   if (changesToTeam.extraDrsDriver) {
-    message += `*${t('Extra DRS Driver', {}, chatId)}:* ${changesToTeam.extraDrsDriver}\n`;
+    message += `*${t('Extra DRS Driver', chatId)}:* ${changesToTeam.extraDrsDriver}\n`;
   }
 
   if (changesToTeam.newDRS !== undefined) {
     message += `*${
-      changesToTeam.extraDrsDriver ? '' : t('New ', {}, chatId)
-    }${t('DRS Driver', {}, chatId)}:* ${changesToTeam.newDRS}\n`;
+      changesToTeam.extraDrsDriver ? '' : t('New ', chatId)
+    }${t('DRS Driver', chatId)}:* ${changesToTeam.newDRS}\n`;
   }
 
   if (changesToTeam.chipToActivate !== undefined) {
-    message += `*${t('Chip To Activate', {}, chatId)}:* ${selectedChip.replace(/_/g, ' ')}\n`;
+    message += `*${t('Chip To Activate', chatId)}:* ${selectedChip.replace(/_/g, ' ')}\n`;
   }
 
   return message;
 }
 
 function getSelectedTeamInfo(teamRowRequested, selectedTeam, changesToTeam, chatId) {
-  let message = `\n*${t('Team {NUM} Info:', { NUM: teamRowRequested }, chatId)}*\n`;
-  message += `*${t('Projected Points', {}, chatId)}:* ${selectedTeam.projected_points.toFixed(
+  let message = `\n*${t('Team {NUM} Info:', chatId, { NUM: teamRowRequested })}*\n`;
+  message += `*${t('Projected Points', chatId)}:* ${selectedTeam.projected_points.toFixed(
     2
   )}\n`;
-  message += `*${t('Expected Price Change', {}, chatId)}:* ${selectedTeam.expected_price_change.toFixed(
+  message += `*${t('Expected Price Change', chatId)}:* ${selectedTeam.expected_price_change.toFixed(
     2
   )}M\n`;
 
   if (changesToTeam.deltaPoints !== undefined) {
-    message += `*${t('Δ Points', {}, chatId)}:* ${
+    message += `*${t('Δ Points', chatId)}:* ${
       changesToTeam.deltaPoints > 0 ? '+' : ''
     }${changesToTeam.deltaPoints.toFixed(2)}\n`;
   }
   if (changesToTeam.deltaPrice !== undefined) {
-    message += `*${t('Δ Price', {}, chatId)}:* ${
+    message += `*${t('Δ Price', chatId)}:* ${
       changesToTeam.deltaPrice > 0 ? '+' : ''
     }${changesToTeam.deltaPrice.toFixed(2)}M`;
   }
@@ -190,17 +190,17 @@ function getDriverAndConstructorsDetailsMessage(cachedJsonData, changesToTeam, c
     let isNew = changesToTeam.driversToAdd.includes(driverName);
 
     if (driverName === changesToTeam.extraDrsDriver) {
-      displayName += ` (${t('Extra DRS', {}, chatId)})`;
+      displayName += ` (${t('Extra DRS', chatId)})`;
       points *= 3;
     } else if (driverName === changesToTeam.newDRS) {
-      displayName += ` (${t('DRS', {}, chatId)})`;
+      displayName += ` (${t('DRS', chatId)})`;
       isNew = true;
       points *= 2;
     } else if (
       driverName === cachedJsonData.CurrentTeam.drsBoost &&
       !changesToTeam.newDRS
     ) {
-      displayName += ` (${t('DRS', {}, chatId)})`;
+      displayName += ` (${t('DRS', chatId)})`;
       points *= 2;
     }
 
@@ -231,7 +231,7 @@ function getDriverAndConstructorsDetailsMessage(cachedJsonData, changesToTeam, c
   processedDrivers.sort((a, b) => b.points - a.points);
   processedConstructors.sort((a, b) => b.points - a.points);
 
-  let message = `\n\n*${t('Drivers', {}, chatId)}:*\n`;
+  let message = `\n\n*${t('Drivers', chatId)}:*\n`;
   processedDrivers.forEach((driver) => {
     message += `${driver.displayName}: ${driver.points.toFixed(
       2
@@ -243,7 +243,7 @@ function getDriverAndConstructorsDetailsMessage(cachedJsonData, changesToTeam, c
     message += '\n';
   });
 
-  message += `\n*${t('Constructors', {}, chatId)}:*\n`;
+  message += `\n*${t('Constructors', chatId)}:*\n`;
   processedConstructors.forEach((constructor) => {
     message += `${constructor.displayName}: ${constructor.points.toFixed(
       2

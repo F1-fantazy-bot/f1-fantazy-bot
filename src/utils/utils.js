@@ -97,7 +97,7 @@ exports.validateJsonData = async function (
     await bot
       .sendMessage(
         chatId,
-        t('Invalid JSON data. Please ensure it contains 20 drivers under "Drivers" property.', {}, chatId)
+        t('Invalid JSON data. Please ensure it contains 20 drivers under "Drivers" property.', chatId)
       )
       .catch((err) => console.error('Error sending JSON error message:', err));
 
@@ -112,7 +112,7 @@ exports.validateJsonData = async function (
     await bot
       .sendMessage(
         chatId,
-        t('Invalid JSON data. Please ensure it contains 10 constructors under "Constructors" property.', {}, chatId)
+        t('Invalid JSON data. Please ensure it contains 10 constructors under "Constructors" property.', chatId)
       )
       .catch((err) => console.error('Error sending JSON error message:', err));
 
@@ -139,7 +139,7 @@ exports.validateJsonData = async function (
     await bot
       .sendMessage(
         chatId,
-        t('Invalid JSON data. Please ensure it contains the required properties under "CurrentTeam" property.', {}, chatId)
+        t('Invalid JSON data. Please ensure it contains the required properties under "CurrentTeam" property.', chatId)
       )
       .catch((err) => console.error('Error sending JSON error message:', err));
 
@@ -193,7 +193,7 @@ exports.triggerScraping = async function (bot, chatId) {
   if (!url) {
     await bot.sendMessage(
       chatId,
-      t('Error: Scraping trigger URL is not configured.', {}, chatId)
+      t('Error: Scraping trigger URL is not configured.', chatId)
     );
 
     return;

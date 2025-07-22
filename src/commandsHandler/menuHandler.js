@@ -95,7 +95,7 @@ async function handleMenuCallback(bot, query) {
       return; // Don't answer callback query here
     default:
       await bot.answerCallbackQuery(query.id, {
-        text: t('Unknown menu action', {}, chatId),
+        text: t('Unknown menu action', chatId),
         show_alert: true,
       });
 
@@ -106,9 +106,9 @@ async function handleMenuCallback(bot, query) {
 }
 
 function buildMainMenuMessage(chatId) {
-  const menuMessage = t('🎯 *F1 Fantasy Bot Menu*\n\nChoose a category:', {}, chatId);
+  const menuMessage = t('🎯 *F1 Fantasy Bot Menu*\n\nChoose a category:', chatId);
   const tipMessage =
-    menuMessage + `\n\n💡 *${t('Tip:', {}, chatId)}* ${t('Use {CMD} for quick text-based help', { CMD: COMMAND_HELP }, chatId)}`;
+    menuMessage + `\n\n💡 *${t('Tip:', chatId)}* ${t('Use {CMD} for quick text-based help', chatId, { CMD: COMMAND_HELP })}`;
 
   return tipMessage;
 }
@@ -127,7 +127,7 @@ function buildMainMenuKeyboard(isAdmin, chatId) {
   const keyboard = buildKeyboard(
     visibleCategories,
     (category) => ({
-      text: t(category.title, {}, chatId),
+      text: t(category.title, chatId),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.CATEGORY}:${category.id}`,
     }),
     2
@@ -136,7 +136,7 @@ function buildMainMenuKeyboard(isAdmin, chatId) {
   // Add direct help button
   keyboard.push([
     {
-      text: t('❓ Help', {}, chatId),
+      text: t('❓ Help', chatId),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.HELP}`,
     },
   ]);
@@ -173,7 +173,7 @@ function buildCategoryMenuKeyboard(category, isAdmin, chatId) {
   const keyboard = buildKeyboard(
     visibleCommands,
     (command) => ({
-      text: t(command.title, {}, chatId),
+      text: t(command.title, chatId),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.COMMAND}:${command.constant}`,
     }),
     2
@@ -182,7 +182,7 @@ function buildCategoryMenuKeyboard(category, isAdmin, chatId) {
   // Add back button
   keyboard.push([
     {
-      text: t('⬅️ Back to Main Menu', {}, chatId),
+      text: t('⬅️ Back to Main Menu', chatId),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.MAIN_MENU}`,
     },
   ]);
@@ -215,7 +215,7 @@ async function showCategoryMenu(bot, chatId, messageId, categoryId, isAdmin) {
     return;
   }
 
-  const menuMessage = `${t(category.title, {}, chatId)}\n\n${t(category.description, {}, chatId)}\n\n${t('Choose a command:', {}, chatId)}`;
+  const menuMessage = `${t(category.title, chatId)}\n\n${t(category.description, chatId)}\n\n${t('Choose a command:', chatId)}`;
   const keyboard = buildCategoryMenuKeyboard(category, isAdmin, chatId);
 
   await bot.editMessageText(menuMessage, {
@@ -245,7 +245,7 @@ async function executeCommand(bot, query, command) {
     try {
       // Answer the callback query first
       await bot.answerCallbackQuery(query.id, {
-        text: t('Executing {CMD}...', { CMD: command }, chatId),
+        text: t('Executing {CMD}...', chatId, { CMD: command }),
       });
 
       // Execute the command based on handler parameter patterns
@@ -266,13 +266,13 @@ async function executeCommand(bot, query, command) {
     } catch (error) {
       console.error(`Error executing command ${command}:`, error);
       await bot.answerCallbackQuery(query.id, {
-        text: t('Error executing command', {}, chatId),
+        text: t('Error executing command', chatId),
         show_alert: true,
       });
     }
   } else {
     await bot.answerCallbackQuery(query.id, {
-      text: t('Command not found', {}, chatId),
+      text: t('Command not found', chatId),
       show_alert: true,
     });
   }
@@ -287,13 +287,13 @@ async function executeHelpCommand(bot, query) {
 
   try {
     await bot.answerCallbackQuery(query.id, {
-      text: t('Showing help...', {}, chatId),
+      text: t('Showing help...', chatId),
     });
     await displayHelpMessage(bot, mockMsg);
   } catch (error) {
     console.error('Error executing help command:', error);
     await bot.answerCallbackQuery(query.id, {
-      text: t('Error showing help', {}, chatId),
+      text: t('Error showing help', chatId),
       show_alert: true,
     });
   }

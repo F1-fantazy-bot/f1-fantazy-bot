@@ -13,7 +13,7 @@ async function sendPrintableCache(chatId, bot) {
     await bot
       .sendMessage(
         chatId,
-        t('Drivers cache is empty. Please send drivers image or valid JSON data.', {}, chatId)
+        t('Drivers cache is empty. Please send drivers image or valid JSON data.', chatId)
       )
       .catch((err) =>
         console.error('Error sending empty drivers cache message:', err)
@@ -22,13 +22,13 @@ async function sendPrintableCache(chatId, bot) {
 
   if (selectedChip) {
     await bot
-      .sendMessage(chatId, t('Selected Chip: {CHIP}', { CHIP: selectedChip }, chatId))
+      .sendMessage(chatId, t('Selected Chip: {CHIP}', chatId, { CHIP: selectedChip }))
       .catch((err) =>
         console.error('Error sending selected chip message:', err)
       );
   } else {
     await bot
-      .sendMessage(chatId, t('No chip selected.', {}, chatId))
+      .sendMessage(chatId, t('No chip selected.', chatId))
       .catch((err) => console.error('Error sending no chip message:', err));
   }
 

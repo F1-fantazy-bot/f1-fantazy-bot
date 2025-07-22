@@ -13,7 +13,7 @@ async function handleBillingStats(bot, msg) {
   if (!isAdminMessage(msg)) {
     await bot.sendMessage(
       chatId,
-      t('Sorry, only admins can access billing statistics.', {}, chatId)
+      t('Sorry, only admins can access billing statistics.', chatId)
     );
 
     return;
@@ -41,10 +41,10 @@ async function handleBillingStats(bot, msg) {
         chatId,
         t(
           '❌ Error fetching billing statistics: {ERROR}\n\nPlease check your Azure configuration and permissions.',
+          chatId,
           {
             ERROR: error.message,
-          },
-          chatId
+          }
         )
       )
       .catch((err) =>
@@ -61,7 +61,7 @@ async function handleBillingStats(bot, msg) {
  */
 function formatMonthSection(monthData, title, chatId) {
   if (!monthData.hasData) {
-    return `*${title}*\n${t('No billing data available for this period.', {}, chatId)}\n\n`;
+    return `*${title}*\n${t('No billing data available for this period.', chatId)}\n\n`;
   }
 
   const { period, totalCost, serviceBreakdown } = monthData;
@@ -87,13 +87,13 @@ function formatMonthSection(monthData, title, chatId) {
 function formatBillingMessage(billingData, chatId) {
   const { currentMonth, previousMonth } = billingData;
 
-  let message = `*${t('Azure Billing Statistics', {}, chatId)}*\n\n`;
+  let message = `*${t('Azure Billing Statistics', chatId)}*\n\n`;
 
   // Current month section
-  message += formatMonthSection(currentMonth, t('Current Month', {}, chatId), chatId);
+  message += formatMonthSection(currentMonth, t('Current Month', chatId), chatId);
 
   // Previous month section
-  message += formatMonthSection(previousMonth, t('Previous Month', {}, chatId), chatId);
+  message += formatMonthSection(previousMonth, t('Previous Month', chatId), chatId);
 
   // Comparison if both months have data
   if (currentMonth.hasData && previousMonth.hasData) {
@@ -103,17 +103,17 @@ function formatBillingMessage(billingData, chatId) {
     const percentChange =
       previousCost > 0 ? (difference / previousCost) * 100 : 0;
 
-    message += `*📈 ${t('Month-over-Month Comparison:', {}, chatId)}*\n`;
+    message += `*📈 ${t('Month-over-Month Comparison:', chatId)}*\n`;
     if (difference > 0) {
-      message += `📈 ${t('Increase', {}, chatId)}: $${difference.toFixed(
+      message += `📈 ${t('Increase', chatId)}: $${difference.toFixed(
         2
       )} (+${percentChange.toFixed(1)}%)\n`;
     } else if (difference < 0) {
-      message += `📉 ${t('Decrease', {}, chatId)}: $${Math.abs(difference).toFixed(2)} (-${Math.abs(
+      message += `📉 ${t('Decrease', chatId)}: $${Math.abs(difference).toFixed(2)} (-${Math.abs(
         percentChange
       ).toFixed(1)}%)\n`;
     } else {
-      message += `➡️ ${t('No change', {}, chatId)}: $0.00 (0.0%)\n`;
+      message += `➡️ ${t('No change', chatId)}: $0.00 (0.0%)\n`;
     }
   }
 

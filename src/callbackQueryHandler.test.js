@@ -366,7 +366,7 @@ describe('handleCallbackQuery', () => {
       await handleCallbackQuery(bot, langQuery);
 
       expect(bot.editMessageText).toHaveBeenCalledWith(
-        t('Language changed to {LANG}.', { LANG: 'he' }, chatId),
+        t('Language changed to {LANG}.', chatId, { LANG: 'he' }),
         expect.objectContaining({ chat_id: chatId, message_id: messageId })
       );
       expect(bot.answerCallbackQuery).toHaveBeenCalledWith('langQueryId');

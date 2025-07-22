@@ -21,7 +21,7 @@ async function handleBestTeamsMessage(bot, chatId) {
     await bot
       .sendMessage(
         chatId,
-        t('Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.', {}, chatId)
+        t('Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.', chatId)
       )
       .catch((err) =>
         console.error('Error sending cache unavailable message:', err)
@@ -102,7 +102,7 @@ async function handleBestTeamsMessage(bot, chatId) {
   await bot
     .sendMessage(
       chatId,
-      t('Please send a number to get the required changes to that team.', {}, chatId)
+      t('Please send a number to get the required changes to that team.', chatId)
     )
     .catch((err) =>
       console.error('Error sending number request message:', err)
