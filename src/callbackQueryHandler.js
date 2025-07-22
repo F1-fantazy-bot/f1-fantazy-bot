@@ -17,13 +17,14 @@ const {
   PHOTO_CALLBACK_TYPE,
   CHIP_CALLBACK_TYPE,
   MENU_CALLBACK_TYPE,
+  LANG_CALLBACK_TYPE,
   WITHOUT_CHIP,
   COMMAND_BEST_TEAMS,
 } = require('./constants');
 
 const { sendLogMessage } = require('./utils');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
-const { t } = require('./i18n');
+const { t, setLanguage } = require('./i18n');
 
 exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
@@ -33,6 +34,8 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handlePhotoCallback(bot, query);
     case CHIP_CALLBACK_TYPE:
       return await handleChipCallback(bot, query);
+    case LANG_CALLBACK_TYPE:
+      return await handleLanguageCallback(bot, query);
     case MENU_CALLBACK_TYPE:
       return await handleMenuCallback(bot, query);
     default:
@@ -123,6 +126,21 @@ async function handleChipCallback(bot, query) {
   });
 
   // Answer callback to remove "Loading..." spinner
+  await bot.answerCallbackQuery(query.id);
+}
+
+async function handleLanguageCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const messageId = query.message.message_id;
+  const lang = query.data.split(':')[1];
+
+  setLanguage(lang);
+
+  await bot.editMessageText(t('Language changed to {LANG}.', { LANG: lang }), {
+    chat_id: chatId,
+    message_id: messageId,
+  });
+
   await bot.answerCallbackQuery(query.id);
 }
 

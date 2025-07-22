@@ -119,6 +119,9 @@ const translations = {
     'Invalid language. Supported languages: {LANGS}':
       'שפה לא תקינה. השפות הזמינות: {LANGS}',
     'Usage: {CMD} <LANG>': 'שימוש: {CMD} <שפה>',
+    'Please select a language:': 'אנא בחר שפה:',
+    English: 'אנגלית',
+    Hebrew: 'עברית',
     '🌐 Set Language': '🌐 הגדר שפה',
     'Change bot language for this session': 'שנה את שפת הבוט להפעלה זו'
   }

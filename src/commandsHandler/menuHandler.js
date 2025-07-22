@@ -16,6 +16,7 @@ const {
   COMMAND_NEXT_RACE_INFO,
   COMMAND_BILLING_STATS,
   COMMAND_VERSION,
+  COMMAND_SET_LANGUAGE,
 } = require('../constants');
 
 // Import command handlers directly to avoid circular dependency
@@ -32,6 +33,7 @@ const { resetCacheForChat } = require('./resetCacheHandler');
 const { handleScrapingTrigger } = require('./scrapingTriggerHandler');
 const { handleBillingStats } = require('./billingStatsHandler');
 const { handleVersionCommand } = require('./versionHandler');
+const { handleSetLanguage } = require('./setLanguageHandler');
 const { t } = require('../i18n');
 
 // Map commands to their handler functions
@@ -49,6 +51,7 @@ const COMMAND_HANDLERS = {
   [COMMAND_NEXT_RACE_INFO]: handleNextRaceInfoCommand,
   [COMMAND_BILLING_STATS]: handleBillingStats,
   [COMMAND_VERSION]: handleVersionCommand,
+  [COMMAND_SET_LANGUAGE]: handleSetLanguage,
 };
 
 async function displayMenuMessage(bot, msg) {

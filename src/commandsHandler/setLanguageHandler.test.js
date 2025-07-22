@@ -37,14 +37,18 @@ describe('handleSetLanguage', () => {
   });
 
   it('should send usage message when no language provided', async () => {
-    const msgMock = { chat: { id: KILZI_CHAT_ID }, text: '/lang' };
+    const msgMock = { chat: { id: KILZI_CHAT_ID }, text: '/lang', message_id: 5 };
 
     await handleSetLanguage(botMock, msgMock);
 
     expect(getLanguage()).toBe('en');
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      t('Usage: {CMD} <LANG>', { CMD: '/lang' })
+      t('Please select a language:'),
+      expect.objectContaining({
+        reply_to_message_id: 5,
+        reply_markup: { inline_keyboard: expect.any(Array) },
+      })
     );
   });
 });

@@ -1,5 +1,5 @@
 const { t, setLanguage, getSupportedLanguages } = require('../i18n');
-const { COMMAND_SET_LANGUAGE } = require('../constants');
+const { LANG_CALLBACK_TYPE } = require('../constants');
 
 async function handleSetLanguage(bot, msg) {
   const chatId = msg.chat.id;
@@ -7,9 +7,19 @@ async function handleSetLanguage(bot, msg) {
   const lang = parts[1];
 
   if (!lang) {
+    const keyboard = getSupportedLanguages().map((code) => [
+      {
+        text: t(code === 'en' ? 'English' : 'Hebrew'),
+        callback_data: `${LANG_CALLBACK_TYPE}:${code}`,
+      },
+    ]);
+
     await bot
-      .sendMessage(chatId, t('Usage: {CMD} <LANG>', { CMD: COMMAND_SET_LANGUAGE }))
-      .catch((err) => console.error('Error sending usage message:', err));
+      .sendMessage(chatId, t('Please select a language:'), {
+        reply_to_message_id: msg.message_id,
+        reply_markup: { inline_keyboard: keyboard },
+      })
+      .catch((err) => console.error('Error sending language menu:', err));
 
     return;
   }
