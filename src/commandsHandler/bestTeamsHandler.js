@@ -8,6 +8,7 @@ const {
   selectedChipCache,
   sharedKey,
 } = require('../cache');
+const { t } = require('../i18n');
 
 async function handleBestTeamsMessage(bot, chatId) {
   // Try to fetch cached data for this chat
@@ -20,7 +21,7 @@ async function handleBestTeamsMessage(bot, chatId) {
     await bot
       .sendMessage(
         chatId,
-        'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.'
+        t('Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.')
       )
       .catch((err) =>
         console.error('Error sending cache unavailable message:', err)
@@ -101,7 +102,7 @@ async function handleBestTeamsMessage(bot, chatId) {
   await bot
     .sendMessage(
       chatId,
-      'Please send a number to get the required changes to that team.'
+      t('Please send a number to get the required changes to that team.')
     )
     .catch((err) =>
       console.error('Error sending number request message:', err)

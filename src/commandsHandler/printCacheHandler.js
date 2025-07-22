@@ -1,4 +1,5 @@
 const { getPrintableCache, selectedChipCache } = require('../cache');
+const { t } = require('../i18n');
 
 async function sendPrintableCache(chatId, bot) {
   const printableCache = getPrintableCache(chatId);
@@ -12,7 +13,7 @@ async function sendPrintableCache(chatId, bot) {
     await bot
       .sendMessage(
         chatId,
-        'Drivers cache is empty. Please send drivers image or valid JSON data.'
+        t('Drivers cache is empty. Please send drivers image or valid JSON data.')
       )
       .catch((err) =>
         console.error('Error sending empty drivers cache message:', err)
@@ -21,13 +22,13 @@ async function sendPrintableCache(chatId, bot) {
 
   if (selectedChip) {
     await bot
-      .sendMessage(chatId, `Selected Chip: ${selectedChip}`)
+      .sendMessage(chatId, t('Selected Chip: {CHIP}', { CHIP: selectedChip }))
       .catch((err) =>
         console.error('Error sending selected chip message:', err)
       );
   } else {
     await bot
-      .sendMessage(chatId, 'No chip selected.')
+      .sendMessage(chatId, t('No chip selected.'))
       .catch((err) => console.error('Error sending no chip message:', err));
   }
 

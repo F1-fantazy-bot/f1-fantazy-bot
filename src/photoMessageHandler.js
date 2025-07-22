@@ -5,6 +5,7 @@ const {
   CURRENT_TEAM_PHOTO_TYPE,
   PHOTO_CALLBACK_TYPE,
 } = require('./constants');
+const { t } = require('./i18n');
 
 exports.handlePhotoMessage = async function (bot, msg) {
   const chatId = msg.chat.id;
@@ -24,21 +25,21 @@ exports.handlePhotoMessage = async function (bot, msg) {
   };
 
   // Reply with inline buttons
-  await bot.sendMessage(chatId, 'What type is this photo?', {
+  await bot.sendMessage(chatId, t('What type is this photo?'), {
     reply_to_message_id: messageId,
     reply_markup: {
       inline_keyboard: [
         [
           {
-            text: 'Drivers',
+            text: t('Drivers'),
             callback_data: `${PHOTO_CALLBACK_TYPE}:${DRIVERS_PHOTO_TYPE}:${fileUniqueId}`,
           },
           {
-            text: 'Constructors',
+            text: t('Constructors'),
             callback_data: `${PHOTO_CALLBACK_TYPE}:${CONSTRUCTORS_PHOTO_TYPE}:${fileUniqueId}`,
           },
           {
-            text: 'Current Team',
+            text: t('Current Team'),
             callback_data: `${PHOTO_CALLBACK_TYPE}:${CURRENT_TEAM_PHOTO_TYPE}:${fileUniqueId}`,
           },
         ],

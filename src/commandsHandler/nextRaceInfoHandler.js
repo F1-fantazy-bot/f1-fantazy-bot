@@ -6,13 +6,14 @@ const {
   sharedKey,
   weatherForecastCache,
 } = require('../cache');
+const { t } = require('../i18n');
 
 async function handleNextRaceInfoCommand(bot, chatId) {
   const nextRaceInfo = nextRaceInfoCache[sharedKey];
 
   if (!nextRaceInfo) {
     await bot
-      .sendMessage(chatId, 'Next race information is currently unavailable.')
+      .sendMessage(chatId, t('Next race information is currently unavailable.'))
       .catch((err) =>
         console.error('Error sending next race info unavailable message:', err)
       );
@@ -99,38 +100,38 @@ async function handleNextRaceInfoCommand(bot, chatId) {
 
   // Build weather section
   if (qualifyingWeather && raceWeather) {
-    weatherSection += '*Weather Forecast:*\n';
+    weatherSection += `*${t('Weather Forecast')}:*\n`;
     if (isSprintWeekend) {
-      weatherSection += `*Sprint Qualifying:*\n🌡️ Temp: ${sprintQualifyingWeather.temperature}°C\n🌧️ Rain: ${sprintQualifyingWeather.precipitation}%\n💨 Wind: ${sprintQualifyingWeather.wind} km/h\n`;
-      weatherSection += `*Sprint:*\n🌡️ Temp: ${sprintWeather.temperature}°C\n🌧️ Rain: ${sprintWeather.precipitation}%\n💨 Wind: ${sprintWeather.wind} km/h\n`;
+      weatherSection += `*${t('Sprint Qualifying')}:*\n🌡️ Temp: ${sprintQualifyingWeather.temperature}°C\n🌧️ Rain: ${sprintQualifyingWeather.precipitation}%\n💨 Wind: ${sprintQualifyingWeather.wind} km/h\n`;
+      weatherSection += `*${t('Sprint')}:*\n🌡️ Temp: ${sprintWeather.temperature}°C\n🌧️ Rain: ${sprintWeather.precipitation}%\n💨 Wind: ${sprintWeather.wind} km/h\n`;
     }
-    weatherSection += `*Qualifying:*\n🌡️ Temp: ${qualifyingWeather.temperature}°C\n🌧️ Rain: ${qualifyingWeather.precipitation}%\n💨 Wind: ${qualifyingWeather.wind} km/h\n`;
-    weatherSection += `*Race:*\n🌡️ Temp: ${raceWeather.temperature}°C\n🌧️ Rain: ${raceWeather.precipitation}%\n💨 Wind: ${raceWeather.wind} km/h\n\n`;
+    weatherSection += `*${t('Qualifying')}:*\n🌡️ Temp: ${qualifyingWeather.temperature}°C\n🌧️ Rain: ${qualifyingWeather.precipitation}%\n💨 Wind: ${qualifyingWeather.wind} km/h\n`;
+    weatherSection += `*${t('Race')}:*\n🌡️ Temp: ${raceWeather.temperature}°C\n🌧️ Rain: ${raceWeather.precipitation}%\n💨 Wind: ${raceWeather.wind} km/h\n\n`;
   }
 
   // Create message with next race information
-  let message = `*Next Race Information*\n\n`;
-  message += `🏎️ *Race Name:* ${nextRaceInfo.raceName}\n`;
-  message += `🏁 *Track:* ${nextRaceInfo.circuitName}\n`;
-  message += `📍 *Location:* ${nextRaceInfo.location.locality}, ${nextRaceInfo.location.country}\n`;
+  let message = `*${t('Next Race Information')}*\n\n`;
+  message += `🏎️ *${t('Race Name')}:* ${nextRaceInfo.raceName}\n`;
+  message += `🏁 *${t('Track')}:* ${nextRaceInfo.circuitName}\n`;
+  message += `📍 *${t('Location')}:* ${nextRaceInfo.location.locality}, ${nextRaceInfo.location.country}\n`;
   if (isSprintWeekend) {
-    message += `📅 *Sprint Qualifying Date:* ${sprintQualifyingDateStr}\n`;
-    message += `⏰ *Sprint Qualifying Time:* ${sprintQualifyingTimeStr}\n`;
-    message += `📅 *Sprint Date:* ${sprintDateStr}\n`;
-    message += `⏰ *Sprint Time:* ${sprintTimeStr}\n`;
+    message += `📅 *${t('Sprint Qualifying Date')}:* ${sprintQualifyingDateStr}\n`;
+    message += `⏰ *${t('Sprint Qualifying Time')}:* ${sprintQualifyingTimeStr}\n`;
+    message += `📅 *${t('Sprint Date')}:* ${sprintDateStr}\n`;
+    message += `⏰ *${t('Sprint Time')}:* ${sprintTimeStr}\n`;
   }
-  message += `📅 *Qualifying Date:* ${qualifyingDateStr}\n`;
-  message += `⏰ *Qualifying Time:* ${qualifyingTimeStr}\n`;
-  message += `📅 *Race Date:* ${raceDateStr}\n`;
-  message += `⏰ *Race Time:* ${raceTimeStr}\n`;
-  message += `📝 *Weekend Format:* ${
+  message += `📅 *${t('Qualifying Date')}:* ${qualifyingDateStr}\n`;
+  message += `⏰ *${t('Qualifying Time')}:* ${qualifyingTimeStr}\n`;
+  message += `📅 *${t('Race Date')}:* ${raceDateStr}\n`;
+  message += `⏰ *${t('Race Time')}:* ${raceTimeStr}\n`;
+  message += `📝 *${t('Weekend Format')}:* ${
     nextRaceInfo.weekendFormat.charAt(0).toUpperCase() +
     nextRaceInfo.weekendFormat.slice(1)
   }\n\n`;
   message += weatherSection;
 
   // Add historical data section
-  message += '*Historical Race Stats (Last Decade):*\n';
+  message += `*${t('Historical Race Stats (Last Decade)')}:*\n`;
   if (
     nextRaceInfo.historicalRaceStats &&
     nextRaceInfo.historicalRaceStats.length > 0
@@ -139,29 +140,29 @@ async function handleNextRaceInfoCommand(bot, chatId) {
       .sort((a, b) => b.season - a.season)
       .forEach((data) => {
         message += `*${data.season}:*\n`;
-        message += `🚀 Pole: ${data.polePosition} (${data.poleConstructor})\n`;
-        message += `🏆 Winner: ${data.winner} (${data.constructor})\n`;
-        message += `🥈 2nd: ${data.secondPlaceDriver} (${data.secondPlaceConstructor})\n`;
-        message += `🥉 3rd: ${data.thirdPlaceDriver} (${data.thirdPlaceConstructor})\n`;
-        message += `🏎️ Cars Finished: ${data.carsFinished}\n`;
+        message += `🚀 ${t('Pole')}: ${data.polePosition} (${data.poleConstructor})\n`;
+        message += `🏆 ${t('Winner')}: ${data.winner} (${data.constructor})\n`;
+        message += `🥈 ${t('2nd')}: ${data.secondPlaceDriver} (${data.secondPlaceConstructor})\n`;
+        message += `🥉 ${t('3rd')}: ${data.thirdPlaceDriver} (${data.thirdPlaceConstructor})\n`;
+        message += `🏎️ ${t('Cars Finished')}: ${data.carsFinished}\n`;
         if (data.overtakes !== undefined) {
-          message += `🔄 Overtakes: ${data.overtakes}\n`;
+          message += `🔄 ${t('Overtakes')}: ${data.overtakes}\n`;
         }
         if (data.safetyCars !== undefined) {
-          message += `⚠️🚓 Safety Cars: ${data.safetyCars}\n`;
+          message += `⚠️🚓 ${t('Safety Cars')}: ${data.safetyCars}\n`;
         }
         if (data.redFlags !== undefined) {
-          message += `🚩 Red Flags: ${data.redFlags}\n`;
+          message += `🚩 ${t('Red Flags')}: ${data.redFlags}\n`;
         }
         message += `\n`;
       });
   } else {
-    message += 'No historical data available for this track.\n\n';
+    message += `${t('No historical data available for this track.')}\n\n`;
   }
 
   if (nextRaceInfo.trackHistory) {
     // Add track History section
-    message += '*Track History:*\n';
+    message += `*${t('Track History')}:*\n`;
     message += nextRaceInfo.trackHistory;
     message += `\n`;
   }

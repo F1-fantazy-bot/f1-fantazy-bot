@@ -1,10 +1,11 @@
 const { isAdminMessage } = require('../utils');
+const { t } = require('../i18n');
 
 async function handleVersionCommand(bot, msg) {
   const chatId = msg.chat.id;
 
   if (!isAdminMessage(msg)) {
-    await bot.sendMessage(chatId, 'Sorry, only admins can use this command.');
+    await bot.sendMessage(chatId, t('Sorry, only admins can use this command.'));
 
     return;
   }

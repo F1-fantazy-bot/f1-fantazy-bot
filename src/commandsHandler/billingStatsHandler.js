@@ -1,5 +1,6 @@
 const { getMonthlyBillingStats } = require('../azureBillingService');
 const { sendLogMessage, isAdminMessage } = require('../utils/utils');
+const { t } = require('../i18n');
 
 /**
  * Handle the billing statistics command
@@ -12,7 +13,7 @@ async function handleBillingStats(bot, msg) {
   if (!isAdminMessage(msg)) {
     await bot.sendMessage(
       chatId,
-      'Sorry, only admins can access billing statistics.'
+      t('Sorry, only admins can access billing statistics.')
     );
 
     return;
@@ -38,7 +39,9 @@ async function handleBillingStats(bot, msg) {
     await bot
       .sendMessage(
         chatId,
-        `❌ Error fetching billing statistics: ${error.message}\n\nPlease check your Azure configuration and permissions.`
+        t('❌ Error fetching billing statistics: {ERROR}\n\nPlease check your Azure configuration and permissions.', {
+          ERROR: error.message,
+        })
       )
       .catch((err) =>
         console.error('Error sending billing error message:', err)
@@ -54,7 +57,7 @@ async function handleBillingStats(bot, msg) {
  */
 function formatMonthSection(monthData, title) {
   if (!monthData.hasData) {
-    return `*${title}*\nNo billing data available for this period.\n\n`;
+    return `*${title}*\n${t('No billing data available for this period.')}\n\n`;
   }
 
   const { period, totalCost, serviceBreakdown } = monthData;
@@ -80,13 +83,13 @@ function formatMonthSection(monthData, title) {
 function formatBillingMessage(billingData) {
   const { currentMonth, previousMonth } = billingData;
 
-  let message = `*Azure Billing Statistics*\n\n`;
+  let message = `*${t('Azure Billing Statistics')}*\n\n`;
 
   // Current month section
-  message += formatMonthSection(currentMonth, 'Current Month');
+  message += formatMonthSection(currentMonth, t('Current Month'));
 
   // Previous month section
-  message += formatMonthSection(previousMonth, 'Previous Month');
+  message += formatMonthSection(previousMonth, t('Previous Month'));
 
   // Comparison if both months have data
   if (currentMonth.hasData && previousMonth.hasData) {
@@ -96,17 +99,17 @@ function formatBillingMessage(billingData) {
     const percentChange =
       previousCost > 0 ? (difference / previousCost) * 100 : 0;
 
-    message += `*📈 Month-over-Month Comparison:*\n`;
+    message += `*📈 ${t('Month-over-Month Comparison:')}*\n`;
     if (difference > 0) {
-      message += `📈 Increase: $${difference.toFixed(
+      message += `📈 ${t('Increase')}: $${difference.toFixed(
         2
       )} (+${percentChange.toFixed(1)}%)\n`;
     } else if (difference < 0) {
-      message += `📉 Decrease: $${Math.abs(difference).toFixed(2)} (-${Math.abs(
+      message += `📉 ${t('Decrease')}: $${Math.abs(difference).toFixed(2)} (-${Math.abs(
         percentChange
       ).toFixed(1)}%)\n`;
     } else {
-      message += `➡️ No change: $0.00 (0.0%)\n`;
+      message += `➡️ ${t('No change')}: $0.00 (0.0%)\n`;
     }
   }
 

@@ -16,6 +16,7 @@ const {
   handleBillingStats,
   displayMenuMessage,
   handleVersionCommand,
+  handleSetLanguage,
 } = require('./commandsHandler');
 
 // Import constants
@@ -34,6 +35,7 @@ const {
   COMMAND_BILLING_STATS,
   COMMAND_VERSION,
   COMMAND_MENU,
+  COMMAND_SET_LANGUAGE,
 } = require('./constants');
 
 exports.handleTextMessage = async function (bot, msg) {
@@ -76,6 +78,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleVersionCommand(bot, msg);
     case msg.text === COMMAND_MENU:
       return await displayMenuMessage(bot, msg);
+    case msg.text.startsWith(COMMAND_SET_LANGUAGE):
+      return await handleSetLanguage(bot, msg);
     default:
       try {
         const jsonData = JSON.parse(textTrimmed);

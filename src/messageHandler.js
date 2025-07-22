@@ -5,6 +5,7 @@ const {
 } = require('./utils/utils');
 const { handleTextMessage } = require('./textMessageHandler');
 const { handlePhotoMessage } = require('./photoMessageHandler');
+const { t } = require('./i18n');
 
 exports.handleMessage = async function (bot, msg) {
   const chatId = msg.chat.id;
@@ -42,7 +43,7 @@ exports.handleMessage = async function (bot, msg) {
 
   // For unsupported message types
   await bot
-    .sendMessage(chatId, 'Sorry, I only support text and image messages.')
+    .sendMessage(chatId, t('Sorry, I only support text and image messages.'))
     .catch((err) =>
       console.error('Error sending unsupported type reply:', err)
     );

@@ -32,6 +32,7 @@ const { resetCacheForChat } = require('./resetCacheHandler');
 const { handleScrapingTrigger } = require('./scrapingTriggerHandler');
 const { handleBillingStats } = require('./billingStatsHandler');
 const { handleVersionCommand } = require('./versionHandler');
+const { t } = require('../i18n');
 
 // Map commands to their handler functions
 const COMMAND_HANDLERS = {
@@ -91,7 +92,7 @@ async function handleMenuCallback(bot, query) {
       return; // Don't answer callback query here
     default:
       await bot.answerCallbackQuery(query.id, {
-        text: 'Unknown menu action',
+        text: t('Unknown menu action'),
         show_alert: true,
       });
 
@@ -102,9 +103,9 @@ async function handleMenuCallback(bot, query) {
 }
 
 function buildMainMenuMessage() {
-  const menuMessage = '🎯 *F1 Fantasy Bot Menu*\n\nChoose a category:';
+  const menuMessage = t('🎯 *F1 Fantasy Bot Menu*\n\nChoose a category:');
   const tipMessage =
-    menuMessage + `\n\n💡 *Tip:* Use ${COMMAND_HELP} for quick text-based help`;
+    menuMessage + `\n\n💡 *${t('Tip:')}* ${t('Use {CMD} for quick text-based help', { CMD: COMMAND_HELP })}`;
 
   return tipMessage;
 }
@@ -123,7 +124,7 @@ function buildMainMenuKeyboard(isAdmin) {
   const keyboard = buildKeyboard(
     visibleCategories,
     (category) => ({
-      text: category.title,
+      text: t(category.title),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.CATEGORY}:${category.id}`,
     }),
     2
@@ -132,7 +133,7 @@ function buildMainMenuKeyboard(isAdmin) {
   // Add direct help button
   keyboard.push([
     {
-      text: '❓ Help',
+      text: t('❓ Help'),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.HELP}`,
     },
   ]);
@@ -169,7 +170,7 @@ function buildCategoryMenuKeyboard(category, isAdmin) {
   const keyboard = buildKeyboard(
     visibleCommands,
     (command) => ({
-      text: command.title,
+      text: t(command.title),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.COMMAND}:${command.constant}`,
     }),
     2
@@ -178,7 +179,7 @@ function buildCategoryMenuKeyboard(category, isAdmin) {
   // Add back button
   keyboard.push([
     {
-      text: '⬅️ Back to Main Menu',
+      text: t('⬅️ Back to Main Menu'),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.MAIN_MENU}`,
     },
   ]);
@@ -211,7 +212,7 @@ async function showCategoryMenu(bot, chatId, messageId, categoryId, isAdmin) {
     return;
   }
 
-  const menuMessage = `${category.title}\n\n${category.description}\n\nChoose a command:`;
+  const menuMessage = `${t(category.title)}\n\n${t(category.description)}\n\n${t('Choose a command:')}`;
   const keyboard = buildCategoryMenuKeyboard(category, isAdmin);
 
   await bot.editMessageText(menuMessage, {
@@ -241,7 +242,7 @@ async function executeCommand(bot, query, command) {
     try {
       // Answer the callback query first
       await bot.answerCallbackQuery(query.id, {
-        text: `Executing ${command}...`,
+        text: t('Executing {CMD}...', { CMD: command }),
       });
 
       // Execute the command based on handler parameter patterns
@@ -262,13 +263,13 @@ async function executeCommand(bot, query, command) {
     } catch (error) {
       console.error(`Error executing command ${command}:`, error);
       await bot.answerCallbackQuery(query.id, {
-        text: 'Error executing command',
+        text: t('Error executing command'),
         show_alert: true,
       });
     }
   } else {
     await bot.answerCallbackQuery(query.id, {
-      text: 'Command not found',
+      text: t('Command not found'),
       show_alert: true,
     });
   }
@@ -283,13 +284,13 @@ async function executeHelpCommand(bot, query) {
 
   try {
     await bot.answerCallbackQuery(query.id, {
-      text: 'Showing help...',
+      text: t('Showing help...'),
     });
     await displayHelpMessage(bot, mockMsg);
   } catch (error) {
     console.error('Error executing help command:', error);
     await bot.answerCallbackQuery(query.id, {
-      text: 'Error showing help',
+      text: t('Error showing help'),
       show_alert: true,
     });
   }

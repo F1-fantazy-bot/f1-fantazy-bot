@@ -23,6 +23,7 @@ const {
 
 const { sendLogMessage } = require('./utils');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
+const { t } = require('./i18n');
 
 exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
@@ -51,7 +52,9 @@ async function handlePhotoCallback(bot, query) {
 
   // Optional: edit the message to confirm
   await bot.editMessageText(
-    `Photo labeled as ${type.toUpperCase()}. Wait for extracted JSON data...`,
+    t('Photo labeled as {TYPE}. Wait for extracted JSON data...', {
+      TYPE: type.toUpperCase(),
+    }),
     {
       chat_id: chatId,
       message_id: messageId,
@@ -82,7 +85,7 @@ async function handlePhotoCallback(bot, query) {
     await bot
       .sendMessage(
         chatId,
-        'An error occurred while extracting data from the photo.'
+        t('An error occurred while extracting data from the photo.')
       )
       .catch((err) =>
         console.error('Error sending extraction error message:', err)
@@ -104,11 +107,14 @@ async function handleChipCallback(bot, query) {
   // Clear best teams cache when user selects a chip
   delete bestTeamsCache[chatId];
 
-  let message = `Selected chip: ${chip.toUpperCase()}.`;
+  let message = t('Selected chip: {CHIP}.', { CHIP: chip.toUpperCase() });
 
   if (isThereDataInBestTeamsCache) {
-    message += `\nNote: best team calculation was deleted.
-rerun ${COMMAND_BEST_TEAMS} command to recalculate best teams.`;
+    message +=
+      '\n' +
+      t('Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.', {
+        CMD: COMMAND_BEST_TEAMS,
+      });
   }
 
   await bot.editMessageText(message, {

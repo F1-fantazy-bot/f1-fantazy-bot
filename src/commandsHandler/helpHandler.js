@@ -1,11 +1,12 @@
 const { isAdminMessage } = require('../utils');
 const { MENU_CATEGORIES, COMMAND_BEST_TEAMS } = require('../constants');
+const { t } = require('../i18n');
 
 async function displayHelpMessage(bot, msg) {
   const chatId = msg.chat.id;
   const isAdmin = isAdminMessage(msg);
 
-  let helpMessage = '*F1 Fantasy Bot - Available Commands*\n\n';
+  let helpMessage = `*${t('F1 Fantasy Bot - Available Commands')}*\n\n`;
 
   // Add each menu category section in their natural order
   Object.values(MENU_CATEGORIES).forEach((category) => {
@@ -37,7 +38,7 @@ function buildCategoryHelpSection(category, isAdmin) {
     return '';
   }
 
-  let categorySection = `${category.title}\n`;
+  let categorySection = `${t(category.title)}\n`;
 
   // Filter visible commands for this category
   const visibleCommands = category.commands.filter((command) => {
@@ -45,9 +46,9 @@ function buildCategoryHelpSection(category, isAdmin) {
   });
 
   visibleCommands.forEach((command) => {
-    categorySection += `${command.constant.replace(/_/g, '\\_')} - ${
+    categorySection += `${command.constant.replace(/_/g, '\\_')} - ${t(
       command.description
-    }\n`;
+    )}\n`;
   });
 
   return categorySection + '\n';
@@ -59,13 +60,12 @@ function buildCategoryHelpSection(category, isAdmin) {
  */
 function buildOtherMessagesSection() {
   return (
-    '*Other Messages:*\n' +
-    '- Send an image (drivers, constructors, or current team screenshot) to automatically extract and cache the relevant data.\n' +
-    '- Send valid JSON data to update your drivers, constructors, and current team cache.\n' +
-    `- Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using ${COMMAND_BEST_TEAMS.replace(
-      /_/g,
-      '\\_'
-    )}).`
+    `*${t('Other Messages')}:*\n` +
+    `${t('Send an image (drivers, constructors, or current team screenshot) to automatically extract and cache the relevant data.')}\n` +
+    `${t('Send valid JSON data to update your drivers, constructors, and current team cache.')}\n` +
+    `${t('Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using {CMD}).', {
+      CMD: COMMAND_BEST_TEAMS.replace(/_/g, '\\_'),
+    })}`
   );
 }
 
