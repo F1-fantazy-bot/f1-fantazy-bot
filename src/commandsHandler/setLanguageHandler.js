@@ -9,13 +9,13 @@ async function handleSetLanguage(bot, msg) {
   if (!lang) {
     const keyboard = getSupportedLanguages().map((code) => [
       {
-        text: t(code === 'en' ? 'English' : 'Hebrew'),
+        text: t(code === 'en' ? 'English' : 'Hebrew', {}, chatId),
         callback_data: `${LANG_CALLBACK_TYPE}:${code}`,
       },
     ]);
 
     await bot
-      .sendMessage(chatId, t('Please select a language:'), {
+      .sendMessage(chatId, t('Please select a language:', {}, chatId), {
         reply_to_message_id: msg.message_id,
         reply_markup: { inline_keyboard: keyboard },
       })
@@ -26,14 +26,14 @@ async function handleSetLanguage(bot, msg) {
 
   if (setLanguage(lang, chatId)) {
     await bot
-      .sendMessage(chatId, t('Language changed to {LANG}.', { LANG: lang }))
+      .sendMessage(chatId, t('Language changed to {LANG}.', { LANG: lang }, chatId))
       .catch((err) => console.error('Error sending language changed message:', err));
   } else {
     const langs = getSupportedLanguages().join(', ');
     await bot
       .sendMessage(
         chatId,
-        t('Invalid language. Supported languages: {LANGS}', { LANGS: langs })
+        t('Invalid language. Supported languages: {LANGS}', { LANGS: langs }, chatId)
       )
       .catch((err) => console.error('Error sending invalid language message:', err));
   }

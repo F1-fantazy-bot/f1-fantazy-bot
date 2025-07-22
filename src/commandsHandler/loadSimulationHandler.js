@@ -6,7 +6,7 @@ async function handleLoadSimulation(bot, msg) {
   const chatId = msg.chat.id;
 
   if (!isAdminMessage(msg)) {
-    await bot.sendMessage(chatId, t('Sorry, only admins can use this command.'));
+    await bot.sendMessage(chatId, t('Sorry, only admins can use this command.', {}, chatId));
 
     return;
   }
@@ -15,12 +15,12 @@ async function handleLoadSimulation(bot, msg) {
     await loadSimulationData(bot);
     await bot.sendMessage(
       chatId,
-      t('Simulation data fetched and cached successfully.')
+      t('Simulation data fetched and cached successfully.', {}, chatId)
     );
   } catch (error) {
     await bot.sendMessage(
       chatId,
-      t('Failed to load simulation data: {ERROR}', { ERROR: error.message })
+      t('Failed to load simulation data: {ERROR}', { ERROR: error.message }, chatId)
     );
   }
 }

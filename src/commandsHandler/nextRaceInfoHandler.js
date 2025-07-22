@@ -13,7 +13,7 @@ async function handleNextRaceInfoCommand(bot, chatId) {
 
   if (!nextRaceInfo) {
     await bot
-      .sendMessage(chatId, t('Next race information is currently unavailable.'))
+      .sendMessage(chatId, t('Next race information is currently unavailable.', {}, chatId))
       .catch((err) =>
         console.error('Error sending next race info unavailable message:', err)
       );
@@ -100,38 +100,38 @@ async function handleNextRaceInfoCommand(bot, chatId) {
 
   // Build weather section
   if (qualifyingWeather && raceWeather) {
-    weatherSection += `*${t('Weather Forecast')}:*\n`;
+    weatherSection += `*${t('Weather Forecast', {}, chatId)}:*\n`;
     if (isSprintWeekend) {
-      weatherSection += `*${t('Sprint Qualifying')}:*\n🌡️ Temp: ${sprintQualifyingWeather.temperature}°C\n🌧️ Rain: ${sprintQualifyingWeather.precipitation}%\n💨 Wind: ${sprintQualifyingWeather.wind} km/h\n`;
-      weatherSection += `*${t('Sprint')}:*\n🌡️ Temp: ${sprintWeather.temperature}°C\n🌧️ Rain: ${sprintWeather.precipitation}%\n💨 Wind: ${sprintWeather.wind} km/h\n`;
+      weatherSection += `*${t('Sprint Qualifying', {}, chatId)}:*\n🌡️ Temp: ${sprintQualifyingWeather.temperature}°C\n🌧️ Rain: ${sprintQualifyingWeather.precipitation}%\n💨 Wind: ${sprintQualifyingWeather.wind} km/h\n`;
+      weatherSection += `*${t('Sprint', {}, chatId)}:*\n🌡️ Temp: ${sprintWeather.temperature}°C\n🌧️ Rain: ${sprintWeather.precipitation}%\n💨 Wind: ${sprintWeather.wind} km/h\n`;
     }
-    weatherSection += `*${t('Qualifying')}:*\n🌡️ Temp: ${qualifyingWeather.temperature}°C\n🌧️ Rain: ${qualifyingWeather.precipitation}%\n💨 Wind: ${qualifyingWeather.wind} km/h\n`;
-    weatherSection += `*${t('Race')}:*\n🌡️ Temp: ${raceWeather.temperature}°C\n🌧️ Rain: ${raceWeather.precipitation}%\n💨 Wind: ${raceWeather.wind} km/h\n\n`;
+    weatherSection += `*${t('Qualifying', {}, chatId)}:*\n🌡️ Temp: ${qualifyingWeather.temperature}°C\n🌧️ Rain: ${qualifyingWeather.precipitation}%\n💨 Wind: ${qualifyingWeather.wind} km/h\n`;
+    weatherSection += `*${t('Race', {}, chatId)}:*\n🌡️ Temp: ${raceWeather.temperature}°C\n🌧️ Rain: ${raceWeather.precipitation}%\n💨 Wind: ${raceWeather.wind} km/h\n\n`;
   }
 
   // Create message with next race information
-  let message = `*${t('Next Race Information')}*\n\n`;
-  message += `🏎️ *${t('Race Name')}:* ${nextRaceInfo.raceName}\n`;
-  message += `🏁 *${t('Track')}:* ${nextRaceInfo.circuitName}\n`;
-  message += `📍 *${t('Location')}:* ${nextRaceInfo.location.locality}, ${nextRaceInfo.location.country}\n`;
+  let message = `*${t('Next Race Information', {}, chatId)}*\n\n`;
+  message += `🏎️ *${t('Race Name', {}, chatId)}:* ${nextRaceInfo.raceName}\n`;
+  message += `🏁 *${t('Track', {}, chatId)}:* ${nextRaceInfo.circuitName}\n`;
+  message += `📍 *${t('Location', {}, chatId)}:* ${nextRaceInfo.location.locality}, ${nextRaceInfo.location.country}\n`;
   if (isSprintWeekend) {
-    message += `📅 *${t('Sprint Qualifying Date')}:* ${sprintQualifyingDateStr}\n`;
-    message += `⏰ *${t('Sprint Qualifying Time')}:* ${sprintQualifyingTimeStr}\n`;
-    message += `📅 *${t('Sprint Date')}:* ${sprintDateStr}\n`;
-    message += `⏰ *${t('Sprint Time')}:* ${sprintTimeStr}\n`;
+    message += `📅 *${t('Sprint Qualifying Date', {}, chatId)}:* ${sprintQualifyingDateStr}\n`;
+    message += `⏰ *${t('Sprint Qualifying Time', {}, chatId)}:* ${sprintQualifyingTimeStr}\n`;
+    message += `📅 *${t('Sprint Date', {}, chatId)}:* ${sprintDateStr}\n`;
+    message += `⏰ *${t('Sprint Time', {}, chatId)}:* ${sprintTimeStr}\n`;
   }
-  message += `📅 *${t('Qualifying Date')}:* ${qualifyingDateStr}\n`;
-  message += `⏰ *${t('Qualifying Time')}:* ${qualifyingTimeStr}\n`;
-  message += `📅 *${t('Race Date')}:* ${raceDateStr}\n`;
-  message += `⏰ *${t('Race Time')}:* ${raceTimeStr}\n`;
-  message += `📝 *${t('Weekend Format')}:* ${
+  message += `📅 *${t('Qualifying Date', {}, chatId)}:* ${qualifyingDateStr}\n`;
+  message += `⏰ *${t('Qualifying Time', {}, chatId)}:* ${qualifyingTimeStr}\n`;
+  message += `📅 *${t('Race Date', {}, chatId)}:* ${raceDateStr}\n`;
+  message += `⏰ *${t('Race Time', {}, chatId)}:* ${raceTimeStr}\n`;
+  message += `📝 *${t('Weekend Format', {}, chatId)}:* ${
     nextRaceInfo.weekendFormat.charAt(0).toUpperCase() +
     nextRaceInfo.weekendFormat.slice(1)
   }\n\n`;
   message += weatherSection;
 
   // Add historical data section
-  message += `*${t('Historical Race Stats (Last Decade)')}:*\n`;
+  message += `*${t('Historical Race Stats (Last Decade)', {}, chatId)}:*\n`;
   if (
     nextRaceInfo.historicalRaceStats &&
     nextRaceInfo.historicalRaceStats.length > 0
@@ -140,29 +140,29 @@ async function handleNextRaceInfoCommand(bot, chatId) {
       .sort((a, b) => b.season - a.season)
       .forEach((data) => {
         message += `*${data.season}:*\n`;
-        message += `🚀 ${t('Pole')}: ${data.polePosition} (${data.poleConstructor})\n`;
-        message += `🏆 ${t('Winner')}: ${data.winner} (${data.constructor})\n`;
-        message += `🥈 ${t('2nd')}: ${data.secondPlaceDriver} (${data.secondPlaceConstructor})\n`;
-        message += `🥉 ${t('3rd')}: ${data.thirdPlaceDriver} (${data.thirdPlaceConstructor})\n`;
-        message += `🏎️ ${t('Cars Finished')}: ${data.carsFinished}\n`;
+        message += `🚀 ${t('Pole', {}, chatId)}: ${data.polePosition} (${data.poleConstructor})\n`;
+        message += `🏆 ${t('Winner', {}, chatId)}: ${data.winner} (${data.constructor})\n`;
+        message += `🥈 ${t('2nd', {}, chatId)}: ${data.secondPlaceDriver} (${data.secondPlaceConstructor})\n`;
+        message += `🥉 ${t('3rd', {}, chatId)}: ${data.thirdPlaceDriver} (${data.thirdPlaceConstructor})\n`;
+        message += `🏎️ ${t('Cars Finished', {}, chatId)}: ${data.carsFinished}\n`;
         if (data.overtakes !== undefined) {
-          message += `🔄 ${t('Overtakes')}: ${data.overtakes}\n`;
+          message += `🔄 ${t('Overtakes', {}, chatId)}: ${data.overtakes}\n`;
         }
         if (data.safetyCars !== undefined) {
-          message += `⚠️🚓 ${t('Safety Cars')}: ${data.safetyCars}\n`;
+          message += `⚠️🚓 ${t('Safety Cars', {}, chatId)}: ${data.safetyCars}\n`;
         }
         if (data.redFlags !== undefined) {
-          message += `🚩 ${t('Red Flags')}: ${data.redFlags}\n`;
+          message += `🚩 ${t('Red Flags', {}, chatId)}: ${data.redFlags}\n`;
         }
         message += `\n`;
       });
   } else {
-    message += `${t('No historical data available for this track.')}\n\n`;
+    message += `${t('No historical data available for this track.', {}, chatId)}\n\n`;
   }
 
   if (nextRaceInfo.trackHistory) {
     // Add track History section
-    message += `*${t('Track History')}:*\n`;
+    message += `*${t('Track History', {}, chatId)}:*\n`;
     message += nextRaceInfo.trackHistory;
     message += `\n`;
   }

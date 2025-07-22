@@ -186,7 +186,6 @@ const translations = {
 };
 const { languageCache } = require('./cache');
 let defaultLanguage = process.env.BOT_LANGUAGE || 'en';
-let currentChatId;
 
 function setLanguage(lang, chatId) {
   if (!translations[lang]) {
@@ -210,15 +209,21 @@ function getLanguage(chatId) {
   return defaultLanguage;
 }
 
-function setCurrentChatId(chatId) {
-  currentChatId = chatId;
-}
 
 function getSupportedLanguages() {
   return Object.keys(translations);
 }
 
-function t(message, params = {}, lang = getLanguage(currentChatId)) {
+function t(message, params = {}, langOrChatId) {
+  let lang;
+  if (typeof langOrChatId === 'string' && translations[langOrChatId]) {
+    lang = langOrChatId;
+  } else if (langOrChatId !== undefined) {
+    lang = getLanguage(langOrChatId);
+  } else {
+    lang = defaultLanguage;
+  }
+
   let text = (translations[lang] && translations[lang][message]) || message;
   for (const [key, value] of Object.entries(params)) {
     text = text.replace(new RegExp(`{${key}}`, 'g'), value);
@@ -232,6 +237,5 @@ module.exports = {
   setLanguage,
   getLanguage,
   getSupportedLanguages,
-  setCurrentChatId,
   languageCache,
 };

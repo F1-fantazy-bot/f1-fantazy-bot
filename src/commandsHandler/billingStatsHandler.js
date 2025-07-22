@@ -13,7 +13,7 @@ async function handleBillingStats(bot, msg) {
   if (!isAdminMessage(msg)) {
     await bot.sendMessage(
       chatId,
-      t('Sorry, only admins can access billing statistics.')
+      t('Sorry, only admins can access billing statistics.', {}, chatId)
     );
 
     return;
@@ -24,7 +24,7 @@ async function handleBillingStats(bot, msg) {
     const billingData = await getMonthlyBillingStats();
 
     // Format the data into a message
-    const billingMessage = formatBillingMessage(billingData);
+    const billingMessage = formatBillingMessage(billingData, chatId);
 
     // Send the formatted billing statistics
     await bot
@@ -39,9 +39,13 @@ async function handleBillingStats(bot, msg) {
     await bot
       .sendMessage(
         chatId,
-        t('❌ Error fetching billing statistics: {ERROR}\n\nPlease check your Azure configuration and permissions.', {
-          ERROR: error.message,
-        })
+        t(
+          '❌ Error fetching billing statistics: {ERROR}\n\nPlease check your Azure configuration and permissions.',
+          {
+            ERROR: error.message,
+          },
+          chatId
+        )
       )
       .catch((err) =>
         console.error('Error sending billing error message:', err)
@@ -55,9 +59,9 @@ async function handleBillingStats(bot, msg) {
  * @param {string} title - Title for this month's section
  * @returns {string} Formatted message section for Telegram
  */
-function formatMonthSection(monthData, title) {
+function formatMonthSection(monthData, title, chatId) {
   if (!monthData.hasData) {
-    return `*${title}*\n${t('No billing data available for this period.')}\n\n`;
+    return `*${title}*\n${t('No billing data available for this period.', {}, chatId)}\n\n`;
   }
 
   const { period, totalCost, serviceBreakdown } = monthData;
@@ -80,16 +84,16 @@ function formatMonthSection(monthData, title) {
  * @param {Object} billingData - The billing data object with current and previous month
  * @returns {string} Formatted message for Telegram
  */
-function formatBillingMessage(billingData) {
+function formatBillingMessage(billingData, chatId) {
   const { currentMonth, previousMonth } = billingData;
 
-  let message = `*${t('Azure Billing Statistics')}*\n\n`;
+  let message = `*${t('Azure Billing Statistics', {}, chatId)}*\n\n`;
 
   // Current month section
-  message += formatMonthSection(currentMonth, t('Current Month'));
+  message += formatMonthSection(currentMonth, t('Current Month', {}, chatId), chatId);
 
   // Previous month section
-  message += formatMonthSection(previousMonth, t('Previous Month'));
+  message += formatMonthSection(previousMonth, t('Previous Month', {}, chatId), chatId);
 
   // Comparison if both months have data
   if (currentMonth.hasData && previousMonth.hasData) {
@@ -99,17 +103,17 @@ function formatBillingMessage(billingData) {
     const percentChange =
       previousCost > 0 ? (difference / previousCost) * 100 : 0;
 
-    message += `*📈 ${t('Month-over-Month Comparison:')}*\n`;
+    message += `*📈 ${t('Month-over-Month Comparison:', {}, chatId)}*\n`;
     if (difference > 0) {
-      message += `📈 ${t('Increase')}: $${difference.toFixed(
+      message += `📈 ${t('Increase', {}, chatId)}: $${difference.toFixed(
         2
       )} (+${percentChange.toFixed(1)}%)\n`;
     } else if (difference < 0) {
-      message += `📉 ${t('Decrease')}: $${Math.abs(difference).toFixed(2)} (-${Math.abs(
+      message += `📉 ${t('Decrease', {}, chatId)}: $${Math.abs(difference).toFixed(2)} (-${Math.abs(
         percentChange
       ).toFixed(1)}%)\n`;
     } else {
-      message += `➡️ ${t('No change')}: $0.00 (0.0%)\n`;
+      message += `➡️ ${t('No change', {}, chatId)}: $0.00 (0.0%)\n`;
     }
   }
 

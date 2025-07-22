@@ -27,6 +27,7 @@ jest.mock('../cache', () => ({
   constructorsCache: {},
   simulationInfoCache: {},
   getPrintableCache: jest.fn(),
+  languageCache: {},
   sharedKey: 'defaultSharedKey',
 }));
 

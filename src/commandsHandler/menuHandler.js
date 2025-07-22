@@ -58,8 +58,8 @@ async function displayMenuMessage(bot, msg) {
   const chatId = msg.chat.id;
   const isAdmin = isAdminMessage(msg);
 
-  const message = buildMainMenuMessage();
-  const keyboard = buildMainMenuKeyboard(isAdmin);
+  const message = buildMainMenuMessage(chatId);
+  const keyboard = buildMainMenuKeyboard(isAdmin, chatId);
 
   await bot
     .sendMessage(chatId, message, {
@@ -95,7 +95,7 @@ async function handleMenuCallback(bot, query) {
       return; // Don't answer callback query here
     default:
       await bot.answerCallbackQuery(query.id, {
-        text: t('Unknown menu action'),
+        text: t('Unknown menu action', {}, chatId),
         show_alert: true,
       });
 
@@ -105,15 +105,15 @@ async function handleMenuCallback(bot, query) {
   await bot.answerCallbackQuery(query.id);
 }
 
-function buildMainMenuMessage() {
-  const menuMessage = t('🎯 *F1 Fantasy Bot Menu*\n\nChoose a category:');
+function buildMainMenuMessage(chatId) {
+  const menuMessage = t('🎯 *F1 Fantasy Bot Menu*\n\nChoose a category:', {}, chatId);
   const tipMessage =
-    menuMessage + `\n\n💡 *${t('Tip:')}* ${t('Use {CMD} for quick text-based help', { CMD: COMMAND_HELP })}`;
+    menuMessage + `\n\n💡 *${t('Tip:', {}, chatId)}* ${t('Use {CMD} for quick text-based help', { CMD: COMMAND_HELP }, chatId)}`;
 
   return tipMessage;
 }
 
-function buildMainMenuKeyboard(isAdmin) {
+function buildMainMenuKeyboard(isAdmin, chatId) {
   // Filter visible categories
   const visibleCategories = Object.values(MENU_CATEGORIES).filter(
     (category) => {
@@ -127,7 +127,7 @@ function buildMainMenuKeyboard(isAdmin) {
   const keyboard = buildKeyboard(
     visibleCategories,
     (category) => ({
-      text: t(category.title),
+      text: t(category.title, {}, chatId),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.CATEGORY}:${category.id}`,
     }),
     2
@@ -136,7 +136,7 @@ function buildMainMenuKeyboard(isAdmin) {
   // Add direct help button
   keyboard.push([
     {
-      text: t('❓ Help'),
+      text: t('❓ Help', {}, chatId),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.HELP}`,
     },
   ]);
@@ -162,7 +162,7 @@ function buildKeyboard(items, buttonBuilder, itemsPerRow = 2) {
   return keyboard;
 }
 
-function buildCategoryMenuKeyboard(category, isAdmin) {
+function buildCategoryMenuKeyboard(category, isAdmin, chatId) {
   // Filter visible commands
   const visibleCommands = category.commands.filter((command) => {
     // Skip admin-only commands for non-admin users
@@ -173,7 +173,7 @@ function buildCategoryMenuKeyboard(category, isAdmin) {
   const keyboard = buildKeyboard(
     visibleCommands,
     (command) => ({
-      text: t(command.title),
+      text: t(command.title, {}, chatId),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.COMMAND}:${command.constant}`,
     }),
     2
@@ -182,7 +182,7 @@ function buildCategoryMenuKeyboard(category, isAdmin) {
   // Add back button
   keyboard.push([
     {
-      text: t('⬅️ Back to Main Menu'),
+      text: t('⬅️ Back to Main Menu', {}, chatId),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.MAIN_MENU}`,
     },
   ]);
@@ -191,8 +191,8 @@ function buildCategoryMenuKeyboard(category, isAdmin) {
 }
 
 async function showMainMenu(bot, chatId, messageId, isAdmin) {
-  const message = buildMainMenuMessage();
-  const keyboard = buildMainMenuKeyboard(isAdmin);
+  const message = buildMainMenuMessage(chatId);
+  const keyboard = buildMainMenuKeyboard(isAdmin, chatId);
 
   await bot.editMessageText(message, {
     chat_id: chatId,
@@ -215,8 +215,8 @@ async function showCategoryMenu(bot, chatId, messageId, categoryId, isAdmin) {
     return;
   }
 
-  const menuMessage = `${t(category.title)}\n\n${t(category.description)}\n\n${t('Choose a command:')}`;
-  const keyboard = buildCategoryMenuKeyboard(category, isAdmin);
+  const menuMessage = `${t(category.title, {}, chatId)}\n\n${t(category.description, {}, chatId)}\n\n${t('Choose a command:', {}, chatId)}`;
+  const keyboard = buildCategoryMenuKeyboard(category, isAdmin, chatId);
 
   await bot.editMessageText(menuMessage, {
     chat_id: chatId,
@@ -245,7 +245,7 @@ async function executeCommand(bot, query, command) {
     try {
       // Answer the callback query first
       await bot.answerCallbackQuery(query.id, {
-        text: t('Executing {CMD}...', { CMD: command }),
+        text: t('Executing {CMD}...', { CMD: command }, chatId),
       });
 
       // Execute the command based on handler parameter patterns
@@ -266,13 +266,13 @@ async function executeCommand(bot, query, command) {
     } catch (error) {
       console.error(`Error executing command ${command}:`, error);
       await bot.answerCallbackQuery(query.id, {
-        text: t('Error executing command'),
+        text: t('Error executing command', {}, chatId),
         show_alert: true,
       });
     }
   } else {
     await bot.answerCallbackQuery(query.id, {
-      text: t('Command not found'),
+      text: t('Command not found', {}, chatId),
       show_alert: true,
     });
   }
@@ -287,13 +287,13 @@ async function executeHelpCommand(bot, query) {
 
   try {
     await bot.answerCallbackQuery(query.id, {
-      text: t('Showing help...'),
+      text: t('Showing help...', {}, chatId),
     });
     await displayHelpMessage(bot, mockMsg);
   } catch (error) {
     console.error('Error executing help command:', error);
     await bot.answerCallbackQuery(query.id, {
-      text: t('Error showing help'),
+      text: t('Error showing help', {}, chatId),
       show_alert: true,
     });
   }

@@ -21,7 +21,7 @@ describe('handleSetLanguage', () => {
     expect(getLanguage(KILZI_CHAT_ID)).toBe('he');
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      t('Language changed to {LANG}.', { LANG: 'he' })
+      t('Language changed to {LANG}.', { LANG: 'he' }, KILZI_CHAT_ID)
     );
   });
 
@@ -33,7 +33,7 @@ describe('handleSetLanguage', () => {
     expect(getLanguage(KILZI_CHAT_ID)).toBe('en');
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      t('Invalid language. Supported languages: {LANGS}', { LANGS: 'en, he' })
+      t('Invalid language. Supported languages: {LANGS}', { LANGS: 'en, he' }, KILZI_CHAT_ID)
     );
   });
 
@@ -45,7 +45,7 @@ describe('handleSetLanguage', () => {
     expect(getLanguage(KILZI_CHAT_ID)).toBe('en');
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      t('Please select a language:'),
+      t('Please select a language:', {}, KILZI_CHAT_ID),
       expect.objectContaining({
         reply_to_message_id: 5,
         reply_markup: { inline_keyboard: expect.any(Array) },

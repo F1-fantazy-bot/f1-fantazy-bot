@@ -17,7 +17,7 @@ async function resetCacheForChat(chatId, bot) {
   delete selectedChipCache[chatId];
 
   await bot
-    .sendMessage(chatId, t('Cache has been reset for your chat.'))
+    .sendMessage(chatId, t('Cache has been reset for your chat.', {}, chatId))
     .catch((err) => console.error('Error sending cache reset message:', err));
 
   return;

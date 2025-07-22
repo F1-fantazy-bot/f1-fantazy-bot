@@ -24,13 +24,9 @@ const {
 
 const { sendLogMessage } = require('./utils');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
-const { t, setLanguage, setCurrentChatId } = require('./i18n');
+const { t, setLanguage } = require('./i18n');
 
 exports.handleCallbackQuery = async function (bot, query) {
-  const chatId = query.message?.chat?.id;
-  if (chatId) {
-    setCurrentChatId(chatId);
-  }
   const callbackType = query.data.split(':')[0];
 
   switch (callbackType) {
@@ -61,7 +57,7 @@ async function handlePhotoCallback(bot, query) {
   await bot.editMessageText(
     t('Photo labeled as {TYPE}. Wait for extracted JSON data...', {
       TYPE: type.toUpperCase(),
-    }),
+    }, chatId),
     {
       chat_id: chatId,
       message_id: messageId,
@@ -92,7 +88,7 @@ async function handlePhotoCallback(bot, query) {
     await bot
       .sendMessage(
         chatId,
-        t('An error occurred while extracting data from the photo.')
+        t('An error occurred while extracting data from the photo.', {}, chatId)
       )
       .catch((err) =>
         console.error('Error sending extraction error message:', err)
@@ -114,14 +110,14 @@ async function handleChipCallback(bot, query) {
   // Clear best teams cache when user selects a chip
   delete bestTeamsCache[chatId];
 
-  let message = t('Selected chip: {CHIP}.', { CHIP: chip.toUpperCase() });
+  let message = t('Selected chip: {CHIP}.', { CHIP: chip.toUpperCase() }, chatId);
 
   if (isThereDataInBestTeamsCache) {
     message +=
       '\n' +
       t('Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.', {
         CMD: COMMAND_BEST_TEAMS,
-      });
+      }, chatId);
   }
 
   await bot.editMessageText(message, {
@@ -140,7 +136,7 @@ async function handleLanguageCallback(bot, query) {
 
   setLanguage(lang, chatId);
 
-  await bot.editMessageText(t('Language changed to {LANG}.', { LANG: lang }), {
+  await bot.editMessageText(t('Language changed to {LANG}.', { LANG: lang }, chatId), {
     chat_id: chatId,
     message_id: messageId,
   });

@@ -5,7 +5,7 @@ async function handleVersionCommand(bot, msg) {
   const chatId = msg.chat.id;
 
   if (!isAdminMessage(msg)) {
-    await bot.sendMessage(chatId, t('Sorry, only admins can use this command.'));
+    await bot.sendMessage(chatId, t('Sorry, only admins can use this command.', {}, chatId));
 
     return;
   }
@@ -17,7 +17,8 @@ async function handleVersionCommand(bot, msg) {
       ID: COMMIT_ID || 'N/A',
       MSG: COMMIT_MESSAGE || 'N/A',
       LINK: COMMIT_LINK || 'N/A',
-    }
+    },
+    chatId
   );
 
   await bot.sendMessage(chatId, versionInfo);

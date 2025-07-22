@@ -8,14 +8,14 @@ async function handleGetBotfatherCommands(bot, msg) {
   if (!isAdminMessage(msg)) {
     await bot.sendMessage(
       chatId,
-      t('Sorry, only admins can get BotFather commands.')
+      t('Sorry, only admins can get BotFather commands.', {}, chatId)
     );
 
     return;
   }
 
   const botFatherCommands = USER_COMMANDS_CONFIG.map(
-    (cmd) => `${cmd.constant.substring(1)} - ${t(cmd.description)}`
+    (cmd) => `${cmd.constant.substring(1)} - ${t(cmd.description, {}, chatId)}`
   ).join('\n');
 
   await bot
