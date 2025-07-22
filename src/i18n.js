@@ -123,7 +123,65 @@ const translations = {
     English: 'אנגלית',
     Hebrew: 'עברית',
     '🌐 Set Language': '🌐 הגדר שפה',
-    'Change bot language for this session': 'שנה את שפת הבוט להפעלה זו'
+    'Change bot language for this session': 'שנה את שפת הבוט להפעלה זו',
+    '❓ Help & Menu': '❓ עזרה ותפריט',
+    'Help and navigation commands': 'פקודות עזרה וניווט',
+    '🏎️ Team Management': '🏎️ ניהול קבוצה',
+    'Manage and optimize your F1 Fantasy team':
+      'ניהול ואופטימיזציה של קבוצת F1 Fantasy',
+    '📊 Analysis & Stats': '📊 ניתוח וסטטיסטיקה',
+    'View race information and performance data':
+      'צפה במידע על מרוצים ונתוני ביצועים',
+    '🔧 Utilities': '🔧 כלי עזר',
+    'Data management and maintenance tools': 'כלי ניהול ותחזוקה של נתונים',
+    '👤 Admin Commands': '👤 פקודות מנהל',
+    'Administrative tools and functions': 'כלי ותפקידי ניהול',
+    '📱 Menu': '📱 תפריט',
+    'Show interactive menu with all available commands.':
+      'הצג תפריט אינטראקטיבי עם כל הפקודות הזמינות.',
+    '🏆 Best Teams': '🏆 הקבוצות הטובות ביותר',
+    'Calculate and display the best possible teams based on your cached data':
+      'חשב והצג את הקבוצות הטובות ביותר על סמך הנתונים במטמון',
+    '👥 Current Team Info': '👥 מידע על הקבוצה הנוכחית',
+    'Calculate the current team info based on your cached data':
+      'חשב את מידע הקבוצה הנוכחית על סמך הנתונים במטמון',
+    '🎯 Chips Selection': "🎯 בחירת צ'יפ",
+    'Choose a chip to use for the current race': 'בחר צ\'יפ לשימוש במרוץ הנוכחי',
+    '🏁 Next Race Info': '🏁 מידע על המרוץ הבא',
+    'Get detailed information about the next F1 race':
+      'קבל מידע מפורט על המרוץ הבא',
+    '📈 Current Simulation': '📈 סימולציה נוכחית',
+    'Show the current simulation data and name':
+      'הצג את נתוני הסימולציה הנוכחית ואת שמה',
+    '📄 Print Cache': '📄 הדפסת מטמון',
+    'Show the currently cached drivers, constructors, and current team':
+      'הצג את הנהגים, הקבוצות והקבוצה הנוכחית במטמון',
+    '🗑️ Reset Cache': '🗑️ איפוס מטמון',
+    'Clear all cached data for this chat': 'נקה את כל הנתונים במטמון עבור צ\'אט זה',
+    '📋 Load Simulation': '📋 טעינת סימולציה',
+    'Load latest simulation data': 'טען את נתוני הסימולציה העדכניים ביותר',
+    '🔄 Trigger Scraping': '🔄 הפעל סריקה',
+    'Trigger web scraping for latest F1 Fantasy data':
+      'הפעל סריקת רשת לקבלת נתוני F1 Fantasy העדכניים',
+    '🤖 BotFather Commands': '🤖 פקודות BotFather',
+    'Get commands for BotFather setup': 'קבל פקודות להגדרת BotFather',
+    '💰 Billing Stats': '💰 סטטיסטיקת חיוב',
+    'Get Azure billing statistics for the current month':
+      'קבל סטטיסטיקת חיוב Azure לחודש הנוכחי',
+    'ℹ️ Version': 'ℹ️ גרסה',
+    'Show current deployed version': 'הצג את הגרסה המותקנת הנוכחית',
+    'Invalid JSON data. Please ensure it contains 20 drivers under "Drivers" property.':
+      'נתוני JSON אינם תקינים. ודא שהם מכילים 20 נהגים תחת "Drivers".',
+    'Invalid JSON data. Please ensure it contains 10 constructors under "Constructors" property.':
+      'נתוני JSON אינם תקינים. ודא שהם מכילים 10 קבוצות תחת "Constructors".',
+    'Invalid JSON data. Please ensure it contains the required properties under "CurrentTeam" property.':
+      'נתוני JSON אינם תקינים. ודא שהם מכילים את המאפיינים הנדרשים תחת "CurrentTeam".',
+    'Error: Scraping trigger URL is not configured.': 'שגיאה: כתובת ההפעלה לסריקה אינה מוגדרת.',
+    'Sorry, only admins can trigger scraping.': 'מצטער, רק מנהלים יכולים להפעיל סריקה.',
+    'Web scraping triggered successfully.': 'סריקת הרשת הופעלה בהצלחה.',
+    'Failed to trigger web scraping: {ERROR}': 'נכשל להפעיל סריקה: {ERROR}',
+    'Commit ID: {ID}\nCommit message: {MSG}\nLink: {LINK}':
+      'מזהה קומיט: {ID}\nהודעת קומיט: {MSG}\nקישור: {LINK}'
   }
 };
 const { languageCache } = require('./cache');

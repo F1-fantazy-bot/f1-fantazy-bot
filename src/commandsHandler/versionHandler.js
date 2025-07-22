@@ -11,9 +11,14 @@ async function handleVersionCommand(bot, msg) {
   }
 
   const { COMMIT_ID, COMMIT_MESSAGE, COMMIT_LINK } = process.env;
-  const versionInfo = `Commit ID: ${COMMIT_ID || 'N/A'}\nCommit message: ${
-    COMMIT_MESSAGE || 'N/A'
-  }\nLink: ${COMMIT_LINK || 'N/A'}`;
+  const versionInfo = t(
+    'Commit ID: {ID}\nCommit message: {MSG}\nLink: {LINK}',
+    {
+      ID: COMMIT_ID || 'N/A',
+      MSG: COMMIT_MESSAGE || 'N/A',
+      LINK: COMMIT_LINK || 'N/A',
+    }
+  );
 
   await bot.sendMessage(chatId, versionInfo);
 }
