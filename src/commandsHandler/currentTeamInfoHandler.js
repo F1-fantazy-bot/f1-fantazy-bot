@@ -19,7 +19,6 @@ async function calcCurrentTeamInfo(bot, chatId) {
         chatId,
         t(
           'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.',
-          {},
           chatId
         )
       )

@@ -19,8 +19,7 @@ const translations = {
     'Simulation data fetched and cached successfully.': 'נתוני הסימולציה נטענו ונשמרו בהצלחה.',
     'Failed to load simulation data: {ERROR}': 'נכשל לטעון נתוני סימולציה: {ERROR}',
     'Cache has been reset for your chat.': 'המטמון אופס עבור הצ\'אט שלך.',
-    'Next race information is currently unavailable.': 'מידע על המרוץ הבא אינו זמין כעת.'
-    ,
+    'Next race information is currently unavailable.': 'מידע על המרוץ הבא אינו זמין כעת.',
     'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.':
       'נתוני מטמון חסרים. אנא שלח תמונות או קבצי JSON של נהגים, קבוצות וקבוצה נוכחית קודם.',
     'Please send a number to get the required changes to that team.':
