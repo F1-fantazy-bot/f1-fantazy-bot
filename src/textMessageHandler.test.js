@@ -230,7 +230,7 @@ describe('handleTextMessage', () => {
     it('should route /lang command to handleSetLanguage', async () => {
       const msgMock = {
         chat: { id: KILZI_CHAT_ID },
-        text: `${COMMAND_SET_LANGUAGE} he`,
+        text: COMMAND_SET_LANGUAGE,
       };
 
       await handleTextMessage(botMock, msgMock);

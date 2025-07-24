@@ -78,7 +78,7 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleVersionCommand(bot, msg);
     case msg.text === COMMAND_MENU:
       return await displayMenuMessage(bot, msg);
-    case msg.text.startsWith(COMMAND_SET_LANGUAGE):
+    case msg.text === COMMAND_SET_LANGUAGE:
       return await handleSetLanguage(bot, msg);
     default:
       try {
