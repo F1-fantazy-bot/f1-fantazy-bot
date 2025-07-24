@@ -41,6 +41,7 @@ jest.mock('openai', () => ({
 jest.mock('./jsonDataExtraction');
 jest.mock('./azureStorageService', () => ({
   saveUserTeam: jest.fn().mockResolvedValue(undefined),
+  saveUserSettings: jest.fn().mockResolvedValue(undefined),
   deleteUserTeam: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('./cache', () => ({
@@ -371,6 +372,11 @@ describe('handleCallbackQuery', () => {
       );
       expect(bot.answerCallbackQuery).toHaveBeenCalledWith('langQueryId');
       expect(getLanguage(chatId)).toBe('he');
+      expect(azureStorageService.saveUserSettings).toHaveBeenCalledWith(
+        bot,
+        chatId,
+        { lang: 'he' }
+      );
     });
   });
 

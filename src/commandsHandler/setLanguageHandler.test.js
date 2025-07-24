@@ -1,4 +1,8 @@
 const { KILZI_CHAT_ID } = require('../constants');
+jest.mock('../azureStorageService', () => ({
+  saveUserSettings: jest.fn().mockResolvedValue(undefined),
+}));
+const azureStorageService = require('../azureStorageService');
 const { getLanguage, languageCache, t, getLanguageName } = require('../i18n');
 const { handleSetLanguage } = require('./setLanguageHandler');
 
@@ -22,6 +26,11 @@ describe('handleSetLanguage', () => {
       KILZI_CHAT_ID,
       t('Language changed to {LANG}.', KILZI_CHAT_ID, { LANG: getLanguageName('he', KILZI_CHAT_ID) })
     );
+    expect(azureStorageService.saveUserSettings).toHaveBeenCalledWith(
+      botMock,
+      KILZI_CHAT_ID,
+      { lang: 'he' }
+    );
   });
 
   it('should send invalid language message for unsupported code', async () => {
@@ -34,6 +43,7 @@ describe('handleSetLanguage', () => {
       KILZI_CHAT_ID,
       t('Invalid language. Supported languages: {LANGS}', KILZI_CHAT_ID, { LANGS: 'en, he' })
     );
+    expect(azureStorageService.saveUserSettings).not.toHaveBeenCalled();
   });
 
   it('should send usage message when no language provided', async () => {
@@ -50,5 +60,6 @@ describe('handleSetLanguage', () => {
         reply_markup: { inline_keyboard: expect.any(Array) },
       })
     );
+    expect(azureStorageService.saveUserSettings).not.toHaveBeenCalled();
   });
 });

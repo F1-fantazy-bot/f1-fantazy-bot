@@ -199,4 +199,98 @@ describe('azureStorageService', () => {
       });
     });
   });
+
+  describe('getUserSettings', () => {
+    const chatId = '987654';
+
+    it('should return null if settings do not exist', async () => {
+      mockExists.mockResolvedValueOnce(false);
+
+      const result = await azureStorageService.getUserSettings(chatId);
+      expect(result).toBeNull();
+    });
+
+    it('should fetch and parse user settings data', async () => {
+      const mockSettings = { lang: 'he' };
+
+      mockExists.mockResolvedValueOnce(true);
+      mockDownload.mockResolvedValueOnce({
+        readableStreamBody: createMockStream(mockSettings),
+      });
+
+      const result = await azureStorageService.getUserSettings(chatId);
+      expect(result).toEqual(mockSettings);
+    });
+  });
+
+  describe('saveUserSettings', () => {
+    const chatId = '987654';
+    const settingsData = { lang: 'he' };
+
+    it('should save user settings data', async () => {
+      mockUpload.mockResolvedValueOnce(undefined);
+      const mockBot = { sendMessage: jest.fn() };
+
+      await azureStorageService.saveUserSettings(mockBot, chatId, settingsData);
+
+      expect(mockUpload).toHaveBeenCalledWith(
+        JSON.stringify(settingsData, null, 2),
+        expect.any(Number),
+        expect.any(Object)
+      );
+    });
+
+    it('should merge existing settings when saving', async () => {
+      const existing = { timezone: 'utc' };
+      mockExists.mockResolvedValueOnce(true);
+      mockDownload.mockResolvedValueOnce({
+        readableStreamBody: createMockStream(existing),
+      });
+      mockUpload.mockResolvedValueOnce(undefined);
+      const mockBot = { sendMessage: jest.fn() };
+
+      await azureStorageService.saveUserSettings(mockBot, chatId, settingsData);
+
+      expect(mockUpload).toHaveBeenCalledWith(
+        JSON.stringify({ timezone: 'utc', lang: 'he' }, null, 2),
+        expect.any(Number),
+        expect.any(Object)
+      );
+    });
+  });
+
+  describe('listAllUserSettingsData', () => {
+    it('should list and fetch all user settings', async () => {
+      const mockBlobs = [
+        { name: 'user-settings/111.json' },
+        { name: 'user-settings/222.json' },
+      ];
+
+      const settings1 = { lang: 'en' };
+      const settings2 = { lang: 'he' };
+
+      mockListBlobsFlat.mockReturnValueOnce({
+        [Symbol.asyncIterator]: async function* () {
+          yield* mockBlobs;
+        },
+      });
+
+      mockExists.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+
+      mockDownload
+        .mockResolvedValueOnce({
+          readableStreamBody: createMockStream(settings1),
+        })
+        .mockResolvedValueOnce({
+          readableStreamBody: createMockStream(settings2),
+        });
+
+      const result = await azureStorageService.listAllUserSettingsData();
+
+      expect(result).toEqual({
+        111: settings1,
+        222: settings2,
+      });
+    });
+  });
 });

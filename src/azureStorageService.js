@@ -205,11 +205,107 @@ async function listAllUserTeamData() {
   }
 }
 
+/**
+ * Get a user's settings data from Azure Storage
+ * @param {string} chatId - The chat ID of the user
+ * @returns {Promise<Object|null>} The parsed settings data or null if not found
+ * @throws {Error} If there's an error retrieving or parsing the data
+ */
+async function getUserSettings(chatId) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = `user-settings/${chatId}.json`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const exists = await blockBlobClient.exists();
+    if (!exists) {
+      return null;
+    }
+
+    const downloadResponse = await blockBlobClient.download();
+    const jsonString = await streamToString(downloadResponse.readableStreamBody);
+
+    return JSON.parse(jsonString);
+  } catch (error) {
+    throw new Error(`Failed to get user settings for ${chatId}: ${error.message}`);
+  }
+}
+
+/**
+ * Save a user's settings data to Azure Storage
+ * @param {TelegramBot} bot - The Telegram bot instance for logging
+ * @param {string} chatId - The chat ID of the user
+ * @param {Object} settingsData - The settings data to save
+ * @throws {Error} If the data cannot be saved
+ */
+async function saveUserSettings(bot, chatId, settingsData) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = `user-settings/${chatId}.json`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const existingSettings = (await getUserSettings(chatId)) || {};
+
+    const mergedSettings = { ...existingSettings, ...settingsData };
+    const content = JSON.stringify(mergedSettings, null, 2);
+
+    await blockBlobClient.upload(content, content.length, {
+      blobHTTPHeaders: { blobContentType: 'application/json' },
+    });
+
+    await sendLogMessage(
+      bot,
+      `Successfully saved settings for chatId: ${chatId}`
+    );
+  } catch (error) {
+    throw new Error(
+      `Failed to save user settings for ${chatId}: ${error.message}`
+    );
+  }
+}
+
+/**
+ * List and fetch all user settings data from Azure Storage
+ * @returns {Promise<Object>} mapping of chatId to settings
+ * @throws {Error} If the data cannot be retrieved or parsed
+ */
+async function listAllUserSettingsData() {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const userSettings = {};
+    const prefix = 'user-settings/';
+
+    for await (const blob of containerClient.listBlobsFlat({ prefix })) {
+      const chatId = blob.name.substring(prefix.length).replace('.json', '');
+      const settings = await getUserSettings(chatId);
+      if (settings) {
+        userSettings[chatId] = settings;
+      }
+    }
+
+    return userSettings;
+  } catch (error) {
+    throw new Error(`Failed to list user settings: ${error.message}`);
+  }
+}
+
 module.exports = {
   getFantasyData,
   getUserTeam,
   saveUserTeam,
   deleteUserTeam,
   listAllUserTeamData,
+  getUserSettings,
+  saveUserSettings,
+  listAllUserSettingsData,
   getNextRaceInfoData,
 };

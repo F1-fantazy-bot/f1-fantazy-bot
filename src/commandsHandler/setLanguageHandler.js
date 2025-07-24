@@ -1,5 +1,6 @@
 const { t, setLanguage, getSupportedLanguages, getLanguageName } = require('../i18n');
 const { LANG_CALLBACK_TYPE } = require('../constants');
+const azureStorageService = require('../azureStorageService');
 
 async function handleSetLanguage(bot, msg) {
   const chatId = msg.chat.id;
@@ -25,6 +26,7 @@ async function handleSetLanguage(bot, msg) {
   }
 
   if (setLanguage(lang, chatId)) {
+    await azureStorageService.saveUserSettings(bot, chatId, { lang });
     await bot
       .sendMessage(
         chatId,
