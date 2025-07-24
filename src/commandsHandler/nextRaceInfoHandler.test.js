@@ -568,4 +568,39 @@ describe('handleNextRaceInfoCommand', () => {
       `*${t('Track History', KILZI_CHAT_ID)}:*\nהיסטוריה בעברית`
     );
   });
+
+  it('should display dates in Hebrew when language is set', async () => {
+    const mockNextRaceInfo = {
+      raceName: 'Hebrew GP',
+      circuitName: 'Some Circuit',
+      location: {
+        lat: '0',
+        long: '0',
+        locality: 'Tel Aviv',
+        country: 'Israel',
+      },
+      sessions: {
+        qualifying: '2025-05-24T14:00:00Z',
+        race: '2025-05-25T13:00:00Z',
+      },
+      weekendFormat: 'regular',
+      historicalRaceStats: [],
+    };
+
+    const qualifyingDate = new Date('2025-05-24T14:00:00Z');
+    const raceDate = new Date('2025-05-25T13:00:00Z');
+    getWeatherForecast.mockResolvedValue({
+      [qualifyingDate.toISOString()]: { temperature: 20, precipitation: 0, wind: 5 },
+      [raceDate.toISOString()]: { temperature: 21, precipitation: 0, wind: 7 },
+    });
+
+    setLanguage('he', KILZI_CHAT_ID);
+    nextRaceInfoCache.defaultSharedKey = mockNextRaceInfo;
+
+    await handleNextRaceInfoCommand(botMock, KILZI_CHAT_ID);
+
+    const hebrewMessage = botMock.sendMessage.mock.calls[0][1];
+    expect(hebrewMessage).toContain('יום שבת');
+    expect(hebrewMessage).toContain('יום ראשון');
+  });
 });

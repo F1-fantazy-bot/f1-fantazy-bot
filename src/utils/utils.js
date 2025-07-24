@@ -12,7 +12,7 @@ const {
   EXTRACT_JSON_FROM_CONSTRUCTORS_PHOTO_SYSTEM_PROMPT,
   EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT,
 } = require('../prompts');
-const { t } = require('../i18n');
+const { t, getLocale } = require('../i18n');
 
 exports.sendMessage = async function (bot, chatId, message) {
   if (!chatId) {
@@ -239,8 +239,8 @@ exports.isAdminMessage = function (msg) {
 };
 
 // Formats a Date object into { dateStr, timeStr } using locale and timezone
-exports.formatDateTime = function (dateObj) {
-  const locale = 'en-GB';
+exports.formatDateTime = function (dateObj, chatId) {
+  const locale = getLocale(chatId);
   const timezone = 'Asia/Jerusalem';
 
   const dateStr = dateObj.toLocaleDateString(locale, {

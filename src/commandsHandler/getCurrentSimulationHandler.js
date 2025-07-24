@@ -44,7 +44,7 @@ async function handleGetCurrentSimulation(bot, msg) {
   if (simulationInfo.lastUpdate) {
     try {
       const date = new Date(simulationInfo.lastUpdate);
-      const { dateStr, timeStr } = formatDateTime(date);
+      const { dateStr, timeStr } = formatDateTime(date, chatId);
       timeText = `${dateStr} at ${timeStr}`;
     } catch (error) {
       timeText = t('Invalid date', chatId);
