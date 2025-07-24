@@ -106,25 +106,25 @@ async function handleNextRaceInfoCommand(bot, chatId) {
   if (qualifyingWeather && raceWeather) {
     weatherSection += `*${t('Weather Forecast', chatId)}:*\n`;
     if (isSprintWeekend) {
-      weatherSection += `*${t('Sprint Qualifying', chatId)}:*\n🌡️ Temp: ${
+      weatherSection += `*${t('Sprint Qualifying', chatId)}:*\n🌡️ ${t('Temp', chatId)}: ${
         sprintQualifyingWeather.temperature
-      }°C\n🌧️ Rain: ${sprintQualifyingWeather.precipitation}%\n💨 Wind: ${
+      }°C\n🌧️ ${t('Rain', chatId)}: ${sprintQualifyingWeather.precipitation}%\n💨 ${t('Wind', chatId)}: ${
         sprintQualifyingWeather.wind
       } km/h\n`;
-      weatherSection += `*${t('Sprint', chatId)}:*\n🌡️ Temp: ${
+      weatherSection += `*${t('Sprint', chatId)}:*\n🌡️ ${t('Temp', chatId)}: ${
         sprintWeather.temperature
-      }°C\n🌧️ Rain: ${sprintWeather.precipitation}%\n💨 Wind: ${
+      }°C\n🌧️ ${t('Rain', chatId)}: ${sprintWeather.precipitation}%\n💨 ${t('Wind', chatId)}: ${
         sprintWeather.wind
       } km/h\n`;
     }
-    weatherSection += `*${t('Qualifying', chatId)}:*\n🌡️ Temp: ${
+    weatherSection += `*${t('Qualifying', chatId)}:*\n🌡️ ${t('Temp', chatId)}: ${
       qualifyingWeather.temperature
-    }°C\n🌧️ Rain: ${qualifyingWeather.precipitation}%\n💨 Wind: ${
+    }°C\n🌧️ ${t('Rain', chatId)}: ${qualifyingWeather.precipitation}%\n💨 ${t('Wind', chatId)}: ${
       qualifyingWeather.wind
     } km/h\n`;
-    weatherSection += `*${t('Race', chatId)}:*\n🌡️ Temp: ${
+    weatherSection += `*${t('Race', chatId)}:*\n🌡️ ${t('Temp', chatId)}: ${
       raceWeather.temperature
-    }°C\n🌧️ Rain: ${raceWeather.precipitation}%\n💨 Wind: ${
+    }°C\n🌧️ ${t('Rain', chatId)}: ${raceWeather.precipitation}%\n💨 ${t('Wind', chatId)}: ${
       raceWeather.wind
     } km/h\n\n`;
   }
