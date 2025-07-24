@@ -48,7 +48,11 @@ pid: ${process.pid}`;
 
   console.log(log);
 
-  await exports.sendMessage(bot, LOG_CHANNEL_ID, log);
+  try {
+    await exports.sendMessage(bot, LOG_CHANNEL_ID, log);
+  } catch (error) {
+    console.error(error);
+  }
 };
 
 exports.sendMessageToAdmins = async function (bot, message) {
@@ -57,6 +61,18 @@ exports.sendMessageToAdmins = async function (bot, message) {
 
   for (const chatId of adminChatIds) {
     await exports.sendMessage(bot, chatId, msg);
+  }
+};
+
+exports.sendMessageToUser = async function (bot, chatId, message) {
+  try {
+    await exports.sendMessage(bot, chatId, message);
+  } catch (error) {
+    console.error(error);
+    await exports.sendLogMessage(
+      bot,
+      `Error sending message to user: ${error.message}`
+    );
   }
 };
 

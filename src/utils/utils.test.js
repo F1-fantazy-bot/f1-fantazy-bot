@@ -1,10 +1,13 @@
+const utils = require('./utils');
 const {
   getChatName,
   sendLogMessage,
+  sendMessageToUser,
   calculateTeamInfo,
   validateJsonData,
   formatDateTime,
-} = require('./utils');
+} = utils;
+const { KILZI_CHAT_ID } = require('../constants');
 
 describe('utils', () => {
   describe('getChatName', () => {
@@ -128,6 +131,57 @@ describe('utils', () => {
         expect.any(Number), // LOG_CHANNEL_ID
         expect.stringContaining('env: dev')
       );
+    });
+
+    it('logs error when sendMessage fails', async () => {
+      const error = new Error('fail');
+      const botMock = {
+        sendMessage: jest.fn().mockRejectedValue(error),
+      };
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      await sendLogMessage(botMock, 'some log');
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(error);
+
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  describe('sendMessageToUser', () => {
+    it('sends message to the user chat ID', async () => {
+      const botMock = { sendMessage: jest.fn().mockResolvedValue() };
+
+      await sendMessageToUser(botMock, KILZI_CHAT_ID, 'hello');
+
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        KILZI_CHAT_ID,
+        'hello'
+      );
+    });
+
+    it('logs error and calls sendLogMessage on failure', async () => {
+      const error = new Error('fail');
+      const botMock = { sendMessage: jest.fn().mockRejectedValue(error) };
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const sendLogSpy = jest
+        .spyOn(utils, 'sendLogMessage')
+        .mockResolvedValue();
+
+      await sendMessageToUser(botMock, KILZI_CHAT_ID, 'hi');
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(error);
+      expect(sendLogSpy).toHaveBeenCalledWith(
+        botMock,
+        `Error sending message to user: ${error.message}`
+      );
+
+      consoleErrorSpy.mockRestore();
+      sendLogSpy.mockRestore();
     });
   });
 
