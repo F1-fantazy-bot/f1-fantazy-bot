@@ -42,6 +42,17 @@ function getLanguageName(code, chatId) {
   return t(key, chatId);
 }
 
+function getLocale(chatId) {
+  const lang = getLanguage(chatId);
+
+  switch (lang) {
+    case 'he':
+      return 'he-IL';
+    default:
+      return 'en-GB';
+  }
+}
+
 module.exports = {
   t,
   setLanguage,
@@ -49,4 +60,5 @@ module.exports = {
   getSupportedLanguages,
   languageCache,
   getLanguageName,
+  getLocale,
 };
