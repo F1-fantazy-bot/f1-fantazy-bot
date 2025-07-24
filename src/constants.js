@@ -16,6 +16,8 @@ exports.CHIP_CALLBACK_TYPE = 'CHIP';
 exports.MENU_CALLBACK_TYPE = 'MENU';
 exports.LANG_CALLBACK_TYPE = 'LANG';
 
+exports.MAX_TELEGRAM_MESSAGE_LENGTH = 4096;
+
 exports.COMMAND_BEST_TEAMS = '/best_teams';
 exports.COMMAND_CURRENT_TEAM_INFO = '/current_team_info';
 exports.COMMAND_CHIPS = '/chips';

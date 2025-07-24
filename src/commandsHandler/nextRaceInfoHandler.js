@@ -1,6 +1,7 @@
 const { sendLogMessage } = require('../utils');
 const { formatDateTime } = require('../utils/utils');
 const { getWeatherForecast } = require('../utils/weatherApi');
+const { MAX_TELEGRAM_MESSAGE_LENGTH } = require('../constants');
 const {
   nextRaceInfoCache,
   sharedKey,
@@ -13,7 +14,10 @@ async function handleNextRaceInfoCommand(bot, chatId) {
 
   if (!nextRaceInfo) {
     await bot
-      .sendMessage(chatId, t('Next race information is currently unavailable.', chatId))
+      .sendMessage(
+        chatId,
+        t('Next race information is currently unavailable.', chatId)
+      )
       .catch((err) =>
         console.error('Error sending next race info unavailable message:', err)
       );
@@ -102,21 +106,45 @@ async function handleNextRaceInfoCommand(bot, chatId) {
   if (qualifyingWeather && raceWeather) {
     weatherSection += `*${t('Weather Forecast', chatId)}:*\n`;
     if (isSprintWeekend) {
-      weatherSection += `*${t('Sprint Qualifying', chatId)}:*\n🌡️ Temp: ${sprintQualifyingWeather.temperature}°C\n🌧️ Rain: ${sprintQualifyingWeather.precipitation}%\n💨 Wind: ${sprintQualifyingWeather.wind} km/h\n`;
-      weatherSection += `*${t('Sprint', chatId)}:*\n🌡️ Temp: ${sprintWeather.temperature}°C\n🌧️ Rain: ${sprintWeather.precipitation}%\n💨 Wind: ${sprintWeather.wind} km/h\n`;
+      weatherSection += `*${t('Sprint Qualifying', chatId)}:*\n🌡️ Temp: ${
+        sprintQualifyingWeather.temperature
+      }°C\n🌧️ Rain: ${sprintQualifyingWeather.precipitation}%\n💨 Wind: ${
+        sprintQualifyingWeather.wind
+      } km/h\n`;
+      weatherSection += `*${t('Sprint', chatId)}:*\n🌡️ Temp: ${
+        sprintWeather.temperature
+      }°C\n🌧️ Rain: ${sprintWeather.precipitation}%\n💨 Wind: ${
+        sprintWeather.wind
+      } km/h\n`;
     }
-    weatherSection += `*${t('Qualifying', chatId)}:*\n🌡️ Temp: ${qualifyingWeather.temperature}°C\n🌧️ Rain: ${qualifyingWeather.precipitation}%\n💨 Wind: ${qualifyingWeather.wind} km/h\n`;
-    weatherSection += `*${t('Race', chatId)}:*\n🌡️ Temp: ${raceWeather.temperature}°C\n🌧️ Rain: ${raceWeather.precipitation}%\n💨 Wind: ${raceWeather.wind} km/h\n\n`;
+    weatherSection += `*${t('Qualifying', chatId)}:*\n🌡️ Temp: ${
+      qualifyingWeather.temperature
+    }°C\n🌧️ Rain: ${qualifyingWeather.precipitation}%\n💨 Wind: ${
+      qualifyingWeather.wind
+    } km/h\n`;
+    weatherSection += `*${t('Race', chatId)}:*\n🌡️ Temp: ${
+      raceWeather.temperature
+    }°C\n🌧️ Rain: ${raceWeather.precipitation}%\n💨 Wind: ${
+      raceWeather.wind
+    } km/h\n\n`;
   }
 
   // Create message with next race information
   let message = `*${t('Next Race Information', chatId)}*\n\n`;
   message += `🏎️ *${t('Race Name', chatId)}:* ${nextRaceInfo.raceName}\n`;
   message += `🏁 *${t('Track', chatId)}:* ${nextRaceInfo.circuitName}\n`;
-  message += `📍 *${t('Location', chatId)}:* ${nextRaceInfo.location.locality}, ${nextRaceInfo.location.country}\n`;
+  message += `📍 *${t('Location', chatId)}:* ${
+    nextRaceInfo.location.locality
+  }, ${nextRaceInfo.location.country}\n`;
   if (isSprintWeekend) {
-    message += `📅 *${t('Sprint Qualifying Date', chatId)}:* ${sprintQualifyingDateStr}\n`;
-    message += `⏰ *${t('Sprint Qualifying Time', chatId)}:* ${sprintQualifyingTimeStr}\n`;
+    message += `📅 *${t(
+      'Sprint Qualifying Date',
+      chatId
+    )}:* ${sprintQualifyingDateStr}\n`;
+    message += `⏰ *${t(
+      'Sprint Qualifying Time',
+      chatId
+    )}:* ${sprintQualifyingTimeStr}\n`;
     message += `📅 *${t('Sprint Date', chatId)}:* ${sprintDateStr}\n`;
     message += `⏰ *${t('Sprint Time', chatId)}:* ${sprintTimeStr}\n`;
   }
@@ -140,10 +168,18 @@ async function handleNextRaceInfoCommand(bot, chatId) {
       .sort((a, b) => b.season - a.season)
       .forEach((data) => {
         message += `*${data.season}:*\n`;
-        message += `🚀 ${t('Pole', chatId)}: ${data.polePosition} (${data.poleConstructor})\n`;
-        message += `🏆 ${t('Winner', chatId)}: ${data.winner} (${data.constructor})\n`;
-        message += `🥈 ${t('2nd', chatId)}: ${data.secondPlaceDriver} (${data.secondPlaceConstructor})\n`;
-        message += `🥉 ${t('3rd', chatId)}: ${data.thirdPlaceDriver} (${data.thirdPlaceConstructor})\n`;
+        message += `🚀 ${t('Pole', chatId)}: ${data.polePosition} (${
+          data.poleConstructor
+        })\n`;
+        message += `🏆 ${t('Winner', chatId)}: ${data.winner} (${
+          data.constructor
+        })\n`;
+        message += `🥈 ${t('2nd', chatId)}: ${data.secondPlaceDriver} (${
+          data.secondPlaceConstructor
+        })\n`;
+        message += `🥉 ${t('3rd', chatId)}: ${data.thirdPlaceDriver} (${
+          data.thirdPlaceConstructor
+        })\n`;
         message += `🏎️ ${t('Cars Finished', chatId)}: ${data.carsFinished}\n`;
         if (data.overtakes !== undefined) {
           message += `🔄 ${t('Overtakes', chatId)}: ${data.overtakes}\n`;
@@ -157,21 +193,44 @@ async function handleNextRaceInfoCommand(bot, chatId) {
         message += `\n`;
       });
   } else {
-    message += `${t('No historical data available for this track.', chatId)}\n\n`;
+    message += `${t(
+      'No historical data available for this track.',
+      chatId
+    )}\n\n`;
   }
 
+  let trackHistoryMessage = '';
   if (nextRaceInfo.trackHistory) {
     // Add track History section
-    message += `*${t('Track History', chatId)}:*\n`;
-    message += nextRaceInfo.trackHistory;
-    message += `\n`;
+    trackHistoryMessage += `*${t('Track History', chatId)}:*\n`;
+    trackHistoryMessage += nextRaceInfo.trackHistory;
+    trackHistoryMessage += `\n`;
   }
 
-  await bot
-    .sendMessage(chatId, message, { parse_mode: 'Markdown' })
-    .catch((err) =>
-      console.error('Error sending next race info message:', err)
-    );
+  if (
+    message.length + trackHistoryMessage.length >
+    MAX_TELEGRAM_MESSAGE_LENGTH
+  ) {
+    await bot
+      .sendMessage(chatId, message, { parse_mode: 'Markdown' })
+      .catch((err) =>
+        console.error('Error sending next race info message:', err)
+      );
+
+    await bot
+      .sendMessage(chatId, trackHistoryMessage, { parse_mode: 'Markdown' })
+      .catch((err) =>
+        console.error('Error sending track history message:', err)
+      );
+  } else {
+    await bot
+      .sendMessage(chatId, message + trackHistoryMessage, {
+        parse_mode: 'Markdown',
+      })
+      .catch((err) =>
+        console.error('Error sending next race info message:', err)
+      );
+  }
 }
 
 module.exports = { handleNextRaceInfoCommand };
