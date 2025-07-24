@@ -154,9 +154,12 @@ describe('utils', () => {
     it('sends message to the user chat ID', async () => {
       const botMock = { sendMessage: jest.fn().mockResolvedValue() };
 
-      await sendMessageToUser(botMock, 'hello');
+      await sendMessageToUser(botMock, KILZI_CHAT_ID, 'hello');
 
-      expect(botMock.sendMessage).toHaveBeenCalledWith(KILZI_CHAT_ID, 'hello');
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        KILZI_CHAT_ID,
+        'hello'
+      );
     });
 
     it('logs error and calls sendLogMessage on failure', async () => {
@@ -169,7 +172,7 @@ describe('utils', () => {
         .spyOn(utils, 'sendLogMessage')
         .mockResolvedValue();
 
-      await sendMessageToUser(botMock, 'hi');
+      await sendMessageToUser(botMock, KILZI_CHAT_ID, 'hi');
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(error);
       expect(sendLogSpy).toHaveBeenCalledWith(

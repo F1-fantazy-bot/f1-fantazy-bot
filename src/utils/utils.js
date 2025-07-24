@@ -64,9 +64,9 @@ exports.sendMessageToAdmins = async function (bot, message) {
   }
 };
 
-exports.sendMessageToUser = async function (bot, message) {
+exports.sendMessageToUser = async function (bot, chatId, message) {
   try {
-    await exports.sendMessage(bot, KILZI_CHAT_ID, message);
+    await exports.sendMessage(bot, chatId, message);
   } catch (error) {
     console.error(error);
     await exports.sendLogMessage(
