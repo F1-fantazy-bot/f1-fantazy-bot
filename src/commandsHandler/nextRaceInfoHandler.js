@@ -110,23 +110,23 @@ async function handleNextRaceInfoCommand(bot, chatId) {
         sprintQualifyingWeather.temperature
       }°C\n🌧️ ${t('Rain', chatId)}: ${sprintQualifyingWeather.precipitation}%\n💨 ${t('Wind', chatId)}: ${
         sprintQualifyingWeather.wind
-      } km/h\n`;
+      } ${t('km/h', chatId)}\n`;
       weatherSection += `*${t('Sprint', chatId)}:*\n🌡️ ${t('Temp', chatId)}: ${
         sprintWeather.temperature
       }°C\n🌧️ ${t('Rain', chatId)}: ${sprintWeather.precipitation}%\n💨 ${t('Wind', chatId)}: ${
         sprintWeather.wind
-      } km/h\n`;
+      } ${t('km/h', chatId)}\n`;
     }
     weatherSection += `*${t('Qualifying', chatId)}:*\n🌡️ ${t('Temp', chatId)}: ${
       qualifyingWeather.temperature
     }°C\n🌧️ ${t('Rain', chatId)}: ${qualifyingWeather.precipitation}%\n💨 ${t('Wind', chatId)}: ${
       qualifyingWeather.wind
-    } km/h\n`;
+    } ${t('km/h', chatId)}\n`;
     weatherSection += `*${t('Race', chatId)}:*\n🌡️ ${t('Temp', chatId)}: ${
       raceWeather.temperature
     }°C\n🌧️ ${t('Rain', chatId)}: ${raceWeather.precipitation}%\n💨 ${t('Wind', chatId)}: ${
       raceWeather.wind
-    } km/h\n\n`;
+    } ${t('km/h', chatId)}\n\n`;
   }
 
   // Create message with next race information
@@ -152,10 +152,12 @@ async function handleNextRaceInfoCommand(bot, chatId) {
   message += `⏰ *${t('Qualifying Time', chatId)}:* ${qualifyingTimeStr}\n`;
   message += `📅 *${t('Race Date', chatId)}:* ${raceDateStr}\n`;
   message += `⏰ *${t('Race Time', chatId)}:* ${raceTimeStr}\n`;
-  message += `📝 *${t('Weekend Format', chatId)}:* ${
+  const weekendFormatValue = t(
     nextRaceInfo.weekendFormat.charAt(0).toUpperCase() +
-    nextRaceInfo.weekendFormat.slice(1)
-  }\n\n`;
+      nextRaceInfo.weekendFormat.slice(1),
+    chatId
+  );
+  message += `📝 *${t('Weekend Format', chatId)}:* ${weekendFormatValue}\n\n`;
   message += weatherSection;
 
   // Add historical data section
