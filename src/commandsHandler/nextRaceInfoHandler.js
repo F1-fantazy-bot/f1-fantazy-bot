@@ -7,7 +7,7 @@ const {
   sharedKey,
   weatherForecastCache,
 } = require('../cache');
-const { t } = require('../i18n');
+const { t, getLanguage } = require('../i18n');
 
 async function handleNextRaceInfoCommand(bot, chatId) {
   const nextRaceInfo = nextRaceInfoCache[sharedKey];
@@ -200,11 +200,18 @@ async function handleNextRaceInfoCommand(bot, chatId) {
   }
 
   let trackHistoryMessage = '';
-  if (nextRaceInfo.trackHistory) {
-    // Add track History section
-    trackHistoryMessage += `*${t('Track History', chatId)}:*\n`;
-    trackHistoryMessage += nextRaceInfo.trackHistory;
-    trackHistoryMessage += `\n`;
+  if (Array.isArray(nextRaceInfo.trackHistory)) {
+    const lang = getLanguage(chatId);
+    const trackHistoryObj =
+      nextRaceInfo.trackHistory.find((h) => h.lang === lang) ||
+      nextRaceInfo.trackHistory[0];
+
+    if (trackHistoryObj && trackHistoryObj.text) {
+      // Add track History section
+      trackHistoryMessage += `*${t('Track History', chatId)}:*\n`;
+      trackHistoryMessage += trackHistoryObj.text;
+      trackHistoryMessage += `\n`;
+    }
   }
 
   if (
