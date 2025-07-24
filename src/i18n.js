@@ -1,17 +1,13 @@
 const { translations, LANGUAGE_NAME_KEYS } = require('./translations');
 const { languageCache } = require('./cache');
-let defaultLanguage = process.env.BOT_LANGUAGE || 'en';
+const defaultLanguage = process.env.BOT_LANGUAGE || 'en';
 
 function setLanguage(lang, chatId) {
-  if (!translations[lang]) {
+  if (!translations[lang] || chatId === undefined) {
     return false;
   }
 
-  if (chatId !== undefined) {
-    languageCache[chatId] = lang;
-  } else {
-    defaultLanguage = lang;
-  }
+  languageCache[chatId] = lang;
 
   return true;
 }

@@ -1,5 +1,5 @@
 const { KILZI_CHAT_ID } = require('../constants');
-const { setLanguage, getLanguage, languageCache, t, getLanguageName } = require('../i18n');
+const { getLanguage, languageCache, t, getLanguageName } = require('../i18n');
 const { handleSetLanguage } = require('./setLanguageHandler');
 
 describe('handleSetLanguage', () => {
@@ -10,7 +10,6 @@ describe('handleSetLanguage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     Object.keys(languageCache).forEach((key) => delete languageCache[key]);
-    setLanguage('en');
   });
 
   it('should change language when valid code provided', async () => {
