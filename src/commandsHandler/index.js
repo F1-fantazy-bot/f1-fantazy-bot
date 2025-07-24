@@ -16,6 +16,7 @@ const { handleBillingStats } = require('./billingStatsHandler');
 const { displayMenuMessage } = require('./menuHandler');
 const { handleVersionCommand } = require('./versionHandler');
 const { handleSetLanguage } = require('./setLanguageHandler');
+const { handleDescribeCommand } = require('./describeHandler');
 
 module.exports = {
   handleBestTeamsMessage,
@@ -35,4 +36,5 @@ module.exports = {
   displayMenuMessage,
   handleVersionCommand,
   handleSetLanguage,
+  handleDescribeCommand,
 };

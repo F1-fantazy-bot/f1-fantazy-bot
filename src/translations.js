@@ -138,6 +138,10 @@ const translations = {
     Hebrew: 'עברית',
     '🌐 Set Language': '🌐 הגדר שפה',
     'Change bot language for this session': 'שנה את שפת הבוט להפעלה זו',
+    'Please provide a description after the command.': 'אנא ספק תיאור לאחר הפקודה.',
+    '🔍 Describe': '🔍 תאר',
+    'Use natural language to run bot commands automatically':
+      'השתמש בטקסט חופשי להרצת פקודות באופן אוטומטי',
     '❓ Help & Menu': '❓ עזרה ותפריט',
     'Help and navigation commands': 'פקודות עזרה וניווט',
     '🏎️ Team Management': '🏎️ ניהול קבוצה',

@@ -8,6 +8,7 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
 
 - **Multiple Input Methods**: Input team data via direct JSON or by sending screenshots (photos) of drivers, constructors, and current team setups
 - **AI-Powered Image Processing**: Automatically extract data from F1 Fantasy screenshots using Azure OpenAI
+- **Natural Language Commands**: Use `/describe` to run bot commands based on free text requests
 
 ### Team Optimization & Analysis
 
@@ -160,6 +161,7 @@ All users can access these commands:
 
 - **`/print_cache`** - Show the currently cached drivers, constructors, and current team
 - **`/reset_cache`** - Clear all cached data for this chat
+- **`/describe`** - Use natural language to run a sequence of bot commands
 
 ### Admin Commands
 

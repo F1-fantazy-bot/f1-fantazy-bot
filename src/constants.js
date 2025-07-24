@@ -33,6 +33,7 @@ exports.COMMAND_BILLING_STATS = '/billing_stats';
 exports.COMMAND_VERSION = '/version';
 exports.COMMAND_MENU = '/menu';
 exports.COMMAND_SET_LANGUAGE = '/lang';
+exports.COMMAND_DESCRIBE = '/describe';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -115,6 +116,11 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_SET_LANGUAGE,
         title: '🌐 Set Language',
         description: 'Change bot language for this session',
+      },
+      {
+        constant: exports.COMMAND_DESCRIBE,
+        title: '🔍 Describe',
+        description: 'Use natural language to run bot commands automatically',
       },
     ],
   },

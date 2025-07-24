@@ -12,7 +12,14 @@ const {
   COMMAND_NEXT_RACE_INFO,
   COMMAND_CHIPS,
   COMMAND_SET_LANGUAGE,
+  COMMAND_DESCRIBE,
 } = require('./constants');
+
+jest.mock('openai', () => ({
+  AzureOpenAI: jest.fn().mockImplementation(() => ({
+    chat: { completions: { create: jest.fn() } },
+  })),
+}));
 
 // Mock all command handlers
 const { handleNumberMessage } = require('./commandsHandler/numberInputHandler');
@@ -60,8 +67,10 @@ jest.mock('./commandsHandler/getBotfatherCommandsHandler');
 jest.mock('./commandsHandler/nextRaceInfoHandler');
 jest.mock('./commandsHandler/menuHandler');
 jest.mock('./commandsHandler/setLanguageHandler');
+jest.mock('./commandsHandler/describeHandler');
 
 const { handleTextMessage } = require('./textMessageHandler');
+const { handleDescribeCommand } = require('./commandsHandler/describeHandler');
 
 describe('handleTextMessage', () => {
   const botMock = {
@@ -236,6 +245,18 @@ describe('handleTextMessage', () => {
       await handleTextMessage(botMock, msgMock);
 
       expect(handleSetLanguage).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleJsonMessage).not.toHaveBeenCalled();
+    });
+
+    it('should route /describe command to handleDescribeCommand', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: `${COMMAND_DESCRIBE} something`,
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(handleDescribeCommand).toHaveBeenCalledWith(botMock, msgMock);
       expect(handleJsonMessage).not.toHaveBeenCalled();
     });
 
