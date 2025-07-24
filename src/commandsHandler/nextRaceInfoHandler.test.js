@@ -19,7 +19,8 @@ jest.mock('../utils/weatherApi', () => ({
   getWeatherForecast: jest.fn(),
 }));
 
-const { nextRaceInfoCache, weatherForecastCache } = require('../cache');
+const { nextRaceInfoCache, weatherForecastCache, languageCache } = require('../cache');
+const { setLanguage, t } = require('../i18n');
 
 const { handleNextRaceInfoCommand } = require('./nextRaceInfoHandler');
 
@@ -34,6 +35,7 @@ describe('handleNextRaceInfoCommand', () => {
     Object.keys(weatherForecastCache).forEach(
       (key) => delete weatherForecastCache[key]
     );
+    Object.keys(languageCache).forEach((key) => delete languageCache[key]);
   });
 
   it('should handle unavailable next race info', async () => {
@@ -509,5 +511,61 @@ describe('handleNextRaceInfoCommand', () => {
     expect(historicalSection).toContain('*2024:*');
     const entry2024 = historicalSection.split('*2024:*')[1].split('*')[0];
     expect(entry2024).not.toContain('🔄 Overtakes:');
+  });
+
+  it('should include track history in the correct language', async () => {
+    const mockNextRaceInfo = {
+      raceName: 'Test Grand Prix',
+      circuitName: 'Test Circuit',
+      location: {
+        lat: '0',
+        long: '0',
+        locality: 'Testville',
+        country: 'Testland',
+      },
+      sessions: {
+        qualifying: '2025-01-01T10:00:00Z',
+        race: '2025-01-02T10:00:00Z',
+      },
+      weekendFormat: 'regular',
+      trackHistory: [
+        { lang: 'en', text: 'History in English' },
+        { lang: 'he', text: 'היסטוריה בעברית' },
+      ],
+      historicalRaceStats: [],
+    };
+
+    const qualifyingDate = new Date('2025-01-01T10:00:00Z');
+    const raceDate = new Date('2025-01-02T10:00:00Z');
+    getWeatherForecast.mockResolvedValue({
+      [qualifyingDate.toISOString()]: {
+        temperature: 20,
+        precipitation: 10,
+        wind: 5,
+      },
+      [raceDate.toISOString()]: {
+        temperature: 22,
+        precipitation: 0,
+        wind: 7,
+      },
+    });
+
+    nextRaceInfoCache.defaultSharedKey = mockNextRaceInfo;
+
+    await handleNextRaceInfoCommand(botMock, KILZI_CHAT_ID);
+
+    const sentMessage = botMock.sendMessage.mock.calls[0][1];
+    expect(sentMessage).toContain(
+      `*${t('Track History', KILZI_CHAT_ID)}:*\nHistory in English`
+    );
+
+    // Switch to Hebrew and verify
+    setLanguage('he', KILZI_CHAT_ID);
+    await handleNextRaceInfoCommand(botMock, KILZI_CHAT_ID);
+
+    const hebrewMessage = botMock.sendMessage.mock.calls[1][1];
+    expect(hebrewMessage).toContain(
+      `*${t('Track History', KILZI_CHAT_ID)}:*\nהיסטוריה בעברית`
+    );
   });
 });
