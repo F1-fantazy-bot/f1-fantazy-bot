@@ -6,10 +6,12 @@ const {
   simulationInfoCache,
   sharedKey,
   nextRaceInfoCache,
+  languageCache,
 } = require('./cache');
 const {
   getFantasyData,
   listAllUserTeamData,
+  listAllUserSettingsData,
   getNextRaceInfoData,
 } = require('./azureStorageService');
 const { initializeCaches, loadSimulationData } = require('./cacheInitializer');
@@ -26,6 +28,7 @@ jest.mock('./utils', () => ({
 jest.mock('./azureStorageService', () => ({
   getFantasyData: jest.fn(),
   listAllUserTeamData: jest.fn(),
+  listAllUserSettingsData: jest.fn(),
   getNextRaceInfoData: jest.fn(),
 }));
 
@@ -61,6 +64,12 @@ describe('cacheInitializer', () => {
     },
   };
 
+  // Mock user settings data
+  const mockUserSettings = {
+    123: { lang: 'en' },
+    456: { lang: 'he' },
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     // Reset all caches
@@ -77,11 +86,13 @@ describe('cacheInitializer', () => {
     Object.keys(nextRaceInfoCache).forEach(
       (key) => delete nextRaceInfoCache[key]
     );
+    Object.keys(languageCache).forEach((key) => delete languageCache[key]);
 
     // Setup mock implementations
     validateJsonData.mockResolvedValue(true);
     getFantasyData.mockResolvedValue(mockFantasyData);
     listAllUserTeamData.mockResolvedValue(mockUserTeams);
+    listAllUserSettingsData.mockResolvedValue(mockUserSettings);
     getNextRaceInfoData.mockResolvedValue({
       raceName: 'Test Race',
       season: '2025',
@@ -94,6 +105,7 @@ describe('cacheInitializer', () => {
     // Verify Azure Storage was queried
     expect(getFantasyData).toHaveBeenCalled();
     expect(listAllUserTeamData).toHaveBeenCalled();
+    expect(listAllUserSettingsData).toHaveBeenCalled();
     expect(getNextRaceInfoData).toHaveBeenCalled();
 
     // Verify success message was sent via utils
@@ -133,11 +145,23 @@ describe('cacheInitializer', () => {
     // Verify user teams were cached correctly
     expect(currentTeamCache).toEqual(mockUserTeams);
 
+    // Verify user settings were cached correctly
+    expect(languageCache).toEqual({
+      123: 'en',
+      456: 'he',
+    });
+
     // Verify user teams loaded message
     expect(utils.sendLogMessage).toHaveBeenCalledWith(
       mockBot,
       expect.stringContaining(
         `Loaded ${Object.keys(mockUserTeams).length} user teams`
+      )
+    );
+    expect(utils.sendLogMessage).toHaveBeenCalledWith(
+      mockBot,
+      expect.stringContaining(
+        `Loaded ${Object.keys(mockUserSettings).length} user settings`
       )
     );
   });

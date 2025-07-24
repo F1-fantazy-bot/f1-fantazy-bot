@@ -5,6 +5,7 @@ const {
   simulationInfoCache,
   sharedKey,
   nextRaceInfoCache,
+  languageCache,
 } = require('./cache');
 const {
   sendLogMessage,
@@ -19,6 +20,7 @@ const {
 const {
   getFantasyData,
   listAllUserTeamData,
+  listAllUserSettingsData,
   getNextRaceInfoData,
 } = require('./azureStorageService');
 
@@ -50,6 +52,19 @@ async function initializeCaches(bot) {
   await sendLogMessage(
     bot,
     `Loaded ${Object.keys(userTeams).length} user teams from storage`
+  );
+
+  // Load all user settings into cache
+  const userSettings = await listAllUserSettingsData();
+  Object.entries(userSettings).forEach(([id, settings]) => {
+    if (settings.lang) {
+      languageCache[id] = settings.lang;
+    }
+  });
+
+  await sendLogMessage(
+    bot,
+    `Loaded ${Object.keys(userSettings).length} user settings from storage`
   );
 }
 

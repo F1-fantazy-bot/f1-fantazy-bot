@@ -137,6 +137,7 @@ async function handleLanguageCallback(bot, query) {
   const lang = query.data.split(':')[1];
 
   setLanguage(lang, chatId);
+  await azureStorageService.saveUserSettings(bot, chatId, { lang });
 
   await bot.editMessageText(
     t('Language changed to {LANG}.', chatId, { LANG: getLanguageName(lang, chatId) }),
