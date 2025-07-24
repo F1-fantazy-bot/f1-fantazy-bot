@@ -110,6 +110,11 @@ describe('handleGetCurrentSimulation', () => {
 
     await handleGetCurrentSimulation(botMock, msgMock);
 
+    expect(mockFormatDateTime).toHaveBeenCalledWith(
+      new Date('2025-06-14T09:24:00.000Z'),
+      KILZI_CHAT_ID
+    );
+
     expect(getPrintableCache).toHaveBeenCalledWith(sharedKey);
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(

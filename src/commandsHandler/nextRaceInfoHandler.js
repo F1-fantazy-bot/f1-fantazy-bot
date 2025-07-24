@@ -39,9 +39,9 @@ async function handleNextRaceInfoCommand(bot, chatId) {
 
   // Format session dates and times
   const { dateStr: qualifyingDateStr, timeStr: qualifyingTimeStr } =
-    formatDateTime(qualifyingDate);
+    formatDateTime(qualifyingDate, chatId);
   const { dateStr: raceDateStr, timeStr: raceTimeStr } =
-    formatDateTime(raceDate);
+    formatDateTime(raceDate, chatId);
 
   let sprintQualifyingDateStr = '',
     sprintQualifyingTimeStr = '';
@@ -49,10 +49,10 @@ async function handleNextRaceInfoCommand(bot, chatId) {
     sprintTimeStr = '';
   if (isSprintWeekend) {
     ({ dateStr: sprintQualifyingDateStr, timeStr: sprintQualifyingTimeStr } =
-      formatDateTime(sprintQualifyingDate));
+      formatDateTime(sprintQualifyingDate, chatId));
 
     ({ dateStr: sprintDateStr, timeStr: sprintTimeStr } =
-      formatDateTime(sprintDate));
+      formatDateTime(sprintDate, chatId));
   }
 
   // Prepare array of dates for weather API

@@ -8,6 +8,7 @@ const {
   formatDateTime,
 } = utils;
 const { KILZI_CHAT_ID } = require('../constants');
+const { setLanguage, languageCache } = require('../i18n');
 
 describe('utils', () => {
   describe('getChatName', () => {
@@ -495,18 +496,24 @@ describe('utils', () => {
   });
 
   describe('formatDateTime', () => {
-    it('formats date and time correctly for a typical UTC date', () => {
+    const chatId = 12345;
+    afterEach(() => {
+      Object.keys(languageCache).forEach((key) => delete languageCache[key]);
+    });
+
+    it('uses English locale by default', () => {
       const date = new Date('2025-05-24T14:00:00Z');
-      const { dateStr, timeStr } = formatDateTime(date);
+      const { dateStr, timeStr } = formatDateTime(date, chatId);
       expect(dateStr).toMatch('Saturday, 24 May 2025');
       expect(timeStr).toMatch('17:00 GMT+3');
     });
 
-    it('formats date and time correctly for another UTC date', () => {
-      const date = new Date('2025-05-25T13:00:00Z');
-      const { dateStr, timeStr } = formatDateTime(date);
-      expect(dateStr).toMatch('Sunday, 25 May 2025');
-      expect(timeStr).toMatch('16:00 GMT+3');
+    it('uses Hebrew locale when setLanguage is called', () => {
+      setLanguage('he', chatId);
+      const date = new Date('2025-05-24T14:00:00Z');
+      const { dateStr, timeStr } = formatDateTime(date, chatId);
+      expect(dateStr).toMatch('יום שבת, 24 במאי 2025');
+      expect(timeStr).toMatch('17:00 GMT');
     });
   });
 });
