@@ -16,6 +16,7 @@ const {
   COMMAND_NEXT_RACE_INFO,
   COMMAND_BILLING_STATS,
   COMMAND_VERSION,
+  COMMAND_SET_LANGUAGE,
 } = require('../constants');
 
 // Import command handlers directly to avoid circular dependency
@@ -32,6 +33,8 @@ const { resetCacheForChat } = require('./resetCacheHandler');
 const { handleScrapingTrigger } = require('./scrapingTriggerHandler');
 const { handleBillingStats } = require('./billingStatsHandler');
 const { handleVersionCommand } = require('./versionHandler');
+const { handleSetLanguage } = require('./setLanguageHandler');
+const { t } = require('../i18n');
 
 // Map commands to their handler functions
 const COMMAND_HANDLERS = {
@@ -48,14 +51,15 @@ const COMMAND_HANDLERS = {
   [COMMAND_NEXT_RACE_INFO]: handleNextRaceInfoCommand,
   [COMMAND_BILLING_STATS]: handleBillingStats,
   [COMMAND_VERSION]: handleVersionCommand,
+  [COMMAND_SET_LANGUAGE]: handleSetLanguage,
 };
 
 async function displayMenuMessage(bot, msg) {
   const chatId = msg.chat.id;
   const isAdmin = isAdminMessage(msg);
 
-  const message = buildMainMenuMessage();
-  const keyboard = buildMainMenuKeyboard(isAdmin);
+  const message = buildMainMenuMessage(chatId);
+  const keyboard = buildMainMenuKeyboard(isAdmin, chatId);
 
   await bot
     .sendMessage(chatId, message, {
@@ -91,7 +95,7 @@ async function handleMenuCallback(bot, query) {
       return; // Don't answer callback query here
     default:
       await bot.answerCallbackQuery(query.id, {
-        text: 'Unknown menu action',
+        text: t('Unknown menu action', chatId),
         show_alert: true,
       });
 
@@ -101,15 +105,15 @@ async function handleMenuCallback(bot, query) {
   await bot.answerCallbackQuery(query.id);
 }
 
-function buildMainMenuMessage() {
-  const menuMessage = '🎯 *F1 Fantasy Bot Menu*\n\nChoose a category:';
+function buildMainMenuMessage(chatId) {
+  const menuMessage = t('🎯 *F1 Fantasy Bot Menu*\n\nChoose a category:', chatId);
   const tipMessage =
-    menuMessage + `\n\n💡 *Tip:* Use ${COMMAND_HELP} for quick text-based help`;
+    menuMessage + `\n\n💡 *${t('Tip:', chatId)}* ${t('Use {CMD} for quick text-based help', chatId, { CMD: COMMAND_HELP })}`;
 
   return tipMessage;
 }
 
-function buildMainMenuKeyboard(isAdmin) {
+function buildMainMenuKeyboard(isAdmin, chatId) {
   // Filter visible categories
   const visibleCategories = Object.values(MENU_CATEGORIES).filter(
     (category) => {
@@ -123,7 +127,7 @@ function buildMainMenuKeyboard(isAdmin) {
   const keyboard = buildKeyboard(
     visibleCategories,
     (category) => ({
-      text: category.title,
+      text: t(category.title, chatId),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.CATEGORY}:${category.id}`,
     }),
     2
@@ -132,7 +136,7 @@ function buildMainMenuKeyboard(isAdmin) {
   // Add direct help button
   keyboard.push([
     {
-      text: '❓ Help',
+      text: t('❓ Help', chatId),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.HELP}`,
     },
   ]);
@@ -158,7 +162,7 @@ function buildKeyboard(items, buttonBuilder, itemsPerRow = 2) {
   return keyboard;
 }
 
-function buildCategoryMenuKeyboard(category, isAdmin) {
+function buildCategoryMenuKeyboard(category, isAdmin, chatId) {
   // Filter visible commands
   const visibleCommands = category.commands.filter((command) => {
     // Skip admin-only commands for non-admin users
@@ -169,7 +173,7 @@ function buildCategoryMenuKeyboard(category, isAdmin) {
   const keyboard = buildKeyboard(
     visibleCommands,
     (command) => ({
-      text: command.title,
+      text: t(command.title, chatId),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.COMMAND}:${command.constant}`,
     }),
     2
@@ -178,7 +182,7 @@ function buildCategoryMenuKeyboard(category, isAdmin) {
   // Add back button
   keyboard.push([
     {
-      text: '⬅️ Back to Main Menu',
+      text: t('⬅️ Back to Main Menu', chatId),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.MAIN_MENU}`,
     },
   ]);
@@ -187,8 +191,8 @@ function buildCategoryMenuKeyboard(category, isAdmin) {
 }
 
 async function showMainMenu(bot, chatId, messageId, isAdmin) {
-  const message = buildMainMenuMessage();
-  const keyboard = buildMainMenuKeyboard(isAdmin);
+  const message = buildMainMenuMessage(chatId);
+  const keyboard = buildMainMenuKeyboard(isAdmin, chatId);
 
   await bot.editMessageText(message, {
     chat_id: chatId,
@@ -211,8 +215,8 @@ async function showCategoryMenu(bot, chatId, messageId, categoryId, isAdmin) {
     return;
   }
 
-  const menuMessage = `${category.title}\n\n${category.description}\n\nChoose a command:`;
-  const keyboard = buildCategoryMenuKeyboard(category, isAdmin);
+  const menuMessage = `${t(category.title, chatId)}\n\n${t(category.description, chatId)}\n\n${t('Choose a command:', chatId)}`;
+  const keyboard = buildCategoryMenuKeyboard(category, isAdmin, chatId);
 
   await bot.editMessageText(menuMessage, {
     chat_id: chatId,
@@ -241,7 +245,7 @@ async function executeCommand(bot, query, command) {
     try {
       // Answer the callback query first
       await bot.answerCallbackQuery(query.id, {
-        text: `Executing ${command}...`,
+        text: t('Executing {CMD}...', chatId, { CMD: command }),
       });
 
       // Execute the command based on handler parameter patterns
@@ -262,13 +266,13 @@ async function executeCommand(bot, query, command) {
     } catch (error) {
       console.error(`Error executing command ${command}:`, error);
       await bot.answerCallbackQuery(query.id, {
-        text: 'Error executing command',
+        text: t('Error executing command', chatId),
         show_alert: true,
       });
     }
   } else {
     await bot.answerCallbackQuery(query.id, {
-      text: 'Command not found',
+      text: t('Command not found', chatId),
       show_alert: true,
     });
   }
@@ -283,13 +287,13 @@ async function executeHelpCommand(bot, query) {
 
   try {
     await bot.answerCallbackQuery(query.id, {
-      text: 'Showing help...',
+      text: t('Showing help...', chatId),
     });
     await displayHelpMessage(bot, mockMsg);
   } catch (error) {
     console.error('Error executing help command:', error);
     await bot.answerCallbackQuery(query.id, {
-      text: 'Error showing help',
+      text: t('Error showing help', chatId),
       show_alert: true,
     });
   }

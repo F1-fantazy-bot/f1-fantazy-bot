@@ -17,12 +17,14 @@ const {
   PHOTO_CALLBACK_TYPE,
   CHIP_CALLBACK_TYPE,
   MENU_CALLBACK_TYPE,
+  LANG_CALLBACK_TYPE,
   WITHOUT_CHIP,
   COMMAND_BEST_TEAMS,
 } = require('./constants');
 
 const { sendLogMessage } = require('./utils');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
+const { t, setLanguage, getLanguageName } = require('./i18n');
 
 exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
@@ -32,6 +34,8 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handlePhotoCallback(bot, query);
     case CHIP_CALLBACK_TYPE:
       return await handleChipCallback(bot, query);
+    case LANG_CALLBACK_TYPE:
+      return await handleLanguageCallback(bot, query);
     case MENU_CALLBACK_TYPE:
       return await handleMenuCallback(bot, query);
     default:
@@ -51,7 +55,9 @@ async function handlePhotoCallback(bot, query) {
 
   // Optional: edit the message to confirm
   await bot.editMessageText(
-    `Photo labeled as ${type.toUpperCase()}. Wait for extracted JSON data...`,
+    t('Photo labeled as {TYPE}. Wait for extracted JSON data...', chatId, {
+      TYPE: type.toUpperCase(),
+    }),
     {
       chat_id: chatId,
       message_id: messageId,
@@ -82,7 +88,7 @@ async function handlePhotoCallback(bot, query) {
     await bot
       .sendMessage(
         chatId,
-        'An error occurred while extracting data from the photo.'
+        t('An error occurred while extracting data from the photo.', chatId)
       )
       .catch((err) =>
         console.error('Error sending extraction error message:', err)
@@ -104,11 +110,16 @@ async function handleChipCallback(bot, query) {
   // Clear best teams cache when user selects a chip
   delete bestTeamsCache[chatId];
 
-  let message = `Selected chip: ${chip.toUpperCase()}.`;
+  let message = t('Selected chip: {CHIP}.', chatId, { CHIP: chip.toUpperCase() });
 
   if (isThereDataInBestTeamsCache) {
-    message += `\nNote: best team calculation was deleted.
-rerun ${COMMAND_BEST_TEAMS} command to recalculate best teams.`;
+    message +=
+      '\n' +
+      t(
+        'Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.',
+        chatId,
+        { CMD: COMMAND_BEST_TEAMS }
+      );
   }
 
   await bot.editMessageText(message, {
@@ -117,6 +128,24 @@ rerun ${COMMAND_BEST_TEAMS} command to recalculate best teams.`;
   });
 
   // Answer callback to remove "Loading..." spinner
+  await bot.answerCallbackQuery(query.id);
+}
+
+async function handleLanguageCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const messageId = query.message.message_id;
+  const lang = query.data.split(':')[1];
+
+  setLanguage(lang, chatId);
+
+  await bot.editMessageText(
+    t('Language changed to {LANG}.', chatId, { LANG: getLanguageName(lang, chatId) }),
+    {
+      chat_id: chatId,
+      message_id: messageId,
+    }
+  );
+
   await bot.answerCallbackQuery(query.id);
 }
 

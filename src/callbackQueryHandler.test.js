@@ -9,10 +9,12 @@ const {
   WILDCARD_CHIP,
   LIMITLESS_CHIP,
   WITHOUT_CHIP,
+  LANG_CALLBACK_TYPE,
 } = require('./constants');
 const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 const cache = require('./cache');
 const azureStorageService = require('./azureStorageService');
+const { t, getLanguage, languageCache, getLanguageName } = require('./i18n');
 
 jest.mock('./utils', () => ({
   sendLogMessage: jest.fn().mockResolvedValue(undefined),
@@ -48,6 +50,7 @@ jest.mock('./cache', () => ({
   driversCache: {},
   bestTeamsCache: {},
   selectedChipCache: {},
+  languageCache: {},
   getPrintableCache: jest.fn(),
 }));
 
@@ -341,6 +344,33 @@ describe('handleCallbackQuery', () => {
         expect.stringContaining('rerun /best_teams command'),
         expect.objectContaining({ chat_id: chatId, message_id: messageId })
       );
+    });
+  });
+
+  describe('language selection handling', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      Object.keys(languageCache).forEach((key) => delete languageCache[key]);
+    });
+
+    it('should set language and edit message', async () => {
+      const langQuery = {
+        message: {
+          chat: { id: chatId },
+          message_id: messageId,
+        },
+        data: `${LANG_CALLBACK_TYPE}:he`,
+        id: 'langQueryId',
+      };
+
+      await handleCallbackQuery(bot, langQuery);
+
+      expect(bot.editMessageText).toHaveBeenCalledWith(
+        t('Language changed to {LANG}.', chatId, { LANG: getLanguageName('he', chatId) }),
+        expect.objectContaining({ chat_id: chatId, message_id: messageId })
+      );
+      expect(bot.answerCallbackQuery).toHaveBeenCalledWith('langQueryId');
+      expect(getLanguage(chatId)).toBe('he');
     });
   });
 

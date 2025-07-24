@@ -12,6 +12,7 @@ const {
   EXTRACT_JSON_FROM_CONSTRUCTORS_PHOTO_SYSTEM_PROMPT,
   EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT,
 } = require('../prompts');
+const { t } = require('../i18n');
 
 exports.sendMessage = async function (bot, chatId, message) {
   if (!chatId) {
@@ -96,7 +97,7 @@ exports.validateJsonData = async function (
     await bot
       .sendMessage(
         chatId,
-        'Invalid JSON data. Please ensure it contains 20 drivers under "Drivers" property.'
+        t('Invalid JSON data. Please ensure it contains 20 drivers under "Drivers" property.', chatId)
       )
       .catch((err) => console.error('Error sending JSON error message:', err));
 
@@ -111,7 +112,7 @@ exports.validateJsonData = async function (
     await bot
       .sendMessage(
         chatId,
-        'Invalid JSON data. Please ensure it contains 10 constructors under "Constructors" property.'
+        t('Invalid JSON data. Please ensure it contains 10 constructors under "Constructors" property.', chatId)
       )
       .catch((err) => console.error('Error sending JSON error message:', err));
 
@@ -138,7 +139,7 @@ exports.validateJsonData = async function (
     await bot
       .sendMessage(
         chatId,
-        'Invalid JSON data. Please ensure it contains the required properties under "CurrentTeam" property.'
+        t('Invalid JSON data. Please ensure it contains the required properties under "CurrentTeam" property.', chatId)
       )
       .catch((err) => console.error('Error sending JSON error message:', err));
 
@@ -192,7 +193,7 @@ exports.triggerScraping = async function (bot, chatId) {
   if (!url) {
     await bot.sendMessage(
       chatId,
-      'Error: Scraping trigger URL is not configured.'
+      t('Error: Scraping trigger URL is not configured.', chatId)
     );
 
     return;

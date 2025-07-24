@@ -8,6 +8,7 @@ const {
   selectedChipCache,
   sharedKey,
 } = require('../cache');
+const { t } = require('../i18n');
 
 async function handleBestTeamsMessage(bot, chatId) {
   // Try to fetch cached data for this chat
@@ -20,7 +21,7 @@ async function handleBestTeamsMessage(bot, chatId) {
     await bot
       .sendMessage(
         chatId,
-        'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.'
+        t('Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.', chatId)
       )
       .catch((err) =>
         console.error('Error sending cache unavailable message:', err)
@@ -69,24 +70,26 @@ async function handleBestTeamsMessage(bot, chatId) {
         ? team.constructors.join(', ')
         : team.constructors;
 
+      const titleKey =
+        team.transfers_needed === 0
+          ? 'Team {NUM} (Current Team)'
+          : 'Team {NUM}';
       let teamMarkdown =
-        `*Team ${team.row}${
-          team.transfers_needed === 0 ? ' (Current Team)' : ''
-        }*\n` +
-        `*Drivers:* ${drivers}\n` +
-        `*Constructors:* ${constructors}\n`;
+        `*${t(titleKey, chatId, { NUM: team.row })}*\n` +
+        `*${t('Drivers', chatId)}:* ${drivers}\n` +
+        `*${t('Constructors', chatId)}:* ${constructors}\n`;
 
       if (team.extra_drs_driver) {
-        teamMarkdown += `*Extra DRS Driver:* ${team.extra_drs_driver}\n`;
+        teamMarkdown += `*${t('Extra DRS Driver', chatId)}:* ${team.extra_drs_driver}\n`;
       }
 
       teamMarkdown +=
-        `*DRS Driver:* ${team.drs_driver}\n` +
-        `*Total Price:* ${Number(team.total_price.toFixed(2))}\n` +
-        `*Transfers Needed:* ${team.transfers_needed}\n` +
-        `*Penalty:* ${team.penalty}\n` +
-        `*Projected Points:* ${Number(team.projected_points.toFixed(2))}\n` +
-        `*Expected Price Change:* ${Number(
+        `*${t('DRS Driver', chatId)}:* ${team.drs_driver}\n` +
+        `*${t('Total Price', chatId)}:* ${Number(team.total_price.toFixed(2))}\n` +
+        `*${t('Transfers Needed', chatId)}:* ${team.transfers_needed}\n` +
+        `*${t('Penalty', chatId)}:* ${team.penalty}\n` +
+        `*${t('Projected Points', chatId)}:* ${Number(team.projected_points.toFixed(2))}\n` +
+        `*${t('Expected Price Change', chatId)}:* ${Number(
           team.expected_price_change.toFixed(2)
         )}`;
 
@@ -101,7 +104,7 @@ async function handleBestTeamsMessage(bot, chatId) {
   await bot
     .sendMessage(
       chatId,
-      'Please send a number to get the required changes to that team.'
+      t('Please send a number to get the required changes to that team.', chatId)
     )
     .catch((err) =>
       console.error('Error sending number request message:', err)

@@ -1,5 +1,6 @@
 const { isAdminMessage } = require('../utils');
 const { USER_COMMANDS_CONFIG } = require('../constants');
+const { t } = require('../i18n');
 
 async function handleGetBotfatherCommands(bot, msg) {
   const chatId = msg.chat.id;
@@ -7,14 +8,14 @@ async function handleGetBotfatherCommands(bot, msg) {
   if (!isAdminMessage(msg)) {
     await bot.sendMessage(
       chatId,
-      'Sorry, only admins can get BotFather commands.'
+      t('Sorry, only admins can get BotFather commands.', chatId)
     );
 
     return;
   }
 
   const botFatherCommands = USER_COMMANDS_CONFIG.map(
-    (cmd) => `${cmd.constant.substring(1)} - ${cmd.description}`
+    (cmd) => `${cmd.constant.substring(1)} - ${t(cmd.description, chatId)}`
   ).join('\n');
 
   await bot

@@ -15,6 +15,7 @@ const { handleScrapingTrigger } = require('./scrapingTriggerHandler');
 const { handleBillingStats } = require('./billingStatsHandler');
 const { displayMenuMessage } = require('./menuHandler');
 const { handleVersionCommand } = require('./versionHandler');
+const { handleSetLanguage } = require('./setLanguageHandler');
 
 module.exports = {
   handleBestTeamsMessage,
@@ -33,4 +34,5 @@ module.exports = {
   handleBillingStats,
   displayMenuMessage,
   handleVersionCommand,
+  handleSetLanguage,
 };

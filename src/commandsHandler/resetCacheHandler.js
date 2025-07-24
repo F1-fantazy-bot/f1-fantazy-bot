@@ -6,6 +6,7 @@ const {
   bestTeamsCache,
   selectedChipCache,
 } = require('../cache');
+const { t } = require('../i18n');
 
 async function resetCacheForChat(chatId, bot) {
   delete driversCache[chatId];
@@ -16,7 +17,7 @@ async function resetCacheForChat(chatId, bot) {
   delete selectedChipCache[chatId];
 
   await bot
-    .sendMessage(chatId, 'Cache has been reset for your chat.')
+    .sendMessage(chatId, t('Cache has been reset for your chat.', chatId))
     .catch((err) => console.error('Error sending cache reset message:', err));
 
   return;

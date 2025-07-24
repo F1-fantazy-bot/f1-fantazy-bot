@@ -11,6 +11,7 @@ const {
   COMMAND_GET_BOTFATHER_COMMANDS,
   COMMAND_NEXT_RACE_INFO,
   COMMAND_CHIPS,
+  COMMAND_SET_LANGUAGE,
 } = require('./constants');
 
 // Mock all command handlers
@@ -42,6 +43,7 @@ const {
   handleNextRaceInfoCommand,
 } = require('./commandsHandler/nextRaceInfoHandler');
 const { displayMenuMessage } = require('./commandsHandler/menuHandler');
+const { handleSetLanguage } = require('./commandsHandler/setLanguageHandler');
 
 jest.mock('./commandsHandler/numberInputHandler');
 jest.mock('./commandsHandler/jsonInputHandler');
@@ -57,6 +59,7 @@ jest.mock('./commandsHandler/scrapingTriggerHandler');
 jest.mock('./commandsHandler/getBotfatherCommandsHandler');
 jest.mock('./commandsHandler/nextRaceInfoHandler');
 jest.mock('./commandsHandler/menuHandler');
+jest.mock('./commandsHandler/setLanguageHandler');
 
 const { handleTextMessage } = require('./textMessageHandler');
 
@@ -221,6 +224,18 @@ describe('handleTextMessage', () => {
         botMock,
         KILZI_CHAT_ID
       );
+      expect(handleJsonMessage).not.toHaveBeenCalled();
+    });
+
+    it('should route /lang command to handleSetLanguage', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: COMMAND_SET_LANGUAGE,
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(handleSetLanguage).toHaveBeenCalledWith(botMock, msgMock);
       expect(handleJsonMessage).not.toHaveBeenCalled();
     });
 

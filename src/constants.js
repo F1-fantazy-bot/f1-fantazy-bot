@@ -14,6 +14,7 @@ exports.WITHOUT_CHIP = 'WITHOUT_CHIP';
 exports.PHOTO_CALLBACK_TYPE = 'PHOTO';
 exports.CHIP_CALLBACK_TYPE = 'CHIP';
 exports.MENU_CALLBACK_TYPE = 'MENU';
+exports.LANG_CALLBACK_TYPE = 'LANG';
 
 exports.COMMAND_BEST_TEAMS = '/best_teams';
 exports.COMMAND_CURRENT_TEAM_INFO = '/current_team_info';
@@ -29,6 +30,7 @@ exports.COMMAND_NEXT_RACE_INFO = '/next_race_info';
 exports.COMMAND_BILLING_STATS = '/billing_stats';
 exports.COMMAND_VERSION = '/version';
 exports.COMMAND_MENU = '/menu';
+exports.COMMAND_SET_LANGUAGE = '/lang';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -106,6 +108,11 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_RESET_CACHE,
         title: '🗑️ Reset Cache',
         description: 'Clear all cached data for this chat',
+      },
+      {
+        constant: exports.COMMAND_SET_LANGUAGE,
+        title: '🌐 Set Language',
+        description: 'Change bot language for this session',
       },
     ],
   },

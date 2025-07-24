@@ -5,6 +5,7 @@ const {
   currentTeamCache,
   sharedKey,
 } = require('../cache');
+const { t } = require('../i18n');
 
 async function calcCurrentTeamInfo(bot, chatId) {
   const drivers = driversCache[chatId] || driversCache[sharedKey];
@@ -16,7 +17,10 @@ async function calcCurrentTeamInfo(bot, chatId) {
     await bot
       .sendMessage(
         chatId,
-        'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.'
+        t(
+          'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.',
+          chatId
+        )
       )
       .catch((err) =>
         console.error('Error sending cache unavailable message:', err)
@@ -28,14 +32,12 @@ async function calcCurrentTeamInfo(bot, chatId) {
   const teamInfo = calculateTeamInfo(currentTeam, drivers, constructors);
 
   const message =
-    `*Current Team Info:*\n` +
-    `*Drivers & Constructors Total Price:* ${teamInfo.totalPrice.toFixed(
-      2
-    )}\n` +
-    `*Cost Cap Remaining:* ${teamInfo.costCapRemaining.toFixed(2)}\n` +
-    `*Total Budget:* ${teamInfo.overallBudget.toFixed(2)}\n` +
-    `*Expected Points:* ${teamInfo.teamExpectedPoints.toFixed(2)}\n` +
-    `*Expected Price Change:* ${teamInfo.teamPriceChange.toFixed(2)}`;
+    `*${t('Current Team Info', chatId)}:*\n` +
+    `*${t('Drivers & Constructors Total Price', chatId)}:* ${teamInfo.totalPrice.toFixed(2)}\n` +
+    `*${t('Cost Cap Remaining', chatId)}:* ${teamInfo.costCapRemaining.toFixed(2)}\n` +
+    `*${t('Total Budget', chatId)}:* ${teamInfo.overallBudget.toFixed(2)}\n` +
+    `*${t('Expected Points', chatId)}:* ${teamInfo.teamExpectedPoints.toFixed(2)}\n` +
+    `*${t('Expected Price Change', chatId)}:* ${teamInfo.teamPriceChange.toFixed(2)}`;
 
   await bot
     .sendMessage(chatId, message, { parse_mode: 'Markdown' })
