@@ -8,6 +8,7 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
 
 - **Multiple Input Methods**: Input team data via direct JSON or by sending screenshots (photos) of drivers, constructors, and current team setups
 - **AI-Powered Image Processing**: Automatically extract data from F1 Fantasy screenshots using Azure OpenAI
+- **Natural Language Commands**: Send any text and the bot will interpret it using AI to run the matching commands. Send `.` to open the menu.
 ### Team Optimization & Analysis
 
 - **Best Teams Calculator**: Calculate and display the best possible fantasy teams based on cached data
