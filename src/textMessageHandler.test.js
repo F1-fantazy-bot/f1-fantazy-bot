@@ -14,6 +14,12 @@ const {
   COMMAND_SET_LANGUAGE,
 } = require('./constants');
 
+jest.mock('openai', () => ({
+  AzureOpenAI: jest.fn().mockImplementation(() => ({
+    chat: { completions: { create: jest.fn() } },
+  })),
+}));
+
 // Mock all command handlers
 const { handleNumberMessage } = require('./commandsHandler/numberInputHandler');
 const { handleJsonMessage } = require('./commandsHandler/jsonInputHandler');
@@ -60,8 +66,10 @@ jest.mock('./commandsHandler/getBotfatherCommandsHandler');
 jest.mock('./commandsHandler/nextRaceInfoHandler');
 jest.mock('./commandsHandler/menuHandler');
 jest.mock('./commandsHandler/setLanguageHandler');
+jest.mock('./commandsHandler/askHandler');
 
 const { handleTextMessage } = require('./textMessageHandler');
+const { handleAskCommand } = require('./commandsHandler/askHandler');
 
 describe('handleTextMessage', () => {
   const botMock = {
@@ -239,7 +247,7 @@ describe('handleTextMessage', () => {
       expect(handleJsonMessage).not.toHaveBeenCalled();
     });
 
-    it('should show menu for unsupported text', async () => {
+    it('should handle unknown text via handleAskCommand', async () => {
       const msgMock = {
         chat: { id: KILZI_CHAT_ID },
         text: 'some random text',
@@ -247,10 +255,22 @@ describe('handleTextMessage', () => {
 
       await handleTextMessage(botMock, msgMock);
 
-      expect(displayMenuMessage).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleAskCommand).toHaveBeenCalledWith(botMock, msgMock);
       expect(handleJsonMessage).not.toHaveBeenCalled();
       expect(handleNumberMessage).not.toHaveBeenCalled();
       expect(handleBestTeamsMessage).not.toHaveBeenCalled();
+    });
+
+    it('should show menu for text with only a dot', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: '.',
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(displayMenuMessage).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleAskCommand).not.toHaveBeenCalled();
     });
 
     it('should route JSON text to handleJsonMessage', async () => {
@@ -317,7 +337,7 @@ describe('handleTextMessage', () => {
       );
     });
 
-    it('should show menu when number has spaces', async () => {
+    it('should send free text with spaces to handleAskCommand', async () => {
       const msgMock = {
         chat: { id: KILZI_CHAT_ID },
         text: '1 23',
@@ -325,7 +345,7 @@ describe('handleTextMessage', () => {
 
       await handleTextMessage(botMock, msgMock);
 
-      expect(displayMenuMessage).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleAskCommand).toHaveBeenCalledWith(botMock, msgMock);
       expect(handleJsonMessage).not.toHaveBeenCalled();
       expect(handleNumberMessage).not.toHaveBeenCalled();
     });
