@@ -4,6 +4,11 @@ const mockValidateJsonData = jest.fn().mockReturnValue(true);
 
 jest.mock('../utils', () => ({
   validateJsonData: mockValidateJsonData,
+  sendMessageToUser: jest.fn((bot, chatId, msg, opts) =>
+    opts !== undefined
+      ? bot.sendMessage(chatId, msg, opts)
+      : bot.sendMessage(chatId, msg)
+  ),
 }));
 
 const { calculateBestTeams } = require('../bestTeamsCalculator');

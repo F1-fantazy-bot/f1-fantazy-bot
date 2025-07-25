@@ -1,4 +1,4 @@
-const { isAdminMessage, formatDateTime } = require('../utils');
+const { isAdminMessage, formatDateTime, sendMessageToUser } = require('../utils');
 const {
   driversCache,
   constructorsCache,
@@ -19,7 +19,8 @@ async function handleGetCurrentSimulation(bot, msg) {
 
   // Check if user has data in their cache
   if (drivers || constructors) {
-    await bot.sendMessage(
+    await sendMessageToUser(
+      bot,
       chatId,
       t('You currently have data in your cache. To use data from a simulation, please run {CMD} first.', chatId, { CMD: COMMAND_RESET_CACHE })
     );
@@ -29,7 +30,8 @@ async function handleGetCurrentSimulation(bot, msg) {
 
   const simulationInfo = simulationInfoCache[sharedKey];
   if (!simulationInfo) {
-    await bot.sendMessage(
+    await sendMessageToUser(
+      bot,
       chatId,
       t('No simulation data is currently loaded. Please use {CMD} to load simulation data.', chatId, { CMD: COMMAND_LOAD_SIMULATION })
     );
@@ -39,7 +41,7 @@ async function handleGetCurrentSimulation(bot, msg) {
 
   const printableCache = getPrintableCache(sharedKey);
 
-  await bot.sendMessage(chatId, printableCache, { parse_mode: 'Markdown' });
+  await sendMessageToUser(bot, chatId, printableCache, { parse_mode: 'Markdown' });
   let timeText = t('Unknown', chatId);
   if (simulationInfo.lastUpdate) {
     try {
@@ -52,7 +54,8 @@ async function handleGetCurrentSimulation(bot, msg) {
   }
   const lastUpdateText = t('Last updated: {TIME}', chatId, { TIME: timeText });
 
-  await bot.sendMessage(
+  await sendMessageToUser(
+    bot,
     chatId,
     t('Current simulation: {NAME}\n{UPDATE}', chatId, {
       NAME: simulationInfo.name,
@@ -61,7 +64,8 @@ async function handleGetCurrentSimulation(bot, msg) {
   );
 
   if (isAdminMessage(msg)) {
-    await bot.sendMessage(
+    await sendMessageToUser(
+      bot,
       chatId,
       t(
         '💡 Tip: If the simulation seems outdated, you can run {CMD} to update the current simulation.',

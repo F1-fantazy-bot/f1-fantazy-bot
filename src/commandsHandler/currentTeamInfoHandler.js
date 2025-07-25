@@ -6,6 +6,7 @@ const {
   sharedKey,
 } = require('../cache');
 const { t } = require('../i18n');
+const { sendMessageToUser } = require('../utils');
 
 async function calcCurrentTeamInfo(bot, chatId) {
   const drivers = driversCache[chatId] || driversCache[sharedKey];
@@ -14,14 +15,14 @@ async function calcCurrentTeamInfo(bot, chatId) {
   const currentTeam = currentTeamCache[chatId];
 
   if (!drivers || !constructors || !currentTeam) {
-    await bot
-      .sendMessage(
-        chatId,
-        t(
-          'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.',
-          chatId
-        )
+    await sendMessageToUser(
+      bot,
+      chatId,
+      t(
+        'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.',
+        chatId
       )
+    )
       .catch((err) =>
         console.error('Error sending cache unavailable message:', err)
       );
@@ -39,8 +40,7 @@ async function calcCurrentTeamInfo(bot, chatId) {
     `*${t('Expected Points', chatId)}:* ${teamInfo.teamExpectedPoints.toFixed(2)}\n` +
     `*${t('Expected Price Change', chatId)}:* ${teamInfo.teamPriceChange.toFixed(2)}`;
 
-  await bot
-    .sendMessage(chatId, message, { parse_mode: 'Markdown' })
+  await sendMessageToUser(bot, chatId, message, { parse_mode: 'Markdown' })
     .catch((err) =>
       console.error('Error sending current team info message:', err)
     );

@@ -4,6 +4,9 @@ const mockIsAdminMessage = jest.fn().mockReturnValue(true);
 
 jest.mock('../utils', () => ({
   isAdminMessage: mockIsAdminMessage,
+  sendMessageToUser: jest.fn((bot, chatId, msg, opts) =>
+    opts !== undefined ? bot.sendMessage(chatId, msg, opts) : bot.sendMessage(chatId, msg)
+  ),
 }));
 
 const { handleVersionCommand } = require('./versionHandler');

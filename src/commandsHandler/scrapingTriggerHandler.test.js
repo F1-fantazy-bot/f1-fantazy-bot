@@ -6,6 +6,9 @@ const mockTriggerScraping = jest.fn();
 jest.mock('../utils', () => ({
   isAdminMessage: mockIsAdminMessage,
   triggerScraping: mockTriggerScraping,
+  sendMessageToUser: jest.fn((bot, chatId, msg, opts) =>
+    opts !== undefined ? bot.sendMessage(chatId, msg, opts) : bot.sendMessage(chatId, msg)
+  ),
 }));
 
 const { handleScrapingTrigger } = require('./scrapingTriggerHandler');

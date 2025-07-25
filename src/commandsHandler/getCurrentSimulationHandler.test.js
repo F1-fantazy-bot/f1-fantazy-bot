@@ -13,6 +13,9 @@ const mockFormatDateTime = jest.fn().mockReturnValue({
 jest.mock('../utils', () => ({
   isAdminMessage: mockIsAdminMessage,
   formatDateTime: mockFormatDateTime,
+  sendMessageToUser: jest.fn((bot, chatId, msg, opts) =>
+    opts !== undefined ? bot.sendMessage(chatId, msg, opts) : bot.sendMessage(chatId, msg)
+  ),
 }));
 
 const {

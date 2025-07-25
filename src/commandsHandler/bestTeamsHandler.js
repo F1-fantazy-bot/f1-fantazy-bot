@@ -9,6 +9,7 @@ const {
   sharedKey,
 } = require('../cache');
 const { t } = require('../i18n');
+const { sendMessageToUser } = require('../utils');
 
 async function handleBestTeamsMessage(bot, chatId) {
   // Try to fetch cached data for this chat
@@ -18,11 +19,11 @@ async function handleBestTeamsMessage(bot, chatId) {
   const currentTeam = currentTeamCache[chatId];
 
   if (!drivers || !constructors || !currentTeam) {
-    await bot
-      .sendMessage(
-        chatId,
-        t('Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.', chatId)
-      )
+    await sendMessageToUser(
+      bot,
+      chatId,
+      t('Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.', chatId)
+    )
       .catch((err) =>
         console.error('Error sending cache unavailable message:', err)
       );
@@ -97,15 +98,14 @@ async function handleBestTeamsMessage(bot, chatId) {
     })
     .join('\n\n');
 
-  await bot
-    .sendMessage(chatId, messageMarkdown, { parse_mode: 'Markdown' })
+  await sendMessageToUser(bot, chatId, messageMarkdown, { parse_mode: 'Markdown' })
     .catch((err) => console.error('Error sending JSON reply:', err));
 
-  await bot
-    .sendMessage(
-      chatId,
-      t('Please send a number to get the required changes to that team.', chatId)
-    )
+  await sendMessageToUser(
+    bot,
+    chatId,
+    t('Please send a number to get the required changes to that team.', chatId)
+  )
     .catch((err) =>
       console.error('Error sending number request message:', err)
     );

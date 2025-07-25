@@ -1,7 +1,7 @@
 const { AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPEN_AI_MODEL } = process.env;
 const { AzureOpenAI } = require('openai');
 const { t } = require('../i18n');
-const { sendLogMessage } = require('../utils');
+const { sendLogMessage, sendMessageToUser } = require('../utils');
 const { handleNumberMessage } = require('./numberInputHandler');
 const { executeCommand } = require('./commandHandlers');
 
@@ -21,7 +21,8 @@ async function handleAskCommand(bot, msg) {
   const text = msg.text.trim();
 
   if (!text) {
-    await bot.sendMessage(
+    await sendMessageToUser(
+      bot,
       chatId,
       t('Please provide a question.', chatId)
     );
@@ -40,7 +41,7 @@ async function handleAskCommand(bot, msg) {
     });
   } catch (error) {
     await sendLogMessage(bot, `AzureOpenAI error: ${error.message}`);
-    await bot.sendMessage(chatId, t('Error executing command', chatId));
+    await sendMessageToUser(bot, chatId, t('Error executing command', chatId));
 
     return;
   }
@@ -57,7 +58,7 @@ async function handleAskCommand(bot, msg) {
       bot,
       `Failed to parse AI response: ${completion.choices[0].message.content}`
     );
-    await bot.sendMessage(chatId, t('Error executing command', chatId));
+    await sendMessageToUser(bot, chatId, t('Error executing command', chatId));
 
     return;
   }
