@@ -16,6 +16,8 @@ const translations = {
     'Wildcard': 'ווילדקארד',
     'Without Chip': 'ללא צ\'יפ',
     'Sorry, only admins can use this command.': 'מצטער, רק מנהלים יכולים להשתמש בפקודה זו.',
+    'Sorry, only admins can get BotFather commands.':
+      'מצטער, רק מנהלים יכולים לקבל פקודות BotFather.',
     'Simulation data fetched and cached successfully.': 'נתוני הסימולציה נטענו ונשמרו בהצלחה.',
     'Failed to load simulation data: {ERROR}': 'נכשל לטעון נתוני סימולציה: {ERROR}',
     'Cache has been reset for your chat.': 'המטמון אופס עבור הצ\'אט שלך.',
@@ -158,6 +160,7 @@ const translations = {
     'Calculate and display the best possible teams based on your cached data':
       'חשב והצג את הקבוצות הטובות ביותר על סמך הנתונים במטמון',
     '👥 Current Team Info': '👥 מידע על הקבוצה הנוכחית',
+    'Current Team Info': 'מידע על הקבוצה הנוכחית',
     'Calculate the current team info based on your cached data':
       'חשב את מידע הקבוצה הנוכחית על סמך הנתונים במטמון',
     '🎯 Chips Selection': "🎯 בחירת צ'יפ",
