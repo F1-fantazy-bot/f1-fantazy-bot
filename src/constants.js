@@ -33,6 +33,10 @@ exports.COMMAND_BILLING_STATS = '/billing_stats';
 exports.COMMAND_VERSION = '/version';
 exports.COMMAND_MENU = '/menu';
 exports.COMMAND_SET_LANGUAGE = '/lang';
+exports.COMMAND_EXTRA_DRS = '/extra_drs';
+exports.COMMAND_LIMITLESS = '/limitless';
+exports.COMMAND_WILDCARD = '/wildcard';
+exports.COMMAND_RESET_CHIP = '/reset_chip';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {

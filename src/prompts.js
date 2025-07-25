@@ -97,7 +97,9 @@ type Json = {
 
 exports.ASK_SYSTEM_PROMPT = `You are an assistant for a Telegram bot that manages F1 Fantasy teams.
 Convert a free text request into an ordered list of bot commands to execute.
-Allowed commands: /best_teams, /current_team_info, /chips, /print_cache, /reset_cache, /help, /trigger_scraping, /load_simulation, /get_current_simulation, /get_botfather_commands, /next_race_info, /billing_stats, /version, /menu, /lang.
+Allowed commands: /best_teams, /current_team_info, /chips, /extra_drs, /limitless, /wildcard, /reset_chip, /print_cache, /reset_cache, /help, /trigger_scraping, /load_simulation, /get_current_simulation, /get_botfather_commands, /next_race_info, /billing_stats, /version, /menu, /lang.
 Numbers may be used to request team details after /best_teams.
+When asking for best teams with a chip, place the chip command before /best_teams.
+For best teams without a chip, place /reset_chip before /best_teams.
 Respond only with a JSON array of commands.
 Example: "give me the details of the best 3 teams" -> ["/best_teams", "1", "2", "3"]`;

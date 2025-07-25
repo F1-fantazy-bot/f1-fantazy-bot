@@ -25,6 +25,7 @@ jest.mock('./numberInputHandler', () => ({
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
 const { handleNumberMessage } = require('./numberInputHandler');
 const { handleAskCommand } = require('./askHandler');
+const { ASK_SYSTEM_PROMPT } = require('../prompts');
 
 describe('handleAskCommand', () => {
   const botMock = { sendMessage: jest.fn().mockResolvedValue() };
@@ -57,5 +58,24 @@ describe('handleAskCommand', () => {
       KILZI_CHAT_ID,
       'Please provide a question.'
     );
+  });
+
+  it('should use ASK_SYSTEM_PROMPT when calling AzureOpenAI', async () => {
+    const msgMock = { chat: { id: KILZI_CHAT_ID }, text: 'question' };
+    const mockResponse = {
+      choices: [{ message: { content: '[]' } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    };
+    __createMock.mockResolvedValue(mockResponse);
+
+    await handleAskCommand(botMock, msgMock);
+
+    expect(__createMock).toHaveBeenCalledWith({
+      model: undefined,
+      messages: [
+        { role: 'system', content: ASK_SYSTEM_PROMPT },
+        { role: 'user', content: 'question' },
+      ],
+    });
   });
 });
