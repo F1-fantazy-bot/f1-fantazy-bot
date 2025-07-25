@@ -2,9 +2,9 @@ const { AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPEN_AI_MODEL } = pro
 const { AzureOpenAI } = require('openai');
 const { t } = require('../i18n');
 const { sendLogMessage } = require('../utils');
-const { COMMAND_DESCRIBE } = require('../constants');
 const { handleNumberMessage } = require('./numberInputHandler');
 const { executeCommand } = require('./commandHandlers');
+
 const { DESCRIBE_SYSTEM_PROMPT } = require('../prompts');
 
 const apiVersion = '2024-04-01-preview';
@@ -18,12 +18,12 @@ const client = new AzureOpenAI({
 
 async function handleDescribeCommand(bot, msg) {
   const chatId = msg.chat.id;
-  const text = msg.text.replace(COMMAND_DESCRIBE, '').trim();
+  const text = msg.text.trim();
 
   if (!text) {
     await bot.sendMessage(
       chatId,
-      t('Please provide a description after the command.', chatId)
+      t('Please provide a description.', chatId)
     );
 
     return;

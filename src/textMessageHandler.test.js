@@ -12,7 +12,6 @@ const {
   COMMAND_NEXT_RACE_INFO,
   COMMAND_CHIPS,
   COMMAND_SET_LANGUAGE,
-  COMMAND_DESCRIBE,
 } = require('./constants');
 
 jest.mock('openai', () => ({
@@ -248,19 +247,7 @@ describe('handleTextMessage', () => {
       expect(handleJsonMessage).not.toHaveBeenCalled();
     });
 
-    it('should route /describe command to handleDescribeCommand', async () => {
-      const msgMock = {
-        chat: { id: KILZI_CHAT_ID },
-        text: `${COMMAND_DESCRIBE} something`,
-      };
-
-      await handleTextMessage(botMock, msgMock);
-
-      expect(handleDescribeCommand).toHaveBeenCalledWith(botMock, msgMock);
-      expect(handleJsonMessage).not.toHaveBeenCalled();
-    });
-
-    it('should show menu for unsupported text', async () => {
+    it('should handle unknown text via handleDescribeCommand', async () => {
       const msgMock = {
         chat: { id: KILZI_CHAT_ID },
         text: 'some random text',
@@ -268,10 +255,22 @@ describe('handleTextMessage', () => {
 
       await handleTextMessage(botMock, msgMock);
 
-      expect(displayMenuMessage).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleDescribeCommand).toHaveBeenCalledWith(botMock, msgMock);
       expect(handleJsonMessage).not.toHaveBeenCalled();
       expect(handleNumberMessage).not.toHaveBeenCalled();
       expect(handleBestTeamsMessage).not.toHaveBeenCalled();
+    });
+
+    it('should show menu for text with only a dot', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: '.',
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(displayMenuMessage).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleDescribeCommand).not.toHaveBeenCalled();
     });
 
     it('should route JSON text to handleJsonMessage', async () => {
@@ -338,7 +337,7 @@ describe('handleTextMessage', () => {
       );
     });
 
-    it('should show menu when number has spaces', async () => {
+    it('should send free text with spaces to handleDescribeCommand', async () => {
       const msgMock = {
         chat: { id: KILZI_CHAT_ID },
         text: '1 23',
@@ -346,7 +345,7 @@ describe('handleTextMessage', () => {
 
       await handleTextMessage(botMock, msgMock);
 
-      expect(displayMenuMessage).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleDescribeCommand).toHaveBeenCalledWith(botMock, msgMock);
       expect(handleJsonMessage).not.toHaveBeenCalled();
       expect(handleNumberMessage).not.toHaveBeenCalled();
     });

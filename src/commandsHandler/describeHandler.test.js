@@ -1,4 +1,4 @@
-const { KILZI_CHAT_ID, COMMAND_DESCRIBE } = require('../constants');
+const { KILZI_CHAT_ID } = require('../constants');
 
 jest.mock('openai', () => {
   const createMock = jest.fn();
@@ -34,7 +34,7 @@ describe('handleDescribeCommand', () => {
   });
 
   it('should call AzureOpenAI and execute returned commands', async () => {
-    const msgMock = { chat: { id: KILZI_CHAT_ID }, text: `${COMMAND_DESCRIBE} best teams` };
+    const msgMock = { chat: { id: KILZI_CHAT_ID }, text: 'best teams' };
     const mockResponse = {
       choices: [{ message: { content: '["/best_teams","1"]' } }],
       usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
@@ -49,13 +49,13 @@ describe('handleDescribeCommand', () => {
   });
 
   it('should notify when no text provided', async () => {
-    const msgMock = { chat: { id: KILZI_CHAT_ID }, text: COMMAND_DESCRIBE };
+    const msgMock = { chat: { id: KILZI_CHAT_ID }, text: '' };
 
     await handleDescribeCommand(botMock, msgMock);
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'Please provide a description after the command.'
+      'Please provide a description.'
     );
   });
 });

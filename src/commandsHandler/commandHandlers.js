@@ -14,7 +14,6 @@ const {
   COMMAND_VERSION,
   COMMAND_MENU,
   COMMAND_SET_LANGUAGE,
-  COMMAND_DESCRIBE,
 } = require('../constants');
 
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
@@ -50,8 +49,6 @@ const COMMAND_HANDLERS = {
   [COMMAND_VERSION]: handleVersionCommand,
   [COMMAND_MENU]: displayMenuMessage,
   [COMMAND_SET_LANGUAGE]: handleSetLanguage,
-  // Avoid recursion for /describe by leaving it undefined
-  [COMMAND_DESCRIBE]: undefined,
 };
 
 async function executeCommand(bot, msg, command) {

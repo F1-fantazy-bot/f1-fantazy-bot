@@ -37,7 +37,6 @@ const {
   COMMAND_VERSION,
   COMMAND_MENU,
   COMMAND_SET_LANGUAGE,
-  COMMAND_DESCRIBE,
 } = require('./constants');
 
 exports.handleTextMessage = async function (bot, msg) {
@@ -79,17 +78,16 @@ exports.handleTextMessage = async function (bot, msg) {
     case msg.text === COMMAND_VERSION:
       return await handleVersionCommand(bot, msg);
     case msg.text === COMMAND_MENU:
+    case textTrimmed === '.':
       return await displayMenuMessage(bot, msg);
     case msg.text === COMMAND_SET_LANGUAGE:
       return await handleSetLanguage(bot, msg);
-    case textTrimmed.startsWith(COMMAND_DESCRIBE):
-      return await handleDescribeCommand(bot, msg);
     default:
       try {
         const jsonData = JSON.parse(textTrimmed);
         await handleJsonMessage(bot, chatId, jsonData);
       } catch {
-        await displayMenuMessage(bot, msg);
+        await handleDescribeCommand(bot, msg);
       }
       break;
   }
