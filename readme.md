@@ -172,6 +172,12 @@ Restricted to authorized administrators:
 
 ### Other Input Methods
 
+#### Free Text
+
+Simply type any message in your language and the bot will use AI to interpret it.
+If the text doesn’t match a command, the bot will attempt to run the
+appropriate commands automatically. Send `.` on its own to open the menu.
+
 #### Photo Uploads
 
 Send screenshots of your F1 Fantasy screens and the bot will:
