@@ -39,7 +39,7 @@ async function handleAskCommand(bot, msg) {
       messages: [systemMessage, userMessage],
     });
   } catch (error) {
-    console.error('AzureOpenAI error:', error);
+    await sendLogMessage(bot, `AzureOpenAI error: ${error.message}`);
     await bot.sendMessage(chatId, t('Error executing command', chatId));
 
     return;
@@ -47,14 +47,16 @@ async function handleAskCommand(bot, msg) {
 
   const usage = completion.usage;
   const tokensInfo = `Azure OpenAI model - ${AZURE_OPEN_AI_MODEL}, tokens - prompt: ${usage.prompt_tokens}, completion: ${usage.completion_tokens}, total: ${usage.total_tokens}`;
-  console.log(tokensInfo);
   await sendLogMessage(bot, tokensInfo);
 
   let commands;
   try {
     commands = JSON.parse(completion.choices[0].message.content);
   } catch (err) {
-    console.error('Failed to parse AI response:', completion.choices[0].message.content);
+    await sendLogMessage(
+      bot,
+      `Failed to parse AI response: ${completion.choices[0].message.content}`
+    );
     await bot.sendMessage(chatId, t('Error executing command', chatId));
 
     return;
