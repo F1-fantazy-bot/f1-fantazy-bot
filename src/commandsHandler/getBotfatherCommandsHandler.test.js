@@ -7,6 +7,7 @@ jest.mock('../utils', () => ({
 }));
 
 const { handleGetBotfatherCommands } = require('./getBotfatherCommandsHandler');
+const { setLanguage, t } = require('../i18n');
 
 describe('handleGetBotfatherCommands', () => {
   const botMock = {
@@ -151,5 +152,27 @@ describe('handleGetBotfatherCommands', () => {
       KILZI_CHAT_ID,
       expect.any(String)
     );
+  });
+
+  it('should not translate descriptions even if language differs', async () => {
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: '/get_botfather_commands',
+    };
+
+    setLanguage('he', KILZI_CHAT_ID);
+
+    await handleGetBotfatherCommands(botMock, msgMock);
+
+    const sentMessage = botMock.sendMessage.mock.calls[0][1];
+
+    USER_COMMANDS_CONFIG.forEach((cmd) => {
+      expect(sentMessage).toContain(
+        `${cmd.constant.substring(1)} - ${cmd.description}`
+      );
+      expect(sentMessage).not.toContain(
+        `(${t(cmd.description, KILZI_CHAT_ID)})`
+      );
+    });
   });
 });
