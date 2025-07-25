@@ -17,7 +17,7 @@ const {
   displayMenuMessage,
   handleVersionCommand,
   handleSetLanguage,
-  handleDescribeCommand,
+  handleAskCommand,
 } = require('./commandsHandler');
 
 // Import constants
@@ -87,7 +87,7 @@ exports.handleTextMessage = async function (bot, msg) {
         const jsonData = JSON.parse(textTrimmed);
         await handleJsonMessage(bot, chatId, jsonData);
       } catch {
-        await handleDescribeCommand(bot, msg);
+        await handleAskCommand(bot, msg);
       }
       break;
   }

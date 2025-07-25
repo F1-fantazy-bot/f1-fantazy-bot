@@ -95,7 +95,7 @@ type Json = {
   CurrentTeam: CurrentTeam;
 };`;
 
-exports.DESCRIBE_SYSTEM_PROMPT = `You are an assistant for a Telegram bot that manages F1 Fantasy teams.
+exports.ASK_SYSTEM_PROMPT = `You are an assistant for a Telegram bot that manages F1 Fantasy teams.
 Convert a free text request into an ordered list of bot commands to execute.
 Allowed commands: /best_teams, /current_team_info, /chips, /print_cache, /reset_cache, /help, /trigger_scraping, /load_simulation, /get_current_simulation, /get_botfather_commands, /next_race_info, /billing_stats, /version, /menu, /lang.
 Numbers may be used to request team details after /best_teams.

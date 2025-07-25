@@ -66,10 +66,10 @@ jest.mock('./commandsHandler/getBotfatherCommandsHandler');
 jest.mock('./commandsHandler/nextRaceInfoHandler');
 jest.mock('./commandsHandler/menuHandler');
 jest.mock('./commandsHandler/setLanguageHandler');
-jest.mock('./commandsHandler/describeHandler');
+jest.mock('./commandsHandler/askHandler');
 
 const { handleTextMessage } = require('./textMessageHandler');
-const { handleDescribeCommand } = require('./commandsHandler/describeHandler');
+const { handleAskCommand } = require('./commandsHandler/askHandler');
 
 describe('handleTextMessage', () => {
   const botMock = {
@@ -247,7 +247,7 @@ describe('handleTextMessage', () => {
       expect(handleJsonMessage).not.toHaveBeenCalled();
     });
 
-    it('should handle unknown text via handleDescribeCommand', async () => {
+    it('should handle unknown text via handleAskCommand', async () => {
       const msgMock = {
         chat: { id: KILZI_CHAT_ID },
         text: 'some random text',
@@ -255,7 +255,7 @@ describe('handleTextMessage', () => {
 
       await handleTextMessage(botMock, msgMock);
 
-      expect(handleDescribeCommand).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleAskCommand).toHaveBeenCalledWith(botMock, msgMock);
       expect(handleJsonMessage).not.toHaveBeenCalled();
       expect(handleNumberMessage).not.toHaveBeenCalled();
       expect(handleBestTeamsMessage).not.toHaveBeenCalled();
@@ -270,7 +270,7 @@ describe('handleTextMessage', () => {
       await handleTextMessage(botMock, msgMock);
 
       expect(displayMenuMessage).toHaveBeenCalledWith(botMock, msgMock);
-      expect(handleDescribeCommand).not.toHaveBeenCalled();
+      expect(handleAskCommand).not.toHaveBeenCalled();
     });
 
     it('should route JSON text to handleJsonMessage', async () => {
@@ -337,7 +337,7 @@ describe('handleTextMessage', () => {
       );
     });
 
-    it('should send free text with spaces to handleDescribeCommand', async () => {
+    it('should send free text with spaces to handleAskCommand', async () => {
       const msgMock = {
         chat: { id: KILZI_CHAT_ID },
         text: '1 23',
@@ -345,7 +345,7 @@ describe('handleTextMessage', () => {
 
       await handleTextMessage(botMock, msgMock);
 
-      expect(handleDescribeCommand).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleAskCommand).toHaveBeenCalledWith(botMock, msgMock);
       expect(handleJsonMessage).not.toHaveBeenCalled();
       expect(handleNumberMessage).not.toHaveBeenCalled();
     });

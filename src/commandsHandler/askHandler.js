@@ -5,7 +5,7 @@ const { sendLogMessage } = require('../utils');
 const { handleNumberMessage } = require('./numberInputHandler');
 const { executeCommand } = require('./commandHandlers');
 
-const { DESCRIBE_SYSTEM_PROMPT } = require('../prompts');
+const { ASK_SYSTEM_PROMPT } = require('../prompts');
 
 const apiVersion = '2024-04-01-preview';
 const client = new AzureOpenAI({
@@ -16,20 +16,20 @@ const client = new AzureOpenAI({
 });
 
 
-async function handleDescribeCommand(bot, msg) {
+async function handleAskCommand(bot, msg) {
   const chatId = msg.chat.id;
   const text = msg.text.trim();
 
   if (!text) {
     await bot.sendMessage(
       chatId,
-      t('Please provide a description.', chatId)
+      t('Please provide a question.', chatId)
     );
 
     return;
   }
 
-  const systemMessage = { role: 'system', content: DESCRIBE_SYSTEM_PROMPT };
+  const systemMessage = { role: 'system', content: ASK_SYSTEM_PROMPT };
   const userMessage = { role: 'user', content: text };
 
   let completion;
@@ -72,4 +72,4 @@ async function handleDescribeCommand(bot, msg) {
   }
 }
 
-module.exports = { handleDescribeCommand };
+module.exports = { handleAskCommand };

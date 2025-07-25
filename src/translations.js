@@ -138,7 +138,7 @@ const translations = {
     Hebrew: 'עברית',
     '🌐 Set Language': '🌐 הגדר שפה',
     'Change bot language for this session': 'שנה את שפת הבוט להפעלה זו',
-    'Please provide a description.': 'אנא ספק תיאור.',
+    'Please provide a question.': 'אנא ספק שאלה.',
     '❓ Help & Menu': '❓ עזרה ותפריט',
     'Help and navigation commands': 'פקודות עזרה וניווט',
     '🏎️ Team Management': '🏎️ ניהול קבוצה',

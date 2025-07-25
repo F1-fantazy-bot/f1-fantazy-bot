@@ -24,9 +24,9 @@ jest.mock('./numberInputHandler', () => ({
 
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
 const { handleNumberMessage } = require('./numberInputHandler');
-const { handleDescribeCommand } = require('./describeHandler');
+const { handleAskCommand } = require('./askHandler');
 
-describe('handleDescribeCommand', () => {
+describe('handleAskCommand', () => {
   const botMock = { sendMessage: jest.fn().mockResolvedValue() };
 
   beforeEach(() => {
@@ -41,7 +41,7 @@ describe('handleDescribeCommand', () => {
     };
     __createMock.mockResolvedValue(mockResponse);
 
-    await handleDescribeCommand(botMock, msgMock);
+    await handleAskCommand(botMock, msgMock);
 
     expect(__createMock).toHaveBeenCalled();
     expect(handleBestTeamsMessage).toHaveBeenCalledWith(botMock, KILZI_CHAT_ID);
@@ -51,11 +51,11 @@ describe('handleDescribeCommand', () => {
   it('should notify when no text provided', async () => {
     const msgMock = { chat: { id: KILZI_CHAT_ID }, text: '' };
 
-    await handleDescribeCommand(botMock, msgMock);
+    await handleAskCommand(botMock, msgMock);
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'Please provide a description.'
+      'Please provide a question.'
     );
   });
 });
