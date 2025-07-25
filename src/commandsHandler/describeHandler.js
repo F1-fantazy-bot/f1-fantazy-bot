@@ -2,16 +2,9 @@ const { AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPEN_AI_MODEL } = pro
 const { AzureOpenAI } = require('openai');
 const { t } = require('../i18n');
 const { sendLogMessage } = require('../utils');
-const {
-  COMMAND_BEST_TEAMS,
-  COMMAND_CURRENT_TEAM_INFO,
-  COMMAND_PRINT_CACHE,
-  COMMAND_RESET_CACHE,
-  COMMAND_NEXT_RACE_INFO,
-  COMMAND_DESCRIBE,
-} = require('../constants');
+const { COMMAND_DESCRIBE } = require('../constants');
 const { handleNumberMessage } = require('./numberInputHandler');
-const { COMMAND_HANDLERS } = require('./commandHandlers');
+const { executeCommand } = require('./commandHandlers');
 const { DESCRIBE_SYSTEM_PROMPT } = require('../prompts');
 
 const apiVersion = '2024-04-01-preview';
@@ -22,25 +15,6 @@ const client = new AzureOpenAI({
   apiVersion,
 });
 
-async function executeCommand(bot, msg, command) {
-  const chatId = msg.chat.id;
-  const handler = COMMAND_HANDLERS[command];
-  if (!handler) {
-    return;
-  }
-  if (command === COMMAND_PRINT_CACHE || command === COMMAND_RESET_CACHE) {
-    await handler(chatId, bot);
-  } else if (
-    command === COMMAND_BEST_TEAMS ||
-    command === COMMAND_CURRENT_TEAM_INFO ||
-    command === COMMAND_NEXT_RACE_INFO
-  ) {
-    await handler(bot, chatId);
-  } else {
-    const subMsg = { ...msg, text: command };
-    await handler(bot, subMsg);
-  }
-}
 
 async function handleDescribeCommand(bot, msg) {
   const chatId = msg.chat.id;

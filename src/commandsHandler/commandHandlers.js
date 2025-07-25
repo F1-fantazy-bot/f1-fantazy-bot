@@ -54,4 +54,25 @@ const COMMAND_HANDLERS = {
   [COMMAND_DESCRIBE]: undefined,
 };
 
-module.exports = { COMMAND_HANDLERS };
+async function executeCommand(bot, msg, command) {
+  const chatId = msg.chat.id;
+  const handler = COMMAND_HANDLERS[command];
+  if (!handler) {
+    return;
+  }
+
+  if (command === COMMAND_PRINT_CACHE || command === COMMAND_RESET_CACHE) {
+    await handler(chatId, bot);
+  } else if (
+    command === COMMAND_BEST_TEAMS ||
+    command === COMMAND_CURRENT_TEAM_INFO ||
+    command === COMMAND_NEXT_RACE_INFO
+  ) {
+    await handler(bot, chatId);
+  } else {
+    const subMsg = { ...msg, text: command };
+    await handler(bot, subMsg);
+  }
+}
+
+module.exports = { COMMAND_HANDLERS, executeCommand };

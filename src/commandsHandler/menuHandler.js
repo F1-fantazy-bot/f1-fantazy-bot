@@ -3,17 +3,12 @@ const {
   MENU_CATEGORIES,
   MENU_ACTIONS,
   MENU_CALLBACK_TYPE,
-  COMMAND_BEST_TEAMS,
-  COMMAND_CURRENT_TEAM_INFO,
-  COMMAND_PRINT_CACHE,
-  COMMAND_RESET_CACHE,
   COMMAND_HELP,
-  COMMAND_NEXT_RACE_INFO,
 } = require('../constants');
 
 // Import command handlers directly to avoid circular dependency in mapping
 const { displayHelpMessage } = require('./helpHandler');
-const { COMMAND_HANDLERS } = require('./commandHandlers');
+const { COMMAND_HANDLERS, executeCommand } = require('./commandHandlers');
 const { t } = require('../i18n');
 
 async function displayMenuMessage(bot, msg) {
@@ -48,7 +43,7 @@ async function handleMenuCallback(bot, query) {
       await showCategoryMenu(bot, chatId, messageId, data, isAdmin);
       break;
     case MENU_ACTIONS.COMMAND:
-      await executeCommand(bot, query, data);
+      await executeMenuCommand(bot, query, data);
 
       return; // Don't answer callback query here as command handlers might do it
     case MENU_ACTIONS.HELP:
@@ -190,7 +185,7 @@ async function showCategoryMenu(bot, chatId, messageId, categoryId, isAdmin) {
   });
 }
 
-async function executeCommand(bot, query, command) {
+async function executeMenuCommand(bot, query, command) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
 
@@ -203,38 +198,25 @@ async function executeCommand(bot, query, command) {
 
   // Find and execute the command handler
   const handler = COMMAND_HANDLERS[command];
-  if (handler) {
-    try {
-      // Answer the callback query first
-      await bot.answerCallbackQuery(query.id, {
-        text: t('Executing {CMD}...', chatId, { CMD: command }),
-      });
-
-      // Execute the command based on handler parameter patterns
-      if (command === COMMAND_PRINT_CACHE || command === COMMAND_RESET_CACHE) {
-        // Handlers that expect (chatId, bot) parameters
-        await handler(chatId, bot);
-      } else if (
-        command === COMMAND_BEST_TEAMS ||
-        command === COMMAND_CURRENT_TEAM_INFO ||
-        command === COMMAND_NEXT_RACE_INFO
-      ) {
-        // Handlers that expect (bot, chatId) parameters
-        await handler(bot, chatId);
-      } else {
-        // Handlers that expect (bot, msg) parameters
-        await handler(bot, msg);
-      }
-    } catch (error) {
-      console.error(`Error executing command ${command}:`, error);
-      await bot.answerCallbackQuery(query.id, {
-        text: t('Error executing command', chatId),
-        show_alert: true,
-      });
-    }
-  } else {
+  if (!handler) {
     await bot.answerCallbackQuery(query.id, {
       text: t('Command not found', chatId),
+      show_alert: true,
+    });
+
+    return;
+  }
+
+  try {
+    await bot.answerCallbackQuery(query.id, {
+      text: t('Executing {CMD}...', chatId, { CMD: command }),
+    });
+
+    await executeCommand(bot, msg, command);
+  } catch (error) {
+    console.error(`Error executing command ${command}:`, error);
+    await bot.answerCallbackQuery(query.id, {
+      text: t('Error executing command', chatId),
       show_alert: true,
     });
   }
