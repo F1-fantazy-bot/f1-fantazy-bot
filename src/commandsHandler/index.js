@@ -17,6 +17,12 @@ const { displayMenuMessage } = require('./menuHandler');
 const { handleVersionCommand } = require('./versionHandler');
 const { handleSetLanguage } = require('./setLanguageHandler');
 const { handleAskCommand } = require('./askHandler');
+const {
+  handleSelectExtraDrs,
+  handleSelectLimitless,
+  handleSelectWildcard,
+  handleResetChip,
+} = require('./selectChipHandlers');
 
 module.exports = {
   handleBestTeamsMessage,
@@ -37,4 +43,8 @@ module.exports = {
   handleVersionCommand,
   handleSetLanguage,
   handleAskCommand,
+  handleSelectExtraDrs,
+  handleSelectLimitless,
+  handleSelectWildcard,
+  handleResetChip,
 };

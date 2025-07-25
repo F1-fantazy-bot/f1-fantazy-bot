@@ -14,6 +14,10 @@ const {
   COMMAND_VERSION,
   COMMAND_MENU,
   COMMAND_SET_LANGUAGE,
+  COMMAND_EXTRA_DRS,
+  COMMAND_LIMITLESS,
+  COMMAND_WILDCARD,
+  COMMAND_RESET_CHIP,
 } = require('../constants');
 
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
@@ -31,6 +35,12 @@ const { handleBillingStats } = require('./billingStatsHandler');
 const { handleVersionCommand } = require('./versionHandler');
 const { displayMenuMessage } = require('./menuHandler');
 const { handleSetLanguage } = require('./setLanguageHandler');
+const {
+  handleSelectExtraDrs,
+  handleSelectLimitless,
+  handleSelectWildcard,
+  handleResetChip,
+} = require('./selectChipHandlers');
 
 // Mapping of command constants to their handler functions
 const COMMAND_HANDLERS = {
@@ -49,6 +59,10 @@ const COMMAND_HANDLERS = {
   [COMMAND_VERSION]: handleVersionCommand,
   [COMMAND_MENU]: displayMenuMessage,
   [COMMAND_SET_LANGUAGE]: handleSetLanguage,
+  [COMMAND_EXTRA_DRS]: handleSelectExtraDrs,
+  [COMMAND_LIMITLESS]: handleSelectLimitless,
+  [COMMAND_WILDCARD]: handleSelectWildcard,
+  [COMMAND_RESET_CHIP]: handleResetChip,
 };
 
 async function executeCommand(bot, msg, command) {

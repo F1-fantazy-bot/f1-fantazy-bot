@@ -7,8 +7,8 @@ const {
   driversCache,
   getPrintableCache,
   bestTeamsCache,
-  selectedChipCache,
 } = require('./cache');
+const { selectChip } = require('./commandsHandler/selectChipHandlers');
 const {
   DRIVERS_PHOTO_TYPE,
   CONSTRUCTORS_PHOTO_TYPE,
@@ -18,8 +18,6 @@ const {
   CHIP_CALLBACK_TYPE,
   MENU_CALLBACK_TYPE,
   LANG_CALLBACK_TYPE,
-  WITHOUT_CHIP,
-  COMMAND_BEST_TEAMS,
 } = require('./constants');
 
 const { sendLogMessage } = require('./utils');
@@ -99,28 +97,8 @@ async function handleChipCallback(bot, query) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
   const chip = query.data.split(':')[1];
-  selectedChipCache[chatId] = chip;
-  if (chip === WITHOUT_CHIP) {
-    delete selectedChipCache[chatId];
-  }
 
-  const isThereDataInBestTeamsCache =
-    bestTeamsCache[chatId] && bestTeamsCache[chatId].bestTeams;
-
-  // Clear best teams cache when user selects a chip
-  delete bestTeamsCache[chatId];
-
-  let message = t('Selected chip: {CHIP}.', chatId, { CHIP: chip.toUpperCase() });
-
-  if (isThereDataInBestTeamsCache) {
-    message +=
-      '\n' +
-      t(
-        'Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.',
-        chatId,
-        { CMD: COMMAND_BEST_TEAMS }
-      );
-  }
+  const message = selectChip(chatId, chip);
 
   await bot.editMessageText(message, {
     chat_id: chatId,
