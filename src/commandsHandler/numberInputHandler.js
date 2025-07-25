@@ -8,6 +8,7 @@ const {
 } = require('../cache');
 const { COMMAND_BEST_TEAMS } = require('../constants');
 const { t } = require('../i18n');
+const { sendMessageToUser } = require('../utils');
 
 // Handles the case when the message text is a number
 async function handleNumberMessage(bot, chatId, textTrimmed) {
@@ -24,13 +25,13 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
         selectedTeam.transfers_needed === 0 &&
         !selectedTeam.extra_drs_driver // if the user uses the extra drs chip we need to show the changes
       ) {
-        await bot
-          .sendMessage(
-            chatId,
-            t('You are already at team {TEAM}. No changes needed.', chatId, {
-              TEAM: teamRowRequested,
-            })
-          )
+        await sendMessageToUser(
+          bot,
+          chatId,
+          t('You are already at team {TEAM}. No changes needed.', chatId, {
+            TEAM: teamRowRequested,
+          })
+        )
           .catch((err) =>
             console.error('Error sending no changes message:', err)
           );
@@ -69,27 +70,26 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
         chatId
       );
 
-      await bot
-        .sendMessage(chatId, changesToTeamMessage, { parse_mode: 'Markdown' })
+      await sendMessageToUser(bot, chatId, changesToTeamMessage, { parse_mode: 'Markdown' })
         .catch((err) =>
           console.error('Error sending changes to team message:', err)
         );
     } else {
-      await bot
-        .sendMessage(
-          chatId,
-          t('No team found for number {NUM}.', chatId, { NUM: teamRowRequested })
-        )
+      await sendMessageToUser(
+        bot,
+        chatId,
+        t('No team found for number {NUM}.', chatId, { NUM: teamRowRequested })
+      )
         .catch((err) =>
           console.error('Error sending team not found message:', err)
         );
     }
   } else {
-    await bot
-      .sendMessage(
-        chatId,
-        t('No cached teams available. Please send full JSON data or images first and then run the {CMD} command.', chatId, { CMD: COMMAND_BEST_TEAMS })
-      )
+    await sendMessageToUser(
+      bot,
+      chatId,
+      t('No cached teams available. Please send full JSON data or images first and then run the {CMD} command.', chatId, { CMD: COMMAND_BEST_TEAMS })
+    )
       .catch((err) =>
         console.error('Error sending cache unavailable message:', err)
       );

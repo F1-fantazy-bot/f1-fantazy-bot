@@ -1,4 +1,4 @@
-const { isAdminMessage } = require('../utils');
+const { isAdminMessage, sendMessageToUser } = require('../utils');
 const {
   MENU_CATEGORIES,
   MENU_ACTIONS,
@@ -18,13 +18,12 @@ async function displayMenuMessage(bot, msg) {
   const message = buildMainMenuMessage(chatId);
   const keyboard = buildMainMenuKeyboard(isAdmin, chatId);
 
-  await bot
-    .sendMessage(chatId, message, {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: keyboard,
-      },
-    })
+  await sendMessageToUser(bot, chatId, message, {
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: keyboard,
+    },
+  })
     .catch((err) => console.error('Error sending menu message:', err));
 }
 

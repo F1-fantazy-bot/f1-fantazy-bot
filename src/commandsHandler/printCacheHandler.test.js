@@ -111,7 +111,7 @@ describe('sendPrintableCache', () => {
 
     await sendPrintableCache(KILZI_CHAT_ID, botMock);
 
-    expect(botMock.sendMessage).toHaveBeenCalledTimes(2);
+    expect(botMock.sendMessage).toHaveBeenCalledTimes(3);
     // Second call should still succeed
     expect(botMock.sendMessage).toHaveBeenLastCalledWith(
       KILZI_CHAT_ID,

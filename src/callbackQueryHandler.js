@@ -22,7 +22,7 @@ const {
   COMMAND_BEST_TEAMS,
 } = require('./constants');
 
-const { sendLogMessage } = require('./utils');
+const { sendLogMessage, sendMessageToUser } = require('./utils');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
 const { t, setLanguage, getLanguageName } = require('./i18n');
 
@@ -78,18 +78,17 @@ async function handlePhotoCallback(bot, query) {
     await storeInCache(bot, chatId, type, extractedData);
     delete bestTeamsCache[chatId];
 
-    await bot
-      .sendMessage(chatId, getPrintableCache(chatId, type), {
-        parse_mode: 'Markdown',
-      })
+    await sendMessageToUser(bot, chatId, getPrintableCache(chatId, type), {
+      parse_mode: 'Markdown',
+    })
       .catch((err) => console.error('Error sending extracted data:', err));
   } catch (err) {
     console.error('Error extracting data from photo:', err);
-    await bot
-      .sendMessage(
-        chatId,
-        t('An error occurred while extracting data from the photo.', chatId)
-      )
+    await sendMessageToUser(
+      bot,
+      chatId,
+      t('An error occurred while extracting data from the photo.', chatId)
+    )
       .catch((err) =>
         console.error('Error sending extraction error message:', err)
       );

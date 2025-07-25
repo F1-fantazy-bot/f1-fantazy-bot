@@ -4,6 +4,9 @@ const { MENU_CALLBACK_TYPE, MENU_ACTIONS } = require('../constants');
 // Mock the utils function
 jest.mock('../utils', () => ({
   isAdminMessage: jest.fn(),
+  sendMessageToUser: jest.fn((bot, chatId, msg, opts) =>
+    opts !== undefined ? bot.sendMessage(chatId, msg, opts) : bot.sendMessage(chatId, msg)
+  ),
 }));
 
 // Mock all command handlers individually

@@ -1,4 +1,4 @@
-const { isAdminMessage } = require('../utils');
+const { isAdminMessage, sendMessageToUser } = require('../utils');
 const { MENU_CATEGORIES, COMMAND_BEST_TEAMS } = require('../constants');
 const { t } = require('../i18n');
 
@@ -19,8 +19,7 @@ async function displayHelpMessage(bot, msg) {
   // Add other messages section
   helpMessage += buildOtherMessagesSection(chatId);
 
-  await bot
-    .sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' })
+  await sendMessageToUser(bot, chatId, helpMessage, { parse_mode: 'Markdown' })
     .catch((err) => console.error('Error sending help message:', err));
 
   return;

@@ -14,14 +14,18 @@ const {
 } = require('../prompts');
 const { t, getLocale } = require('../i18n');
 
-exports.sendMessage = async function (bot, chatId, message) {
+exports.sendMessage = async function (bot, chatId, message, options) {
   if (!chatId) {
     console.error('Chat ID is not set');
 
     return;
   }
 
-  await bot.sendMessage(chatId, message);
+  if (options !== undefined) {
+    await bot.sendMessage(chatId, message, options);
+  } else {
+    await bot.sendMessage(chatId, message);
+  }
 };
 
 exports.sendLogMessage = async function (bot, logMessage) {
@@ -64,9 +68,9 @@ exports.sendMessageToAdmins = async function (bot, message) {
   }
 };
 
-exports.sendMessageToUser = async function (bot, chatId, message) {
+exports.sendMessageToUser = async function (bot, chatId, message, options) {
   try {
-    await exports.sendMessage(bot, chatId, message);
+    await exports.sendMessage(bot, chatId, message, options);
   } catch (error) {
     console.error(error);
     await exports.sendLogMessage(

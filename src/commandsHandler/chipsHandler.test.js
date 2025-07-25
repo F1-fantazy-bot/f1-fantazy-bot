@@ -136,7 +136,7 @@ describe('handleChipsMessage', () => {
     expect(sentMessage[2].reply_to_message_id).toBe(originalMessageId);
   });
 
-  it('should propagate sendMessage errors', async () => {
+  it('should handle sendMessage errors gracefully', async () => {
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
       message_id: 123,
@@ -145,12 +145,9 @@ describe('handleChipsMessage', () => {
 
     botMock.sendMessage.mockRejectedValueOnce(new Error('Network error'));
 
-    // Should propagate the error since there's no error handling
-    await expect(handleChipsMessage(botMock, msgMock)).rejects.toThrow(
-      'Network error'
-    );
+    await handleChipsMessage(botMock, msgMock);
 
-    expect(botMock.sendMessage).toHaveBeenCalledTimes(1);
+    expect(botMock.sendMessage).toHaveBeenCalledTimes(2);
   });
 
   it('should work with different chat IDs and message IDs', async () => {

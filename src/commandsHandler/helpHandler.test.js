@@ -9,6 +9,9 @@ const mockIsAdminMessage = jest.fn().mockReturnValue(false);
 
 jest.mock('../utils', () => ({
   isAdminMessage: mockIsAdminMessage,
+  sendMessageToUser: jest.fn((bot, chatId, msg, opts) =>
+    opts !== undefined ? bot.sendMessage(chatId, msg, opts) : bot.sendMessage(chatId, msg)
+  ),
 }));
 
 const { displayHelpMessage } = require('./helpHandler');

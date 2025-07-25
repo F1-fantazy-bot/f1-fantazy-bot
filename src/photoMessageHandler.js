@@ -6,6 +6,7 @@ const {
   PHOTO_CALLBACK_TYPE,
 } = require('./constants');
 const { t } = require('./i18n');
+const { sendMessageToUser } = require('./utils');
 
 exports.handlePhotoMessage = async function (bot, msg) {
   const chatId = msg.chat.id;
@@ -25,7 +26,7 @@ exports.handlePhotoMessage = async function (bot, msg) {
   };
 
   // Reply with inline buttons
-  await bot.sendMessage(chatId, t('What type is this photo?', chatId), {
+  await sendMessageToUser(bot, chatId, t('What type is this photo?', chatId), {
     reply_to_message_id: messageId,
     reply_markup: {
       inline_keyboard: [

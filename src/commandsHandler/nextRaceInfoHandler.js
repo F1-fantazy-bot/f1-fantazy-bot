@@ -1,4 +1,4 @@
-const { sendLogMessage } = require('../utils');
+const { sendLogMessage, sendMessageToUser } = require('../utils');
 const { formatDateTime } = require('../utils/utils');
 const { getWeatherForecast } = require('../utils/weatherApi');
 const { MAX_TELEGRAM_MESSAGE_LENGTH } = require('../constants');
@@ -13,14 +13,13 @@ async function handleNextRaceInfoCommand(bot, chatId) {
   const nextRaceInfo = nextRaceInfoCache[sharedKey];
 
   if (!nextRaceInfo) {
-    await bot
-      .sendMessage(
-        chatId,
-        t('Next race information is currently unavailable.', chatId)
-      )
-      .catch((err) =>
-        console.error('Error sending next race info unavailable message:', err)
-      );
+    await sendMessageToUser(
+      bot,
+      chatId,
+      t('Next race information is currently unavailable.', chatId)
+    ).catch((err) =>
+      console.error('Error sending next race info unavailable message:', err)
+    );
 
     return;
   }
@@ -220,25 +219,26 @@ async function handleNextRaceInfoCommand(bot, chatId) {
     message.length + trackHistoryMessage.length >
     MAX_TELEGRAM_MESSAGE_LENGTH
   ) {
-    await bot
-      .sendMessage(chatId, message, { parse_mode: 'Markdown' })
+    await sendMessageToUser(bot, chatId, message, { parse_mode: 'Markdown' })
       .catch((err) =>
         console.error('Error sending next race info message:', err)
       );
 
-    await bot
-      .sendMessage(chatId, trackHistoryMessage, { parse_mode: 'Markdown' })
+    await sendMessageToUser(bot, chatId, trackHistoryMessage, { parse_mode: 'Markdown' })
       .catch((err) =>
         console.error('Error sending track history message:', err)
       );
   } else {
-    await bot
-      .sendMessage(chatId, message + trackHistoryMessage, {
+    await sendMessageToUser(
+      bot,
+      chatId,
+      message + trackHistoryMessage,
+      {
         parse_mode: 'Markdown',
-      })
-      .catch((err) =>
-        console.error('Error sending next race info message:', err)
-      );
+      }
+    ).catch((err) =>
+      console.error('Error sending next race info message:', err)
+    );
   }
 }
 
