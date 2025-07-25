@@ -5,39 +5,13 @@ const { sendLogMessage } = require('../utils');
 const {
   COMMAND_BEST_TEAMS,
   COMMAND_CURRENT_TEAM_INFO,
-  COMMAND_CHIPS,
   COMMAND_PRINT_CACHE,
   COMMAND_RESET_CACHE,
-  COMMAND_HELP,
-  COMMAND_TRIGGER_SCRAPING,
-  COMMAND_LOAD_SIMULATION,
-  COMMAND_GET_CURRENT_SIMULATION,
-  COMMAND_GET_BOTFATHER_COMMANDS,
   COMMAND_NEXT_RACE_INFO,
-  COMMAND_BILLING_STATS,
-  COMMAND_VERSION,
-  COMMAND_MENU,
-  COMMAND_SET_LANGUAGE,
   COMMAND_DESCRIBE,
 } = require('../constants');
-const {
-  handleBestTeamsMessage,
-} = require('./bestTeamsHandler');
-const { handleChipsMessage } = require('./chipsHandler');
-const { calcCurrentTeamInfo } = require('./currentTeamInfoHandler');
-const { handleGetBotfatherCommands } = require('./getBotfatherCommandsHandler');
-const { handleGetCurrentSimulation } = require('./getCurrentSimulationHandler');
-const { displayHelpMessage } = require('./helpHandler');
-const { handleLoadSimulation } = require('./loadSimulationHandler');
-const { handleNextRaceInfoCommand } = require('./nextRaceInfoHandler');
 const { handleNumberMessage } = require('./numberInputHandler');
-const { sendPrintableCache } = require('./printCacheHandler');
-const { resetCacheForChat } = require('./resetCacheHandler');
-const { handleScrapingTrigger } = require('./scrapingTriggerHandler');
-const { handleBillingStats } = require('./billingStatsHandler');
-const { displayMenuMessage } = require('./menuHandler');
-const { handleVersionCommand } = require('./versionHandler');
-const { handleSetLanguage } = require('./setLanguageHandler');
+const { COMMAND_HANDLERS } = require('./commandHandlers');
 const { DESCRIBE_SYSTEM_PROMPT } = require('../prompts');
 
 const apiVersion = '2024-04-01-preview';
@@ -47,25 +21,6 @@ const client = new AzureOpenAI({
   AZURE_OPEN_AI_MODEL,
   apiVersion,
 });
-
-const COMMAND_HANDLERS = {
-  [COMMAND_BEST_TEAMS]: handleBestTeamsMessage,
-  [COMMAND_CURRENT_TEAM_INFO]: calcCurrentTeamInfo,
-  [COMMAND_CHIPS]: handleChipsMessage,
-  [COMMAND_PRINT_CACHE]: sendPrintableCache,
-  [COMMAND_RESET_CACHE]: resetCacheForChat,
-  [COMMAND_HELP]: displayHelpMessage,
-  [COMMAND_TRIGGER_SCRAPING]: handleScrapingTrigger,
-  [COMMAND_LOAD_SIMULATION]: handleLoadSimulation,
-  [COMMAND_GET_CURRENT_SIMULATION]: handleGetCurrentSimulation,
-  [COMMAND_GET_BOTFATHER_COMMANDS]: handleGetBotfatherCommands,
-  [COMMAND_NEXT_RACE_INFO]: handleNextRaceInfoCommand,
-  [COMMAND_BILLING_STATS]: handleBillingStats,
-  [COMMAND_VERSION]: handleVersionCommand,
-  [COMMAND_MENU]: displayMenuMessage,
-  [COMMAND_SET_LANGUAGE]: handleSetLanguage,
-  [COMMAND_DESCRIBE]: undefined,
-};
 
 async function executeCommand(bot, msg, command) {
   const chatId = msg.chat.id;
