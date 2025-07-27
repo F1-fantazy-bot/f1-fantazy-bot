@@ -1,7 +1,6 @@
 const { sendLogMessage } = require('../utils');
 const { formatDateTime } = require('../utils/utils');
 const { getWeatherForecast } = require('../utils/weatherApi');
-const { MAX_TELEGRAM_MESSAGE_LENGTH } = require('../constants');
 const {
   nextRaceInfoCache,
   sharedKey,
@@ -120,32 +119,9 @@ async function handleNextRaceWeatherCommand(bot, chatId) {
     });
   });
 
-  if (message.length > MAX_TELEGRAM_MESSAGE_LENGTH) {
-    await bot
-      .sendMessage(chatId, message.slice(0, MAX_TELEGRAM_MESSAGE_LENGTH), {
-        parse_mode: 'Markdown',
-      })
-      .catch((err) =>
-        console.error('Error sending next race weather message:', err)
-      );
-
-    let remaining = message.slice(MAX_TELEGRAM_MESSAGE_LENGTH);
-    while (remaining.length > 0) {
-      const part = remaining.slice(0, MAX_TELEGRAM_MESSAGE_LENGTH);
-      remaining = remaining.slice(MAX_TELEGRAM_MESSAGE_LENGTH);
-      await bot
-        .sendMessage(chatId, part, { parse_mode: 'Markdown' })
-        .catch((err) =>
-          console.error('Error sending next race weather message:', err)
-        );
-    }
-  } else {
-    await bot
-      .sendMessage(chatId, message, { parse_mode: 'Markdown' })
-      .catch((err) =>
-        console.error('Error sending next race weather message:', err)
-      );
-  }
+  await bot
+    .sendMessage(chatId, message, { parse_mode: 'Markdown' })
+    .catch((err) => console.error('Error sending next race weather message:', err));
 }
 
 module.exports = { handleNextRaceWeatherCommand };
