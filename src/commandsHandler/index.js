@@ -8,6 +8,7 @@ const { displayHelpMessage } = require('./helpHandler');
 const { handleJsonMessage } = require('./jsonInputHandler');
 const { handleLoadSimulation } = require('./loadSimulationHandler');
 const { handleNextRaceInfoCommand } = require('./nextRaceInfoHandler');
+const { handleNextRaceWeatherCommand } = require('./nextRaceWeatherHandler');
 const { handleNumberMessage } = require('./numberInputHandler');
 const { sendPrintableCache } = require('./printCacheHandler');
 const { resetCacheForChat } = require('./resetCacheHandler');
@@ -34,6 +35,7 @@ module.exports = {
   handleJsonMessage,
   handleLoadSimulation,
   handleNextRaceInfoCommand,
+  handleNextRaceWeatherCommand,
   handleNumberMessage,
   sendPrintableCache,
   resetCacheForChat,
