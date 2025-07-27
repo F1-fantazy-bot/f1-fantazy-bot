@@ -35,17 +35,31 @@ async function handleNextRaceWeatherCommand(bot, chatId) {
   ];
 
   if (isSprintWeekend) {
+    const sprintQualiDate = new Date(nextRaceInfo.sessions.sprintQualifying);
     const sprintDate = new Date(nextRaceInfo.sessions.sprint);
-    sessions.splice(1, 0, {
+    sessions.push({
+      key: 'sprintQualifyingHourlyWeather',
+      label: t('Sprint Qualifying', chatId),
+      start: sprintQualiDate,
+    });
+    sessions.push({
       key: 'sprintHourlyWeather',
       label: t('Sprint', chatId),
       start: sprintDate,
     });
   }
 
+  sessions.sort((a, b) => a.start - b.start);
+
+  const nowRounded = new Date(Math.floor(Date.now() / (60 * 60 * 1000)) * 60 * 60 * 1000);
+
   const timesToFetch = [];
   sessions.forEach((s) => {
-    s.hours = [s.start, new Date(s.start.getTime() + 60 * 60 * 1000), new Date(s.start.getTime() + 2 * 60 * 60 * 1000)];
+    s.hours = [
+      s.start,
+      new Date(s.start.getTime() + 60 * 60 * 1000),
+      new Date(s.start.getTime() + 2 * 60 * 60 * 1000),
+    ].filter((h) => h >= nowRounded);
     s.forecast = weatherForecastCache[s.key];
     timesToFetch.push(...s.hours);
   });
@@ -90,10 +104,13 @@ async function handleNextRaceWeatherCommand(bot, chatId) {
   message += `🏁 *${t('Race Name', chatId)}:* ${nextRaceInfo.raceName}\n`;
   message += `\n`;
   sessions.forEach((session) => {
+    if (session.hours.length === 0) {
+      return;
+    }
     const { dateStr, timeStr } = formatDateTime(session.start, chatId);
     message += `*${session.label}* (${dateStr} ${timeStr})\n`;
-    session.forecast.forEach((forecast, idx) => {
-      const hourTime = session.hours[idx];
+    session.hours.forEach((hourTime, idx) => {
+      const forecast = session.forecast[idx];
       const { timeStr: hTime } = formatDateTime(hourTime, chatId);
       message += `*${t('Hour', chatId)} ${hTime}*:\n`;
       message += `🌡️ ${t('Temp', chatId)}: ${forecast.temperature}°C\n`;
@@ -104,14 +121,31 @@ async function handleNextRaceWeatherCommand(bot, chatId) {
   });
 
   if (message.length > MAX_TELEGRAM_MESSAGE_LENGTH) {
-    message = message.slice(0, MAX_TELEGRAM_MESSAGE_LENGTH);
-  }
+    await bot
+      .sendMessage(chatId, message.slice(0, MAX_TELEGRAM_MESSAGE_LENGTH), {
+        parse_mode: 'Markdown',
+      })
+      .catch((err) =>
+        console.error('Error sending next race weather message:', err)
+      );
 
-  await bot
-    .sendMessage(chatId, message, { parse_mode: 'Markdown' })
-    .catch((err) =>
-      console.error('Error sending next race weather message:', err)
-    );
+    let remaining = message.slice(MAX_TELEGRAM_MESSAGE_LENGTH);
+    while (remaining.length > 0) {
+      const part = remaining.slice(0, MAX_TELEGRAM_MESSAGE_LENGTH);
+      remaining = remaining.slice(MAX_TELEGRAM_MESSAGE_LENGTH);
+      await bot
+        .sendMessage(chatId, part, { parse_mode: 'Markdown' })
+        .catch((err) =>
+          console.error('Error sending next race weather message:', err)
+        );
+    }
+  } else {
+    await bot
+      .sendMessage(chatId, message, { parse_mode: 'Markdown' })
+      .catch((err) =>
+        console.error('Error sending next race weather message:', err)
+      );
+  }
 }
 
 module.exports = { handleNextRaceWeatherCommand };

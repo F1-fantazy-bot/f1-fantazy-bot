@@ -34,6 +34,7 @@ describe('handleNextRaceWeatherCommand', () => {
     delete weatherForecastCache.raceHourlyWeather;
     delete weatherForecastCache.qualifyingHourlyWeather;
     delete weatherForecastCache.sprintHourlyWeather;
+    delete weatherForecastCache.sprintQualifyingHourlyWeather;
   });
 
   it('should handle unavailable next race info', async () => {
@@ -51,16 +52,21 @@ describe('handleNextRaceWeatherCommand', () => {
       weekendFormat: 'sprint',
       location: { lat: '1', long: '2', locality: 'Town', country: 'Land' },
       sessions: {
-        qualifying: '2025-05-24T14:00:00Z',
-        sprint: '2025-05-24T18:00:00Z',
-        race: '2025-05-25T13:00:00Z',
+        sprintQualifying: '2100-05-24T10:00:00Z',
+        sprint: '2100-05-24T18:00:00Z',
+        qualifying: '2100-05-24T14:00:00Z',
+        race: '2100-05-25T13:00:00Z',
       },
     };
-    const qualifyingDate = new Date('2025-05-24T14:00:00Z');
-    const sprintDate = new Date('2025-05-24T18:00:00Z');
-    const raceDate = new Date('2025-05-25T13:00:00Z');
+    const sprintQualiDate = new Date('2100-05-24T10:00:00Z');
+    const qualifyingDate = new Date('2100-05-24T14:00:00Z');
+    const sprintDate = new Date('2100-05-24T18:00:00Z');
+    const raceDate = new Date('2100-05-25T13:00:00Z');
 
     const dates = [
+      sprintQualiDate,
+      new Date(sprintQualiDate.getTime() + 3600 * 1000),
+      new Date(sprintQualiDate.getTime() + 2 * 3600 * 1000),
       qualifyingDate,
       new Date(qualifyingDate.getTime() + 3600 * 1000),
       new Date(qualifyingDate.getTime() + 2 * 3600 * 1000),
@@ -94,6 +100,7 @@ describe('handleNextRaceWeatherCommand', () => {
       expect.stringContaining('*' + t('Next Race Weather Forecast', KILZI_CHAT_ID) + '*'),
       { parse_mode: 'Markdown' }
     );
+    expect(botMock.sendMessage.mock.calls[0][1]).toContain(t('Sprint Qualifying', KILZI_CHAT_ID));
     expect(botMock.sendMessage.mock.calls[0][1]).toContain(t('Qualifying', KILZI_CHAT_ID));
     expect(botMock.sendMessage.mock.calls[0][1]).toContain(t('Sprint', KILZI_CHAT_ID));
     expect(botMock.sendMessage.mock.calls[0][1]).toContain(t('Race', KILZI_CHAT_ID));
@@ -110,8 +117,8 @@ describe('handleNextRaceWeatherCommand', () => {
       raceName: 'Test',
       location: { lat: '1', long: '2', locality: 'Town', country: 'Land' },
       sessions: {
-        qualifying: '2025-05-24T14:00:00Z',
-        race: '2025-05-25T13:00:00Z',
+        qualifying: '2100-05-24T14:00:00Z',
+        race: '2100-05-25T13:00:00Z',
       },
     };
     weatherForecastCache.raceHourlyWeather = Array(3).fill({ temperature: 20, precipitation: 10, wind: 5, humidity: 50, precipitation_mm: 0 });
