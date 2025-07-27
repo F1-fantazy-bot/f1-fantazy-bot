@@ -78,10 +78,6 @@ async function handlePhotoCallback(bot, query) {
 
     await sendMessageToUser(bot, chatId, getPrintableCache(chatId, type), {
       useMarkdown: true,
-      errorMessageToUser: t(
-        'An error occurred while extracting data from the photo.',
-        chatId
-      ),
       errorMessageToLog: 'Error sending extracted data to user',
     });
   } catch (err) {

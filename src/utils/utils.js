@@ -71,7 +71,7 @@ exports.sendMessageToUser = async function (
   bot,
   chatId,
   message,
-  { useMarkdown = false, errorMessageToUser = '', errorMessageToLog = '' } = {}
+  { useMarkdown = false, errorMessageToLog = '' } = {}
 ) {
   let options = undefined;
   if (useMarkdown) {
@@ -82,14 +82,6 @@ exports.sendMessageToUser = async function (
     await exports.sendMessage(bot, chatId, message, options);
   } catch (error) {
     console.error(error);
-    if (errorMessageToUser) {
-      try {
-        exports.sendMessage(bot, chatId, errorMessageToUser);
-      } catch (err) {
-        console.error('Error sending error message to user:', err);
-      }
-    }
-
     await exports.sendLogMessage(
       bot,
       `${
