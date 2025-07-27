@@ -18,6 +18,7 @@ const { t, getLanguage, languageCache, getLanguageName } = require('./i18n');
 
 jest.mock('./utils', () => ({
   sendLogMessage: jest.fn().mockResolvedValue(undefined),
+  sendMessageToUser: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('openai', () => ({
@@ -194,19 +195,19 @@ describe('handleCallbackQuery', () => {
 
   it('should handle extractJsonDataFromPhotos error gracefully', async () => {
     extractJsonDataFromPhotos.mockRejectedValue(new Error('Extraction failed'));
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     await handleCallbackQuery(bot, query);
 
-    expect(bot.sendMessage).toHaveBeenCalledWith(
+    expect(require('./utils').sendMessageToUser).toHaveBeenCalledWith(
+      bot,
       chatId,
-      expect.stringContaining('An error occurred while extracting data')
+      expect.stringContaining('An error occurred while extracting data'),
+      { errorMessageToLog: 'Error sending extraction error message' }
     );
-    expect(spy).toHaveBeenCalledWith(
-      expect.stringContaining('Error extracting data from photo:'),
-      expect.any(Error)
+    expect(require('./utils').sendLogMessage).toHaveBeenCalledWith(
+      bot,
+      'Error extracting data from photo: Extraction failed'
     );
-    spy.mockRestore();
   });
 
   describe('chip callback handling', () => {
@@ -367,7 +368,9 @@ describe('handleCallbackQuery', () => {
       await handleCallbackQuery(bot, langQuery);
 
       expect(bot.editMessageText).toHaveBeenCalledWith(
-        t('Language changed to {LANG}.', chatId, { LANG: getLanguageName('he', chatId) }),
+        t('Language changed to {LANG}.', chatId, {
+          LANG: getLanguageName('he', chatId),
+        }),
         expect.objectContaining({ chat_id: chatId, message_id: messageId })
       );
       expect(bot.answerCallbackQuery).toHaveBeenCalledWith('langQueryId');
@@ -488,29 +491,22 @@ describe('handleCallbackQuery', () => {
 
   describe('error handling edge cases', () => {
     it('should handle sendMessage error in success path', async () => {
-      const consoleErrorSpy = jest
-        .spyOn(console, 'error')
-        .mockImplementation(() => {});
-
-      bot.sendMessage.mockRejectedValueOnce(new Error('Send message failed'));
+      require('./utils').sendMessageToUser.mockRejectedValueOnce(
+        new Error('Send message failed')
+      );
       extractJsonDataFromPhotos.mockResolvedValue(
         '```json\n{"Drivers":[{"DR":"HAM","price":30}]}\n```'
       );
 
       await handleCallbackQuery(bot, query);
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error sending extracted data:',
-        expect.any(Error)
+      expect(require('./utils').sendLogMessage).toHaveBeenCalledWith(
+        bot,
+        'Error extracting data from photo: Send message failed'
       );
-      consoleErrorSpy.mockRestore();
     });
 
     it('should handle sendMessage error in error path', async () => {
-      const consoleErrorSpy = jest
-        .spyOn(console, 'error')
-        .mockImplementation(() => {});
-
       extractJsonDataFromPhotos.mockRejectedValue(
         new Error('Extraction failed')
       );
@@ -520,15 +516,10 @@ describe('handleCallbackQuery', () => {
 
       await handleCallbackQuery(bot, query);
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error extracting data from photo:',
-        expect.any(Error)
+      expect(require('./utils').sendLogMessage).toHaveBeenCalledWith(
+        bot,
+        'Error extracting data from photo: Extraction failed'
       );
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error sending extraction error message:',
-        expect.any(Error)
-      );
-      consoleErrorSpy.mockRestore();
     });
 
     it('should handle storeInCache with undefined jsonObject after parse error', async () => {

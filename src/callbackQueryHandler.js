@@ -20,7 +20,7 @@ const {
   LANG_CALLBACK_TYPE,
 } = require('./constants');
 
-const { sendLogMessage } = require('./utils');
+const { sendLogMessage, sendMessageToUser } = require('./utils');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
 const { t, setLanguage, getLanguageName } = require('./i18n');
 
@@ -76,21 +76,18 @@ async function handlePhotoCallback(bot, query) {
     await storeInCache(bot, chatId, type, extractedData);
     delete bestTeamsCache[chatId];
 
-    await bot
-      .sendMessage(chatId, getPrintableCache(chatId, type), {
-        parse_mode: 'Markdown',
-      })
-      .catch((err) => console.error('Error sending extracted data:', err));
+    await sendMessageToUser(bot, chatId, getPrintableCache(chatId, type), {
+      useMarkdown: true,
+      errorMessageToLog: 'Error sending extracted data to user',
+    });
   } catch (err) {
-    console.error('Error extracting data from photo:', err);
-    await bot
-      .sendMessage(
-        chatId,
-        t('An error occurred while extracting data from the photo.', chatId)
-      )
-      .catch((err) =>
-        console.error('Error sending extraction error message:', err)
-      );
+    sendLogMessage(bot, `Error extracting data from photo: ${err.message}`);
+    sendMessageToUser(
+      bot,
+      chatId,
+      t('An error occurred while extracting data from the photo.', chatId),
+      { errorMessageToLog: 'Error sending extraction error message' }
+    );
   }
 }
 async function handleChipCallback(bot, query) {
@@ -118,7 +115,9 @@ async function handleLanguageCallback(bot, query) {
   await azureStorageService.saveUserSettings(bot, chatId, { lang });
 
   await bot.editMessageText(
-    t('Language changed to {LANG}.', chatId, { LANG: getLanguageName(lang, chatId) }),
+    t('Language changed to {LANG}.', chatId, {
+      LANG: getLanguageName(lang, chatId),
+    }),
     {
       chat_id: chatId,
       message_id: messageId,

@@ -157,10 +157,7 @@ describe('utils', () => {
 
       await sendMessageToUser(botMock, KILZI_CHAT_ID, 'hello');
 
-      expect(botMock.sendMessage).toHaveBeenCalledWith(
-        KILZI_CHAT_ID,
-        'hello'
-      );
+      expect(botMock.sendMessage).toHaveBeenCalledWith(KILZI_CHAT_ID, 'hello');
     });
 
     it('logs error and calls sendLogMessage on failure', async () => {
@@ -178,7 +175,7 @@ describe('utils', () => {
       expect(consoleErrorSpy).toHaveBeenCalledWith(error);
       expect(sendLogSpy).toHaveBeenCalledWith(
         botMock,
-        `Error sending message to user: ${error.message}`
+        `Error sending message to user. error: ${error.message}.`
       );
 
       consoleErrorSpy.mockRestore();

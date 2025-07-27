@@ -41,7 +41,10 @@ exports.sendLogMessage = async function (bot, logMessage) {
   let log = `BOT: ${logMessage}
 env: ${env}`;
 
-  if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
+  if (
+    process.env.NODE_ENV === 'production' ||
+    process.env.NODE_ENV === 'test'
+  ) {
     log += `
 pid: ${process.pid}`;
   }
@@ -64,14 +67,26 @@ exports.sendMessageToAdmins = async function (bot, message) {
   }
 };
 
-exports.sendMessageToUser = async function (bot, chatId, message) {
+exports.sendMessageToUser = async function (
+  bot,
+  chatId,
+  message,
+  { useMarkdown = false, errorMessageToLog = '' } = {}
+) {
+  let options = undefined;
+  if (useMarkdown) {
+    options = { parse_mode: 'Markdown' };
+  }
+
   try {
-    await exports.sendMessage(bot, chatId, message);
+    await exports.sendMessage(bot, chatId, message, options);
   } catch (error) {
     console.error(error);
     await exports.sendLogMessage(
       bot,
-      `Error sending message to user: ${error.message}`
+      `${
+        errorMessageToLog ? errorMessageToLog : 'Error sending message to user'
+      }. error: ${error.message}.`
     );
   }
 };
@@ -113,7 +128,10 @@ exports.validateJsonData = async function (
     await bot
       .sendMessage(
         chatId,
-        t('Invalid JSON data. Please ensure it contains 20 drivers under "Drivers" property.', chatId)
+        t(
+          'Invalid JSON data. Please ensure it contains 20 drivers under "Drivers" property.',
+          chatId
+        )
       )
       .catch((err) => console.error('Error sending JSON error message:', err));
 
@@ -128,7 +146,10 @@ exports.validateJsonData = async function (
     await bot
       .sendMessage(
         chatId,
-        t('Invalid JSON data. Please ensure it contains 10 constructors under "Constructors" property.', chatId)
+        t(
+          'Invalid JSON data. Please ensure it contains 10 constructors under "Constructors" property.',
+          chatId
+        )
       )
       .catch((err) => console.error('Error sending JSON error message:', err));
 
@@ -155,7 +176,10 @@ exports.validateJsonData = async function (
     await bot
       .sendMessage(
         chatId,
-        t('Invalid JSON data. Please ensure it contains the required properties under "CurrentTeam" property.', chatId)
+        t(
+          'Invalid JSON data. Please ensure it contains the required properties under "CurrentTeam" property.',
+          chatId
+        )
       )
       .catch((err) => console.error('Error sending JSON error message:', err));
 
