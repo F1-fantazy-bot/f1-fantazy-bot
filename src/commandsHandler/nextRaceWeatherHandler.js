@@ -100,8 +100,8 @@ async function handleNextRaceWeatherCommand(bot, chatId) {
   }
 
   let message = `*${t('Next Race Weather Forecast', chatId)}*\n\n`;
-  message += `🏁 *${t('Race Name', chatId)}:* ${nextRaceInfo.raceName}\n`;
-  message += `🏎️ *${t('Track', chatId)}:* ${nextRaceInfo.circuitName}\n`;
+  message += `🏎️ *${t('Race Name', chatId)}:* ${nextRaceInfo.raceName}\n`;
+  message += `🏁 *${t('Track', chatId)}:* ${nextRaceInfo.circuitName}\n`;
   message += `📍 *${t('Location', chatId)}:* ${nextRaceInfo.location.locality}, ${nextRaceInfo.location.country}\n\n`;
   sessions.forEach((session) => {
     if (session.hours.length === 0) {
