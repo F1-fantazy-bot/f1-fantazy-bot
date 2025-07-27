@@ -8,7 +8,7 @@ const fetch = require('node-fetch');
  * @param {number} lat
  * @param {number} lon
  * @param {Date[]} datesToFetch - Array of JS Date objects (UTC)
- * @returns {Promise<Object<string, {temperature: number, precipitation: number, wind: number}>>}
+ * @returns {Promise<Object<string, {temperature: number, precipitation: number, wind: number, humidity: number, precipitation_mm: number, cloudCover: number}>>}
  */
 async function getWeatherForecast(lat, lon, ...datesToFetch) {
   if (!Array.isArray(datesToFetch) || datesToFetch.length === 0) {
@@ -22,7 +22,7 @@ async function getWeatherForecast(lat, lon, ...datesToFetch) {
   const startDateStr = formatToYYYYMMDD(apiStartDate);
   const endDateStr = formatToYYYYMMDD(apiEndDate);
 
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation_probability,wind_speed_10m&start_date=${startDateStr}&end_date=${endDateStr}&timezone=UTC`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation_probability,precipitation,wind_speed_10m,relativehumidity_2m,cloud_cover&start_date=${startDateStr}&end_date=${endDateStr}&timezone=UTC`;
 
   // Set up a 30-second timeout using AbortController
   const controller = new AbortController();
@@ -76,13 +76,23 @@ function extractHourlyForecast(apiData, targetDate) {
 
   if (hourIndex === -1) {
     // Not found, return nulls
-    return { temperature: null, precipitation: null, wind: null };
+    return {
+      temperature: null,
+      precipitation: null,
+      wind: null,
+      humidity: null,
+      precipitation_mm: null,
+      cloudCover: null,
+    };
   }
 
   return {
     temperature: apiData.hourly.temperature_2m[hourIndex],
     precipitation: apiData.hourly.precipitation_probability[hourIndex],
     wind: apiData.hourly.wind_speed_10m[hourIndex],
+    humidity: apiData.hourly.relativehumidity_2m[hourIndex],
+    precipitation_mm: apiData.hourly.precipitation[hourIndex],
+    cloudCover: apiData.hourly.cloud_cover[hourIndex],
   };
 }
 

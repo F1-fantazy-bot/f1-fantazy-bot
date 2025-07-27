@@ -29,6 +29,7 @@ exports.COMMAND_LOAD_SIMULATION = '/load_simulation';
 exports.COMMAND_GET_CURRENT_SIMULATION = '/get_current_simulation';
 exports.COMMAND_GET_BOTFATHER_COMMANDS = '/get_botfather_commands';
 exports.COMMAND_NEXT_RACE_INFO = '/next_race_info';
+exports.COMMAND_NEXT_RACE_WEATHER = '/next_race_weather';
 exports.COMMAND_BILLING_STATS = '/billing_stats';
 exports.COMMAND_VERSION = '/version';
 exports.COMMAND_MENU = '/menu';
@@ -91,6 +92,11 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_NEXT_RACE_INFO,
         title: '🏁 Next Race Info',
         description: 'Get detailed information about the next F1 race',
+      },
+      {
+        constant: exports.COMMAND_NEXT_RACE_WEATHER,
+        title: '🌦️ Next Race Weather',
+        description: 'Get detailed weather forecast for the next race',
       },
       {
         constant: exports.COMMAND_GET_CURRENT_SIMULATION,
