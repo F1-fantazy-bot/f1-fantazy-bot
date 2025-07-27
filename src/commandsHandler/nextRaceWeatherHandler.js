@@ -101,7 +101,8 @@ async function handleNextRaceWeatherCommand(bot, chatId) {
 
   let message = `*${t('Next Race Weather Forecast', chatId)}*\n\n`;
   message += `🏁 *${t('Race Name', chatId)}:* ${nextRaceInfo.raceName}\n`;
-  message += `\n`;
+  message += `🏎️ *${t('Track', chatId)}:* ${nextRaceInfo.circuitName}\n`;
+  message += `📍 *${t('Location', chatId)}:* ${nextRaceInfo.location.locality}, ${nextRaceInfo.location.country}\n\n`;
   sessions.forEach((session) => {
     if (session.hours.length === 0) {
       return;
@@ -114,6 +115,7 @@ async function handleNextRaceWeatherCommand(bot, chatId) {
       message += `*${t('Hour', chatId)} ${hTime}*:\n`;
       message += `🌡️ ${t('Temp', chatId)}: ${forecast.temperature}°C\n`;
       message += `💧 ${t('Humidity', chatId)}: ${forecast.humidity}%\n`;
+      message += `☁️ ${t('Cloud Cover', chatId)}: ${forecast.cloudCover}%\n`;
       message += `🌧️ ${t('Rain', chatId)}: ${forecast.precipitation}% (${forecast.precipitation_mm} ${t('mm', chatId)})\n`;
       message += `💨 ${t('Wind', chatId)}: ${forecast.wind} ${t('km/h', chatId)}\n\n`;
     });

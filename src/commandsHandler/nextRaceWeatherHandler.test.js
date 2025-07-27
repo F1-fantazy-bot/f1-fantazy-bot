@@ -86,6 +86,7 @@ describe('handleNextRaceWeatherCommand', () => {
         wind: 5 + i,
         humidity: 50 + i,
         precipitation_mm: 0.1 * i,
+        cloudCover: 30 + i,
       };
     });
 
@@ -100,10 +101,13 @@ describe('handleNextRaceWeatherCommand', () => {
       expect.stringContaining('*' + t('Next Race Weather Forecast', KILZI_CHAT_ID) + '*'),
       { parse_mode: 'Markdown' }
     );
+    expect(botMock.sendMessage.mock.calls[0][1]).toContain(t('Track', KILZI_CHAT_ID));
+    expect(botMock.sendMessage.mock.calls[0][1]).toContain(t('Location', KILZI_CHAT_ID));
     expect(botMock.sendMessage.mock.calls[0][1]).toContain(t('Sprint Qualifying', KILZI_CHAT_ID));
     expect(botMock.sendMessage.mock.calls[0][1]).toContain(t('Qualifying', KILZI_CHAT_ID));
     expect(botMock.sendMessage.mock.calls[0][1]).toContain(t('Sprint', KILZI_CHAT_ID));
     expect(botMock.sendMessage.mock.calls[0][1]).toContain(t('Race', KILZI_CHAT_ID));
+    expect(botMock.sendMessage.mock.calls[0][1]).toContain(t('Cloud Cover', KILZI_CHAT_ID));
 
     expect(getWeatherForecast).toHaveBeenCalled();
     expect(mockSendLogMessage).toHaveBeenCalledWith(
@@ -121,8 +125,8 @@ describe('handleNextRaceWeatherCommand', () => {
         race: '2100-05-25T13:00:00Z',
       },
     };
-    weatherForecastCache.raceHourlyWeather = Array(3).fill({ temperature: 20, precipitation: 10, wind: 5, humidity: 50, precipitation_mm: 0 });
-    weatherForecastCache.qualifyingHourlyWeather = Array(3).fill({ temperature: 20, precipitation: 10, wind: 5, humidity: 50, precipitation_mm: 0 });
+    weatherForecastCache.raceHourlyWeather = Array(3).fill({ temperature: 20, precipitation: 10, wind: 5, humidity: 50, precipitation_mm: 0, cloudCover: 40 });
+    weatherForecastCache.qualifyingHourlyWeather = Array(3).fill({ temperature: 20, precipitation: 10, wind: 5, humidity: 50, precipitation_mm: 0, cloudCover: 40 });
     nextRaceInfoCache.defaultSharedKey = mockNextRaceInfo;
 
     await handleNextRaceWeatherCommand(botMock, KILZI_CHAT_ID);

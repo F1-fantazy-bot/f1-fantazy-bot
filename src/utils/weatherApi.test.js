@@ -11,16 +11,17 @@ describe('getWeatherForecast', () => {
   });
 
   it('returns correct weather data for two given dates and location', async () => {
-    const mockData = {
-      hourly: {
-        time: ['2025-05-25T13:00', '2025-05-25T14:00'],
-        temperature_2m: [22.5, 23.1],
-        precipitation_probability: [10, 20],
-        wind_speed_10m: [5.2, 6.1],
-        relativehumidity_2m: [55, 60],
-        precipitation: [0.3, 0.5],
-      },
-    };
+      const mockData = {
+        hourly: {
+          time: ['2025-05-25T13:00', '2025-05-25T14:00'],
+          temperature_2m: [22.5, 23.1],
+          precipitation_probability: [10, 20],
+          wind_speed_10m: [5.2, 6.1],
+          relativehumidity_2m: [55, 60],
+          precipitation: [0.3, 0.5],
+          cloud_cover: [30, 40],
+        },
+      };
     fetch.mockResolvedValue({
       ok: true,
       json: async () => mockData,
@@ -40,6 +41,7 @@ describe('getWeatherForecast', () => {
         wind: 5.2,
         humidity: 55,
         precipitation_mm: 0.3,
+        cloudCover: 30,
       },
       [date2.toISOString()]: {
         temperature: 23.1,
@@ -47,6 +49,7 @@ describe('getWeatherForecast', () => {
         wind: 6.1,
         humidity: 60,
         precipitation_mm: 0.5,
+        cloudCover: 40,
       },
     });
     expect(fetch).toHaveBeenCalled();
@@ -86,6 +89,7 @@ describe('getWeatherForecast', () => {
         wind: null,
         humidity: null,
         precipitation_mm: null,
+        cloudCover: null,
       },
       [date2.toISOString()]: {
         temperature: null,
@@ -93,6 +97,7 @@ describe('getWeatherForecast', () => {
         wind: null,
         humidity: null,
         precipitation_mm: null,
+        cloudCover: null,
       },
     });
   });

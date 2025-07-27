@@ -90,6 +90,7 @@ const translations = {
     Hour: 'שעה',
     Temp: 'טמפרטורה',
     Humidity: 'לחות',
+    'Cloud Cover': 'עננות',
     Rain: 'גשם',
     'Precipitation (mm)': 'משקעים (מ"מ)',
     Wind: 'רוח',
