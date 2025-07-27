@@ -6,13 +6,14 @@ const {
   WITHOUT_CHIP,
 } = require('../constants');
 const { t } = require('../i18n');
+const { sendMessageToUser } = require('../utils');
 
 async function handleChipsMessage(bot, msg) {
   const chatId = msg.chat.id;
   const messageId = msg.message_id;
 
   // Reply with inline buttons
-  await bot.sendMessage(chatId, t('which chip do you want to use?', chatId), {
+  await sendMessageToUser(bot, chatId, t('which chip do you want to use?', chatId), {
     reply_to_message_id: messageId,
     reply_markup: {
       inline_keyboard: [

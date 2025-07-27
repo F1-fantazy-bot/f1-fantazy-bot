@@ -4,6 +4,9 @@ const mockSendLogMessage = jest.fn();
 
 jest.mock('../utils', () => ({
   sendLogMessage: mockSendLogMessage,
+  sendMessageToUser: jest.fn((bot, chatId, msg, opts) =>
+    opts !== undefined ? bot.sendMessage(chatId, msg, opts) : bot.sendMessage(chatId, msg)
+  ),
 }));
 
 jest.mock('../utils/utils', () => {

@@ -1,5 +1,5 @@
 const { getMonthlyBillingStats } = require('../azureBillingService');
-const { sendLogMessage, isAdminMessage } = require('../utils/utils');
+const { sendLogMessage, isAdminMessage, sendMessageToUser } = require('../utils/utils');
 const { t } = require('../i18n');
 
 /**
@@ -11,7 +11,8 @@ async function handleBillingStats(bot, msg) {
   const chatId = msg.chat.id;
 
   if (!isAdminMessage(msg)) {
-    await bot.sendMessage(
+    await sendMessageToUser(
+      bot,
       chatId,
       t('Sorry, only admins can access billing statistics.', chatId)
     );
@@ -27,8 +28,7 @@ async function handleBillingStats(bot, msg) {
     const billingMessage = formatBillingMessage(billingData, chatId);
 
     // Send the formatted billing statistics
-    await bot
-      .sendMessage(chatId, billingMessage, { parse_mode: 'Markdown' })
+    await sendMessageToUser(bot, chatId, billingMessage, { parse_mode: 'Markdown' })
       .catch((err) =>
         console.error('Error sending billing stats message:', err)
       );
@@ -36,17 +36,17 @@ async function handleBillingStats(bot, msg) {
     console.error('Error in handleBillingStats:', error);
     await sendLogMessage(bot, `Error fetching billing stats: ${error.message}`);
 
-    await bot
-      .sendMessage(
+    await sendMessageToUser(
+      bot,
+      chatId,
+      t(
+        '❌ Error fetching billing statistics: {ERROR}\n\nPlease check your Azure configuration and permissions.',
         chatId,
-        t(
-          '❌ Error fetching billing statistics: {ERROR}\n\nPlease check your Azure configuration and permissions.',
-          chatId,
-          {
-            ERROR: error.message,
-          }
-        )
+        {
+          ERROR: error.message,
+        }
       )
+    )
       .catch((err) =>
         console.error('Error sending billing error message:', err)
       );

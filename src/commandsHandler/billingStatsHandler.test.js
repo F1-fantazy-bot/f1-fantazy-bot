@@ -4,7 +4,13 @@ const { sendLogMessage, isAdminMessage } = require('../utils/utils');
 
 // Mock the dependencies
 jest.mock('../azureBillingService');
-jest.mock('../utils/utils');
+jest.mock('../utils/utils', () => ({
+  sendMessageToUser: jest.fn((bot, chatId, msg, opts) =>
+    opts !== undefined ? bot.sendMessage(chatId, msg, opts) : bot.sendMessage(chatId, msg)
+  ),
+  sendLogMessage: jest.fn(),
+  isAdminMessage: jest.fn(),
+}));
 
 describe('billingStatsHandler', () => {
   let mockBot;

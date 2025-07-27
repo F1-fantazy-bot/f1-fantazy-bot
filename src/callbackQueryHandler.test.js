@@ -18,6 +18,9 @@ const { t, getLanguage, languageCache, getLanguageName } = require('./i18n');
 
 jest.mock('./utils', () => ({
   sendLogMessage: jest.fn().mockResolvedValue(undefined),
+  sendMessageToUser: jest.fn((bot, chatId, msg, opts) =>
+    opts !== undefined ? bot.sendMessage(chatId, msg, opts) : bot.sendMessage(chatId, msg)
+  ),
 }));
 
 jest.mock('openai', () => ({

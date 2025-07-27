@@ -4,6 +4,9 @@ const mockCalculateTeamInfo = jest.fn();
 
 jest.mock('../utils', () => ({
   calculateTeamInfo: mockCalculateTeamInfo,
+  sendMessageToUser: jest.fn((bot, chatId, msg, opts) =>
+    opts !== undefined ? bot.sendMessage(chatId, msg, opts) : bot.sendMessage(chatId, msg)
+  ),
 }));
 
 const {

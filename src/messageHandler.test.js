@@ -6,6 +6,9 @@ jest.mock('./utils/utils', () => ({
   getChatName: jest.fn().mockReturnValue('Unknown'),
   sendLogMessage: jest.fn(),
   isAdminMessage: mockIsAdmin,
+  sendMessageToUser: jest.fn((bot, chatId, msg, opts) =>
+    opts !== undefined ? bot.sendMessage(chatId, msg, opts) : bot.sendMessage(chatId, msg)
+  ),
 }));
 
 const { handleMessage } = require('./messageHandler');
