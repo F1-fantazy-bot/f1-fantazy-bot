@@ -88,7 +88,8 @@ describe('utils', () => {
 
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         expect.any(Number), // LOG_CHANNEL_ID
-        expect.stringContaining('Log message with channel ID')
+        expect.stringContaining('Log message with channel ID'),
+        undefined // options
       );
     });
 
@@ -102,7 +103,8 @@ describe('utils', () => {
 
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         expect.any(Number), // LOG_CHANNEL_ID
-        expect.stringContaining('env: prod')
+        expect.stringContaining('env: prod'),
+        undefined // options
       );
     });
 
@@ -116,7 +118,8 @@ describe('utils', () => {
 
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         expect.any(Number), // LOG_CHANNEL_ID
-        expect.stringContaining('env: test')
+        expect.stringContaining('env: test'),
+        undefined // options
       );
     });
 
@@ -130,7 +133,8 @@ describe('utils', () => {
 
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         expect.any(Number), // LOG_CHANNEL_ID
-        expect.stringContaining('env: dev')
+        expect.stringContaining('env: dev'),
+        undefined // options
       );
     });
 
@@ -157,7 +161,11 @@ describe('utils', () => {
 
       await sendMessageToUser(botMock, KILZI_CHAT_ID, 'hello');
 
-      expect(botMock.sendMessage).toHaveBeenCalledWith(KILZI_CHAT_ID, 'hello');
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        KILZI_CHAT_ID,
+        'hello',
+        undefined
+      );
     });
 
     it('logs error and calls sendLogMessage on failure', async () => {

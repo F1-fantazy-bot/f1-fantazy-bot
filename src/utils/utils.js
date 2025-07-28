@@ -14,14 +14,14 @@ const {
 } = require('../prompts');
 const { t, getLocale } = require('../i18n');
 
-exports.sendMessage = async function (bot, chatId, message) {
+const sendMessage = async function (bot, chatId, message, options) {
   if (!chatId) {
     console.error('Chat ID is not set');
 
     return;
   }
 
-  await bot.sendMessage(chatId, message);
+  await bot.sendMessage(chatId, message, options);
 };
 
 exports.sendLogMessage = async function (bot, logMessage) {
@@ -52,7 +52,7 @@ pid: ${process.pid}`;
   console.log(log);
 
   try {
-    await exports.sendMessage(bot, LOG_CHANNEL_ID, log);
+    await sendMessage(bot, LOG_CHANNEL_ID, log);
   } catch (error) {
     console.error(error);
   }
@@ -63,7 +63,7 @@ exports.sendMessageToAdmins = async function (bot, message) {
   const msg = `BOT: ${message}`;
 
   for (const chatId of adminChatIds) {
-    await exports.sendMessage(bot, chatId, msg);
+    await sendMessage(bot, chatId, msg);
   }
 };
 
@@ -79,7 +79,7 @@ exports.sendMessageToUser = async function (
   }
 
   try {
-    await exports.sendMessage(bot, chatId, message, options);
+    await sendMessage(bot, chatId, message, options);
   } catch (error) {
     console.error(error);
     await exports.sendLogMessage(
