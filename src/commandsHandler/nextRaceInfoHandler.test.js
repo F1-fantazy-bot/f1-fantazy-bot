@@ -27,6 +27,7 @@ const { handleNextRaceInfoCommand } = require('./nextRaceInfoHandler');
 describe('handleNextRaceInfoCommand', () => {
   const botMock = {
     sendMessage: jest.fn().mockResolvedValue(),
+    sendPhoto: jest.fn().mockResolvedValue(),
   };
 
   beforeEach(() => {
@@ -45,6 +46,7 @@ describe('handleNextRaceInfoCommand', () => {
       KILZI_CHAT_ID,
       'Next race information is currently unavailable.'
     );
+    expect(botMock.sendPhoto).not.toHaveBeenCalled();
   });
 
   it('should display next race info with weather forecast when available and log location', async () => {
@@ -62,6 +64,7 @@ describe('handleNextRaceInfoCommand', () => {
         race: '2025-05-25T13:00:00Z',
       },
       weekendFormat: 'regular',
+      circuitImageUrl: 'http://example.com/circuit.jpg',
       historicalRaceStats: [
         {
           season: 2024,
@@ -150,6 +153,10 @@ describe('handleNextRaceInfoCommand', () => {
         'Weather forecast fetched for location: Monte-Carlo, Monaco'
       )
     );
+    expect(botMock.sendPhoto).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'http://example.com/circuit.jpg'
+    );
   });
 
   it('should display next race info with sprint sessions and weather for sprint weekend', async () => {
@@ -169,6 +176,7 @@ describe('handleNextRaceInfoCommand', () => {
         race: '2025-07-06T14:00:00Z',
       },
       weekendFormat: 'sprint',
+      circuitImageUrl: 'http://example.com/circuit.jpg',
       historicalRaceStats: [
         {
           season: 2024,
@@ -268,6 +276,10 @@ describe('handleNextRaceInfoCommand', () => {
       sprintQualifyingDate,
       sprintDate
     );
+    expect(botMock.sendPhoto).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'http://example.com/circuit.jpg'
+    );
   });
 
   it('should include safety cars and red flags in historical data if present', async () => {
@@ -284,6 +296,7 @@ describe('handleNextRaceInfoCommand', () => {
         race: '2025-01-02T10:00:00Z',
       },
       weekendFormat: 'regular',
+      circuitImageUrl: 'http://example.com/circuit.jpg',
       historicalRaceStats: [
         {
           season: 2025,
@@ -349,6 +362,10 @@ describe('handleNextRaceInfoCommand', () => {
     const entry2024 = historicalSection.split('*2024:*')[1].split('*')[0];
     expect(entry2024).not.toContain('⚠️🚓 Safety Cars:');
     expect(entry2024).not.toContain('🚩 Red Flags:');
+    expect(botMock.sendPhoto).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'http://example.com/circuit.jpg'
+    );
   });
 
   it('should use cached weather forecast if available and not call getWeatherForecast again', async () => {
@@ -366,6 +383,7 @@ describe('handleNextRaceInfoCommand', () => {
         race: '2025-05-25T13:00:00Z',
       },
       weekendFormat: 'regular',
+      circuitImageUrl: 'http://example.com/circuit.jpg',
       historicalRaceStats: [],
     };
 
@@ -400,6 +418,10 @@ describe('handleNextRaceInfoCommand', () => {
       botMock,
       expect.stringContaining('Weather forecast fetched for location:')
     );
+    expect(botMock.sendPhoto).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'http://example.com/circuit.jpg'
+    );
   });
 
   it('should handle weather API errors gracefully', async () => {
@@ -417,6 +439,7 @@ describe('handleNextRaceInfoCommand', () => {
         race: '2025-05-25T13:00:00Z',
       },
       weekendFormat: 'regular',
+      circuitImageUrl: 'http://example.com/circuit.jpg',
       historicalRaceStats: [],
     };
 
@@ -430,6 +453,10 @@ describe('handleNextRaceInfoCommand', () => {
     expect(mockSendLogMessage).toHaveBeenCalledWith(
       botMock,
       expect.stringContaining(`Weather API error:`)
+    );
+    expect(botMock.sendPhoto).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'http://example.com/circuit.jpg'
     );
   });
 
@@ -448,6 +475,7 @@ describe('handleNextRaceInfoCommand', () => {
         race: '2025-01-02T10:00:00Z',
       },
       weekendFormat: 'regular',
+      circuitImageUrl: 'http://example.com/circuit.jpg',
       historicalRaceStats: [
         {
           season: 2025,
@@ -511,6 +539,10 @@ describe('handleNextRaceInfoCommand', () => {
     expect(historicalSection).toContain('*2024:*');
     const entry2024 = historicalSection.split('*2024:*')[1].split('*')[0];
     expect(entry2024).not.toContain('🔄 Overtakes:');
+    expect(botMock.sendPhoto).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'http://example.com/circuit.jpg'
+    );
   });
 
   it('should include track history in the correct language', async () => {
@@ -528,6 +560,7 @@ describe('handleNextRaceInfoCommand', () => {
         race: '2025-01-02T10:00:00Z',
       },
       weekendFormat: 'regular',
+      circuitImageUrl: 'http://example.com/circuit.jpg',
       trackHistory: [
         { lang: 'en', text: 'History in English' },
         { lang: 'he', text: 'היסטוריה בעברית' },
@@ -567,6 +600,10 @@ describe('handleNextRaceInfoCommand', () => {
     expect(hebrewMessage).toContain(
       `*${t('Track History', KILZI_CHAT_ID)}:*\nהיסטוריה בעברית`
     );
+    expect(botMock.sendPhoto).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'http://example.com/circuit.jpg'
+    );
   });
 
   it('should display dates in Hebrew when language is set', async () => {
@@ -584,6 +621,7 @@ describe('handleNextRaceInfoCommand', () => {
         race: '2025-05-25T13:00:00Z',
       },
       weekendFormat: 'regular',
+      circuitImageUrl: 'http://example.com/circuit.jpg',
       historicalRaceStats: [],
     };
 
@@ -602,5 +640,9 @@ describe('handleNextRaceInfoCommand', () => {
     const hebrewMessage = botMock.sendMessage.mock.calls[0][1];
     expect(hebrewMessage).toContain('יום שבת');
     expect(hebrewMessage).toContain('יום ראשון');
+    expect(botMock.sendPhoto).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'http://example.com/circuit.jpg'
+    );
   });
 });

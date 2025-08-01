@@ -11,6 +11,7 @@ const { t, getLanguage } = require('../i18n');
 
 async function handleNextRaceInfoCommand(bot, chatId) {
   const nextRaceInfo = nextRaceInfoCache[sharedKey];
+  const { circuitImageUrl } = nextRaceInfo || {};
 
   if (!nextRaceInfo) {
     await bot
@@ -238,6 +239,14 @@ async function handleNextRaceInfoCommand(bot, chatId) {
       })
       .catch((err) =>
         console.error('Error sending next race info message:', err)
+      );
+  }
+
+  if (circuitImageUrl) {
+    await bot
+      .sendPhoto(chatId, circuitImageUrl)
+      .catch((err) =>
+        console.error('Error sending circuit image:', err)
       );
   }
 }
