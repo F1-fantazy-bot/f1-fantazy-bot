@@ -11,7 +11,7 @@ const { t, getLanguage } = require('../i18n');
 
 async function handleNextRaceInfoCommand(bot, chatId) {
   const nextRaceInfo = nextRaceInfoCache[sharedKey];
-  const { circuitImageUrl } = nextRaceInfo || {};
+  const circuitImageUrl = nextRaceInfo && nextRaceInfo.circuitImageUrl;
 
   if (!nextRaceInfo) {
     await bot
