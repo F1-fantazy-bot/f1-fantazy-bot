@@ -11,7 +11,6 @@ const { t, getLanguage } = require('../i18n');
 
 async function handleNextRaceInfoCommand(bot, chatId) {
   const nextRaceInfo = nextRaceInfoCache[sharedKey];
-  const circuitImageUrl = nextRaceInfo && nextRaceInfo.circuitImageUrl;
 
   if (!nextRaceInfo) {
     await bot
@@ -25,6 +24,8 @@ async function handleNextRaceInfoCommand(bot, chatId) {
 
     return;
   }
+
+  const circuitImageUrl = nextRaceInfo.circuitImageUrl;
   // Prepare session dates
   const raceDate = new Date(nextRaceInfo.sessions.race);
   const qualifyingDate = new Date(nextRaceInfo.sessions.qualifying);
