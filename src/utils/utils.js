@@ -91,6 +91,35 @@ exports.sendMessageToUser = async function (
   }
 };
 
+const sendPhoto = async function (bot, chatId, photo, options) {
+  if (!chatId) {
+    console.error('Chat ID is not set');
+
+    return;
+  }
+
+  await bot.sendPhoto(chatId, photo, options);
+};
+
+exports.sendPhotoToUser = async function (
+  bot,
+  chatId,
+  photoUrl,
+  { errorMessageToLog = '' } = {}
+) {
+  try {
+    await sendPhoto(bot, chatId, photoUrl);
+  } catch (error) {
+    console.error(error);
+    await exports.sendLogMessage(
+      bot,
+      `${
+        errorMessageToLog ? errorMessageToLog : 'Error sending photo to user'
+      }. error: ${error.message}.`
+    );
+  }
+};
+
 exports.getChatName = function (msg) {
   if (!msg || !msg.chat) {
     return 'Unknown Chat';

@@ -34,6 +34,7 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
   - Qualifying results (pole position, 2nd place, 3rd place) and race winners for each season
   - Track safety statistics (safety cars, red flags, overtakes)
   - Track history and background information
+  - Circuit image of the track
 - **Next Race Weather**: Detailed hourly weather forecast for qualifying, race and sprint sessions
 - **Automated Data Updates**: Trigger web scraping for the latest F1 Fantasy data (admin feature)
 - **Real-time Updates**: Stay current with the latest fantasy prices and availability

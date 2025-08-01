@@ -1,4 +1,4 @@
-const { sendLogMessage } = require('../utils');
+const { sendLogMessage, sendPhotoToUser } = require('../utils');
 const { formatDateTime } = require('../utils/utils');
 const { getWeatherForecast } = require('../utils/weatherApi');
 const { MAX_TELEGRAM_MESSAGE_LENGTH } = require('../constants');
@@ -24,6 +24,8 @@ async function handleNextRaceInfoCommand(bot, chatId) {
 
     return;
   }
+
+  const circuitImageUrl = nextRaceInfo.circuitImageUrl;
   // Prepare session dates
   const raceDate = new Date(nextRaceInfo.sessions.race);
   const qualifyingDate = new Date(nextRaceInfo.sessions.qualifying);
@@ -239,6 +241,12 @@ async function handleNextRaceInfoCommand(bot, chatId) {
       .catch((err) =>
         console.error('Error sending next race info message:', err)
       );
+  }
+
+  if (circuitImageUrl) {
+    await sendPhotoToUser(bot, chatId, circuitImageUrl, {
+      errorMessageToLog: 'Error sending circuit image',
+    });
   }
 }
 
