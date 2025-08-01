@@ -2,14 +2,20 @@ const { KILZI_CHAT_ID } = require('../constants');
 
 const mockSendLogMessage = jest.fn();
 
-jest.mock('../utils', () => ({
-  sendLogMessage: mockSendLogMessage,
-}));
+jest.mock('../utils', () => {
+  const original = jest.requireActual('../utils');
+
+  return {
+    ...original,
+    sendLogMessage: mockSendLogMessage,
+  };
+});
 
 jest.mock('../utils/utils', () => {
   const originalUtils = jest.requireActual('../utils/utils');
 
   return {
+    ...originalUtils,
     formatDateTime: originalUtils.formatDateTime,
   };
 });
@@ -155,7 +161,8 @@ describe('handleNextRaceInfoCommand', () => {
     );
     expect(botMock.sendPhoto).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'http://example.com/circuit.jpg'
+      'http://example.com/circuit.jpg',
+      undefined
     );
   });
 
@@ -278,7 +285,8 @@ describe('handleNextRaceInfoCommand', () => {
     );
     expect(botMock.sendPhoto).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'http://example.com/circuit.jpg'
+      'http://example.com/circuit.jpg',
+      undefined
     );
   });
 
@@ -364,7 +372,8 @@ describe('handleNextRaceInfoCommand', () => {
     expect(entry2024).not.toContain('🚩 Red Flags:');
     expect(botMock.sendPhoto).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'http://example.com/circuit.jpg'
+      'http://example.com/circuit.jpg',
+      undefined
     );
   });
 
@@ -420,7 +429,8 @@ describe('handleNextRaceInfoCommand', () => {
     );
     expect(botMock.sendPhoto).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'http://example.com/circuit.jpg'
+      'http://example.com/circuit.jpg',
+      undefined
     );
   });
 
@@ -456,7 +466,8 @@ describe('handleNextRaceInfoCommand', () => {
     );
     expect(botMock.sendPhoto).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'http://example.com/circuit.jpg'
+      'http://example.com/circuit.jpg',
+      undefined
     );
   });
 
@@ -541,7 +552,8 @@ describe('handleNextRaceInfoCommand', () => {
     expect(entry2024).not.toContain('🔄 Overtakes:');
     expect(botMock.sendPhoto).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'http://example.com/circuit.jpg'
+      'http://example.com/circuit.jpg',
+      undefined
     );
   });
 
@@ -602,7 +614,8 @@ describe('handleNextRaceInfoCommand', () => {
     );
     expect(botMock.sendPhoto).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'http://example.com/circuit.jpg'
+      'http://example.com/circuit.jpg',
+      undefined
     );
   });
 
@@ -642,7 +655,8 @@ describe('handleNextRaceInfoCommand', () => {
     expect(hebrewMessage).toContain('יום ראשון');
     expect(botMock.sendPhoto).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'http://example.com/circuit.jpg'
+      'http://example.com/circuit.jpg',
+      undefined
     );
   });
 });

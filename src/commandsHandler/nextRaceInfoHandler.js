@@ -1,4 +1,4 @@
-const { sendLogMessage } = require('../utils');
+const { sendLogMessage, sendPhotoToUser } = require('../utils');
 const { formatDateTime } = require('../utils/utils');
 const { getWeatherForecast } = require('../utils/weatherApi');
 const { MAX_TELEGRAM_MESSAGE_LENGTH } = require('../constants');
@@ -244,11 +244,9 @@ async function handleNextRaceInfoCommand(bot, chatId) {
   }
 
   if (circuitImageUrl) {
-    await bot
-      .sendPhoto(chatId, circuitImageUrl)
-      .catch((err) =>
-        console.error('Error sending circuit image:', err)
-      );
+    await sendPhotoToUser(bot, chatId, circuitImageUrl, {
+      errorMessageToLog: 'Error sending circuit image',
+    });
   }
 }
 

@@ -3,6 +3,7 @@ const {
   getChatName,
   sendLogMessage,
   sendMessageToUser,
+  sendPhotoToUser,
   calculateTeamInfo,
   validateJsonData,
   formatDateTime,
@@ -184,6 +185,38 @@ describe('utils', () => {
       expect(sendLogSpy).toHaveBeenCalledWith(
         botMock,
         `Error sending message to user. error: ${error.message}.`
+      );
+
+      consoleErrorSpy.mockRestore();
+      sendLogSpy.mockRestore();
+    });
+  });
+
+  describe('sendPhotoToUser', () => {
+    it('sends photo to the user chat ID', async () => {
+      const botMock = { sendPhoto: jest.fn().mockResolvedValue() };
+
+      await sendPhotoToUser(botMock, KILZI_CHAT_ID, 'http://example.com/photo.jpg');
+
+      expect(botMock.sendPhoto).toHaveBeenCalledWith(
+        KILZI_CHAT_ID,
+        'http://example.com/photo.jpg',
+        undefined
+      );
+    });
+
+    it('logs error and calls sendLogMessage on failure', async () => {
+      const error = new Error('fail');
+      const botMock = { sendPhoto: jest.fn().mockRejectedValue(error) };
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const sendLogSpy = jest.spyOn(utils, 'sendLogMessage').mockResolvedValue();
+
+      await sendPhotoToUser(botMock, KILZI_CHAT_ID, 'url');
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(error);
+      expect(sendLogSpy).toHaveBeenCalledWith(
+        botMock,
+        `Error sending photo to user. error: ${error.message}.`
       );
 
       consoleErrorSpy.mockRestore();
