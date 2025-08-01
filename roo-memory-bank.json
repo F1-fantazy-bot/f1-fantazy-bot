@@ -1,0 +1,26 @@
+{
+  "kind": "roo-memory-bank",
+  "version": 1,
+  "entries": {
+    "README.md": "Project documentation for a Telegram bot that helps manage F1 Fantasy teams. Describes features, commands, setup instructions and project structure.",
+    "package.json": "Defines node dependencies (telegram bot api, Azure SDKs, OpenAI, dotenv). Scripts for start, lint and tests.",
+    "src/bot.js": "Main entry point that initializes the Telegram bot, loads caches from Azure storage and sets up message/callback routing and error logging.",
+    "src/messageHandler.js": "Validates incoming chats as admin, logs messages and forwards text or photo messages to their handlers.",
+    "src/textMessageHandler.js": "Routes text commands such as /best_teams, /chips, /print_cache and others to dedicated command handlers or JSON input handler.",
+    "src/photoMessageHandler.js": "Stores uploaded photos in photoCache and prompts the user to classify them (drivers, constructors, current team).",
+    "src/callbackQueryHandler.js": "Handles callback queries for photo type selection, chip choices and interactive menu actions. Extracts data with Azure OpenAI and updates caches.",
+    "src/cache.js": "Central in-memory caches for photos, teams, drivers, constructors, next race info and more. Provides getPrintableCache utility.",
+    "src/cacheInitializer.js": "Loads simulation data, next race info and user teams from Azure storage into the caches on startup.",
+    "src/constants.js": "Holds chat IDs, command names, chip constants, menu definitions and mappings from driver/constructor names to codes.",
+    "src/bestTeamsCalculator.js": "Generates optimal fantasy teams via combinatorial search and computes required changes from current team depending on selected chip.",
+    "src/jsonDataExtraction.js": "Uses Azure OpenAI vision API to extract structured JSON data from uploaded images.",
+    "src/azureStorageService.js": "Wrapper around Azure Blob Storage for fetching and storing fantasy data, user teams and next-race information.",
+    "src/azureBillingService.js": "Retrieves monthly Azure billing stats using the Cost Management API.",
+    "src/commandsHandler/": "Directory with individual command handlers such as bestTeamsHandler, chipsHandler, loadSimulationHandler, billingStatsHandler and more. index.js exports them.",
+    "src/utils/": "Utility functions for message sending, JSON validation, team info calculations, admin checks and other helpers.",
+    "telegramWebhook/": "Azure Functions entry for webhook mode. Calls bot.processUpdate on incoming HTTP requests.",
+    "tests": "Jest test files covering key modules in the src directory.",
+    "configuration": "host.json and local.settings.json configure the Azure Function host for local/production execution."
+  }
+}
+
