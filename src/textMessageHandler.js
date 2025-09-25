@@ -13,6 +13,7 @@ const {
   handleScrapingTrigger,
   handleGetBotfatherCommands,
   handleNextRaceInfoCommand,
+  handleNextRacesCommand,
   handleNextRaceWeatherCommand,
   handleBillingStats,
   displayMenuMessage,
@@ -38,6 +39,7 @@ const {
   COMMAND_GET_CURRENT_SIMULATION,
   COMMAND_GET_BOTFATHER_COMMANDS,
   COMMAND_NEXT_RACE_INFO,
+  COMMAND_NEXT_RACES,
   COMMAND_NEXT_RACE_WEATHER,
   COMMAND_BILLING_STATS,
   COMMAND_VERSION,
@@ -91,6 +93,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleGetBotfatherCommands(bot, msg);
     case msg.text === COMMAND_NEXT_RACE_INFO:
       return await handleNextRaceInfoCommand(bot, chatId);
+    case msg.text === COMMAND_NEXT_RACES:
+      return await handleNextRacesCommand(bot, chatId);
     case msg.text === COMMAND_NEXT_RACE_WEATHER:
       return await handleNextRaceWeatherCommand(bot, chatId);
     case msg.text === COMMAND_BILLING_STATS:

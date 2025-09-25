@@ -10,6 +10,7 @@ const {
   COMMAND_GET_CURRENT_SIMULATION,
   COMMAND_GET_BOTFATHER_COMMANDS,
   COMMAND_NEXT_RACE_INFO,
+  COMMAND_NEXT_RACES,
   COMMAND_NEXT_RACE_WEATHER,
   COMMAND_BILLING_STATS,
   COMMAND_VERSION,
@@ -30,6 +31,7 @@ const { displayHelpMessage } = require('./helpHandler');
 const { handleLoadSimulation } = require('./loadSimulationHandler');
 const { handleNextRaceInfoCommand } = require('./nextRaceInfoHandler');
 const { handleNextRaceWeatherCommand } = require('./nextRaceWeatherHandler');
+const { handleNextRacesCommand } = require('./nextRacesHandler');
 const { sendPrintableCache } = require('./printCacheHandler');
 const { resetCacheForChat } = require('./resetCacheHandler');
 const { handleScrapingTrigger } = require('./scrapingTriggerHandler');
@@ -57,6 +59,7 @@ const COMMAND_HANDLERS = {
   [COMMAND_GET_CURRENT_SIMULATION]: handleGetCurrentSimulation,
   [COMMAND_GET_BOTFATHER_COMMANDS]: handleGetBotfatherCommands,
   [COMMAND_NEXT_RACE_INFO]: handleNextRaceInfoCommand,
+  [COMMAND_NEXT_RACES]: handleNextRacesCommand,
   [COMMAND_NEXT_RACE_WEATHER]: handleNextRaceWeatherCommand,
   [COMMAND_BILLING_STATS]: handleBillingStats,
   [COMMAND_VERSION]: handleVersionCommand,
@@ -81,6 +84,7 @@ async function executeCommand(bot, msg, command) {
     command === COMMAND_BEST_TEAMS ||
     command === COMMAND_CURRENT_TEAM_INFO ||
     command === COMMAND_NEXT_RACE_INFO ||
+    command === COMMAND_NEXT_RACES ||
     command === COMMAND_NEXT_RACE_WEATHER
   ) {
     await handler(bot, chatId);
