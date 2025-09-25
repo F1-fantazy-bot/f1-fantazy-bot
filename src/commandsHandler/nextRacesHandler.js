@@ -59,12 +59,32 @@ function formatCountdown(targetDate) {
     return '0m';
   }
 
-  const totalMinutes = Math.floor(diffMs / 60000);
-  const days = Math.floor(totalMinutes / (60 * 24));
-  const hours = Math.floor((totalMinutes - days * 24 * 60) / 60);
-  const minutes = totalMinutes % 60;
+  const minutesInHour = 60;
+  const minutesInDay = 24 * minutesInHour;
+  const minutesInWeek = 7 * minutesInDay;
+  const minutesInMonth = 30 * minutesInDay; // approximate month
+
+  let remainingMinutes = Math.floor(diffMs / 60000);
+
+  const months = Math.floor(remainingMinutes / minutesInMonth);
+  remainingMinutes -= months * minutesInMonth;
+
+  const weeks = Math.floor(remainingMinutes / minutesInWeek);
+  remainingMinutes -= weeks * minutesInWeek;
+
+  const days = Math.floor(remainingMinutes / minutesInDay);
+  remainingMinutes -= days * minutesInDay;
+
+  const hours = Math.floor(remainingMinutes / minutesInHour);
+  const minutes = remainingMinutes % minutesInHour;
 
   const parts = [];
+  if (months > 0) {
+    parts.push(`${months}mo`);
+  }
+  if (weeks > 0) {
+    parts.push(`${weeks}w`);
+  }
   if (days > 0) {
     parts.push(`${days}d`);
   }
@@ -89,10 +109,10 @@ function buildRaceBlock(race, chatId) {
     raceDateLine = `${dateStr} - ${timeStr}`;
   }
 
-  let block = `*${t('Round {ROUND}: {NAME}', chatId, {
+  let block = `**${t('Round {ROUND}: {NAME}', chatId, {
     ROUND: race.round,
     NAME: race.raceName,
-  })}*\n`;
+  })}** \n`;
 
   if (race.Circuit?.circuitName) {
     block += `📍 ${t('Circuit', chatId)}: ${race.Circuit.circuitName}\n`;
@@ -126,10 +146,6 @@ function buildRaceBlock(race, chatId) {
     sessionLines.forEach((line) => {
       block += `- ${line}\n`;
     });
-  }
-
-  if (race.url) {
-    block += `🔗 ${t('More Info', chatId)}: ${race.url}\n`;
   }
 
   block += '\n';
