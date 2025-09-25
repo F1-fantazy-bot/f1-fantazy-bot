@@ -3,7 +3,7 @@ const { formatDateTime } = require('../utils/utils');
 const { t } = require('../i18n');
 const { MAX_TELEGRAM_MESSAGE_LENGTH } = require('../constants');
 
-const NEXT_RACES_ENDPOINT = 'https://api.jolpi.ca/ergast/f1/current/';
+const NEXT_RACES_ENDPOINT = 'https://api.jolpi.ca/ergast/f1/current.json';
 
 const SESSION_CONFIG = [
   { key: 'FirstPractice', label: 'FP1' },

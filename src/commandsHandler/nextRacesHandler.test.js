@@ -110,7 +110,7 @@ describe('handleNextRacesCommand', () => {
     await handleNextRacesCommand(botMock, KILZI_CHAT_ID);
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'https://api.jolpi.ca/ergast/f1/current/'
+      'https://api.jolpi.ca/ergast/f1/current.json'
     );
     expect(botMock.sendMessage).toHaveBeenCalledTimes(1);
     expect(botMock.sendMessage).toHaveBeenCalledWith(
