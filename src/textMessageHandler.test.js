@@ -10,6 +10,7 @@ const {
   COMMAND_GET_CURRENT_SIMULATION,
   COMMAND_GET_BOTFATHER_COMMANDS,
   COMMAND_NEXT_RACE_INFO,
+  COMMAND_NEXT_RACES,
   COMMAND_NEXT_RACE_WEATHER,
   COMMAND_CHIPS,
   COMMAND_SET_LANGUAGE,
@@ -49,6 +50,9 @@ const {
 const {
   handleNextRaceInfoCommand,
 } = require('./commandsHandler/nextRaceInfoHandler');
+const {
+  handleNextRacesCommand,
+} = require('./commandsHandler/nextRacesHandler');
 const { handleNextRaceWeatherCommand } = require('./commandsHandler/nextRaceWeatherHandler');
 const { displayMenuMessage } = require('./commandsHandler/menuHandler');
 const { handleSetLanguage } = require('./commandsHandler/setLanguageHandler');
@@ -66,6 +70,7 @@ jest.mock('./commandsHandler/loadSimulationHandler');
 jest.mock('./commandsHandler/scrapingTriggerHandler');
 jest.mock('./commandsHandler/getBotfatherCommandsHandler');
 jest.mock('./commandsHandler/nextRaceInfoHandler');
+jest.mock('./commandsHandler/nextRacesHandler');
 jest.mock('./commandsHandler/nextRaceWeatherHandler');
 jest.mock('./commandsHandler/menuHandler');
 jest.mock('./commandsHandler/setLanguageHandler');
@@ -232,6 +237,21 @@ describe('handleTextMessage', () => {
       await handleTextMessage(botMock, msgMock);
 
       expect(handleNextRaceInfoCommand).toHaveBeenCalledWith(
+        botMock,
+        KILZI_CHAT_ID
+      );
+      expect(handleJsonMessage).not.toHaveBeenCalled();
+    });
+
+    it('should route /next_races command to handleNextRacesCommand', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: COMMAND_NEXT_RACES,
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(handleNextRacesCommand).toHaveBeenCalledWith(
         botMock,
         KILZI_CHAT_ID
       );

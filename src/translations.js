@@ -22,6 +22,11 @@ const translations = {
     'Failed to load simulation data: {ERROR}': 'נכשל לטעון נתוני סימולציה: {ERROR}',
     'Cache has been reset for your chat.': 'המטמון אופס עבור הצ\'אט שלך.',
     'Next race information is currently unavailable.': 'מידע על המרוץ הבא אינו זמין כעת.',
+    'No upcoming races found for this season.': 'לא נמצאו מרוצים קרובים לעונה זו.',
+    'Unable to fetch upcoming races. Please try again later.':
+      'לא ניתן להביא את המרוצים הקרובים. נסה שוב מאוחר יותר.',
+    'Upcoming Races': 'מרוצים קרובים',
+    'Upcoming Races (continued)': 'מרוצים קרובים (המשך)',
     'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.':
       'נתוני מטמון חסרים. אנא שלח תמונות או קבצי JSON של נהגים, קבוצות וקבוצה נוכחית קודם.',
     'Please send a number to get the required changes to that team.':
@@ -98,9 +103,18 @@ const translations = {
     mm: 'מ"מ',
     'Sprint Qualifying': 'מקצה דירוג ספרינט',
     'Sprint': 'ספרינט',
+    'FP1': 'אימון 1',
+    'FP2': 'אימון 2',
+    'FP3': 'אימון 3',
     'Regular': 'רגיל',
     'Qualifying': 'דירוג',
     'Race': 'מרוץ',
+    'Circuit': 'מסלול',
+    'Countdown': 'ספירה לאחור',
+    'Sessions': 'מקצים',
+    'More Info': 'מידע נוסף',
+    'Round {ROUND}: {NAME}': 'סבב {ROUND}: {NAME}',
+    'TBD': 'טרם נקבע',
     'Next Race Information': 'מידע על המרוץ הבא',
     'Race Name': 'שם המרוץ',
     'Track': 'מסלול',
@@ -174,6 +188,9 @@ const translations = {
     '🏁 Next Race Info': '🏁 מידע על המרוץ הבא',
     'Get detailed information about the next F1 race':
       'קבל מידע מפורט על המרוץ הבא',
+    '🗓️ Upcoming Races': '🗓️ מרוצים קרובים',
+    'View schedule details for the remaining races this season':
+      'צפה בפרטי לוח הזמנים של המרוצים שנותרו בעונה',
     '📈 Current Simulation': '📈 סימולציה נוכחית',
     'Show the current simulation data and name':
       'הצג את נתוני הסימולציה הנוכחית ואת שמה',
