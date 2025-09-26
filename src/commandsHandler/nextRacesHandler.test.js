@@ -125,6 +125,9 @@ describe('handleNextRacesCommand', () => {
     expect(sentMessage).toContain('📅 Sessions:');
     expect(sentMessage).toContain('FP1');
     expect(sentMessage).toContain('Canadian Grand Prix');
+    expect(sentMessage).toContain(
+      'Summary: 2 races left to go, 0 of them are sprint format'
+    );
   });
 
   it('should notify when no upcoming races are found', async () => {
