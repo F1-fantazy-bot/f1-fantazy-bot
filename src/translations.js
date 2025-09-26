@@ -27,6 +27,12 @@ const translations = {
       'לא ניתן להביא את המרוצים הקרובים. נסה שוב מאוחר יותר.',
     'Upcoming Races': 'מרוצים קרובים',
     'Upcoming Races (continued)': 'מרוצים קרובים (המשך)',
+    'Summary: {RACES_SUMMARY}, {SPRINT_SUMMARY}':
+      'סיכום: {RACES_SUMMARY}, {SPRINT_SUMMARY}',
+    '1 race left to go': 'מרוץ אחד נותר לסיום',
+    '{COUNT} races left to go': '{COUNT} מרוצים נותרו לסיום',
+    '1 of them is sprint format': 'אחד מהם בפורמט ספרינט',
+    '{COUNT} of them are sprint format': '{COUNT} מהם בפורמט ספרינט',
     'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.':
       'נתוני מטמון חסרים. אנא שלח תמונות או קבצי JSON של נהגים, קבוצות וקבוצה נוכחית קודם.',
     'Please send a number to get the required changes to that team.':
