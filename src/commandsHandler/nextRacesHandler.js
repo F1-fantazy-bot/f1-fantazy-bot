@@ -201,6 +201,29 @@ async function handleNextRacesCommand(bot, chatId) {
     const raceBlocks = upcomingRaces.map(
       (race) => buildRaceBlock(race, chatId).text
     );
+    const totalUpcomingRaces = upcomingRaces.length;
+    const sprintRacesCount = upcomingRaces.filter((race) => Boolean(race.Sprint)).length;
+
+    const buildSummaryLine = () => {
+      const raceSummary =
+        totalUpcomingRaces === 1
+          ? t('1 race left to go', chatId)
+          : t('{COUNT} races left to go', chatId, {
+              COUNT: totalUpcomingRaces,
+            });
+
+      const sprintSummary =
+        sprintRacesCount === 1
+          ? t('1 of them is sprint format', chatId)
+          : t('{COUNT} of them are sprint format', chatId, {
+              COUNT: sprintRacesCount,
+            });
+
+      return t('Summary: {RACES_SUMMARY}, {SPRINT_SUMMARY}', chatId, {
+        RACES_SUMMARY: raceSummary,
+        SPRINT_SUMMARY: sprintSummary,
+      });
+    };
 
     const messages = [];
     let currentMessage = header;
@@ -213,6 +236,16 @@ async function handleNextRacesCommand(bot, chatId) {
 
       currentMessage += block;
     });
+
+    const summaryLine = buildSummaryLine();
+    const summaryBlock = `\n${summaryLine}`;
+
+    if (currentMessage.length + summaryBlock.length > MAX_TELEGRAM_MESSAGE_LENGTH) {
+      messages.push(currentMessage.trimEnd());
+      currentMessage = `${continuedHeader}${summaryLine}\n`;
+    } else {
+      currentMessage = `${currentMessage.trimEnd()}${summaryBlock}\n`;
+    }
 
     if (currentMessage.trim().length > 0) {
       messages.push(currentMessage.trimEnd());
