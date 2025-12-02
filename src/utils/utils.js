@@ -147,9 +147,13 @@ exports.validateJsonData = async function (
   bot,
   jsonData,
   chatId = LOG_CHANNEL_ID,
-  validateCurrentTeam = true
+  validateCurrentTeam = true,
+  validateDriversAndConstructors = true
 ) {
-  if (!jsonData.Drivers || jsonData.Drivers.length !== 20) {
+  if (
+    validateDriversAndConstructors &&
+    (!jsonData.Drivers || jsonData.Drivers.length !== 20)
+  ) {
     await exports.sendLogMessage(
       bot,
       `Invalid JSON data. Expected 20 drivers under "Drivers" property'.`
@@ -167,7 +171,10 @@ exports.validateJsonData = async function (
     return false;
   }
 
-  if (!jsonData.Constructors || jsonData.Constructors.length !== 10) {
+  if (
+    validateDriversAndConstructors &&
+    (!jsonData.Constructors || jsonData.Constructors.length !== 10)
+  ) {
     await exports.sendLogMessage(
       bot,
       `Invalid JSON data. Expected 10 constructors under "Constructors" property'.`
