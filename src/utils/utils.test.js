@@ -531,6 +531,19 @@ describe('utils', () => {
         expect.stringContaining('CurrentTeam')
       );
     });
+
+    it('returns true for CurrentTeam-only data when drivers validation is skipped', async () => {
+      const result = await validateJsonData(
+        botMock,
+        { CurrentTeam: validJsonData.CurrentTeam },
+        123,
+        true,
+        false
+      );
+
+      expect(result).toBe(true);
+      expect(botMock.sendMessage).not.toHaveBeenCalled();
+    });
   });
 
   describe('formatDateTime', () => {

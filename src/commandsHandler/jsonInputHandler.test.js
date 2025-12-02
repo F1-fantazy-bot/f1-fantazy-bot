@@ -1,6 +1,6 @@
 const { KILZI_CHAT_ID } = require('../constants');
 
-const mockValidateJsonData = jest.fn().mockReturnValue(true);
+const mockValidateJsonData = jest.fn().mockResolvedValue(true);
 
 jest.mock('../utils', () => ({
   validateJsonData: mockValidateJsonData,
@@ -34,7 +34,7 @@ describe('handleJsonMessage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockValidateJsonData.mockReset();
-    mockValidateJsonData.mockReturnValue(true);
+    mockValidateJsonData.mockResolvedValue(true);
     azureStorageService.saveUserTeam.mockClear();
     delete driversCache[KILZI_CHAT_ID];
     delete constructorsCache[KILZI_CHAT_ID];
@@ -44,7 +44,7 @@ describe('handleJsonMessage', () => {
 
 
   it('should return early if validation fails', async () => {
-    mockValidateJsonData.mockReturnValue(false);
+    mockValidateJsonData.mockResolvedValue(false);
 
     const jsonData = {
       Drivers: [],
@@ -117,6 +117,45 @@ describe('handleJsonMessage', () => {
     );
 
     // Verify printable cache was sent
+    expect(sendPrintableCache).toHaveBeenCalledWith(KILZI_CHAT_ID, botMock);
+  });
+
+  it('should store only CurrentTeam when Drivers and Constructors are missing', async () => {
+    const existingDriversCache = { VER: { price: 30.5 } };
+    const existingConstructorsCache = { RBR: { price: 20.0 } };
+    driversCache[KILZI_CHAT_ID] = existingDriversCache;
+    constructorsCache[KILZI_CHAT_ID] = existingConstructorsCache;
+    bestTeamsCache[KILZI_CHAT_ID] = { cached: true };
+
+    const jsonData = {
+      CurrentTeam: {
+        drivers: ['VER', 'HAM', 'LEC', 'SAI', 'NOR'],
+        constructors: ['RBR', 'MER'],
+        drsBoost: 'VER',
+        freeTransfers: 2,
+        costCapRemaining: 0.2,
+      },
+    };
+
+    await handleJsonMessage(botMock, KILZI_CHAT_ID, jsonData);
+
+    expect(mockValidateJsonData).toHaveBeenCalledWith(
+      botMock,
+      jsonData,
+      KILZI_CHAT_ID,
+      true,
+      false
+    );
+
+    expect(driversCache[KILZI_CHAT_ID]).toBe(existingDriversCache);
+    expect(constructorsCache[KILZI_CHAT_ID]).toBe(existingConstructorsCache);
+    expect(currentTeamCache[KILZI_CHAT_ID]).toEqual(jsonData.CurrentTeam);
+    expect(bestTeamsCache[KILZI_CHAT_ID]).toBeUndefined();
+    expect(azureStorageService.saveUserTeam).toHaveBeenCalledWith(
+      botMock,
+      KILZI_CHAT_ID,
+      jsonData.CurrentTeam
+    );
     expect(sendPrintableCache).toHaveBeenCalledWith(KILZI_CHAT_ID, botMock);
   });
 });
