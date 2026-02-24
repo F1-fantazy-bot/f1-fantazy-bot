@@ -228,11 +228,16 @@ exports.NAME_TO_CODE_DRIVERS_MAPPING = {
   'e. ocon': 'OCO',
   'p. gasly': 'GAS',
   'l. lawson': 'LAW',
+  'a. lindblad': 'LIN',
   'j. doohan': 'DOO',
   'g. bortoleto': 'BOR',
   'g. bortoletto': 'BOR',
   'k. antonelli': 'ANT',
   'f. colapinto': 'COL',
+  's. perez': 'PER',
+  perez: 'PER',
+  'v. bottas': 'BOT',
+  bottas: 'BOT',
 };
 
 exports.NAME_TO_CODE_CONSTRUCTORS_MAPPING = {
@@ -246,6 +251,8 @@ exports.NAME_TO_CODE_CONSTRUCTORS_MAPPING = {
   haas: 'HAA',
   'aston martin': 'AST',
   'kick sauber': 'KCK',
+  cadillac: 'CAD',
+  audi: 'AUD',
 };
 
 exports.NAME_TO_CODE_MAPPING = {

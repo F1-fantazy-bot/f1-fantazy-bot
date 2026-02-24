@@ -217,10 +217,10 @@ const translations = {
       'קבל סטטיסטיקת חיוב Azure לחודש הנוכחי',
     'ℹ️ Version': 'ℹ️ גרסה',
     'Show current deployed version': 'הצג את הגרסה המותקנת הנוכחית',
-    'Invalid JSON data. Please ensure it contains 20 drivers under "Drivers" property.':
-      'נתוני JSON אינם תקינים. ודא שהם מכילים 20 נהגים תחת "Drivers".',
-    'Invalid JSON data. Please ensure it contains 10 constructors under "Constructors" property.':
-      'נתוני JSON אינם תקינים. ודא שהם מכילים 10 קבוצות תחת "Constructors".',
+    'Invalid JSON data. Please ensure it contains 22 drivers under "Drivers" property.':
+      'נתוני JSON אינם תקינים. ודא שהם מכילים 22 נהגים תחת "Drivers".',
+    'Invalid JSON data. Please ensure it contains 11 constructors under "Constructors" property.':
+      'נתוני JSON אינם תקינים. ודא שהם מכילים 11 קבוצות תחת "Constructors".',
     'Invalid JSON data. Please ensure it contains the required properties under "CurrentTeam" property.':
       'נתוני JSON אינם תקינים. ודא שהם מכילים את המאפיינים הנדרשים תחת "CurrentTeam".',
     'Error: Scraping trigger URL is not configured.': 'שגיאה: כתובת ההפעלה לסריקה אינה מוגדרת.',
