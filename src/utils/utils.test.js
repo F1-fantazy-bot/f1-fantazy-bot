@@ -372,8 +372,8 @@ describe('utils', () => {
       };
 
       validJsonData = {
-        Drivers: Array(20).fill({}),
-        Constructors: Array(10).fill({}),
+        Drivers: Array(22).fill({}),
+        Constructors: Array(11).fill({}),
         CurrentTeam: {
           drivers: Array(5).fill('DRIVER'),
           constructors: Array(2).fill('CONSTRUCTOR'),
@@ -400,17 +400,17 @@ describe('utils', () => {
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        expect.stringContaining('20 drivers')
+        expect.stringContaining('22 drivers')
       );
     });
 
-    it('returns false and sends message if Drivers length is not 20', async () => {
-      const data = { ...validJsonData, Drivers: Array(19).fill({}) };
+    it('returns false and sends message if Drivers length is not 22', async () => {
+      const data = { ...validJsonData, Drivers: Array(21).fill({}) };
       const result = await validateJsonData(botMock, data, 123);
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        expect.stringContaining('20 drivers')
+        expect.stringContaining('22 drivers')
       );
     });
 
@@ -420,17 +420,17 @@ describe('utils', () => {
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        expect.stringContaining('10 constructors')
+        expect.stringContaining('11 constructors')
       );
     });
 
-    it('returns false and sends message if Constructors length is not 10', async () => {
-      const data = { ...validJsonData, Constructors: Array(9).fill({}) };
+    it('returns false and sends message if Constructors length is not 11', async () => {
+      const data = { ...validJsonData, Constructors: Array(10).fill({}) };
       const result = await validateJsonData(botMock, data, 123);
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        expect.stringContaining('10 constructors')
+        expect.stringContaining('11 constructors')
       );
     });
 

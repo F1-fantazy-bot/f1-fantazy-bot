@@ -228,6 +228,7 @@ exports.NAME_TO_CODE_DRIVERS_MAPPING = {
   'e. ocon': 'OCO',
   'p. gasly': 'GAS',
   'l. lawson': 'LAW',
+  'a. lindblad': 'LIN',
   'j. doohan': 'DOO',
   'g. bortoleto': 'BOR',
   'g. bortoletto': 'BOR',
@@ -246,6 +247,7 @@ exports.NAME_TO_CODE_CONSTRUCTORS_MAPPING = {
   haas: 'HAA',
   'aston martin': 'AST',
   'kick sauber': 'KCK',
+  cadillac: 'CAD',
 };
 
 exports.NAME_TO_CODE_MAPPING = {

@@ -152,17 +152,17 @@ exports.validateJsonData = async function (
 ) {
   if (
     validateDriversAndConstructors &&
-    (!jsonData.Drivers || jsonData.Drivers.length !== 20)
+    (!jsonData.Drivers || jsonData.Drivers.length !== 22)
   ) {
     await exports.sendLogMessage(
       bot,
-      `Invalid JSON data. Expected 20 drivers under "Drivers" property'.`
+      `Invalid JSON data. Expected 22 drivers under "Drivers" property'.`
     );
     await bot
       .sendMessage(
         chatId,
         t(
-          'Invalid JSON data. Please ensure it contains 20 drivers under "Drivers" property.',
+          'Invalid JSON data. Please ensure it contains 22 drivers under "Drivers" property.',
           chatId
         )
       )
@@ -173,17 +173,17 @@ exports.validateJsonData = async function (
 
   if (
     validateDriversAndConstructors &&
-    (!jsonData.Constructors || jsonData.Constructors.length !== 10)
+    (!jsonData.Constructors || jsonData.Constructors.length !== 11)
   ) {
     await exports.sendLogMessage(
       bot,
-      `Invalid JSON data. Expected 10 constructors under "Constructors" property'.`
+      `Invalid JSON data. Expected 11 constructors under "Constructors" property'.`
     );
     await bot
       .sendMessage(
         chatId,
         t(
-          'Invalid JSON data. Please ensure it contains 10 constructors under "Constructors" property.',
+          'Invalid JSON data. Please ensure it contains 11 constructors under "Constructors" property.',
           chatId
         )
       )

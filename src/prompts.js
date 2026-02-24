@@ -39,7 +39,7 @@ Details for extraction:
 Output:
 - One array of objects for constructors
 - Each object should use full property names: 'price', 'expectedPriceChange', and 'expectedPoints'
-- There are 10 constructors
+- There are 11 constructors
 
 Return a JSON object matching this structure:
 
