@@ -234,6 +234,10 @@ exports.NAME_TO_CODE_DRIVERS_MAPPING = {
   'g. bortoletto': 'BOR',
   'k. antonelli': 'ANT',
   'f. colapinto': 'COL',
+  's. perez': 'PER',
+  perez: 'PER',
+  'v. bottas': 'BOT',
+  bottas: 'BOT',
 };
 
 exports.NAME_TO_CODE_CONSTRUCTORS_MAPPING = {
@@ -248,6 +252,7 @@ exports.NAME_TO_CODE_CONSTRUCTORS_MAPPING = {
   'aston martin': 'AST',
   'kick sauber': 'KCK',
   cadillac: 'CAD',
+  audi: 'AUD',
 };
 
 exports.NAME_TO_CODE_MAPPING = {
