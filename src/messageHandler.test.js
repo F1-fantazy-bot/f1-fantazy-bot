@@ -1,11 +1,11 @@
 const { KILZI_CHAT_ID } = require('./constants');
 
-const mockIsAdmin = jest.fn((msg) => msg.chat.id === KILZI_CHAT_ID);
+const mockIsAllowedUser = jest.fn((msg) => msg.chat.id === KILZI_CHAT_ID);
 
 jest.mock('./utils/utils', () => ({
   getChatName: jest.fn().mockReturnValue('Unknown'),
   sendLogMessage: jest.fn(),
-  isAdminMessage: mockIsAdmin,
+  isMessageFromAllowedUser: mockIsAllowedUser,
 }));
 
 const { handleMessage } = require('./messageHandler');

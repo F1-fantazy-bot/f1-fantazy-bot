@@ -7,8 +7,13 @@ const {
   calculateTeamInfo,
   validateJsonData,
   formatDateTime,
+  isMessageFromAllowedUser,
 } = utils;
-const { KILZI_CHAT_ID } = require('../constants');
+const {
+  KILZI_CHAT_ID,
+  DORSE_CHAT_ID,
+  YEHONATAN_CHAT_ID,
+} = require('../constants');
 const { setLanguage, languageCache } = require('../i18n');
 
 describe('utils', () => {
@@ -90,7 +95,7 @@ describe('utils', () => {
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         expect.any(Number), // LOG_CHANNEL_ID
         expect.stringContaining('Log message with channel ID'),
-        undefined // options
+        undefined, // options
       );
     });
 
@@ -105,7 +110,7 @@ describe('utils', () => {
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         expect.any(Number), // LOG_CHANNEL_ID
         expect.stringContaining('env: prod'),
-        undefined // options
+        undefined, // options
       );
     });
 
@@ -120,7 +125,7 @@ describe('utils', () => {
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         expect.any(Number), // LOG_CHANNEL_ID
         expect.stringContaining('env: test'),
-        undefined // options
+        undefined, // options
       );
     });
 
@@ -135,7 +140,7 @@ describe('utils', () => {
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         expect.any(Number), // LOG_CHANNEL_ID
         expect.stringContaining('env: dev'),
-        undefined // options
+        undefined, // options
       );
     });
 
@@ -165,7 +170,7 @@ describe('utils', () => {
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         KILZI_CHAT_ID,
         'hello',
-        undefined
+        undefined,
       );
     });
 
@@ -184,7 +189,7 @@ describe('utils', () => {
       expect(consoleErrorSpy).toHaveBeenCalledWith(error);
       expect(sendLogSpy).toHaveBeenCalledWith(
         botMock,
-        `Error sending message to user. error: ${error.message}.`
+        `Error sending message to user. error: ${error.message}.`,
       );
 
       consoleErrorSpy.mockRestore();
@@ -196,27 +201,35 @@ describe('utils', () => {
     it('sends photo to the user chat ID', async () => {
       const botMock = { sendPhoto: jest.fn().mockResolvedValue() };
 
-      await sendPhotoToUser(botMock, KILZI_CHAT_ID, 'http://example.com/photo.jpg');
+      await sendPhotoToUser(
+        botMock,
+        KILZI_CHAT_ID,
+        'http://example.com/photo.jpg',
+      );
 
       expect(botMock.sendPhoto).toHaveBeenCalledWith(
         KILZI_CHAT_ID,
         'http://example.com/photo.jpg',
-        undefined
+        undefined,
       );
     });
 
     it('logs error and calls sendLogMessage on failure', async () => {
       const error = new Error('fail');
       const botMock = { sendPhoto: jest.fn().mockRejectedValue(error) };
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      const sendLogSpy = jest.spyOn(utils, 'sendLogMessage').mockResolvedValue();
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const sendLogSpy = jest
+        .spyOn(utils, 'sendLogMessage')
+        .mockResolvedValue();
 
       await sendPhotoToUser(botMock, KILZI_CHAT_ID, 'url');
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(error);
       expect(sendLogSpy).toHaveBeenCalledWith(
         botMock,
-        `Error sending photo to user. error: ${error.message}.`
+        `Error sending photo to user. error: ${error.message}.`,
       );
 
       consoleErrorSpy.mockRestore();
@@ -297,7 +310,7 @@ describe('utils', () => {
       const result = calculateTeamInfo(
         mockCurrentTeam,
         mockDrivers,
-        mockConstructors
+        mockConstructors,
       );
 
       // totalPrice = 30+28+25+23+24 + 35+32 = 197
@@ -400,7 +413,7 @@ describe('utils', () => {
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        expect.stringContaining('22 drivers')
+        expect.stringContaining('22 drivers'),
       );
     });
 
@@ -410,7 +423,7 @@ describe('utils', () => {
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        expect.stringContaining('22 drivers')
+        expect.stringContaining('22 drivers'),
       );
     });
 
@@ -420,7 +433,7 @@ describe('utils', () => {
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        expect.stringContaining('11 constructors')
+        expect.stringContaining('11 constructors'),
       );
     });
 
@@ -430,7 +443,7 @@ describe('utils', () => {
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        expect.stringContaining('11 constructors')
+        expect.stringContaining('11 constructors'),
       );
     });
 
@@ -440,7 +453,7 @@ describe('utils', () => {
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        expect.stringContaining('CurrentTeam')
+        expect.stringContaining('CurrentTeam'),
       );
     });
 
@@ -453,7 +466,7 @@ describe('utils', () => {
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        expect.stringContaining('CurrentTeam')
+        expect.stringContaining('CurrentTeam'),
       );
     });
 
@@ -469,7 +482,7 @@ describe('utils', () => {
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        expect.stringContaining('CurrentTeam')
+        expect.stringContaining('CurrentTeam'),
       );
     });
 
@@ -482,7 +495,7 @@ describe('utils', () => {
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        expect.stringContaining('CurrentTeam')
+        expect.stringContaining('CurrentTeam'),
       );
     });
 
@@ -498,7 +511,7 @@ describe('utils', () => {
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        expect.stringContaining('CurrentTeam')
+        expect.stringContaining('CurrentTeam'),
       );
     });
 
@@ -508,7 +521,7 @@ describe('utils', () => {
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        expect.stringContaining('CurrentTeam')
+        expect.stringContaining('CurrentTeam'),
       );
     });
 
@@ -518,7 +531,7 @@ describe('utils', () => {
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        expect.stringContaining('CurrentTeam')
+        expect.stringContaining('CurrentTeam'),
       );
     });
 
@@ -528,7 +541,7 @@ describe('utils', () => {
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        expect.stringContaining('CurrentTeam')
+        expect.stringContaining('CurrentTeam'),
       );
     });
 
@@ -538,7 +551,7 @@ describe('utils', () => {
         { CurrentTeam: validJsonData.CurrentTeam },
         123,
         true,
-        false
+        false,
       );
 
       expect(result).toBe(true);
@@ -565,6 +578,44 @@ describe('utils', () => {
       const { dateStr, timeStr } = formatDateTime(date, chatId);
       expect(dateStr).toMatch('יום שבת, 24 במאי 2025');
       expect(timeStr).toMatch('17:00 GMT');
+    });
+  });
+
+  describe('isMessageFromAllowedUser', () => {
+    it('returns false when msg is undefined', () => {
+      expect(isMessageFromAllowedUser(undefined)).toBe(false);
+    });
+
+    it('returns false when msg is null', () => {
+      expect(isMessageFromAllowedUser(null)).toBe(false);
+    });
+
+    it('returns false when msg.chat is undefined', () => {
+      expect(isMessageFromAllowedUser({})).toBe(false);
+    });
+
+    it('returns false when msg.chat.id is undefined', () => {
+      expect(isMessageFromAllowedUser({ chat: {} })).toBe(false);
+    });
+
+    it('returns true for KILZI_CHAT_ID (admin)', () => {
+      const msg = { chat: { id: KILZI_CHAT_ID } };
+      expect(isMessageFromAllowedUser(msg)).toBe(true);
+    });
+
+    it('returns true for DORSE_CHAT_ID (admin)', () => {
+      const msg = { chat: { id: DORSE_CHAT_ID } };
+      expect(isMessageFromAllowedUser(msg)).toBe(true);
+    });
+
+    it('returns true for YEHONATAN_CHAT_ID (regular user)', () => {
+      const msg = { chat: { id: YEHONATAN_CHAT_ID } };
+      expect(isMessageFromAllowedUser(msg)).toBe(true);
+    });
+
+    it('returns false for an unknown chat id', () => {
+      const msg = { chat: { id: 999999999 } };
+      expect(isMessageFromAllowedUser(msg)).toBe(false);
     });
   });
 });

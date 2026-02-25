@@ -21,6 +21,7 @@ const {
   COMMAND_WILDCARD,
   COMMAND_RESET_CHIP,
   COMMAND_FLOW,
+  COMMAND_START,
 } = require('../constants');
 
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
@@ -72,6 +73,7 @@ const COMMAND_HANDLERS = {
   [COMMAND_WILDCARD]: handleSelectWildcard,
   [COMMAND_RESET_CHIP]: handleResetChip,
   [COMMAND_FLOW]: handleFlowCommand,
+  [COMMAND_START]: handleFlowCommand,
 };
 
 async function executeCommand(bot, msg, command) {

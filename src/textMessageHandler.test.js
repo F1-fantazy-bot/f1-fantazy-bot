@@ -15,6 +15,7 @@ const {
   COMMAND_CHIPS,
   COMMAND_SET_LANGUAGE,
   COMMAND_FLOW,
+  COMMAND_START,
 } = require('./constants');
 
 jest.mock('openai', () => ({
@@ -292,6 +293,18 @@ describe('handleTextMessage', () => {
       const msgMock = {
         chat: { id: KILZI_CHAT_ID },
         text: COMMAND_FLOW,
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(handleFlowCommand).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleJsonMessage).not.toHaveBeenCalled();
+    });
+
+    it('should route /start command to handleFlowCommand', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: COMMAND_START,
       };
 
       await handleTextMessage(botMock, msgMock);

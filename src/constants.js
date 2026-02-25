@@ -1,5 +1,6 @@
 exports.KILZI_CHAT_ID = 454873194;
 exports.DORSE_CHAT_ID = 673447790;
+exports.YEHONATAN_CHAT_ID = 740312192;
 exports.LOG_CHANNEL_ID = -1002298860617;
 
 exports.DRIVERS_PHOTO_TYPE = 'DRIVERS';
@@ -40,6 +41,7 @@ exports.COMMAND_LIMITLESS = '/limitless';
 exports.COMMAND_WILDCARD = '/wildcard';
 exports.COMMAND_RESET_CHIP = '/reset_chip';
 exports.COMMAND_FLOW = '/flow';
+exports.COMMAND_START = '/start';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -103,7 +105,8 @@ exports.MENU_CATEGORIES = {
       {
         constant: exports.COMMAND_NEXT_RACES,
         title: '🗓️ Upcoming Races',
-        description: 'View schedule details for the remaining races this season',
+        description:
+          'View schedule details for the remaining races this season',
       },
       {
         constant: exports.COMMAND_NEXT_RACE_WEATHER,
