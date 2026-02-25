@@ -75,6 +75,8 @@ Output:
   - 'freeTransfers': number
   - 'costCapRemaining': number
 
+Important: If the number of free transfers is infinite, set freeTransfers to 7.
+
 Return a JSON object matching this structure:
 
 {
