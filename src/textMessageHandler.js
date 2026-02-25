@@ -24,6 +24,7 @@ const {
   handleSelectLimitless,
   handleSelectWildcard,
   handleResetChip,
+  handleFlowCommand,
 } = require('./commandsHandler');
 
 // Import constants
@@ -49,6 +50,7 @@ const {
   COMMAND_LIMITLESS,
   COMMAND_WILDCARD,
   COMMAND_RESET_CHIP,
+  COMMAND_FLOW,
 } = require('./constants');
 
 exports.handleTextMessage = async function (bot, msg) {
@@ -106,6 +108,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await displayMenuMessage(bot, msg);
     case msg.text === COMMAND_SET_LANGUAGE:
       return await handleSetLanguage(bot, msg);
+    case msg.text === COMMAND_FLOW:
+      return await handleFlowCommand(bot, msg);
     default:
       try {
         const jsonData = JSON.parse(textTrimmed);

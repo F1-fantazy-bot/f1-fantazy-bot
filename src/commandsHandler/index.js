@@ -25,6 +25,7 @@ const {
   handleSelectWildcard,
   handleResetChip,
 } = require('./selectChipHandlers');
+const { handleFlowCommand } = require('./flowHandler');
 
 module.exports = {
   handleBestTeamsMessage,
@@ -51,4 +52,5 @@ module.exports = {
   handleSelectLimitless,
   handleSelectWildcard,
   handleResetChip,
+  handleFlowCommand,
 };

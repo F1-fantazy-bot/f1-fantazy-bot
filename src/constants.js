@@ -39,6 +39,7 @@ exports.COMMAND_EXTRA_DRS = '/extra_drs';
 exports.COMMAND_LIMITLESS = '/limitless';
 exports.COMMAND_WILDCARD = '/wildcard';
 exports.COMMAND_RESET_CHIP = '/reset_chip';
+exports.COMMAND_FLOW = '/flow';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -57,6 +58,11 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_MENU,
         title: '📱 Menu',
         description: 'Show interactive menu with all available commands.',
+      },
+      {
+        constant: exports.COMMAND_FLOW,
+        title: '🏁 Usage Flow',
+        description: 'Explains the usage flow of the bot step by step.',
       },
     ],
   },

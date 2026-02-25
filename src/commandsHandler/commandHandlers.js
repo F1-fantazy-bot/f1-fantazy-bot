@@ -20,6 +20,7 @@ const {
   COMMAND_LIMITLESS,
   COMMAND_WILDCARD,
   COMMAND_RESET_CHIP,
+  COMMAND_FLOW,
 } = require('../constants');
 
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
@@ -45,6 +46,7 @@ const {
   handleSelectWildcard,
   handleResetChip,
 } = require('./selectChipHandlers');
+const { handleFlowCommand } = require('./flowHandler');
 
 // Mapping of command constants to their handler functions
 const COMMAND_HANDLERS = {
@@ -69,6 +71,7 @@ const COMMAND_HANDLERS = {
   [COMMAND_LIMITLESS]: handleSelectLimitless,
   [COMMAND_WILDCARD]: handleSelectWildcard,
   [COMMAND_RESET_CHIP]: handleResetChip,
+  [COMMAND_FLOW]: handleFlowCommand,
 };
 
 async function executeCommand(bot, msg, command) {

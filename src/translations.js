@@ -228,7 +228,9 @@ const translations = {
     'Web scraping triggered successfully.': 'סריקת הרשת הופעלה בהצלחה.',
     'Failed to trigger web scraping: {ERROR}': 'נכשל להפעיל סריקה: {ERROR}',
     'Commit ID: {ID}\nCommit message: {MSG}\nLink: {LINK}':
-      'מזהה קומיט: {ID}\nהודעת קומיט: {MSG}\nקישור: {LINK}'
+      'מזהה קומיט: {ID}\nהודעת קומיט: {MSG}\nקישור: {LINK}',
+    '🏁 Usage Flow': '🏁 תהליך שימוש',
+    'Explains the usage flow of the bot step by step.': 'מסביר את תהליך השימוש בבוט צעד אחר צעד.'
   }
 };
 
