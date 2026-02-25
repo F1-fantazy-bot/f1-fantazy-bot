@@ -48,7 +48,7 @@ async function handlePhotoCallback(bot, query) {
 
   // Save or process the selection (just logging here)
   console.log(
-    `User ${chatId} labeled photo ${fileId} as ${type.toUpperCase()}`
+    `User ${chatId} labeled photo ${fileId} as ${type.toUpperCase()}`,
   );
 
   // Optional: edit the message to confirm
@@ -59,7 +59,7 @@ async function handlePhotoCallback(bot, query) {
     {
       chat_id: chatId,
       message_id: messageId,
-    }
+    },
   );
 
   // Answer callback to remove "Loading..." spinner
@@ -86,7 +86,7 @@ async function handlePhotoCallback(bot, query) {
       bot,
       chatId,
       t('An error occurred while extracting data from the photo.', chatId),
-      { errorMessageToLog: 'Error sending extraction error message' }
+      { errorMessageToLog: 'Error sending extraction error message' },
     );
   }
 }
@@ -121,7 +121,7 @@ async function handleLanguageCallback(bot, query) {
     {
       chat_id: chatId,
       message_id: messageId,
-    }
+    },
   );
 
   await bot.answerCallbackQuery(query.id);
@@ -132,11 +132,23 @@ async function storeInCache(bot, chatId, type, extractedData) {
     .replace(/^```json\s*/, '')
     .replace(/\s*```$/, '');
 
+  console.log('[DEBUG] Raw extractedData:', extractedData);
+  console.log('[DEBUG] cleanedJsonString:', cleanedJsonString);
+
   let jsonObject;
   try {
     jsonObject = JSON.parse(cleanedJsonString);
+    console.log(
+      '[DEBUG] Parsed jsonObject keys:',
+      jsonObject ? Object.keys(jsonObject) : 'null/undefined',
+    );
+    console.log(
+      '[DEBUG] Full parsed jsonObject:',
+      JSON.stringify(jsonObject, null, 2),
+    );
   } catch (err) {
-    console.error('Error parsing JSON:', err);
+    console.error('[DEBUG] JSON.parse FAILED. Error:', err.message);
+    console.error('[DEBUG] jsonObject after failed parse:', jsonObject);
   }
 
   if (type === DRIVERS_PHOTO_TYPE) {
@@ -170,7 +182,7 @@ async function storeInCache(bot, chatId, type, extractedData) {
     jsonObject.CurrentTeam.constructors =
       jsonObject.CurrentTeam.constructors.map(mapToCodeName);
     jsonObject.CurrentTeam.drsBoost = mapToCodeName(
-      jsonObject.CurrentTeam.drsBoost
+      jsonObject.CurrentTeam.drsBoost,
     );
 
     const updatedTeam = {

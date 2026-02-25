@@ -187,7 +187,7 @@ describe('handleCallbackQuery', () => {
     await handleCallbackQuery(bot, query);
 
     expect(spy).toHaveBeenCalledWith(
-      expect.stringContaining('Error parsing JSON:'),
+      expect.stringContaining('[DEBUG] JSON.parse FAILED. Error:'),
       expect.anything()
     );
     spy.mockRestore();
@@ -534,8 +534,8 @@ describe('handleCallbackQuery', () => {
       await handleCallbackQuery(bot, query);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error parsing JSON:',
-        expect.any(Error)
+        '[DEBUG] JSON.parse FAILED. Error:',
+        expect.any(String)
       );
       consoleErrorSpy.mockRestore();
     });
