@@ -71,7 +71,7 @@ exports.sendMessageToUser = async function (
   bot,
   chatId,
   message,
-  { useMarkdown = false, errorMessageToLog = '' } = {}
+  { useMarkdown = false, errorMessageToLog = '' } = {},
 ) {
   let options = undefined;
   if (useMarkdown) {
@@ -86,7 +86,7 @@ exports.sendMessageToUser = async function (
       bot,
       `${
         errorMessageToLog ? errorMessageToLog : 'Error sending message to user'
-      }. error: ${error.message}.`
+      }. error: ${error.message}.`,
     );
   }
 };
@@ -105,7 +105,7 @@ exports.sendPhotoToUser = async function (
   bot,
   chatId,
   photoUrl,
-  { errorMessageToLog = '' } = {}
+  { errorMessageToLog = '' } = {},
 ) {
   try {
     await sendPhoto(bot, chatId, photoUrl);
@@ -115,7 +115,7 @@ exports.sendPhotoToUser = async function (
       bot,
       `${
         errorMessageToLog ? errorMessageToLog : 'Error sending photo to user'
-      }. error: ${error.message}.`
+      }. error: ${error.message}.`,
     );
   }
 };
@@ -143,12 +143,13 @@ exports.mapPhotoTypeToSystemPrompt = {
   [CURRENT_TEAM_PHOTO_TYPE]: EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT,
 };
 
+// eslint-disable-next-line max-params
 exports.validateJsonData = async function (
   bot,
   jsonData,
   chatId = LOG_CHANNEL_ID,
   validateCurrentTeam = true,
-  validateDriversAndConstructors = true
+  validateDriversAndConstructors = true,
 ) {
   if (
     validateDriversAndConstructors &&
@@ -156,15 +157,15 @@ exports.validateJsonData = async function (
   ) {
     await exports.sendLogMessage(
       bot,
-      `Invalid JSON data. Expected 22 drivers under "Drivers" property'.`
+      `Invalid JSON data. Expected 22 drivers under "Drivers" property'.`,
     );
     await bot
       .sendMessage(
         chatId,
         t(
           'Invalid JSON data. Please ensure it contains 22 drivers under "Drivers" property.',
-          chatId
-        )
+          chatId,
+        ),
       )
       .catch((err) => console.error('Error sending JSON error message:', err));
 
@@ -177,15 +178,15 @@ exports.validateJsonData = async function (
   ) {
     await exports.sendLogMessage(
       bot,
-      `Invalid JSON data. Expected 11 constructors under "Constructors" property'.`
+      `Invalid JSON data. Expected 11 constructors under "Constructors" property'.`,
     );
     await bot
       .sendMessage(
         chatId,
         t(
           'Invalid JSON data. Please ensure it contains 11 constructors under "Constructors" property.',
-          chatId
-        )
+          chatId,
+        ),
       )
       .catch((err) => console.error('Error sending JSON error message:', err));
 
@@ -207,15 +208,15 @@ exports.validateJsonData = async function (
   ) {
     await exports.sendLogMessage(
       bot,
-      `Invalid JSON data. Expected 5 drivers, 2 constructors, drsBoost, freeTransfers, and costCapRemaining properties under "CurrentTeam" property'.`
+      `Invalid JSON data. Expected 5 drivers, 2 constructors, drsBoost, freeTransfers, and costCapRemaining properties under "CurrentTeam" property'.`,
     );
     await bot
       .sendMessage(
         chatId,
         t(
           'Invalid JSON data. Please ensure it contains the required properties under "CurrentTeam" property.',
-          chatId
-        )
+          chatId,
+        ),
       )
       .catch((err) => console.error('Error sending JSON error message:', err));
 
@@ -240,7 +241,7 @@ exports.calculateTeamInfo = function (team, drivers, constructors) {
     team.drivers.reduce((sum, dr) => sum + drivers[dr].expectedPoints, 0) +
     team.constructors.reduce(
       (sum, cn) => sum + constructors[cn].expectedPoints,
-      0
+      0,
     );
 
   // Only add drsBoost points if it exists
@@ -252,7 +253,7 @@ exports.calculateTeamInfo = function (team, drivers, constructors) {
     team.drivers.reduce((sum, dr) => sum + drivers[dr].expectedPriceChange, 0) +
     team.constructors.reduce(
       (sum, cn) => sum + constructors[cn].expectedPriceChange,
-      0
+      0,
     );
 
   return {
@@ -269,7 +270,7 @@ exports.triggerScraping = async function (bot, chatId) {
   if (!url) {
     await bot.sendMessage(
       chatId,
-      t('Error: Scraping trigger URL is not configured.', chatId)
+      t('Error: Scraping trigger URL is not configured.', chatId),
     );
 
     return;

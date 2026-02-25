@@ -63,9 +63,13 @@ async function handleMenuCallback(bot, query) {
 }
 
 function buildMainMenuMessage(chatId) {
-  const menuMessage = t('🎯 *F1 Fantasy Bot Menu*\n\nChoose a category:', chatId);
+  const menuMessage = t(
+    '🎯 *F1 Fantasy Bot Menu*\n\nChoose a category:',
+    chatId,
+  );
   const tipMessage =
-    menuMessage + `\n\n💡 *${t('Tip:', chatId)}* ${t('Use {CMD} for quick text-based help', chatId, { CMD: COMMAND_HELP })}`;
+    menuMessage +
+    `\n\n💡 *${t('Tip:', chatId)}* ${t('Use {CMD} for quick text-based help', chatId, { CMD: COMMAND_HELP })}`;
 
   return tipMessage;
 }
@@ -77,7 +81,7 @@ function buildMainMenuKeyboard(isAdmin, chatId) {
       // Skip admin-only categories for non-admin users
       // Skip categories marked as hideFromMenu
       return !(category.adminOnly && !isAdmin) && !category.hideFromMenu;
-    }
+    },
   );
 
   // Build category buttons (2 per row)
@@ -87,7 +91,7 @@ function buildMainMenuKeyboard(isAdmin, chatId) {
       text: t(category.title, chatId),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.CATEGORY}:${category.id}`,
     }),
-    2
+    2,
   );
 
   // Add direct help button
@@ -133,7 +137,7 @@ function buildCategoryMenuKeyboard(category, isAdmin, chatId) {
       text: t(command.title, chatId),
       callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.COMMAND}:${command.constant}`,
     }),
-    2
+    2,
   );
 
   // Add back button
@@ -161,9 +165,10 @@ async function showMainMenu(bot, chatId, messageId, isAdmin) {
   });
 }
 
+// eslint-disable-next-line max-params
 async function showCategoryMenu(bot, chatId, messageId, categoryId, isAdmin) {
   const category = Object.values(MENU_CATEGORIES).find(
-    (cat) => cat.id === categoryId
+    (cat) => cat.id === categoryId,
   );
 
   if (!category) {
