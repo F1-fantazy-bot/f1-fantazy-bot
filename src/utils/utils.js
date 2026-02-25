@@ -5,6 +5,7 @@ const {
   CURRENT_TEAM_PHOTO_TYPE,
   KILZI_CHAT_ID,
   DORSE_CHAT_ID,
+  YEHONATAN_CHAT_ID,
 } = require('../constants');
 
 const {
@@ -297,6 +298,20 @@ exports.isAdminMessage = function (msg) {
   }
 
   return msg.chat.id === KILZI_CHAT_ID || msg.chat.id === DORSE_CHAT_ID;
+};
+
+exports.isMessageFromAllowedUser = function (msg) {
+  if (!msg || !msg.chat || !msg.chat.id) {
+    return false;
+  }
+
+  if (exports.isAdminMessage(msg)) {
+    return true;
+  }
+
+  const allowList = [YEHONATAN_CHAT_ID];
+
+  return allowList.includes(msg.chat.id);
 };
 
 // Formats a Date object into { dateStr, timeStr } using locale and timezone

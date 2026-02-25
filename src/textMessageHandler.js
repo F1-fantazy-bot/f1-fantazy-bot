@@ -51,6 +51,7 @@ const {
   COMMAND_WILDCARD,
   COMMAND_RESET_CHIP,
   COMMAND_FLOW,
+  COMMAND_START,
 } = require('./constants');
 
 exports.handleTextMessage = async function (bot, msg) {
@@ -108,6 +109,7 @@ exports.handleTextMessage = async function (bot, msg) {
       return await displayMenuMessage(bot, msg);
     case msg.text === COMMAND_SET_LANGUAGE:
       return await handleSetLanguage(bot, msg);
+    case msg.text === COMMAND_START:
     case msg.text === COMMAND_FLOW:
       return await handleFlowCommand(bot, msg);
     default:

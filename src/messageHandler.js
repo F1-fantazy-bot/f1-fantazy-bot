@@ -1,7 +1,7 @@
 const {
   getChatName,
   sendLogMessage,
-  isAdminMessage,
+  isMessageFromAllowedUser,
 } = require('./utils/utils');
 const { handleTextMessage } = require('./textMessageHandler');
 const { handlePhotoMessage } = require('./photoMessageHandler');
@@ -11,11 +11,10 @@ exports.handleMessage = async function (bot, msg) {
   const chatId = msg.chat.id;
   const chatName = getChatName(msg);
 
-
-  if (!isAdminMessage(msg)) {
+  if (!isMessageFromAllowedUser(msg)) {
     await sendLogMessage(
       bot,
-      `Message from unknown chat: ${chatName} (${chatId})`
+      `Message from unknown chat: ${chatName} (${chatId})`,
     );
 
     return;
@@ -39,13 +38,16 @@ exports.handleMessage = async function (bot, msg) {
 
   await sendLogMessage(
     bot,
-    `Received unsupported message type from ${chatName} (${chatId}).`
+    `Received unsupported message type from ${chatName} (${chatId}).`,
   );
 
   // For unsupported message types
   await bot
-    .sendMessage(chatId, t('Sorry, I only support text and image messages.', chatId))
+    .sendMessage(
+      chatId,
+      t('Sorry, I only support text and image messages.', chatId),
+    )
     .catch((err) =>
-      console.error('Error sending unsupported type reply:', err)
+      console.error('Error sending unsupported type reply:', err),
     );
 };
