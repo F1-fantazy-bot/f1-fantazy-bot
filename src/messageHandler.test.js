@@ -8,26 +8,25 @@ jest.mock('./utils/utils', () => ({
   isMessageFromAllowedUser: mockIsAllowedUser,
 }));
 
+jest.mock('./pendingReplyManager', () => ({
+  hasPendingReply: jest.fn().mockReturnValue(false),
+  getPendingReply: jest.fn(),
+  consumePendingReply: jest.fn(),
+}));
+
+jest.mock('./textMessageHandler', () => ({
+  handleTextMessage: jest.fn().mockResolvedValue(),
+}));
+
+jest.mock('./photoMessageHandler', () => ({
+  handlePhotoMessage: jest.fn().mockResolvedValue(),
+}));
+
 const { handleMessage } = require('./messageHandler');
 const { sendLogMessage } = require('./utils/utils');
-
-jest.mock('openai', () => ({
-  AzureOpenAI: jest.fn().mockImplementation(() => ({
-    chat: {
-      completions: {
-        create: jest.fn().mockResolvedValue({
-          choices: [
-            {
-              message: {
-                content: 'Mocked response',
-              },
-            },
-          ],
-        }),
-      },
-    },
-  })),
-}));
+const { hasPendingReply, getPendingReply, consumePendingReply } = require('./pendingReplyManager');
+const { handleTextMessage } = require('./textMessageHandler');
+const { handlePhotoMessage } = require('./photoMessageHandler');
 
 describe('handleMessage', () => {
   const botMock = {
@@ -36,6 +35,7 @@ describe('handleMessage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    hasPendingReply.mockReturnValue(false);
   });
 
   it('when got message from unknown sender, dont handle the message', async () => {
@@ -79,5 +79,152 @@ describe('handleMessage', () => {
       botMock,
       `Received unsupported message type from Unknown (${KILZI_CHAT_ID}).`
     );
+  });
+
+  it('should intercept pending reply for text messages', async () => {
+    const mockHandler = jest.fn().mockResolvedValue();
+    hasPendingReply.mockReturnValue(true);
+    getPendingReply.mockReturnValue({ handler: mockHandler, validate: null, resendPromptIfNotValid: null });
+    consumePendingReply.mockReturnValue(mockHandler);
+
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: 'my reply text',
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(hasPendingReply).toHaveBeenCalledWith(KILZI_CHAT_ID);
+    expect(consumePendingReply).toHaveBeenCalledWith(KILZI_CHAT_ID);
+    expect(mockHandler).toHaveBeenCalledWith(botMock, msgMock);
+    // Should not proceed to normal text handling
+    expect(botMock.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('should intercept pending reply for photo messages', async () => {
+    const mockHandler = jest.fn().mockResolvedValue();
+    hasPendingReply.mockReturnValue(true);
+    getPendingReply.mockReturnValue({ handler: mockHandler, validate: null, resendPromptIfNotValid: null });
+    consumePendingReply.mockReturnValue(mockHandler);
+
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      photo: [{ file_id: 'photo123' }],
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(hasPendingReply).toHaveBeenCalledWith(KILZI_CHAT_ID);
+    expect(consumePendingReply).toHaveBeenCalledWith(KILZI_CHAT_ID);
+    expect(mockHandler).toHaveBeenCalledWith(botMock, msgMock);
+    // Should not proceed to normal photo handling
+    expect(botMock.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('should not intercept when no pending reply exists for text', async () => {
+    hasPendingReply.mockReturnValue(false);
+
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: 'hello',
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(hasPendingReply).toHaveBeenCalledWith(KILZI_CHAT_ID);
+    expect(consumePendingReply).not.toHaveBeenCalled();
+    expect(handleTextMessage).toHaveBeenCalledWith(botMock, msgMock);
+  });
+
+  it('should not intercept when no pending reply exists for photo', async () => {
+    hasPendingReply.mockReturnValue(false);
+
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      photo: [{ file_id: 'photo456' }],
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(hasPendingReply).toHaveBeenCalledWith(KILZI_CHAT_ID);
+    expect(consumePendingReply).not.toHaveBeenCalled();
+    expect(handlePhotoMessage).toHaveBeenCalledWith(botMock, msgMock);
+  });
+
+  it('should re-send custom prompt when validation fails with resendPromptIfNotValid', async () => {
+    const mockHandler = jest.fn().mockResolvedValue();
+    const mockValidate = jest.fn().mockReturnValue(false);
+    hasPendingReply.mockReturnValue(true);
+    getPendingReply.mockReturnValue({
+      handler: mockHandler,
+      validate: mockValidate,
+      resendPromptIfNotValid: 'Please send text only',
+    });
+
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      photo: [{ file_id: 'photo789' }],
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(mockValidate).toHaveBeenCalledWith(msgMock);
+    expect(consumePendingReply).not.toHaveBeenCalled();
+    expect(mockHandler).not.toHaveBeenCalled();
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'Please send text only',
+      { reply_markup: { force_reply: true } },
+    );
+  });
+
+  it('should re-send default prompt when validation fails and no resendPromptIfNotValid', async () => {
+    const mockHandler = jest.fn().mockResolvedValue();
+    const mockValidate = jest.fn().mockReturnValue(false);
+    hasPendingReply.mockReturnValue(true);
+    getPendingReply.mockReturnValue({
+      handler: mockHandler,
+      validate: mockValidate,
+      resendPromptIfNotValid: null,
+    });
+
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      photo: [{ file_id: 'photo789' }],
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(mockValidate).toHaveBeenCalledWith(msgMock);
+    expect(consumePendingReply).not.toHaveBeenCalled();
+    expect(mockHandler).not.toHaveBeenCalled();
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'Invalid reply. Please try again.',
+      { reply_markup: { force_reply: true } },
+    );
+  });
+
+  it('should consume and execute handler when validation passes', async () => {
+    const mockHandler = jest.fn().mockResolvedValue();
+    const mockValidate = jest.fn().mockReturnValue(true);
+    hasPendingReply.mockReturnValue(true);
+    getPendingReply.mockReturnValue({
+      handler: mockHandler,
+      validate: mockValidate,
+      resendPromptIfNotValid: 'Please send text only',
+    });
+    consumePendingReply.mockReturnValue(mockHandler);
+
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: 'valid text reply',
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(mockValidate).toHaveBeenCalledWith(msgMock);
+    expect(consumePendingReply).toHaveBeenCalledWith(KILZI_CHAT_ID);
+    expect(mockHandler).toHaveBeenCalledWith(botMock, msgMock);
   });
 });

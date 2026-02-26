@@ -22,6 +22,7 @@ const {
   COMMAND_RESET_CHIP,
   COMMAND_FLOW,
   COMMAND_START,
+  COMMAND_REPORT_BUG,
 } = require('../constants');
 
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
@@ -48,6 +49,7 @@ const {
   handleResetChip,
 } = require('./selectChipHandlers');
 const { handleFlowCommand } = require('./flowHandler');
+const { handleReportBugCommand } = require('./reportBugHandler');
 
 // Mapping of command constants to their handler functions
 const COMMAND_HANDLERS = {
@@ -74,6 +76,7 @@ const COMMAND_HANDLERS = {
   [COMMAND_RESET_CHIP]: handleResetChip,
   [COMMAND_FLOW]: handleFlowCommand,
   [COMMAND_START]: handleFlowCommand,
+  [COMMAND_REPORT_BUG]: handleReportBugCommand,
 };
 
 async function executeCommand(bot, msg, command) {

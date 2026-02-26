@@ -42,6 +42,7 @@ exports.COMMAND_WILDCARD = '/wildcard';
 exports.COMMAND_RESET_CHIP = '/reset_chip';
 exports.COMMAND_FLOW = '/flow';
 exports.COMMAND_START = '/start';
+exports.COMMAND_REPORT_BUG = '/report_bug';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -65,6 +66,11 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_FLOW,
         title: '🏁 Usage Flow',
         description: 'Explains the usage flow of the bot step by step.',
+      },
+      {
+        constant: exports.COMMAND_REPORT_BUG,
+        title: '🐛 Report Bug',
+        description: 'Report a bug or send feedback to the admins',
       },
     ],
   },
