@@ -25,6 +25,7 @@ const {
   handleSelectWildcard,
   handleResetChip,
   handleFlowCommand,
+  handleReportBugCommand,
 } = require('./commandsHandler');
 
 // Import constants
@@ -52,6 +53,7 @@ const {
   COMMAND_RESET_CHIP,
   COMMAND_FLOW,
   COMMAND_START,
+  COMMAND_REPORT_BUG,
 } = require('./constants');
 
 exports.handleTextMessage = async function (bot, msg) {
@@ -112,6 +114,8 @@ exports.handleTextMessage = async function (bot, msg) {
     case msg.text === COMMAND_START:
     case msg.text === COMMAND_FLOW:
       return await handleFlowCommand(bot, msg);
+    case msg.text === COMMAND_REPORT_BUG:
+      return await handleReportBugCommand(bot, msg);
     default:
       try {
         const jsonData = JSON.parse(textTrimmed);

@@ -230,7 +230,14 @@ const translations = {
     'Commit ID: {ID}\nCommit message: {MSG}\nLink: {LINK}':
       'מזהה קומיט: {ID}\nהודעת קומיט: {MSG}\nקישור: {LINK}',
     '🏁 Usage Flow': '🏁 תהליך שימוש',
-    'Explains the usage flow of the bot step by step.': 'מסביר את תהליך השימוש בבוט צעד אחר צעד.'
+    'Explains the usage flow of the bot step by step.': 'מסביר את תהליך השימוש בבוט צעד אחר צעד.',
+    'What message would you like to send to the admins?': 'איזו הודעה תרצה לשלוח למנהלים?',
+    'Bug report from {NAME} ({ID}):\n\n{MESSAGE}': 'דיווח באג מ{NAME} ({ID}):\n\n{MESSAGE}',
+    'Your message has been sent to the admins. Thank you!': 'ההודעה שלך נשלחה למנהלים. תודה!',
+    '🐛 Report Bug': '🐛 דיווח באג',
+    'Report a bug or send feedback to the admins': 'דווח על באג או שלח משוב למנהלים',
+    'Invalid reply. Please try again.': 'תגובה לא תקינה. אנא נסה שוב.',
+    'We support only text. {PROMPT}': 'אנו תומכים רק בטקסט. {PROMPT}'
   }
 };
 

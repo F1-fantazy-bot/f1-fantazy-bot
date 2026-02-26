@@ -8,9 +8,10 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 
 - **Entry Point:** `src/bot.js` bootstraps the Telegram bot, initializes caches via Azure Storage, and registers message/callback listeners.
 - **Message Flow:**
-  - `src/messageHandler.js` distinguishes between text, photo, and other message types.
+  - `src/messageHandler.js` distinguishes between text, photo, and other message types. It also checks for pending replies (see Pending Reply Manager below) before routing to type-specific handlers.
   - `src/textMessageHandler.js` routes command strings to handler functions defined in `src/commandsHandler`.
   - Generic command execution is centralized in `src/commandsHandler/commandHandlers.js`, which maps command constants to handler implementations.
+- **Pending Reply Manager:** `src/pendingReplyManager.js` provides a centralized mechanism for commands that need a follow-up reply from the user (text or photo). The check happens in `messageHandler.js` **before** the text/photo branching, so reply handlers receive the full message regardless of type.
 - **Caching:** `src/cache.js` holds in-memory data for drivers, constructors, current team info, simulations, next race info, weather forecasts, and language preferences. `src/cacheInitializer.js` populates those caches from Azure Blob Storage on startup.
 - **Utilities & Services:**
   - `src/utils` contains Telegram helpers, formatting (`formatDateTime`), and logging utilities.
@@ -51,6 +52,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/next_race_info`, `/next_races`, `/next_race_weather`
 - `/get_current_simulation`
 - `/menu`, `/help`, `/lang`
+- `/report_bug` *(reply-based — uses pending reply manager)*
 
 **Admin-only:** `/load_simulation`, `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`
 
@@ -104,7 +106,84 @@ Use this as a checklist when introducing another Telegram command:
    - Verify any new environment variables or external APIs are available in production.
    - If the command interacts with caches, confirm `cacheInitializer` populates or resets data correctly.
 
-Following this sequence keeps the bot’s command catalogue consistent across direct commands, menus, and natural-language interactions.
+Following this sequence keeps the bot's command catalogue consistent across direct commands, menus, and natural-language interactions.
+
+---
+
+## Adding a Reply-Based Command
+
+Some commands need a follow-up reply from the user (text or photo) before completing their action.
+These use the **Pending Reply Manager** (`src/pendingReplyManager.js`) — a centralized, generic store that intercepts the user's next message in `messageHandler.js` before any text/photo routing.
+
+### How It Works
+
+1. When a command is triggered, it calls `registerPendingReply(chatId, handler, options?)` to register a reply callback.
+2. On the user's next message (any type), `messageHandler.js` checks `hasPendingReply(chatId)` and, if true:
+   - If a `validate` function was provided and it returns `false` for the message, the `resendPromptIfNotValid` is re-sent (with `force_reply`) and the pending reply stays active — the user can try again. If no `resendPromptIfNotValid` was provided, a default `"Invalid reply. Please try again."` message is used.
+   - Otherwise, `consumePendingReply(chatId)` removes the entry and the handler is executed with the reply.
+3. The handler receives the full `(bot, msg)` — it can inspect `msg.text`, `msg.photo`, or any other field.
+
+### Checklist for a New Reply-Based Command
+
+Follow the standard "Adding a New Command" steps above, **plus** these specifics for the handler:
+
+1. **Import `registerPendingReply` from `../pendingReplyManager`** in your handler file.
+2. **Register the reply callback** inside your command handler:
+   ```javascript
+   const { registerPendingReply } = require('../pendingReplyManager');
+
+   async function handleMyCommand(bot, msg) {
+     const chatId = msg.chat.id;
+     const prompt = t('Please send your response:', chatId);
+
+     registerPendingReply(
+       chatId,
+       async (replyBot, replyMsg) => {
+         // Process the reply — replyMsg.text for text, replyMsg.photo for photos
+         // ...
+       },
+       {
+         validate: (replyMsg) => !!replyMsg.text,    // only accept text replies
+         resendPromptIfNotValid: prompt,              // re-sent on validation failure (optional — defaults to "Invalid reply. Please try again.")
+       },
+     );
+
+     await bot.sendMessage(chatId, prompt, {
+       reply_markup: { force_reply: true },
+     });
+   }
+   ```
+  The `validate` and `resendPromptIfNotValid` options are optional. If omitted, any message type is accepted (no validation). When `validate` is provided but `resendPromptIfNotValid` is not, a default message is used.
+3. **No changes needed** in `messageHandler.js`, `textMessageHandler.js`, or `commandsHandler/index.js` for the reply interception — the generic `hasPendingReply/getPendingReply/consumePendingReply` check handles everything.
+4. **Testing:** Mock `../pendingReplyManager` in your handler tests. Extract the registered callback from `registerPendingReply.mock.calls[0][1]` and validation options from `registerPendingReply.mock.calls[0][2]` to test both the reply handling and validation logic:
+   ```javascript
+   jest.mock('../pendingReplyManager', () => ({ registerPendingReply: jest.fn() }));
+   const { registerPendingReply } = require('../pendingReplyManager');
+
+   // After calling the command handler:
+   const replyHandler = registerPendingReply.mock.calls[0][1];
+   await replyHandler(botMock, replyMsg);
+   // Assert on the reply behavior
+
+   // Test validation:
+   const options = registerPendingReply.mock.calls[0][2];
+   expect(options.validate({ text: 'hello' })).toBe(true);
+   expect(options.validate({ photo: [{}] })).toBe(false);
+   ```
+
+### Existing Example
+
+See `src/commandsHandler/reportBugHandler.js` — the `/report_bug` command prompts the user for a text message, validates that the reply is text (rejects photos), then forwards it to all admins.
+
+### API Reference (`src/pendingReplyManager.js`)
+
+| Method | Signature | Purpose |
+|--------|-----------|---------|
+| `registerPendingReply` | `registerPendingReply(chatId, handler, options?)` | Register a pending reply callback. `options.validate(msg) → bool` rejects invalid replies; `options.resendPromptIfNotValid` is re-sent on failure (defaults to `"Invalid reply. Please try again."`) |
+| `hasPendingReply` | `hasPendingReply(chatId) → boolean` | Check if a chat has a pending reply |
+| `getPendingReply` | `getPendingReply(chatId) → entry` | Get entry (`{ handler, validate, resendPromptIfNotValid }`) without removing |
+| `consumePendingReply` | `consumePendingReply(chatId) → handler` | Get and remove the handler (one-shot) |
+| `clearPendingReply` | `clearPendingReply(chatId)` | Remove without executing |
 
 ---
 
@@ -116,5 +195,6 @@ Following this sequence keeps the bot’s command catalogue consistent across di
 - **Admin Safeguards:** Use `isAdminMessage` from `src/utils` to restrict sensitive commands.
 - **Menu Navigation:** Maintain `MENU_CATEGORIES` order for a consistent UI. Hiding a command from the interactive menu requires setting `hideFromMenu: true` in its category entry.
 - **Localization:** Always wrap user-facing strings with `t('key', chatId)` to ensure translation support.
+- **Keep `AGENTS.md` Up to Date:** After completing any task that changes the codebase structure, adds new commands, modifies architecture, or introduces new patterns, review `AGENTS.md` and update it to reflect the changes. This file is the primary reference for contributors and AI agents — keeping it accurate prevents confusion and misaligned implementations.
 
 With this reference and the checklist above, adding features—especially new commands—should be predictable and safe.

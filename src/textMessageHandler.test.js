@@ -16,6 +16,7 @@ const {
   COMMAND_SET_LANGUAGE,
   COMMAND_FLOW,
   COMMAND_START,
+  COMMAND_REPORT_BUG,
 } = require('./constants');
 
 jest.mock('openai', () => ({
@@ -59,6 +60,9 @@ const { handleNextRaceWeatherCommand } = require('./commandsHandler/nextRaceWeat
 const { displayMenuMessage } = require('./commandsHandler/menuHandler');
 const { handleSetLanguage } = require('./commandsHandler/setLanguageHandler');
 const { handleFlowCommand } = require('./commandsHandler/flowHandler');
+const {
+  handleReportBugCommand,
+} = require('./commandsHandler/reportBugHandler');
 
 jest.mock('./commandsHandler/numberInputHandler');
 jest.mock('./commandsHandler/jsonInputHandler');
@@ -78,6 +82,7 @@ jest.mock('./commandsHandler/nextRaceWeatherHandler');
 jest.mock('./commandsHandler/menuHandler');
 jest.mock('./commandsHandler/setLanguageHandler');
 jest.mock('./commandsHandler/flowHandler');
+jest.mock('./commandsHandler/reportBugHandler');
 jest.mock('./commandsHandler/askHandler');
 
 const { handleTextMessage } = require('./textMessageHandler');
@@ -310,6 +315,18 @@ describe('handleTextMessage', () => {
       await handleTextMessage(botMock, msgMock);
 
       expect(handleFlowCommand).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleJsonMessage).not.toHaveBeenCalled();
+    });
+
+    it('should route /report_bug command to handleReportBugCommand', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: COMMAND_REPORT_BUG,
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(handleReportBugCommand).toHaveBeenCalledWith(botMock, msgMock);
       expect(handleJsonMessage).not.toHaveBeenCalled();
     });
 
