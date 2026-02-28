@@ -14,6 +14,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - **Pending Reply Manager:** `src/pendingReplyManager.js` provides a centralized mechanism for commands that need a follow-up reply from the user (text or photo). State is stored in **Azure Table Storage** for multi-server support. The check happens in `messageHandler.js` **before** the text/photo branching, so reply handlers receive the full message regardless of type.
 - **Pending Reply Registry:** `src/pendingReplyRegistry.js` maps command identifiers (e.g., `'report_bug'`) to builder functions that reconstruct handlers, validators, and prompts. This enables serializable storage — only the command ID is persisted, and the full behavior is rebuilt on any server instance.
 - **Caching:** `src/cache.js` holds in-memory data for drivers, constructors, current team info, simulations, next race info, weather forecasts, and language preferences. `src/cacheInitializer.js` populates those caches from Azure Blob Storage on startup.
+- **User Registry:** `src/userRegistryService.js` tracks all users who interact with the bot in an Azure Table Storage table (`UserRegistry`). On every allowed message, `messageHandler.js` calls `upsertUser(chatId, chatName)` in a fire-and-forget manner (no `await`) so that registry failures never block message handling. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) displays all registered users with their details.
 - **Utilities & Services:**
   - `src/utils` contains Telegram helpers, formatting (`formatDateTime`), and logging utilities.
   - `src/utils/weatherApi.js` interacts with external weather services.
@@ -55,7 +56,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/menu`, `/help`, `/lang`
 - `/report_bug` *(reply-based — uses pending reply manager)*
 
-**Admin-only:** `/load_simulation`, `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`
+**Admin-only:** `/load_simulation`, `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`
 
 ---
 
@@ -65,7 +66,7 @@ Required environment variables (see `readme.md` for full list):
 - Telegram: `TELEGRAM_BOT_TOKEN`
 - Azure OpenAI: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPEN_AI_MODEL`
 - Azure Storage: `AZURE_STORAGE_CONNECTION_STRING`, `AZURE_STORAGE_CONTAINER_NAME`
-  - **Note:** `AZURE_STORAGE_CONNECTION_STRING` is also used by the Pending Reply Manager for Azure Table Storage (no additional env var needed).
+  - **Note:** `AZURE_STORAGE_CONNECTION_STRING` is also used by the Pending Reply Manager and User Registry Service for Azure Table Storage (no additional env var needed).
 - Optional billing data: `AZURE_SUBSCRIPTION_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`
 - Scraping trigger: `AZURE_LOGICAPP_TRIGGER_URL`
 
@@ -208,6 +209,36 @@ All methods are **async** — they interact with Azure Table Storage. The table 
 |--------|-----------|---------|
 | `PENDING_REPLY_REGISTRY` | `Object` | Maps command ID strings to `{ buildHandler, buildValidate?, buildResendPrompt? }` |
 | `resolveCommand` | `resolveCommand(commandId, chatId) → entry \| null` | Builds a full `{ handler, validate, resendPromptIfNotValid }` entry from a command ID |
+
+---
+
+## User Registry
+
+`src/userRegistryService.js` provides a lightweight user tracking system backed by **Azure Table Storage** (table: `UserRegistry`). It uses the same `AZURE_STORAGE_CONNECTION_STRING` as the rest of the app — no additional env vars needed.
+
+### How It Works
+
+1. On every incoming message from an allowed user, `messageHandler.js` calls `upsertUser(chatId, chatName)` **without `await`** (fire-and-forget).
+2. `upsertUser` reads the existing entity (if any) to preserve `firstSeen`, then upserts with updated `chatName` and `lastSeen`.
+3. Errors are caught and logged silently (`console.error`) — the user registry never blocks or breaks message handling.
+4. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) calls `listAllUsers()` to fetch all registered users and displays them with chatId, chatName, firstSeen, and lastSeen formatted via `formatDateTime`.
+
+### Table Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `partitionKey` | `string` | Always `'User'` |
+| `rowKey` | `string` | The `chatId` (stringified) |
+| `chatName` | `string` | Display name from `getChatName(msg)` |
+| `firstSeen` | `string` | ISO timestamp — set on first interaction, preserved on updates |
+| `lastSeen` | `string` | ISO timestamp — updated on every message |
+
+### API Reference
+
+| Method | Signature | Purpose |
+|--------|-----------|---------|
+| `upsertUser` | `upsertUser(chatId, chatName) → Promise` | Track a user interaction. Fire-and-forget — errors are logged, never thrown. |
+| `listAllUsers` | `listAllUsers() → Promise<Array<{chatId, chatName, firstSeen, lastSeen}>>` | Return all registered users. Used by `/list_users` admin command. |
 
 ---
 

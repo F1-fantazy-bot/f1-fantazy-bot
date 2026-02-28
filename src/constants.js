@@ -43,6 +43,7 @@ exports.COMMAND_RESET_CHIP = '/reset_chip';
 exports.COMMAND_FLOW = '/flow';
 exports.COMMAND_START = '/start';
 exports.COMMAND_REPORT_BUG = '/report_bug';
+exports.COMMAND_LIST_USERS = '/list_users';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -179,6 +180,11 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_VERSION,
         title: 'ℹ️ Version',
         description: 'Show current deployed version',
+      },
+      {
+        constant: exports.COMMAND_LIST_USERS,
+        title: '👥 List Users',
+        description: 'List all registered bot users',
       },
     ],
   },

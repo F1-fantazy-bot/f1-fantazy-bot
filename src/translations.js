@@ -237,7 +237,15 @@ const translations = {
     '🐛 Report Bug': '🐛 דיווח באג',
     'Report a bug or send feedback to the admins': 'דווח על באג או שלח משוב למנהלים',
     'Invalid reply. Please try again.': 'תגובה לא תקינה. אנא נסה שוב.',
-    'We support only text. {PROMPT}': 'אנו תומכים רק בטקסט. {PROMPT}'
+    'We support only text. {PROMPT}': 'אנו תומכים רק בטקסט. {PROMPT}',
+    'Registered Users': 'משתמשים רשומים',
+    'Chat ID': 'מזהה צ\'אט',
+    'First Seen': 'נראה לראשונה',
+    'Last Seen': 'נראה לאחרונה',
+    'No registered users found.': 'לא נמצאו משתמשים רשומים.',
+    '❌ Error fetching user list: {ERROR}': '❌ שגיאה בקבלת רשימת משתמשים: {ERROR}',
+    '👥 List Users': '👥 רשימת משתמשים',
+    'List all registered bot users': 'הצג את כל המשתמשים הרשומים בבוט',
   }
 };
 
