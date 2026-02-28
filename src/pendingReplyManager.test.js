@@ -1,115 +1,126 @@
+const mockCreateTable = jest.fn().mockResolvedValue();
+const mockUpsertEntity = jest.fn().mockResolvedValue();
+const mockGetEntity = jest.fn();
+const mockDeleteEntity = jest.fn().mockResolvedValue();
+
+jest.mock('@azure/data-tables', () => ({
+  TableClient: {
+    fromConnectionString: jest.fn(() => ({
+      createTable: mockCreateTable,
+      upsertEntity: mockUpsertEntity,
+      getEntity: mockGetEntity,
+      deleteEntity: mockDeleteEntity,
+    })),
+  },
+}));
+
+jest.mock('./pendingReplyRegistry', () => ({
+  resolveCommand: jest.fn((commandId, chatId) => ({
+    handler: jest.fn(),
+    validate: jest.fn(),
+    resendPromptIfNotValid: `prompt-${commandId}-${chatId}`,
+  })),
+}));
+
 const {
   registerPendingReply,
-  hasPendingReply,
   getPendingReply,
-  consumePendingReply,
   clearPendingReply,
-  pendingReplies,
 } = require('./pendingReplyManager');
+const { resolveCommand } = require('./pendingReplyRegistry');
 
 describe('pendingReplyManager', () => {
   beforeEach(() => {
-    for (const key of Object.keys(pendingReplies)) {
-      delete pendingReplies[key];
-    }
+    jest.clearAllMocks();
+    process.env.AZURE_STORAGE_CONNECTION_STRING = 'DefaultEndpointsProtocol=https;AccountName=test';
+  });
+
+  afterEach(() => {
+    delete process.env.AZURE_STORAGE_CONNECTION_STRING;
   });
 
   describe('registerPendingReply', () => {
-    it('should register a handler for a chat id', () => {
-      const handler = jest.fn();
-      registerPendingReply(123, handler);
+    it('should upsert an entity with command ID to Azure Table Storage', async () => {
+      await registerPendingReply(123, 'report_bug');
 
-      expect(pendingReplies[123].handler).toBe(handler);
-      expect(pendingReplies[123].validate).toBeNull();
-      expect(pendingReplies[123].resendPromptIfNotValid).toBeNull();
+      expect(mockUpsertEntity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          partitionKey: 'PendingReply',
+          rowKey: '123',
+          commandId: 'report_bug',
+          createdAt: expect.any(String),
+        }),
+      );
     });
 
-    it('should overwrite an existing handler for the same chat id', () => {
-      const handler1 = jest.fn();
-      const handler2 = jest.fn();
-      registerPendingReply(123, handler1);
-      registerPendingReply(123, handler2);
+    it('should only call createTable once across multiple operations', async () => {
+      // createTable may have been called by earlier tests (module-level tableReady flag),
+      // so we track the count before and after
+      const callsBefore = mockCreateTable.mock.calls.length;
 
-      expect(pendingReplies[123].handler).toBe(handler2);
-    });
+      await registerPendingReply(123, 'report_bug');
+      await registerPendingReply(456, 'report_bug');
 
-    it('should store validate and resendPromptIfNotValid options', () => {
-      const handler = jest.fn();
-      const validate = jest.fn();
-      registerPendingReply(123, handler, { validate, resendPromptIfNotValid: 'Send text only' });
+      // At most 1 new createTable call (if tableReady wasn't already set)
+      const newCalls = mockCreateTable.mock.calls.length - callsBefore;
 
-      expect(pendingReplies[123].handler).toBe(handler);
-      expect(pendingReplies[123].validate).toBe(validate);
-      expect(pendingReplies[123].resendPromptIfNotValid).toBe('Send text only');
-    });
-  });
-
-  describe('hasPendingReply', () => {
-    it('should return false for unknown chat ids', () => {
-      expect(hasPendingReply(999)).toBe(false);
-    });
-
-    it('should return true after registerPendingReply', () => {
-      registerPendingReply(123, jest.fn());
-
-      expect(hasPendingReply(123)).toBe(true);
-    });
-
-    it('should return false after consumePendingReply', () => {
-      registerPendingReply(123, jest.fn());
-      consumePendingReply(123);
-
-      expect(hasPendingReply(123)).toBe(false);
+      expect(newCalls).toBeLessThanOrEqual(1);
     });
   });
 
   describe('getPendingReply', () => {
-    it('should return the full entry without removing it', () => {
-      const handler = jest.fn();
-      const validate = jest.fn();
-      registerPendingReply(123, handler, { validate, resendPromptIfNotValid: 'prompt' });
+    it('should resolve the command via the registry', async () => {
+      mockGetEntity.mockResolvedValue({
+        partitionKey: 'PendingReply',
+        rowKey: '123',
+        commandId: 'report_bug',
+        createdAt: new Date().toISOString(),
+      });
 
-      const entry = getPendingReply(123);
+      const entry = await getPendingReply(123);
 
-      expect(entry.handler).toBe(handler);
-      expect(entry.validate).toBe(validate);
-      expect(entry.resendPromptIfNotValid).toBe('prompt');
-      expect(hasPendingReply(123)).toBe(true);
+      expect(resolveCommand).toHaveBeenCalledWith('report_bug', 123);
+      expect(entry).toBeDefined();
+      expect(entry.handler).toBeDefined();
+      expect(entry.validate).toBeDefined();
+      expect(entry.resendPromptIfNotValid).toBe('prompt-report_bug-123');
     });
 
-    it('should return undefined for unknown chat ids', () => {
-      expect(getPendingReply(999)).toBeUndefined();
-    });
-  });
+    it('should return undefined for unknown chat ids', async () => {
+      mockGetEntity.mockRejectedValue(new Error('Not found'));
 
-  describe('consumePendingReply', () => {
-    it('should return the handler and remove the entry', () => {
-      const handler = jest.fn();
-      registerPendingReply(123, handler);
-
-      const result = consumePendingReply(123);
-
-      expect(result).toBe(handler);
-      expect(hasPendingReply(123)).toBe(false);
-    });
-
-    it('should return undefined for unknown chat ids', () => {
-      const result = consumePendingReply(999);
+      const result = await getPendingReply(999);
 
       expect(result).toBeUndefined();
+    });
+
+    it('should return undefined and delete entity when expired', async () => {
+      const expiredDate = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      mockGetEntity.mockResolvedValue({
+        partitionKey: 'PendingReply',
+        rowKey: '123',
+        commandId: 'report_bug',
+        createdAt: expiredDate,
+      });
+
+      const result = await getPendingReply(123);
+
+      expect(result).toBeUndefined();
+      expect(mockDeleteEntity).toHaveBeenCalledWith('PendingReply', '123');
     });
   });
 
   describe('clearPendingReply', () => {
-    it('should remove the handler without returning it', () => {
-      registerPendingReply(123, jest.fn());
-      clearPendingReply(123);
+    it('should delete the entity from table storage', async () => {
+      await clearPendingReply(123);
 
-      expect(hasPendingReply(123)).toBe(false);
+      expect(mockDeleteEntity).toHaveBeenCalledWith('PendingReply', '123');
     });
 
-    it('should not throw for unknown chat ids', () => {
-      expect(() => clearPendingReply(999)).not.toThrow();
+    it('should not throw for unknown chat ids', async () => {
+      mockDeleteEntity.mockRejectedValue(new Error('Not found'));
+
+      await expect(clearPendingReply(999)).resolves.not.toThrow();
     });
   });
 });

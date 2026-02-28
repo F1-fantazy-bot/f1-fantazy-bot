@@ -1,60 +1,113 @@
 // Centralized pending reply manager
-// Stores chatId -> entry mappings for commands that expect a reply (text or photo)
+// Stores chatId -> command ID mappings in Azure Table Storage for multi-server support.
+// Handler functions are reconstructed via the pending reply registry.
 
-const pendingReplies = {};
+const { TableClient } = require('@azure/data-tables');
+const { resolveCommand } = require('./pendingReplyRegistry');
+
+const TABLE_NAME = 'PendingReplies';
+const PARTITION_KEY = 'PendingReply';
+const TTL_MS = 60 * 60 * 1000; // 1 hour
+
+let tableClient;
+let tableReady = false;
 
 /**
- * Register a pending reply handler for a chat.
- * @param {number} chatId
- * @param {function(bot, msg): Promise<void>} handler - callback invoked with the user's reply
- * @param {object} [options]
- * @param {function(msg): boolean} [options.validate] - returns true if the reply is valid; when false the prompt is re-sent and the handler stays registered
- * @param {string} [options.resendPromptIfNotValid] - message to re-send on validation failure; if omitted and validate is set, a default "Invalid reply. Please try again." message is used
+ * Initialize the Azure Table Storage client.
+ * Uses the same connection string as the rest of the app (AZURE_STORAGE_CONNECTION_STRING).
  */
-function registerPendingReply(chatId, handler, options = {}) {
-  pendingReplies[chatId] = {
-    handler,
-    validate: options.validate || null,
-    resendPromptIfNotValid: options.resendPromptIfNotValid || null,
-  };
+function initializeTableClient() {
+  const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+
+  if (!connectionString) {
+    throw new Error('Missing AZURE_STORAGE_CONNECTION_STRING for pending reply storage');
+  }
+
+  tableClient = TableClient.fromConnectionString(connectionString, TABLE_NAME);
+  tableReady = false;
 }
 
 /**
- * Check if a chat has a pending reply handler.
- * @param {number} chatId
- * @returns {boolean}
+ * Ensure the table client is initialized and the table exists.
+ * The createTable call is only made once per process lifetime.
  */
-function hasPendingReply(chatId) {
-  return !!pendingReplies[chatId];
+async function ensureTable() {
+  if (!tableClient) {
+    initializeTableClient();
+  }
+
+  if (!tableReady) {
+    await tableClient.createTable().catch(() => {
+      // Table already exists — ignore
+    });
+    tableReady = true;
+  }
+}
+
+/**
+ * Register a pending reply for a chat.
+ * Stores the command ID in Azure Table Storage so any server instance can resolve it.
+ * @param {number} chatId
+ * @param {string} commandId - The command identifier (must exist in pendingReplyRegistry)
+ */
+async function registerPendingReply(chatId, commandId) {
+  await ensureTable();
+
+  const entity = {
+    partitionKey: PARTITION_KEY,
+    rowKey: String(chatId),
+    commandId,
+    createdAt: new Date().toISOString(),
+  };
+
+  await tableClient.upsertEntity(entity);
 }
 
 /**
  * Get the pending reply entry without removing it.
+ * Resolves the command ID to handler/validate/resendPrompt via the registry.
  * @param {number} chatId
- * @returns {{ handler: function, validate: function|null, resendPromptIfNotValid: string|null }|undefined}
+ * @returns {Promise<{ handler: function, validate: function|null, resendPromptIfNotValid: string|null }|undefined>}
  */
-function getPendingReply(chatId) {
-  return pendingReplies[chatId];
+async function getPendingReply(chatId) {
+  await ensureTable();
+
+  try {
+    const entity = await tableClient.getEntity(PARTITION_KEY, String(chatId));
+
+    if (isExpired(entity.createdAt)) {
+      await tableClient.deleteEntity(PARTITION_KEY, String(chatId)).catch(() => {});
+
+      return undefined;
+    }
+
+    return resolveCommand(entity.commandId, chatId);
+  } catch {
+    return undefined;
+  }
 }
 
 /**
- * Get and remove the pending reply handler (one-shot).
+ * Remove the pending reply without executing it.
  * @param {number} chatId
- * @returns {function|undefined}
  */
-function consumePendingReply(chatId) {
-  const entry = pendingReplies[chatId];
-  delete pendingReplies[chatId];
+async function clearPendingReply(chatId) {
+  await ensureTable();
 
-  return entry ? entry.handler : undefined;
+  await tableClient.deleteEntity(PARTITION_KEY, String(chatId)).catch(() => {});
 }
 
 /**
- * Remove the pending reply handler without executing it.
- * @param {number} chatId
+ * Check if a pending reply entry has expired based on TTL.
+ * @param {string} createdAt - ISO timestamp
+ * @returns {boolean}
  */
-function clearPendingReply(chatId) {
-  delete pendingReplies[chatId];
+function isExpired(createdAt) {
+  return Date.now() - new Date(createdAt).getTime() > TTL_MS;
 }
 
-module.exports = { registerPendingReply, hasPendingReply, getPendingReply, consumePendingReply, clearPendingReply, pendingReplies };
+module.exports = {
+  registerPendingReply,
+  getPendingReply,
+  clearPendingReply,
+};
