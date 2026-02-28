@@ -23,6 +23,7 @@ const {
   COMMAND_FLOW,
   COMMAND_START,
   COMMAND_REPORT_BUG,
+  COMMAND_LIST_USERS,
 } = require('../constants');
 
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
@@ -50,6 +51,7 @@ const {
 } = require('./selectChipHandlers');
 const { handleFlowCommand } = require('./flowHandler');
 const { handleReportBugCommand } = require('./reportBugHandler');
+const { handleListUsersCommand } = require('./listUsersHandler');
 
 // Mapping of command constants to their handler functions
 const COMMAND_HANDLERS = {
@@ -77,6 +79,7 @@ const COMMAND_HANDLERS = {
   [COMMAND_FLOW]: handleFlowCommand,
   [COMMAND_START]: handleFlowCommand,
   [COMMAND_REPORT_BUG]: handleReportBugCommand,
+  [COMMAND_LIST_USERS]: handleListUsersCommand,
 };
 
 async function executeCommand(bot, msg, command) {

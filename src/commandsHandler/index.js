@@ -27,6 +27,7 @@ const {
 } = require('./selectChipHandlers');
 const { handleFlowCommand } = require('./flowHandler');
 const { handleReportBugCommand } = require('./reportBugHandler');
+const { handleListUsersCommand } = require('./listUsersHandler');
 
 module.exports = {
   handleBestTeamsMessage,
@@ -55,4 +56,5 @@ module.exports = {
   handleResetChip,
   handleFlowCommand,
   handleReportBugCommand,
+  handleListUsersCommand,
 };

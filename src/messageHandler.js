@@ -7,6 +7,7 @@ const { handleTextMessage } = require('./textMessageHandler');
 const { handlePhotoMessage } = require('./photoMessageHandler');
 const { t } = require('./i18n');
 const { getPendingReply, clearPendingReply } = require('./pendingReplyManager');
+const { upsertUser } = require('./userRegistryService');
 
 exports.handleMessage = async function (bot, msg) {
   const chatId = msg.chat.id;
@@ -20,6 +21,9 @@ exports.handleMessage = async function (bot, msg) {
 
     return;
   }
+
+  // Track user in registry (fire-and-forget — errors are logged silently)
+  upsertUser(chatId, chatName);
 
   await sendLogMessage(bot, `Received a message from ${chatName} (${chatId})`);
 

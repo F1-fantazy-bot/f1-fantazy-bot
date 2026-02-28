@@ -13,6 +13,10 @@ jest.mock('./pendingReplyManager', () => ({
   clearPendingReply: jest.fn().mockResolvedValue(),
 }));
 
+jest.mock('./userRegistryService', () => ({
+  upsertUser: jest.fn(),
+}));
+
 jest.mock('./textMessageHandler', () => ({
   handleTextMessage: jest.fn().mockResolvedValue(),
 }));
@@ -24,6 +28,7 @@ jest.mock('./photoMessageHandler', () => ({
 const { handleMessage } = require('./messageHandler');
 const { sendLogMessage } = require('./utils/utils');
 const { getPendingReply, clearPendingReply } = require('./pendingReplyManager');
+const { upsertUser } = require('./userRegistryService');
 const { handleTextMessage } = require('./textMessageHandler');
 const { handlePhotoMessage } = require('./photoMessageHandler');
 
@@ -55,6 +60,8 @@ describe('handleMessage', () => {
       botMock,
       'Message from unknown chat: Unknown (123456)'
     );
+    // Should NOT track unknown users
+    expect(upsertUser).not.toHaveBeenCalled();
   });
 
   it('when got unsupported message', async () => {
@@ -78,6 +85,30 @@ describe('handleMessage', () => {
       botMock,
       `Received unsupported message type from Unknown (${KILZI_CHAT_ID}).`
     );
+    // Should track allowed users even for unsupported message types
+    expect(upsertUser).toHaveBeenCalledWith(KILZI_CHAT_ID, 'Unknown');
+  });
+
+  it('should track allowed user in registry on text message', async () => {
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: 'hello',
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(upsertUser).toHaveBeenCalledWith(KILZI_CHAT_ID, 'Unknown');
+  });
+
+  it('should track allowed user in registry on photo message', async () => {
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      photo: [{ file_id: 'photo123' }],
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(upsertUser).toHaveBeenCalledWith(KILZI_CHAT_ID, 'Unknown');
   });
 
   it('should intercept pending reply for text messages', async () => {
