@@ -11,7 +11,8 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
   - `src/messageHandler.js` distinguishes between text, photo, and other message types. It also checks for pending replies (see Pending Reply Manager below) before routing to type-specific handlers.
   - `src/textMessageHandler.js` routes command strings to handler functions defined in `src/commandsHandler`.
   - Generic command execution is centralized in `src/commandsHandler/commandHandlers.js`, which maps command constants to handler implementations.
-- **Pending Reply Manager:** `src/pendingReplyManager.js` provides a centralized mechanism for commands that need a follow-up reply from the user (text or photo). The check happens in `messageHandler.js` **before** the text/photo branching, so reply handlers receive the full message regardless of type.
+- **Pending Reply Manager:** `src/pendingReplyManager.js` provides a centralized mechanism for commands that need a follow-up reply from the user (text or photo). State is stored in **Azure Table Storage** for multi-server support. The check happens in `messageHandler.js` **before** the text/photo branching, so reply handlers receive the full message regardless of type.
+- **Pending Reply Registry:** `src/pendingReplyRegistry.js` maps command identifiers (e.g., `'report_bug'`) to builder functions that reconstruct handlers, validators, and prompts. This enables serializable storage — only the command ID is persisted, and the full behavior is rebuilt on any server instance.
 - **Caching:** `src/cache.js` holds in-memory data for drivers, constructors, current team info, simulations, next race info, weather forecasts, and language preferences. `src/cacheInitializer.js` populates those caches from Azure Blob Storage on startup.
 - **Utilities & Services:**
   - `src/utils` contains Telegram helpers, formatting (`formatDateTime`), and logging utilities.
@@ -64,6 +65,7 @@ Required environment variables (see `readme.md` for full list):
 - Telegram: `TELEGRAM_BOT_TOKEN`
 - Azure OpenAI: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPEN_AI_MODEL`
 - Azure Storage: `AZURE_STORAGE_CONNECTION_STRING`, `AZURE_STORAGE_CONTAINER_NAME`
+  - **Note:** `AZURE_STORAGE_CONNECTION_STRING` is also used by the Pending Reply Manager for Azure Table Storage (no additional env var needed).
 - Optional billing data: `AZURE_SUBSCRIPTION_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`
 - Scraping trigger: `AZURE_LOGICAPP_TRIGGER_URL`
 
@@ -113,22 +115,42 @@ Following this sequence keeps the bot's command catalogue consistent across dire
 ## Adding a Reply-Based Command
 
 Some commands need a follow-up reply from the user (text or photo) before completing their action.
-These use the **Pending Reply Manager** (`src/pendingReplyManager.js`) — a centralized, generic store that intercepts the user's next message in `messageHandler.js` before any text/photo routing.
+These use the **Pending Reply Manager** (`src/pendingReplyManager.js`) backed by **Azure Table Storage** for multi-server support, with the **Pending Reply Registry** (`src/pendingReplyRegistry.js`) providing the handler/validation logic.
+
+### Architecture
+
+The system uses a **command ID pattern** instead of storing functions directly:
+- **Registration:** The command handler stores a command ID string (e.g., `'report_bug'`) in Azure Table Storage via `registerPendingReply(chatId, commandId)`.
+- **Resolution:** When a reply arrives, `messageHandler.js` retrieves the command ID from Table Storage and resolves it via the registry (`src/pendingReplyRegistry.js`) to reconstruct the handler, validator, and resend prompt.
+- **Multi-server:** Since only serializable data (command ID + chatId) is stored externally, any server instance can handle the reply.
 
 ### How It Works
 
-1. When a command is triggered, it calls `registerPendingReply(chatId, handler, options?)` to register a reply callback.
-2. On the user's next message (any type), `messageHandler.js` checks `hasPendingReply(chatId)` and, if true:
+1. When a command is triggered, it calls `await registerPendingReply(chatId, 'command_id')` to store the command ID in Azure Table Storage.
+2. On the user's next message (any type), `messageHandler.js` calls `await getPendingReply(chatId)` — a single Table Storage read that also resolves the command via the registry:
    - If a `validate` function was provided and it returns `false` for the message, the `resendPromptIfNotValid` is re-sent (with `force_reply`) and the pending reply stays active — the user can try again. If no `resendPromptIfNotValid` was provided, a default `"Invalid reply. Please try again."` message is used.
-   - Otherwise, `consumePendingReply(chatId)` removes the entry and the handler is executed with the reply.
+   - Otherwise, `await clearPendingReply(chatId)` removes the entry from Table Storage and the handler is executed with the reply.
 3. The handler receives the full `(bot, msg)` — it can inspect `msg.text`, `msg.photo`, or any other field.
+4. Entries older than 1 hour are automatically treated as expired (TTL check on read).
 
 ### Checklist for a New Reply-Based Command
 
-Follow the standard "Adding a New Command" steps above, **plus** these specifics for the handler:
+Follow the standard "Adding a New Command" steps above, **plus** these specifics:
 
-1. **Import `registerPendingReply` from `../pendingReplyManager`** in your handler file.
-2. **Register the reply callback** inside your command handler:
+1. **Register the command in the Pending Reply Registry** (`src/pendingReplyRegistry.js`):
+   ```javascript
+   // In PENDING_REPLY_REGISTRY object:
+   my_command: {
+     buildHandler: (chatId) => async (replyBot, replyMsg) => {
+       // Process the reply
+     },
+     buildValidate: () => (replyMsg) => !!replyMsg.text,    // only accept text replies
+     buildResendPrompt: (chatId) => t('Please try again', chatId),
+   },
+   ```
+   The `buildValidate` and `buildResendPrompt` are optional. If omitted, any message type is accepted (no validation). When `buildValidate` is provided but `buildResendPrompt` is not, a default message is used.
+
+2. **Call `registerPendingReply` in your handler** with the command ID:
    ```javascript
    const { registerPendingReply } = require('../pendingReplyManager');
 
@@ -136,54 +158,56 @@ Follow the standard "Adding a New Command" steps above, **plus** these specifics
      const chatId = msg.chat.id;
      const prompt = t('Please send your response:', chatId);
 
-     registerPendingReply(
-       chatId,
-       async (replyBot, replyMsg) => {
-         // Process the reply — replyMsg.text for text, replyMsg.photo for photos
-         // ...
-       },
-       {
-         validate: (replyMsg) => !!replyMsg.text,    // only accept text replies
-         resendPromptIfNotValid: prompt,              // re-sent on validation failure (optional — defaults to "Invalid reply. Please try again.")
-       },
-     );
+     await registerPendingReply(chatId, 'my_command');
 
      await bot.sendMessage(chatId, prompt, {
        reply_markup: { force_reply: true },
      });
    }
    ```
-  The `validate` and `resendPromptIfNotValid` options are optional. If omitted, any message type is accepted (no validation). When `validate` is provided but `resendPromptIfNotValid` is not, a default message is used.
-3. **No changes needed** in `messageHandler.js`, `textMessageHandler.js`, or `commandsHandler/index.js` for the reply interception — the generic `hasPendingReply/getPendingReply/consumePendingReply` check handles everything.
-4. **Testing:** Mock `../pendingReplyManager` in your handler tests. Extract the registered callback from `registerPendingReply.mock.calls[0][1]` and validation options from `registerPendingReply.mock.calls[0][2]` to test both the reply handling and validation logic:
-   ```javascript
-   jest.mock('../pendingReplyManager', () => ({ registerPendingReply: jest.fn() }));
-   const { registerPendingReply } = require('../pendingReplyManager');
 
-   // After calling the command handler:
-   const replyHandler = registerPendingReply.mock.calls[0][1];
-   await replyHandler(botMock, replyMsg);
-   // Assert on the reply behavior
+3. **No changes needed** in `messageHandler.js`, `textMessageHandler.js`, or `commandsHandler/index.js` for the reply interception — the generic `getPendingReply/clearPendingReply` check handles everything.
 
-   // Test validation:
-   const options = registerPendingReply.mock.calls[0][2];
-   expect(options.validate({ text: 'hello' })).toBe(true);
-   expect(options.validate({ photo: [{}] })).toBe(false);
-   ```
+4. **Testing:**
+   - **Handler test:** Mock `../pendingReplyManager` and verify the command ID is passed:
+     ```javascript
+     jest.mock('../pendingReplyManager', () => ({ registerPendingReply: jest.fn().mockResolvedValue() }));
+     const { registerPendingReply } = require('../pendingReplyManager');
+
+     // After calling the command handler:
+     expect(registerPendingReply).toHaveBeenCalledWith(chatId, 'my_command');
+     ```
+   - **Registry test:** Test the handler/validate/prompt builders in `src/pendingReplyRegistry.test.js`:
+     ```javascript
+     const { resolveCommand } = require('./pendingReplyRegistry');
+     const resolved = resolveCommand('my_command', chatId);
+     await resolved.handler(botMock, replyMsg);
+     // Assert on behavior
+     expect(resolved.validate({ text: 'hello' })).toBe(true);
+     ```
 
 ### Existing Example
 
-See `src/commandsHandler/reportBugHandler.js` — the `/report_bug` command prompts the user for a text message, validates that the reply is text (rejects photos), then forwards it to all admins.
+See `src/commandsHandler/reportBugHandler.js` — the `/report_bug` command registers `'report_bug'` as a pending reply. The handler logic (sending to admins, validation for text-only) lives in `src/pendingReplyRegistry.js` under the `report_bug` entry.
 
-### API Reference (`src/pendingReplyManager.js`)
+### API Reference
+
+#### `src/pendingReplyManager.js` (Azure Table Storage backend)
+
+All methods are **async** — they interact with Azure Table Storage. The table is created once per process lifetime (lazy initialization).
 
 | Method | Signature | Purpose |
 |--------|-----------|---------|
-| `registerPendingReply` | `registerPendingReply(chatId, handler, options?)` | Register a pending reply callback. `options.validate(msg) → bool` rejects invalid replies; `options.resendPromptIfNotValid` is re-sent on failure (defaults to `"Invalid reply. Please try again."`) |
-| `hasPendingReply` | `hasPendingReply(chatId) → boolean` | Check if a chat has a pending reply |
-| `getPendingReply` | `getPendingReply(chatId) → entry` | Get entry (`{ handler, validate, resendPromptIfNotValid }`) without removing |
-| `consumePendingReply` | `consumePendingReply(chatId) → handler` | Get and remove the handler (one-shot) |
-| `clearPendingReply` | `clearPendingReply(chatId)` | Remove without executing |
+| `registerPendingReply` | `registerPendingReply(chatId, commandId) → Promise` | Store a pending reply command ID in Azure Table Storage |
+| `getPendingReply` | `getPendingReply(chatId) → Promise<entry \| undefined>` | Single Table Storage read → resolve command ID via registry; returns `{ handler, validate, resendPromptIfNotValid }` |
+| `clearPendingReply` | `clearPendingReply(chatId) → Promise` | Remove from storage without executing |
+
+#### `src/pendingReplyRegistry.js` (Command → handler mapping)
+
+| Export | Signature | Purpose |
+|--------|-----------|---------|
+| `PENDING_REPLY_REGISTRY` | `Object` | Maps command ID strings to `{ buildHandler, buildValidate?, buildResendPrompt? }` |
+| `resolveCommand` | `resolveCommand(commandId, chatId) → entry \| null` | Builds a full `{ handler, validate, resendPromptIfNotValid }` entry from a command ID |
 
 ---
 

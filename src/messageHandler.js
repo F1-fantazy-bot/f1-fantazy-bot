@@ -6,11 +6,7 @@ const {
 const { handleTextMessage } = require('./textMessageHandler');
 const { handlePhotoMessage } = require('./photoMessageHandler');
 const { t } = require('./i18n');
-const {
-  hasPendingReply,
-  getPendingReply,
-  consumePendingReply,
-} = require('./pendingReplyManager');
+const { getPendingReply, clearPendingReply } = require('./pendingReplyManager');
 
 exports.handleMessage = async function (bot, msg) {
   const chatId = msg.chat.id;
@@ -29,9 +25,9 @@ exports.handleMessage = async function (bot, msg) {
 
   // Handle pending replies before text/photo branching
   // This supports reply-based commands that expect text or photo responses
-  if (hasPendingReply(chatId)) {
-    const pendingReply = getPendingReply(chatId);
+  const pendingReply = await getPendingReply(chatId);
 
+  if (pendingReply) {
     // If a validate function is defined and the message fails validation,
     // re-send the prompt and keep the pending reply active
     if (pendingReply.validate && !pendingReply.validate(msg)) {
@@ -50,9 +46,9 @@ exports.handleMessage = async function (bot, msg) {
       return;
     }
 
-    const replyHandler = consumePendingReply(chatId);
+    await clearPendingReply(chatId);
 
-    return await replyHandler(bot, msg);
+    return await pendingReply.handler(bot, msg);
   }
 
   // Handle text messages
