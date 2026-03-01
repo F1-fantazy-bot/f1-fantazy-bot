@@ -14,7 +14,7 @@ const {
 const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 const cache = require('./cache');
 const azureStorageService = require('./azureStorageService');
-const { updateUserLanguage } = require('./userRegistryService');
+const { updateUserAttributes } = require('./userRegistryService');
 const { t, getLanguage, languageCache, getLanguageName } = require('./i18n');
 
 jest.mock('./utils', () => ({
@@ -46,7 +46,7 @@ jest.mock('./azureStorageService', () => ({
   deleteUserTeam: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('./userRegistryService', () => ({
-  updateUserLanguage: jest.fn().mockResolvedValue(undefined),
+  updateUserAttributes: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('./cache', () => ({
   photoCache: {},
@@ -378,9 +378,9 @@ describe('handleCallbackQuery', () => {
       );
       expect(bot.answerCallbackQuery).toHaveBeenCalledWith('langQueryId');
       expect(getLanguage(chatId)).toBe('he');
-      expect(updateUserLanguage).toHaveBeenCalledWith(
+      expect(updateUserAttributes).toHaveBeenCalledWith(
         chatId,
-        'he'
+        { lang: 'he' }
       );
     });
   });

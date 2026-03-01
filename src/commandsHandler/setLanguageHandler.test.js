@@ -1,8 +1,8 @@
 const { KILZI_CHAT_ID } = require('../constants');
 jest.mock('../userRegistryService', () => ({
-  updateUserLanguage: jest.fn().mockResolvedValue(undefined),
+  updateUserAttributes: jest.fn().mockResolvedValue(undefined),
 }));
-const { updateUserLanguage } = require('../userRegistryService');
+const { updateUserAttributes } = require('../userRegistryService');
 const { getLanguage, languageCache, t, getLanguageName } = require('../i18n');
 const { handleSetLanguage } = require('./setLanguageHandler');
 
@@ -26,9 +26,9 @@ describe('handleSetLanguage', () => {
       KILZI_CHAT_ID,
       t('Language changed to {LANG}.', KILZI_CHAT_ID, { LANG: getLanguageName('he', KILZI_CHAT_ID) })
     );
-    expect(updateUserLanguage).toHaveBeenCalledWith(
+    expect(updateUserAttributes).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'he'
+      { lang: 'he' }
     );
   });
 
@@ -42,7 +42,7 @@ describe('handleSetLanguage', () => {
       KILZI_CHAT_ID,
       t('Invalid language. Supported languages: {LANGS}', KILZI_CHAT_ID, { LANGS: 'en, he' })
     );
-    expect(updateUserLanguage).not.toHaveBeenCalled();
+    expect(updateUserAttributes).not.toHaveBeenCalled();
   });
 
   it('should send usage message when no language provided', async () => {
@@ -59,6 +59,6 @@ describe('handleSetLanguage', () => {
         reply_markup: { inline_keyboard: expect.any(Array) },
       })
     );
-    expect(updateUserLanguage).not.toHaveBeenCalled();
+    expect(updateUserAttributes).not.toHaveBeenCalled();
   });
 });
