@@ -20,9 +20,9 @@ const {
 const {
   getFantasyData,
   listAllUserTeamData,
-  listAllUserSettingsData,
   getNextRaceInfoData,
 } = require('./azureStorageService');
+const { listAllUserLanguages } = require('./userRegistryService');
 
 /**
  * Initialize all application caches with data from Azure Storage
@@ -54,17 +54,15 @@ async function initializeCaches(bot) {
     `Loaded ${Object.keys(userTeams).length} user teams from storage`
   );
 
-  // Load all user settings into cache
-  const userSettings = await listAllUserSettingsData();
-  Object.entries(userSettings).forEach(([id, settings]) => {
-    if (settings.lang) {
-      languageCache[id] = settings.lang;
-    }
+  // Load all user language preferences into cache (from UserRegistry table)
+  const userLanguages = await listAllUserLanguages();
+  Object.entries(userLanguages).forEach(([id, lang]) => {
+    languageCache[id] = lang;
   });
 
   await sendLogMessage(
     bot,
-    `Loaded ${Object.keys(userSettings).length} user settings from storage`
+    `Loaded ${Object.keys(userLanguages).length} user language preferences from storage`
   );
 }
 

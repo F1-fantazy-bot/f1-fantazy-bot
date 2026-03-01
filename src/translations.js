@@ -240,6 +240,7 @@ const translations = {
     'We support only text. {PROMPT}': 'אנו תומכים רק בטקסט. {PROMPT}',
     'Registered Users': 'משתמשים רשומים',
     'Chat ID': 'מזהה צ\'אט',
+    'Language': 'שפה',
     'First Seen': 'נראה לראשונה',
     'Last Seen': 'נראה לאחרונה',
     'No registered users found.': 'לא נמצאו משתמשים רשומים.',

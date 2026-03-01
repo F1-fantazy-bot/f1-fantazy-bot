@@ -13,7 +13,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
   - Generic command execution is centralized in `src/commandsHandler/commandHandlers.js`, which maps command constants to handler implementations.
 - **Pending Reply Manager:** `src/pendingReplyManager.js` provides a centralized mechanism for commands that need a follow-up reply from the user (text or photo). State is stored in **Azure Table Storage** for multi-server support. The check happens in `messageHandler.js` **before** the text/photo branching, so reply handlers receive the full message regardless of type.
 - **Pending Reply Registry:** `src/pendingReplyRegistry.js` maps command identifiers (e.g., `'report_bug'`) to builder functions that reconstruct handlers, validators, and prompts. This enables serializable storage — only the command ID is persisted, and the full behavior is rebuilt on any server instance.
-- **Caching:** `src/cache.js` holds in-memory data for drivers, constructors, current team info, simulations, next race info, weather forecasts, and language preferences. `src/cacheInitializer.js` populates those caches from Azure Blob Storage on startup.
+- **Caching:** `src/cache.js` holds in-memory data for drivers, constructors, current team info, simulations, next race info, weather forecasts, and language preferences. `src/cacheInitializer.js` populates those caches on startup — most data comes from Azure Blob Storage, while language preferences are loaded from the `UserRegistry` Azure Table via `listAllUserLanguages()`.
 - **User Registry:** `src/userRegistryService.js` tracks all users who interact with the bot in an Azure Table Storage table (`UserRegistry`). On every allowed message, `messageHandler.js` calls `upsertUser(chatId, chatName)` in a fire-and-forget manner (no `await`) so that registry failures never block message handling. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) displays all registered users with their details.
 - **Utilities & Services:**
   - `src/utils` contains Telegram helpers, formatting (`formatDateTime`), and logging utilities.
@@ -219,9 +219,10 @@ All methods are **async** — they interact with Azure Table Storage. The table 
 ### How It Works
 
 1. On every incoming message from an allowed user, `messageHandler.js` calls `upsertUser(chatId, chatName)` **without `await`** (fire-and-forget).
-2. `upsertUser` reads the existing entity (if any) to preserve `firstSeen`, then upserts with updated `chatName` and `lastSeen`.
+2. `upsertUser` reads the existing entity (if any) to preserve `firstSeen` and `lang`, then upserts with updated `chatName` and `lastSeen`.
 3. Errors are caught and logged silently (`console.error`) — the user registry never blocks or breaks message handling.
-4. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) calls `listAllUsers()` to fetch all registered users and displays them with chatId, chatName, firstSeen, and lastSeen formatted via `formatDateTime`.
+4. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) calls `listAllUsers()` to fetch all registered users and displays them with chatId, chatName, lang, firstSeen, and lastSeen formatted via `formatDateTime`.
+5. Language preferences are stored directly in the `UserRegistry` entity via `updateUserLanguage()` — called by `setLanguageHandler.js` and `callbackQueryHandler.js` when the user changes language. On startup, `cacheInitializer.js` calls `listAllUserLanguages()` to populate the in-memory `languageCache`.
 
 ### Table Schema
 
@@ -230,6 +231,7 @@ All methods are **async** — they interact with Azure Table Storage. The table 
 | `partitionKey` | `string` | Always `'User'` |
 | `rowKey` | `string` | The `chatId` (stringified) |
 | `chatName` | `string` | Display name from `getChatName(msg)` |
+| `lang` | `string` | Language code (`'en'`, `'he'`). Optional — absent means default (`'en'`). |
 | `firstSeen` | `string` | ISO timestamp — set on first interaction, preserved on updates |
 | `lastSeen` | `string` | ISO timestamp — updated on every message |
 
@@ -237,8 +239,10 @@ All methods are **async** — they interact with Azure Table Storage. The table 
 
 | Method | Signature | Purpose |
 |--------|-----------|---------|
-| `upsertUser` | `upsertUser(chatId, chatName) → Promise` | Track a user interaction. Fire-and-forget — errors are logged, never thrown. |
-| `listAllUsers` | `listAllUsers() → Promise<Array<{chatId, chatName, firstSeen, lastSeen}>>` | Return all registered users. Used by `/list_users` admin command. |
+| `upsertUser` | `upsertUser(chatId, chatName) → Promise` | Track a user interaction. Fire-and-forget — errors are logged, never thrown. Preserves `lang`. |
+| `updateUserLanguage` | `updateUserLanguage(chatId, lang) → Promise` | Update the user's language preference. Read-merge-write to preserve other fields. |
+| `listAllUsers` | `listAllUsers() → Promise<Array<{chatId, chatName, firstSeen, lastSeen, lang}>>` | Return all registered users. Used by `/list_users` admin command. |
+| `listAllUserLanguages` | `listAllUserLanguages() → Promise<Object>` | Return `{ chatId: lang }` mapping for all users with a language set. Used by `cacheInitializer`. |
 
 ---
 
