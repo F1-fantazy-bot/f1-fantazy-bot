@@ -45,6 +45,7 @@ exports.COMMAND_FLOW = '/flow';
 exports.COMMAND_START = '/start';
 exports.COMMAND_REPORT_BUG = '/report_bug';
 exports.COMMAND_LIST_USERS = '/list_users';
+exports.COMMAND_SEND_MESSAGE_TO_USER = '/send_message_to_user';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -186,6 +187,11 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_LIST_USERS,
         title: '👥 List Users',
         description: 'List all registered bot users',
+      },
+      {
+        constant: exports.COMMAND_SEND_MESSAGE_TO_USER,
+        title: '✉️ Send Message to User',
+        description: 'Send a message to a specific bot user',
       },
     ],
   },

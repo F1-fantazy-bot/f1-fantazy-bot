@@ -125,6 +125,38 @@ async function updateUserAttributes(chatId, attributes) {
 }
 
 /**
+ * Get a single user by their chat ID.
+ * Uses a direct Azure Table Storage point lookup (getEntity) — much more efficient than listing all users.
+ * @param {number|string} chatId - The chat ID of the user to look up
+ * @returns {Promise<Object|null>} User object with chatId and all stored attributes, or null if not found
+ */
+async function getUserById(chatId) {
+  await ensureTable();
+
+  const rowKey = String(chatId);
+
+  try {
+    const entity = await tableClient.getEntity(PARTITION_KEY, rowKey);
+
+    const user = { chatId: entity.rowKey };
+
+    for (const [key, value] of Object.entries(entity)) {
+      if (!SYSTEM_FIELDS.has(key)) {
+        user[key] = value;
+      }
+    }
+
+    return user;
+  } catch (err) {
+    if (err.statusCode === 404) {
+      return null;
+    }
+
+    throw err;
+  }
+}
+
+/**
  * List all registered users.
  * Returns all non-system fields from each entity, automatically including any future attributes.
  * @returns {Promise<Array<Object>>} Array of user objects with chatId and all stored attributes
@@ -175,6 +207,7 @@ async function listAllUserLanguages() {
 module.exports = {
   upsertUser,
   updateUserAttributes,
+  getUserById,
   listAllUsers,
   listAllUserLanguages,
 };

@@ -11,8 +11,8 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
   - `src/messageHandler.js` distinguishes between text, photo, and other message types. It also checks for pending replies (see Pending Reply Manager below) before routing to type-specific handlers.
   - `src/textMessageHandler.js` routes command strings to handler functions defined in `src/commandsHandler`.
   - Generic command execution is centralized in `src/commandsHandler/commandHandlers.js`, which maps command constants to handler implementations.
-- **Pending Reply Manager:** `src/pendingReplyManager.js` provides a centralized mechanism for commands that need a follow-up reply from the user (text or photo). State is stored in **Azure Table Storage** for multi-server support. The check happens in `messageHandler.js` **before** the text/photo branching, so reply handlers receive the full message regardless of type.
-- **Pending Reply Registry:** `src/pendingReplyRegistry.js` maps command identifiers (e.g., `'report_bug'`) to builder functions that reconstruct handlers, validators, and prompts. This enables serializable storage — only the command ID is persisted, and the full behavior is rebuilt on any server instance.
+- **Pending Reply Manager:** `src/pendingReplyManager.js` provides a centralized mechanism for commands that need a follow-up reply from the user (text or photo). State is stored in **Azure Table Storage** for multi-server support. The check happens in `messageHandler.js` **before** the text/photo branching, so reply handlers receive the full message regardless of type. Supports optional `data` parameter for multi-step commands that need to store intermediate state between steps.
+- **Pending Reply Registry:** `src/pendingReplyRegistry.js` maps command identifiers (e.g., `'report_bug'`, `'send_message_to_user'`) to builder functions that reconstruct handlers, validators, and prompts. This enables serializable storage — only the command ID and optional data are persisted, and the full behavior is rebuilt on any server instance. Builder functions receive `(chatId, data)` where `data` is optional stored state for multi-step commands.
 - **Caching:** `src/cache.js` holds in-memory data for drivers, constructors, current team info, simulations, next race info, weather forecasts, and language preferences. `src/cacheInitializer.js` populates those caches on startup — most data comes from Azure Blob Storage, while language preferences are loaded from the `UserRegistry` Azure Table via `listAllUserLanguages()`.
 - **User Registry:** `src/userRegistryService.js` tracks all users who interact with the bot in an Azure Table Storage table (`UserRegistry`). On every allowed message, `messageHandler.js` calls `upsertUser(chatId, chatName)` in a fire-and-forget manner (no `await`) so that registry failures never block message handling. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) displays all registered users with their details.
 - **Utilities & Services:**
@@ -56,7 +56,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/menu`, `/help`, `/lang`
 - `/report_bug` _(reply-based — uses pending reply manager)_
 
-**Admin-only:** `/load_simulation`, `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`
+**Admin-only:** `/load_simulation`, `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`
 
 ---
 
@@ -125,13 +125,13 @@ These use the **Pending Reply Manager** (`src/pendingReplyManager.js`) backed by
 
 The system uses a **command ID pattern** instead of storing functions directly:
 
-- **Registration:** The command handler stores a command ID string (e.g., `'report_bug'`) in Azure Table Storage via `registerPendingReply(chatId, commandId)`.
-- **Resolution:** When a reply arrives, `messageHandler.js` retrieves the command ID from Table Storage and resolves it via the registry (`src/pendingReplyRegistry.js`) to reconstruct the handler, validator, and resend prompt.
-- **Multi-server:** Since only serializable data (command ID + chatId) is stored externally, any server instance can handle the reply.
+- **Registration:** The command handler stores a command ID string (e.g., `'report_bug'`) in Azure Table Storage via `registerPendingReply(chatId, commandId)`. An optional `data` object can be stored for multi-step commands via `registerPendingReply(chatId, commandId, data)`.
+- **Resolution:** When a reply arrives, `messageHandler.js` retrieves the command ID (and data, if any) from Table Storage and resolves it via the registry (`src/pendingReplyRegistry.js`) to reconstruct the handler, validator, and resend prompt.
+- **Multi-server:** Since only serializable data (command ID + chatId + optional data JSON) is stored externally, any server instance can handle the reply.
 
 ### How It Works
 
-1. When a command is triggered, it calls `await registerPendingReply(chatId, 'command_id')` to store the command ID in Azure Table Storage.
+1. When a command is triggered, it calls `await registerPendingReply(chatId, 'command_id')` (or `await registerPendingReply(chatId, 'command_id', { step: 'step_name' })` for multi-step commands) to store the command ID in Azure Table Storage.
 2. On the user's next message (any type), `messageHandler.js` calls `await getPendingReply(chatId)` — a single Table Storage read that also resolves the command via the registry:
    - If a `validate` function was provided and it returns `false` for the message, the `resendPromptIfNotValid` is re-sent (with `force_reply`) and the pending reply stays active — the user can try again. If no `resendPromptIfNotValid` was provided, a default `"Invalid reply. Please try again."` message is used.
    - Otherwise, `await clearPendingReply(chatId)` removes the entry from Table Storage and the handler is executed with the reply.
@@ -147,17 +147,17 @@ Follow the standard "Adding a New Command" steps above, **plus** these specifics
    ```javascript
    // In PENDING_REPLY_REGISTRY object:
    my_command: {
-     buildHandler: (chatId) => async (replyBot, replyMsg) => {
-       // Process the reply
+     buildHandler: (chatId, data) => async (replyBot, replyMsg) => {
+       // Process the reply. data is null for single-step commands.
      },
      buildValidate: () => (replyMsg) => !!replyMsg.text,    // only accept text replies
-     buildResendPrompt: (chatId) => t('Please try again', chatId),
+     buildResendPrompt: (chatId, data) => t('Please try again', chatId),
    },
    ```
 
-   The `buildValidate` and `buildResendPrompt` are optional. If omitted, any message type is accepted (no validation). When `buildValidate` is provided but `buildResendPrompt` is not, a default message is used.
+   The `buildValidate` and `buildResendPrompt` are optional. If omitted, any message type is accepted (no validation). When `buildValidate` is provided but `buildResendPrompt` is not, a default message is used. All builder functions receive `(chatId, data)` — single-step commands can ignore the `data` parameter.
 
-2. **Call `registerPendingReply` in your handler** with the command ID:
+2. **Call `registerPendingReply` in your handler** with the command ID (and optional data):
 
    ```javascript
    const { registerPendingReply } = require('../pendingReplyManager');
@@ -167,6 +167,7 @@ Follow the standard "Adding a New Command" steps above, **plus** these specifics
      const prompt = t('Please send your response:', chatId);
 
      await registerPendingReply(chatId, 'my_command');
+     // Or for multi-step: await registerPendingReply(chatId, 'my_command', { step: 'step_1' });
 
      await bot.sendMessage(chatId, prompt, {
        reply_markup: { force_reply: true },
@@ -198,9 +199,10 @@ Follow the standard "Adding a New Command" steps above, **plus** these specifics
      expect(resolved.validate({ text: 'hello' })).toBe(true);
      ```
 
-### Existing Example
+### Existing Examples
 
-See `src/commandsHandler/reportBugHandler.js` — the `/report_bug` command registers `'report_bug'` as a pending reply. The handler logic (sending to admins, validation for text-only) lives in `src/pendingReplyRegistry.js` under the `report_bug` entry.
+- **Single-step:** See `src/commandsHandler/reportBugHandler.js` — the `/report_bug` command registers `'report_bug'` as a pending reply. The handler logic (sending to admins, validation for text-only) lives in `src/pendingReplyRegistry.js` under the `report_bug` entry.
+- **Multi-step:** See `src/commandsHandler/sendMessageToUserHandler.js` — the `/send_message_to_user` admin command uses a two-step reply flow with intermediate data storage. Step 1 collects the target user's chat ID (validated against the User Registry), then re-registers with `{ step: 'collect_message', targetChatId }`. Step 2 collects the message text and sends it to the target user. The handler uses lazy `require` for `pendingReplyManager` to avoid circular dependencies.
 
 ### API Reference
 
@@ -208,18 +210,18 @@ See `src/commandsHandler/reportBugHandler.js` — the `/report_bug` command regi
 
 All methods are **async** — they interact with Azure Table Storage. The table is created once per process lifetime (lazy initialization).
 
-| Method                 | Signature                                               | Purpose                                                                                                              |
-| ---------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `registerPendingReply` | `registerPendingReply(chatId, commandId) → Promise`     | Store a pending reply command ID in Azure Table Storage                                                              |
-| `getPendingReply`      | `getPendingReply(chatId) → Promise<entry \| undefined>` | Single Table Storage read → resolve command ID via registry; returns `{ handler, validate, resendPromptIfNotValid }` |
-| `clearPendingReply`    | `clearPendingReply(chatId) → Promise`                   | Remove from storage without executing                                                                                |
+| Method                 | Signature                                                  | Purpose                                                                                                                     |
+| ---------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `registerPendingReply` | `registerPendingReply(chatId, commandId, data?) → Promise` | Store a pending reply command ID (and optional data as JSON) in Azure Table Storage                                         |
+| `getPendingReply`      | `getPendingReply(chatId) → Promise<entry \| undefined>`    | Single Table Storage read → resolve command ID + data via registry; returns `{ handler, validate, resendPromptIfNotValid }` |
+| `clearPendingReply`    | `clearPendingReply(chatId) → Promise`                      | Remove from storage without executing                                                                                       |
 
 #### `src/pendingReplyRegistry.js` (Command → handler mapping)
 
-| Export                   | Signature                                           | Purpose                                                                               |
-| ------------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `PENDING_REPLY_REGISTRY` | `Object`                                            | Maps command ID strings to `{ buildHandler, buildValidate?, buildResendPrompt? }`     |
-| `resolveCommand`         | `resolveCommand(commandId, chatId) → entry \| null` | Builds a full `{ handler, validate, resendPromptIfNotValid }` entry from a command ID |
+| Export                   | Signature                                                  | Purpose                                                                                                               |
+| ------------------------ | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `PENDING_REPLY_REGISTRY` | `Object`                                                   | Maps command ID strings to `{ buildHandler, buildValidate?, buildResendPrompt? }`. Builders receive `(chatId, data)`. |
+| `resolveCommand`         | `resolveCommand(commandId, chatId, data?) → entry \| null` | Builds a full `{ handler, validate, resendPromptIfNotValid }` entry from a command ID and optional data               |
 
 ---
 
@@ -263,6 +265,7 @@ The table is **extensible** — new attributes can be added at any time without 
 | ---------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `upsertUser`           | `upsertUser(chatId, chatName) → Promise`             | Track a user interaction. Fire-and-forget — errors are logged, never thrown. Uses Merge mode to preserve all other fields.         |
 | `updateUserAttributes` | `updateUserAttributes(chatId, attributes) → Promise` | Update one or more user attributes using Merge mode. No read step needed. Example: `updateUserAttributes(chatId, { lang: 'he' })`. |
+| `getUserById`          | `getUserById(chatId) → Promise<Object\|null>`         | Point lookup for a single user by chat ID. Returns user object with all stored attributes, or `null` if not found. Throws on real storage errors. More efficient than `listAllUsers` when you only need one user. |
 | `listAllUsers`         | `listAllUsers() → Promise<Array<Object>>`            | Return all registered users with all stored attributes. Automatically includes future fields.                                      |
 | `listAllUserLanguages` | `listAllUserLanguages() → Promise<Object>`           | Return `{ chatId: lang }` mapping for all users with a language set. Used by `cacheInitializer`.                                   |
 

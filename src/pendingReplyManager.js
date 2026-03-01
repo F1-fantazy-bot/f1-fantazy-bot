@@ -1,6 +1,7 @@
 // Centralized pending reply manager
 // Stores chatId -> command ID mappings in Azure Table Storage for multi-server support.
 // Handler functions are reconstructed via the pending reply registry.
+// Supports optional data storage for multi-step commands (e.g., storing intermediate state).
 
 const { TableClient } = require('@azure/data-tables');
 const { resolveCommand } = require('./pendingReplyRegistry');
@@ -47,16 +48,19 @@ async function ensureTable() {
 /**
  * Register a pending reply for a chat.
  * Stores the command ID in Azure Table Storage so any server instance can resolve it.
+ * Optionally stores additional data (as JSON) for multi-step commands.
  * @param {number} chatId
  * @param {string} commandId - The command identifier (must exist in pendingReplyRegistry)
+ * @param {Object|null} [data=null] - Optional data to store alongside the command ID
  */
-async function registerPendingReply(chatId, commandId) {
+async function registerPendingReply(chatId, commandId, data = null) {
   await ensureTable();
 
   const entity = {
     partitionKey: PARTITION_KEY,
     rowKey: String(chatId),
     commandId,
+    data: data ? JSON.stringify(data) : '',
     createdAt: new Date().toISOString(),
   };
 
@@ -81,7 +85,9 @@ async function getPendingReply(chatId) {
       return undefined;
     }
 
-    return resolveCommand(entity.commandId, chatId);
+    const data = entity.data ? JSON.parse(entity.data) : null;
+
+    return resolveCommand(entity.commandId, chatId, data);
   } catch {
     return undefined;
   }

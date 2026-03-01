@@ -238,6 +238,83 @@ describe('userRegistryService', () => {
     });
   });
 
+  describe('getUserById', () => {
+    it('should return user object when user exists', async () => {
+      mockGetEntity.mockResolvedValueOnce({
+        partitionKey: 'User',
+        rowKey: '456',
+        chatName: 'Target User',
+        firstSeen: '2025-01-01T00:00:00.000Z',
+        lastSeen: '2025-06-01T00:00:00.000Z',
+        lang: 'he',
+      });
+
+      const result = await userRegistryService.getUserById(456);
+
+      expect(mockGetEntity).toHaveBeenCalledWith('User', '456');
+      expect(result).toEqual({
+        chatId: '456',
+        chatName: 'Target User',
+        firstSeen: '2025-01-01T00:00:00.000Z',
+        lastSeen: '2025-06-01T00:00:00.000Z',
+        lang: 'he',
+      });
+    });
+
+    it('should return null when user does not exist', async () => {
+      mockGetEntity.mockRejectedValueOnce(createNotFoundError());
+
+      const result = await userRegistryService.getUserById(999);
+
+      expect(mockGetEntity).toHaveBeenCalledWith('User', '999');
+      expect(result).toBeNull();
+    });
+
+    it('should accept string chatId', async () => {
+      mockGetEntity.mockResolvedValueOnce({
+        partitionKey: 'User',
+        rowKey: '456',
+        chatName: 'Target User',
+      });
+
+      const result = await userRegistryService.getUserById('456');
+
+      expect(mockGetEntity).toHaveBeenCalledWith('User', '456');
+      expect(result).toEqual({
+        chatId: '456',
+        chatName: 'Target User',
+      });
+    });
+
+    it('should exclude Azure system fields from returned data', async () => {
+      mockGetEntity.mockResolvedValueOnce({
+        partitionKey: 'User',
+        rowKey: '456',
+        etag: 'some-etag',
+        timestamp: '2025-01-01T00:00:00.000Z',
+        chatName: 'Target User',
+      });
+
+      const result = await userRegistryService.getUserById(456);
+
+      expect(result.partitionKey).toBeUndefined();
+      expect(result.etag).toBeUndefined();
+      expect(result.timestamp).toBeUndefined();
+      expect(result.chatId).toBe('456');
+      expect(result.chatName).toBe('Target User');
+    });
+
+    it('should throw on real storage errors (non-404)', async () => {
+      const realError = new Error('Network timeout');
+      realError.statusCode = 500;
+      mockGetEntity.mockRejectedValueOnce(realError);
+
+      await expect(
+        userRegistryService.getUserById(456),
+      ).rejects.toThrow('Network timeout');
+    });
+  });
+
   describe('listAllUsers', () => {
     it('should return all registered users including lang', async () => {
       const mockEntities = [
