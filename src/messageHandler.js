@@ -34,7 +34,7 @@ exports.handleMessage = async function (bot, msg) {
   if (pendingReply) {
     // If a validate function is defined and the message fails validation,
     // re-send the prompt and keep the pending reply active
-    if (pendingReply.validate && !pendingReply.validate(msg)) {
+    if (pendingReply.validate && !(await pendingReply.validate(msg))) {
       const resendMessage =
         pendingReply.resendPromptIfNotValid ||
         t('Invalid reply. Please try again.', chatId);

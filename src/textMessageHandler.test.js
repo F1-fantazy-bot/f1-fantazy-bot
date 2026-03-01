@@ -18,6 +18,7 @@ const {
   COMMAND_START,
   COMMAND_REPORT_BUG,
   COMMAND_LIST_USERS,
+  COMMAND_SEND_MESSAGE_TO_USER,
 } = require('./constants');
 
 jest.mock('openai', () => ({
@@ -67,6 +68,9 @@ const {
 const {
   handleListUsersCommand,
 } = require('./commandsHandler/listUsersHandler');
+const {
+  handleSendMessageToUserCommand,
+} = require('./commandsHandler/sendMessageToUserHandler');
 
 jest.mock('./commandsHandler/numberInputHandler');
 jest.mock('./commandsHandler/jsonInputHandler');
@@ -89,6 +93,7 @@ jest.mock('./commandsHandler/flowHandler');
 jest.mock('./commandsHandler/reportBugHandler');
 jest.mock('./commandsHandler/askHandler');
 jest.mock('./commandsHandler/listUsersHandler');
+jest.mock('./commandsHandler/sendMessageToUserHandler');
 
 const { handleTextMessage } = require('./textMessageHandler');
 const { handleAskCommand } = require('./commandsHandler/askHandler');
@@ -344,6 +349,18 @@ describe('handleTextMessage', () => {
       await handleTextMessage(botMock, msgMock);
 
       expect(handleListUsersCommand).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleJsonMessage).not.toHaveBeenCalled();
+    });
+
+    it('should route /send_message_to_user command to handleSendMessageToUserCommand', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: COMMAND_SEND_MESSAGE_TO_USER,
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(handleSendMessageToUserCommand).toHaveBeenCalledWith(botMock, msgMock);
       expect(handleJsonMessage).not.toHaveBeenCalled();
     });
 

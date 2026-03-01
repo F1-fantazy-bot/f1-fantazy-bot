@@ -15,10 +15,11 @@ jest.mock('@azure/data-tables', () => ({
 }));
 
 jest.mock('./pendingReplyRegistry', () => ({
-  resolveCommand: jest.fn((commandId, chatId) => ({
+  resolveCommand: jest.fn((commandId, chatId, data) => ({
     handler: jest.fn(),
     validate: jest.fn(),
     resendPromptIfNotValid: `prompt-${commandId}-${chatId}`,
+    data,
   })),
 }));
 
@@ -48,7 +49,32 @@ describe('pendingReplyManager', () => {
           partitionKey: 'PendingReply',
           rowKey: '123',
           commandId: 'report_bug',
+          data: '',
           createdAt: expect.any(String),
+        }),
+      );
+    });
+
+    it('should store data as JSON string when provided', async () => {
+      await registerPendingReply(123, 'send_message_to_user', { step: 'collect_user_id' });
+
+      expect(mockUpsertEntity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          partitionKey: 'PendingReply',
+          rowKey: '123',
+          commandId: 'send_message_to_user',
+          data: JSON.stringify({ step: 'collect_user_id' }),
+          createdAt: expect.any(String),
+        }),
+      );
+    });
+
+    it('should store empty string for data when not provided', async () => {
+      await registerPendingReply(123, 'report_bug');
+
+      expect(mockUpsertEntity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: '',
         }),
       );
     });
@@ -69,21 +95,38 @@ describe('pendingReplyManager', () => {
   });
 
   describe('getPendingReply', () => {
-    it('should resolve the command via the registry', async () => {
+    it('should resolve the command via the registry with null data when no data stored', async () => {
       mockGetEntity.mockResolvedValue({
         partitionKey: 'PendingReply',
         rowKey: '123',
         commandId: 'report_bug',
+        data: '',
         createdAt: new Date().toISOString(),
       });
 
       const entry = await getPendingReply(123);
 
-      expect(resolveCommand).toHaveBeenCalledWith('report_bug', 123);
+      expect(resolveCommand).toHaveBeenCalledWith('report_bug', 123, null);
       expect(entry).toBeDefined();
       expect(entry.handler).toBeDefined();
       expect(entry.validate).toBeDefined();
       expect(entry.resendPromptIfNotValid).toBe('prompt-report_bug-123');
+    });
+
+    it('should parse and forward stored data to resolveCommand', async () => {
+      const storedData = { step: 'collect_message', targetChatId: '456' };
+      mockGetEntity.mockResolvedValue({
+        partitionKey: 'PendingReply',
+        rowKey: '123',
+        commandId: 'send_message_to_user',
+        data: JSON.stringify(storedData),
+        createdAt: new Date().toISOString(),
+      });
+
+      const entry = await getPendingReply(123);
+
+      expect(resolveCommand).toHaveBeenCalledWith('send_message_to_user', 123, storedData);
+      expect(entry).toBeDefined();
     });
 
     it('should return undefined for unknown chat ids', async () => {

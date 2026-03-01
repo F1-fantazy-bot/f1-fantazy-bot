@@ -28,6 +28,7 @@ const {
 const { handleFlowCommand } = require('./flowHandler');
 const { handleReportBugCommand } = require('./reportBugHandler');
 const { handleListUsersCommand } = require('./listUsersHandler');
+const { handleSendMessageToUserCommand } = require('./sendMessageToUserHandler');
 
 module.exports = {
   handleBestTeamsMessage,
@@ -57,4 +58,5 @@ module.exports = {
   handleFlowCommand,
   handleReportBugCommand,
   handleListUsersCommand,
+  handleSendMessageToUserCommand,
 };

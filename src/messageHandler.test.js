@@ -229,6 +229,53 @@ describe('handleMessage', () => {
     );
   });
 
+  it('should support async validate functions', async () => {
+    const mockHandler = jest.fn().mockResolvedValue();
+    const mockValidate = jest.fn().mockResolvedValue(false);
+    getPendingReply.mockResolvedValue({
+      handler: mockHandler,
+      validate: mockValidate,
+      resendPromptIfNotValid: 'Async validation failed',
+    });
+
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: 'some reply',
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(mockValidate).toHaveBeenCalledWith(msgMock);
+    expect(clearPendingReply).not.toHaveBeenCalled();
+    expect(mockHandler).not.toHaveBeenCalled();
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'Async validation failed',
+      { reply_markup: { force_reply: true } },
+    );
+  });
+
+  it('should clear and execute handler when async validation passes', async () => {
+    const mockHandler = jest.fn().mockResolvedValue();
+    const mockValidate = jest.fn().mockResolvedValue(true);
+    getPendingReply.mockResolvedValue({
+      handler: mockHandler,
+      validate: mockValidate,
+      resendPromptIfNotValid: 'Async validation failed',
+    });
+
+    const msgMock = {
+      chat: { id: KILZI_CHAT_ID },
+      text: 'valid text reply',
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(mockValidate).toHaveBeenCalledWith(msgMock);
+    expect(clearPendingReply).toHaveBeenCalledWith(KILZI_CHAT_ID);
+    expect(mockHandler).toHaveBeenCalledWith(botMock, msgMock);
+  });
+
   it('should clear and execute handler when validation passes', async () => {
     const mockHandler = jest.fn().mockResolvedValue();
     const mockValidate = jest.fn().mockReturnValue(true);

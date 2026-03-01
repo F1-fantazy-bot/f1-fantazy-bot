@@ -11,9 +11,19 @@ jest.mock('./constants', () => ({
   REPORTED_BUGS_GROUP_ID: -5161566735,
 }));
 
+jest.mock('./userRegistryService', () => ({
+  listAllUsers: jest.fn(),
+}));
+
+jest.mock('./pendingReplyManager', () => ({
+  registerPendingReply: jest.fn().mockResolvedValue(),
+}));
+
 const { PENDING_REPLY_REGISTRY, resolveCommand } = require('./pendingReplyRegistry');
 const { t } = require('./i18n');
 const { getChatName, sendMessageToAdmins } = require('./utils/utils');
+const { listAllUsers } = require('./userRegistryService');
+const { registerPendingReply } = require('./pendingReplyManager');
 
 describe('pendingReplyRegistry', () => {
   beforeEach(() => {
@@ -181,6 +191,273 @@ describe('pendingReplyRegistry', () => {
       expect(typeof PENDING_REPLY_REGISTRY.report_bug.buildHandler).toBe('function');
       expect(typeof PENDING_REPLY_REGISTRY.report_bug.buildValidate).toBe('function');
       expect(typeof PENDING_REPLY_REGISTRY.report_bug.buildResendPrompt).toBe('function');
+    });
+
+    it('should have send_message_to_user registered', () => {
+      expect(PENDING_REPLY_REGISTRY.send_message_to_user).toBeDefined();
+      expect(typeof PENDING_REPLY_REGISTRY.send_message_to_user.buildHandler).toBe('function');
+      expect(typeof PENDING_REPLY_REGISTRY.send_message_to_user.buildValidate).toBe('function');
+      expect(typeof PENDING_REPLY_REGISTRY.send_message_to_user.buildResendPrompt).toBe('function');
+    });
+  });
+
+  describe('send_message_to_user entry', () => {
+    describe('buildHandler - step 1 (collect_user_id)', () => {
+      it('should register step 2 and ask for message when user ID is valid', async () => {
+        listAllUsers.mockResolvedValue([
+          { chatId: '456', chatName: 'Target User' },
+        ]);
+        const botMock = {
+          sendMessage: jest.fn().mockResolvedValue(),
+        };
+        const replyMsg = {
+          chat: { id: 100, first_name: 'Admin' },
+          text: '456',
+        };
+
+        const resolved = resolveCommand('send_message_to_user', 100, {
+          step: 'collect_user_id',
+        });
+        await resolved.handler(botMock, replyMsg);
+
+        expect(registerPendingReply).toHaveBeenCalledWith(
+          100,
+          'send_message_to_user',
+          { step: 'collect_message', targetChatId: '456' },
+        );
+        expect(t).toHaveBeenCalledWith(
+          'What message do you want to send to {NAME}?',
+          100,
+          { NAME: 'Target User' },
+        );
+        expect(botMock.sendMessage).toHaveBeenCalledWith(
+          100,
+          'What message do you want to send to {NAME}?',
+          { reply_markup: { force_reply: true } },
+        );
+      });
+
+      it('should handle listAllUsers errors gracefully', async () => {
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        listAllUsers.mockRejectedValue(new Error('Storage error'));
+        const botMock = {
+          sendMessage: jest.fn().mockResolvedValue(),
+        };
+        const replyMsg = {
+          chat: { id: 100, first_name: 'Admin' },
+          text: '456',
+        };
+
+        const resolved = resolveCommand('send_message_to_user', 100, {
+          step: 'collect_user_id',
+        });
+        await resolved.handler(botMock, replyMsg);
+
+        expect(botMock.sendMessage).toHaveBeenCalledWith(
+          100,
+          '❌ Error fetching user list: {ERROR}',
+        );
+        expect(registerPendingReply).not.toHaveBeenCalled();
+        consoleSpy.mockRestore();
+      });
+
+      it('should treat null data as collect_user_id step', async () => {
+        listAllUsers.mockResolvedValue([
+          { chatId: '456', chatName: 'Target User' },
+        ]);
+        const botMock = {
+          sendMessage: jest.fn().mockResolvedValue(),
+        };
+        const replyMsg = {
+          chat: { id: 100, first_name: 'Admin' },
+          text: '456',
+        };
+
+        const resolved = resolveCommand('send_message_to_user', 100, null);
+        await resolved.handler(botMock, replyMsg);
+
+        expect(registerPendingReply).toHaveBeenCalledWith(
+          100,
+          'send_message_to_user',
+          { step: 'collect_message', targetChatId: '456' },
+        );
+      });
+    });
+
+    describe('buildHandler - step 2 (collect_message)', () => {
+      it('should send the prefixed message to the target user and confirm to admin', async () => {
+        const botMock = {
+          sendMessage: jest.fn().mockResolvedValue(),
+        };
+        const replyMsg = {
+          chat: { id: 100, first_name: 'Admin' },
+          text: 'Hello from admin!',
+        };
+
+        const resolved = resolveCommand('send_message_to_user', 100, {
+          step: 'collect_message',
+          targetChatId: '456',
+        });
+        await resolved.handler(botMock, replyMsg);
+
+        // Admin notice is localized to the TARGET user's language
+        expect(t).toHaveBeenCalledWith(
+          '📩 Message from bot admin:\n\n{MESSAGE}',
+          456,
+          { MESSAGE: 'Hello from admin!' },
+        );
+        expect(botMock.sendMessage).toHaveBeenCalledWith(
+          456,
+          '📩 Message from bot admin:\n\n{MESSAGE}',
+        );
+        expect(t).toHaveBeenCalledWith(
+          'Message sent successfully to user {ID}.',
+          100,
+          { ID: '456' },
+        );
+        expect(botMock.sendMessage).toHaveBeenCalledWith(
+          100,
+          'Message sent successfully to user {ID}.',
+        );
+      });
+
+      it('should handle send message errors gracefully', async () => {
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const botMock = {
+          sendMessage: jest.fn()
+            .mockRejectedValueOnce(new Error('User blocked bot'))
+            .mockResolvedValue(),
+        };
+        const replyMsg = {
+          chat: { id: 100, first_name: 'Admin' },
+          text: 'Hello from admin!',
+        };
+
+        const resolved = resolveCommand('send_message_to_user', 100, {
+          step: 'collect_message',
+          targetChatId: '456',
+        });
+        await resolved.handler(botMock, replyMsg);
+
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Error sending message to target user:',
+          expect.any(Error),
+        );
+        expect(t).toHaveBeenCalledWith(
+          'Failed to send message to user {ID}: {ERROR}',
+          100,
+          { ID: '456', ERROR: 'User blocked bot' },
+        );
+        consoleSpy.mockRestore();
+      });
+    });
+
+    describe('buildValidate', () => {
+      it('should accept text with existing user for collect_user_id step', async () => {
+        listAllUsers.mockResolvedValue([
+          { chatId: '456', chatName: 'Target User' },
+        ]);
+        const resolved = resolveCommand('send_message_to_user', 123, {
+          step: 'collect_user_id',
+        });
+
+        const result = await resolved.validate({ text: '456' });
+
+        expect(result).toBe(true);
+        expect(listAllUsers).toHaveBeenCalled();
+      });
+
+      it('should reject text with non-existing user for collect_user_id step', async () => {
+        listAllUsers.mockResolvedValue([
+          { chatId: '111', chatName: 'Other User' },
+        ]);
+        const resolved = resolveCommand('send_message_to_user', 123, {
+          step: 'collect_user_id',
+        });
+
+        const result = await resolved.validate({ text: '999' });
+
+        expect(result).toBe(false);
+        expect(listAllUsers).toHaveBeenCalled();
+      });
+
+      it('should reject non-text messages for collect_user_id step', async () => {
+        const resolved = resolveCommand('send_message_to_user', 123, {
+          step: 'collect_user_id',
+        });
+
+        const result = await resolved.validate({ photo: [{ file_id: 'abc' }] });
+
+        expect(result).toBe(false);
+        // Should not call listAllUsers if no text
+        expect(listAllUsers).not.toHaveBeenCalled();
+      });
+
+      it('should return false when listAllUsers throws for collect_user_id step', async () => {
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        listAllUsers.mockRejectedValue(new Error('Storage error'));
+        const resolved = resolveCommand('send_message_to_user', 123, {
+          step: 'collect_user_id',
+        });
+
+        const result = await resolved.validate({ text: '456' });
+
+        expect(result).toBe(false);
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Error validating user ID:',
+          expect.any(Error),
+        );
+        consoleSpy.mockRestore();
+      });
+
+      it('should accept text messages for collect_message step', () => {
+        const resolved = resolveCommand('send_message_to_user', 123, {
+          step: 'collect_message',
+          targetChatId: '456',
+        });
+
+        expect(resolved.validate({ text: 'hello' })).toBe(true);
+      });
+
+      it('should reject non-text messages for collect_message step', () => {
+        const resolved = resolveCommand('send_message_to_user', 123, {
+          step: 'collect_message',
+          targetChatId: '456',
+        });
+
+        expect(resolved.validate({ photo: [{ file_id: 'abc' }] })).toBe(false);
+      });
+    });
+
+    describe('buildResendPrompt', () => {
+      it('should return user not found prompt for collect_user_id step', () => {
+        const resolved = resolveCommand('send_message_to_user', 123, {
+          step: 'collect_user_id',
+        });
+
+        expect(resolved.resendPromptIfNotValid).toBe(
+          'User not found. Please enter a valid chat ID:',
+        );
+      });
+
+      it('should return message prompt for collect_message step', () => {
+        const resolved = resolveCommand('send_message_to_user', 123, {
+          step: 'collect_message',
+          targetChatId: '456',
+        });
+
+        expect(resolved.resendPromptIfNotValid).toBe(
+          'We support only text. Please enter the message to send.',
+        );
+      });
+
+      it('should default to user not found prompt when data is null', () => {
+        const resolved = resolveCommand('send_message_to_user', 123, null);
+
+        expect(resolved.resendPromptIfNotValid).toBe(
+          'User not found. Please enter a valid chat ID:',
+        );
+      });
     });
   });
 });

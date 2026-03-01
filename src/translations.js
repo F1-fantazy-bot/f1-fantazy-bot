@@ -255,6 +255,25 @@ const translations = {
     '🌦️ Next Race Weather': '🌦️ מזג אוויר למרוץ הבא',
     'Get detailed weather forecast for the next race':
       'קבל תחזית מזג אוויר מפורטת למרוץ הבא',
+    'Please enter the chat ID of the user you want to send a message to:':
+      'אנא הזן את מזהה הצ׳אט של המשתמש שאליו תרצה לשלוח הודעה:',
+    'What message do you want to send to {NAME}?':
+      'איזו הודעה תרצה לשלוח ל{NAME}?',
+    'Message sent successfully to user {ID}.':
+      'ההודעה נשלחה בהצלחה למשתמש {ID}.',
+    'User with ID {ID} not found. Please enter a valid chat ID:':
+      'משתמש עם מזהה {ID} לא נמצא. אנא הזן מזהה צ׳אט תקין:',
+    'Failed to send message to user {ID}: {ERROR}':
+      'שליחת ההודעה למשתמש {ID} נכשלה: {ERROR}',
+    '✉️ Send Message to User': '✉️ שלח הודעה למשתמש',
+    'Send a message to a specific bot user':
+      'שלח הודעה למשתמש ספציפי של הבוט',
+    'User not found. Please enter a valid chat ID:':
+      'משתמש לא נמצא. אנא הזן מזהה צ׳אט תקין:',
+    'We support only text. Please enter the message to send.':
+      'אנו תומכים רק בטקסט. אנא הזן את ההודעה לשליחה.',
+    '📩 Message from bot admin:\n\n{MESSAGE}':
+      '📩 הודעה ממנהל הבוט:\n\n{MESSAGE}',
   }
 };
 
