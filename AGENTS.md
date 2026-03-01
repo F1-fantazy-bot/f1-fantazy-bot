@@ -265,6 +265,7 @@ The table is **extensible** — new attributes can be added at any time without 
 | ---------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `upsertUser`           | `upsertUser(chatId, chatName) → Promise`             | Track a user interaction. Fire-and-forget — errors are logged, never thrown. Uses Merge mode to preserve all other fields.         |
 | `updateUserAttributes` | `updateUserAttributes(chatId, attributes) → Promise` | Update one or more user attributes using Merge mode. No read step needed. Example: `updateUserAttributes(chatId, { lang: 'he' })`. |
+| `getUserById`          | `getUserById(chatId) → Promise<Object\|null>`         | Point lookup for a single user by chat ID. Returns user object with all stored attributes, or `null` if not found. Throws on real storage errors. More efficient than `listAllUsers` when you only need one user. |
 | `listAllUsers`         | `listAllUsers() → Promise<Array<Object>>`            | Return all registered users with all stored attributes. Automatically includes future fields.                                      |
 | `listAllUserLanguages` | `listAllUserLanguages() → Promise<Object>`           | Return `{ chatId: lang }` mapping for all users with a language set. Used by `cacheInitializer`.                                   |
 

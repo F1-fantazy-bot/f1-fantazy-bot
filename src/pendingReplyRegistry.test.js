@@ -12,7 +12,7 @@ jest.mock('./constants', () => ({
 }));
 
 jest.mock('./userRegistryService', () => ({
-  listAllUsers: jest.fn(),
+  getUserById: jest.fn(),
 }));
 
 jest.mock('./pendingReplyManager', () => ({
@@ -22,7 +22,7 @@ jest.mock('./pendingReplyManager', () => ({
 const { PENDING_REPLY_REGISTRY, resolveCommand } = require('./pendingReplyRegistry');
 const { t } = require('./i18n');
 const { getChatName, sendMessageToAdmins } = require('./utils/utils');
-const { listAllUsers } = require('./userRegistryService');
+const { getUserById } = require('./userRegistryService');
 const { registerPendingReply } = require('./pendingReplyManager');
 
 describe('pendingReplyRegistry', () => {
@@ -204,9 +204,7 @@ describe('pendingReplyRegistry', () => {
   describe('send_message_to_user entry', () => {
     describe('buildHandler - step 1 (collect_user_id)', () => {
       it('should register step 2 and ask for message when user ID is valid', async () => {
-        listAllUsers.mockResolvedValue([
-          { chatId: '456', chatName: 'Target User' },
-        ]);
+        getUserById.mockResolvedValue({ chatId: '456', chatName: 'Target User' });
         const botMock = {
           sendMessage: jest.fn().mockResolvedValue(),
         };
@@ -237,9 +235,9 @@ describe('pendingReplyRegistry', () => {
         );
       });
 
-      it('should handle listAllUsers errors gracefully', async () => {
+      it('should handle getUserById errors gracefully', async () => {
         const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-        listAllUsers.mockRejectedValue(new Error('Storage error'));
+        getUserById.mockRejectedValue(new Error('Storage error'));
         const botMock = {
           sendMessage: jest.fn().mockResolvedValue(),
         };
@@ -262,9 +260,7 @@ describe('pendingReplyRegistry', () => {
       });
 
       it('should treat null data as collect_user_id step', async () => {
-        listAllUsers.mockResolvedValue([
-          { chatId: '456', chatName: 'Target User' },
-        ]);
+        getUserById.mockResolvedValue({ chatId: '456', chatName: 'Target User' });
         const botMock = {
           sendMessage: jest.fn().mockResolvedValue(),
         };
@@ -354,9 +350,7 @@ describe('pendingReplyRegistry', () => {
 
     describe('buildValidate', () => {
       it('should accept text with existing user for collect_user_id step', async () => {
-        listAllUsers.mockResolvedValue([
-          { chatId: '456', chatName: 'Target User' },
-        ]);
+        getUserById.mockResolvedValue({ chatId: '456', chatName: 'Target User' });
         const resolved = resolveCommand('send_message_to_user', 123, {
           step: 'collect_user_id',
         });
@@ -364,13 +358,11 @@ describe('pendingReplyRegistry', () => {
         const result = await resolved.validate({ text: '456' });
 
         expect(result).toBe(true);
-        expect(listAllUsers).toHaveBeenCalled();
+        expect(getUserById).toHaveBeenCalledWith('456');
       });
 
       it('should reject text with non-existing user for collect_user_id step', async () => {
-        listAllUsers.mockResolvedValue([
-          { chatId: '111', chatName: 'Other User' },
-        ]);
+        getUserById.mockResolvedValue(null);
         const resolved = resolveCommand('send_message_to_user', 123, {
           step: 'collect_user_id',
         });
@@ -378,7 +370,7 @@ describe('pendingReplyRegistry', () => {
         const result = await resolved.validate({ text: '999' });
 
         expect(result).toBe(false);
-        expect(listAllUsers).toHaveBeenCalled();
+        expect(getUserById).toHaveBeenCalledWith('999');
       });
 
       it('should reject non-text messages for collect_user_id step', async () => {
@@ -389,13 +381,13 @@ describe('pendingReplyRegistry', () => {
         const result = await resolved.validate({ photo: [{ file_id: 'abc' }] });
 
         expect(result).toBe(false);
-        // Should not call listAllUsers if no text
-        expect(listAllUsers).not.toHaveBeenCalled();
+        // Should not call getUserById if no text
+        expect(getUserById).not.toHaveBeenCalled();
       });
 
-      it('should return false when listAllUsers throws for collect_user_id step', async () => {
+      it('should return false when getUserById throws for collect_user_id step', async () => {
         const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-        listAllUsers.mockRejectedValue(new Error('Storage error'));
+        getUserById.mockRejectedValue(new Error('Storage error'));
         const resolved = resolveCommand('send_message_to_user', 123, {
           step: 'collect_user_id',
         });

@@ -6,7 +6,7 @@
 const { t } = require('./i18n');
 const { REPORTED_BUGS_GROUP_ID } = require('./constants');
 const { getChatName, sendMessageToAdmins } = require('./utils/utils');
-const { listAllUsers } = require('./userRegistryService');
+const { getUserById } = require('./userRegistryService');
 
 /**
  * Each entry provides builder functions that reconstruct the handler, validator,
@@ -52,7 +52,10 @@ const PENDING_REPLY_REGISTRY = {
     },
     buildValidate: () => (replyMsg) => !!replyMsg.text,
     buildResendPrompt: (chatId) => {
-      const prompt = t('What message would you like to send to the admins?', chatId);
+      const prompt = t(
+        'What message would you like to send to the admins?',
+        chatId,
+      );
 
       return t('We support only text. {PROMPT}', chatId, { PROMPT: prompt });
     },
@@ -67,24 +70,30 @@ const PENDING_REPLY_REGISTRY = {
           // Step 1: Admin provided a valid target chat ID (validated by buildValidate)
           const targetChatId = replyMsg.text.trim();
 
-          let users;
+          let user;
           try {
-            users = await listAllUsers();
+            user = await getUserById(targetChatId);
           } catch (err) {
-            console.error('Error fetching users in send_message_to_user handler:', err);
+            console.error(
+              'Error fetching user in send_message_to_user handler:',
+              err,
+            );
             await replyBot
               .sendMessage(
                 chatId,
-                t('❌ Error fetching user list: {ERROR}', chatId, { ERROR: err.message }),
+                t('❌ Error fetching user list: {ERROR}', chatId, {
+                  ERROR: err.message,
+                }),
               )
               .catch((sendErr) =>
-                console.error('Error sending user list error message:', sendErr),
+                console.error(
+                  'Error sending user list error message:',
+                  sendErr,
+                ),
               );
 
             return;
           }
-
-          const user = users.find((u) => u.chatId === targetChatId);
 
           await registerPendingReply(chatId, 'send_message_to_user', {
             step: 'collect_message',
@@ -112,7 +121,10 @@ const PENDING_REPLY_REGISTRY = {
               { MESSAGE: replyMsg.text },
             );
 
-            await replyBot.sendMessage(Number(data.targetChatId), prefixedMessage);
+            await replyBot.sendMessage(
+              Number(data.targetChatId),
+              prefixedMessage,
+            );
 
             await replyBot
               .sendMessage(
@@ -151,9 +163,9 @@ const PENDING_REPLY_REGISTRY = {
           }
 
           try {
-            const users = await listAllUsers();
+            const user = await getUserById(replyMsg.text.trim());
 
-            return users.some((u) => u.chatId === replyMsg.text.trim());
+            return user !== null;
           } catch (err) {
             console.error('Error validating user ID:', err);
 
@@ -167,10 +179,7 @@ const PENDING_REPLY_REGISTRY = {
     },
     buildResendPrompt: (chatId, data) => {
       if (!data || data.step === 'collect_user_id') {
-        return t(
-          'User not found. Please enter a valid chat ID:',
-          chatId,
-        );
+        return t('User not found. Please enter a valid chat ID:', chatId);
       }
 
       return t(
