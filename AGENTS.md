@@ -34,7 +34,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 3. **Exports:** `src/commandsHandler/index.js` re-exports all handler functions for convenient imports elsewhere.
 4. **Command Router:** `src/commandsHandler/commandHandlers.js` maps constants to handler functions and implements `executeCommand` used by the ASK agent and menu callbacks.
 5. **Text Routing:** `src/textMessageHandler.js` checks incoming text and dispatches to the appropriate handler; non-command text is parsed as JSON or delegated to the ASK agent.
-6. **Natural Language Prompt:** `src/prompts.js` defines `ASK_SYSTEM_PROMPT`, the command allowlist consumed by the ASK agent. Any new command that should be discoverable via free text must be added to this prompt.
+6. **Natural Language Prompt:** `src/prompts.js` exports `buildAskSystemPrompt(isAdmin)`, which dynamically builds the command allowlist for the ASK agent. The allowed commands are derived from `MENU_CATEGORIES` in `src/constants.js` (single source of truth) — user commands come from non-admin categories, admin commands from `adminOnly` categories. A small `EXTRA_ASK_COMMANDS` array covers chip sub-commands (`/extra_drs`, `/limitless`, `/wildcard`, `/reset_chip`) that aren't in any menu category but should be discoverable via free text. The `askHandler.js` checks `isAdminMessage(msg)` before building the prompt, so admin commands are only included for admin users. When adding a new command, simply adding it to `MENU_CATEGORIES` in `constants.js` is sufficient — it will automatically appear in the ASK prompt.
 7. **Menu/Help:** `src/commandsHandler/menuHandler.js` and `helpHandler.js` build structured menus using the definitions in `constants.js`.
 
 ---
@@ -54,7 +54,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/next_race_info`, `/next_races`, `/next_race_weather`
 - `/get_current_simulation`
 - `/menu`, `/help`, `/lang`
-- `/report_bug` *(reply-based — uses pending reply manager)*
+- `/report_bug` _(reply-based — uses pending reply manager)_
 
 **Admin-only:** `/load_simulation`, `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`
 
@@ -63,6 +63,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 ## Environment & Deployment
 
 Required environment variables (see `readme.md` for full list):
+
 - Telegram: `TELEGRAM_BOT_TOKEN`
 - Azure OpenAI: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPEN_AI_MODEL`
 - Azure Storage: `AZURE_STORAGE_CONNECTION_STRING`, `AZURE_STORAGE_CONTAINER_NAME`
@@ -93,8 +94,10 @@ Use this as a checklist when introducing another Telegram command:
    - Update the `executeCommand` switch if the handler signature matches other specialized cases (e.g., commands that expect `(bot, chatId)` vs `(bot, msg)`).
    - Update `src/textMessageHandler.js` to route the literal command string to your new handler.
 
-4. **Natural Language Support (Optional)**
-   - If the command should be available through free-text ASK interactions, add it to the `Allowed commands` list in `src/prompts.js` (ASK system prompt).
+4. **Natural Language Support**
+   - Commands added to `MENU_CATEGORIES` in `src/constants.js` are **automatically** included in the ASK prompt — no additional changes needed.
+   - Admin commands (in `adminOnly` categories) are only exposed to admin users via the ASK agent.
+   - If adding a command that is **not** in any menu category but should be discoverable via free text, add it to the `EXTRA_ASK_COMMANDS` array in `src/prompts.js`.
 
 5. **Testing**
    - Create a Jest test for the new handler (place alongside the handler as `*.test.js`). Mock external calls/fetches as needed.
@@ -121,6 +124,7 @@ These use the **Pending Reply Manager** (`src/pendingReplyManager.js`) backed by
 ### Architecture
 
 The system uses a **command ID pattern** instead of storing functions directly:
+
 - **Registration:** The command handler stores a command ID string (e.g., `'report_bug'`) in Azure Table Storage via `registerPendingReply(chatId, commandId)`.
 - **Resolution:** When a reply arrives, `messageHandler.js` retrieves the command ID from Table Storage and resolves it via the registry (`src/pendingReplyRegistry.js`) to reconstruct the handler, validator, and resend prompt.
 - **Multi-server:** Since only serializable data (command ID + chatId) is stored externally, any server instance can handle the reply.
@@ -139,6 +143,7 @@ The system uses a **command ID pattern** instead of storing functions directly:
 Follow the standard "Adding a New Command" steps above, **plus** these specifics:
 
 1. **Register the command in the Pending Reply Registry** (`src/pendingReplyRegistry.js`):
+
    ```javascript
    // In PENDING_REPLY_REGISTRY object:
    my_command: {
@@ -149,9 +154,11 @@ Follow the standard "Adding a New Command" steps above, **plus** these specifics
      buildResendPrompt: (chatId) => t('Please try again', chatId),
    },
    ```
+
    The `buildValidate` and `buildResendPrompt` are optional. If omitted, any message type is accepted (no validation). When `buildValidate` is provided but `buildResendPrompt` is not, a default message is used.
 
 2. **Call `registerPendingReply` in your handler** with the command ID:
+
    ```javascript
    const { registerPendingReply } = require('../pendingReplyManager');
 
@@ -171,13 +178,17 @@ Follow the standard "Adding a New Command" steps above, **plus** these specifics
 
 4. **Testing:**
    - **Handler test:** Mock `../pendingReplyManager` and verify the command ID is passed:
+
      ```javascript
-     jest.mock('../pendingReplyManager', () => ({ registerPendingReply: jest.fn().mockResolvedValue() }));
+     jest.mock('../pendingReplyManager', () => ({
+       registerPendingReply: jest.fn().mockResolvedValue(),
+     }));
      const { registerPendingReply } = require('../pendingReplyManager');
 
      // After calling the command handler:
      expect(registerPendingReply).toHaveBeenCalledWith(chatId, 'my_command');
      ```
+
    - **Registry test:** Test the handler/validate/prompt builders in `src/pendingReplyRegistry.test.js`:
      ```javascript
      const { resolveCommand } = require('./pendingReplyRegistry');
@@ -197,18 +208,18 @@ See `src/commandsHandler/reportBugHandler.js` — the `/report_bug` command regi
 
 All methods are **async** — they interact with Azure Table Storage. The table is created once per process lifetime (lazy initialization).
 
-| Method | Signature | Purpose |
-|--------|-----------|---------|
-| `registerPendingReply` | `registerPendingReply(chatId, commandId) → Promise` | Store a pending reply command ID in Azure Table Storage |
-| `getPendingReply` | `getPendingReply(chatId) → Promise<entry \| undefined>` | Single Table Storage read → resolve command ID via registry; returns `{ handler, validate, resendPromptIfNotValid }` |
-| `clearPendingReply` | `clearPendingReply(chatId) → Promise` | Remove from storage without executing |
+| Method                 | Signature                                               | Purpose                                                                                                              |
+| ---------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `registerPendingReply` | `registerPendingReply(chatId, commandId) → Promise`     | Store a pending reply command ID in Azure Table Storage                                                              |
+| `getPendingReply`      | `getPendingReply(chatId) → Promise<entry \| undefined>` | Single Table Storage read → resolve command ID via registry; returns `{ handler, validate, resendPromptIfNotValid }` |
+| `clearPendingReply`    | `clearPendingReply(chatId) → Promise`                   | Remove from storage without executing                                                                                |
 
 #### `src/pendingReplyRegistry.js` (Command → handler mapping)
 
-| Export | Signature | Purpose |
-|--------|-----------|---------|
-| `PENDING_REPLY_REGISTRY` | `Object` | Maps command ID strings to `{ buildHandler, buildValidate?, buildResendPrompt? }` |
-| `resolveCommand` | `resolveCommand(commandId, chatId) → entry \| null` | Builds a full `{ handler, validate, resendPromptIfNotValid }` entry from a command ID |
+| Export                   | Signature                                           | Purpose                                                                               |
+| ------------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `PENDING_REPLY_REGISTRY` | `Object`                                            | Maps command ID strings to `{ buildHandler, buildValidate?, buildResendPrompt? }`     |
+| `resolveCommand`         | `resolveCommand(commandId, chatId) → entry \| null` | Builds a full `{ handler, validate, resendPromptIfNotValid }` entry from a command ID |
 
 ---
 
@@ -226,23 +237,23 @@ All methods are **async** — they interact with Azure Table Storage. The table 
 
 ### Table Schema
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `partitionKey` | `string` | Always `'User'` |
-| `rowKey` | `string` | The `chatId` (stringified) |
-| `chatName` | `string` | Display name from `getChatName(msg)` |
-| `lang` | `string` | Language code (`'en'`, `'he'`). Optional — absent means default (`'en'`). |
-| `firstSeen` | `string` | ISO timestamp — set on first interaction, preserved on updates |
-| `lastSeen` | `string` | ISO timestamp — updated on every message |
+| Field          | Type     | Description                                                               |
+| -------------- | -------- | ------------------------------------------------------------------------- |
+| `partitionKey` | `string` | Always `'User'`                                                           |
+| `rowKey`       | `string` | The `chatId` (stringified)                                                |
+| `chatName`     | `string` | Display name from `getChatName(msg)`                                      |
+| `lang`         | `string` | Language code (`'en'`, `'he'`). Optional — absent means default (`'en'`). |
+| `firstSeen`    | `string` | ISO timestamp — set on first interaction, preserved on updates            |
+| `lastSeen`     | `string` | ISO timestamp — updated on every message                                  |
 
 ### API Reference
 
-| Method | Signature | Purpose |
-|--------|-----------|---------|
-| `upsertUser` | `upsertUser(chatId, chatName) → Promise` | Track a user interaction. Fire-and-forget — errors are logged, never thrown. Preserves `lang`. |
-| `updateUserLanguage` | `updateUserLanguage(chatId, lang) → Promise` | Update the user's language preference. Read-merge-write to preserve other fields. |
-| `listAllUsers` | `listAllUsers() → Promise<Array<{chatId, chatName, firstSeen, lastSeen, lang}>>` | Return all registered users. Used by `/list_users` admin command. |
-| `listAllUserLanguages` | `listAllUserLanguages() → Promise<Object>` | Return `{ chatId: lang }` mapping for all users with a language set. Used by `cacheInitializer`. |
+| Method                 | Signature                                                                        | Purpose                                                                                          |
+| ---------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `upsertUser`           | `upsertUser(chatId, chatName) → Promise`                                         | Track a user interaction. Fire-and-forget — errors are logged, never thrown. Preserves `lang`.   |
+| `updateUserLanguage`   | `updateUserLanguage(chatId, lang) → Promise`                                     | Update the user's language preference. Read-merge-write to preserve other fields.                |
+| `listAllUsers`         | `listAllUsers() → Promise<Array<{chatId, chatName, firstSeen, lastSeen, lang}>>` | Return all registered users. Used by `/list_users` admin command.                                |
+| `listAllUserLanguages` | `listAllUserLanguages() → Promise<Object>`                                       | Return `{ chatId: lang }` mapping for all users with a language set. Used by `cacheInitializer`. |
 
 ---
 
