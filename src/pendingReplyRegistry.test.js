@@ -7,6 +7,10 @@ jest.mock('./utils/utils', () => ({
   sendMessageToAdmins: jest.fn().mockResolvedValue(),
 }));
 
+jest.mock('./constants', () => ({
+  REPORTED_BUGS_GROUP_ID: -5161566735,
+}));
+
 const { PENDING_REPLY_REGISTRY, resolveCommand } = require('./pendingReplyRegistry');
 const { t } = require('./i18n');
 const { getChatName, sendMessageToAdmins } = require('./utils/utils');
@@ -73,6 +77,52 @@ describe('pendingReplyRegistry', () => {
           456,
           'Your message has been sent to the admins. Thank you!',
         );
+      });
+
+      it('should send the bug report to the dedicated bugs group', async () => {
+        const botMock = {
+          sendMessage: jest.fn().mockResolvedValue(),
+        };
+        const replyMsg = {
+          chat: { id: 456, first_name: 'Test' },
+          text: 'Something is broken',
+        };
+
+        const resolved = resolveCommand('report_bug', 456);
+        await resolved.handler(botMock, replyMsg);
+
+        expect(botMock.sendMessage).toHaveBeenCalledWith(
+          -5161566735,
+          'Bug report from {NAME} ({ID}):\n\n{MESSAGE}',
+        );
+      });
+
+      it('should handle bugs group sendMessage errors gracefully', async () => {
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const botMock = {
+          sendMessage: jest.fn()
+            .mockRejectedValueOnce(new Error('Bugs group send failed'))
+            .mockResolvedValue(),
+        };
+        const replyMsg = {
+          chat: { id: 456, first_name: 'Test' },
+          text: 'Something is broken',
+        };
+
+        const resolved = resolveCommand('report_bug', 456);
+        await resolved.handler(botMock, replyMsg);
+
+        expect(sendMessageToAdmins).toHaveBeenCalled();
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Error sending bug report to bugs group:',
+          expect.any(Error),
+        );
+        // Confirmation should still be sent after bugs group error
+        expect(botMock.sendMessage).toHaveBeenCalledWith(
+          456,
+          'Your message has been sent to the admins. Thank you!',
+        );
+        consoleSpy.mockRestore();
       });
 
       it('should handle confirmation sendMessage errors gracefully', async () => {
