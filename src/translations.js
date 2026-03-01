@@ -19,7 +19,7 @@ const translations = {
     'Sorry, only admins can get BotFather commands.':
       'מצטער, רק מנהלים יכולים לקבל פקודות BotFather.',
     'Simulation data fetched and cached successfully.': 'נתוני הסימולציה נטענו ונשמרו בהצלחה.',
-    'Failed to load simulation data: {ERROR}': 'נכשל לטעון נתוני סימולציה: {ERROR}',
+    'Failed to load simulation data: {ERROR}': 'טעינת נתוני סימולציה נכשלה: {ERROR}',
     'Cache has been reset for your chat.': 'המטמון אופס עבור הצ\'אט שלך.',
     'Next race information is currently unavailable.': 'מידע על המרוץ הבא אינו זמין כעת.',
     'No upcoming races found for this season.': 'לא נמצאו מרוצים קרובים לעונה זו.',
@@ -165,7 +165,7 @@ const translations = {
     English: 'אנגלית',
     Hebrew: 'עברית',
     '🌐 Set Language': '🌐 הגדר שפה',
-    'Change bot language for this session': 'שנה את שפת הבוט להפעלה זו',
+    'Change bot language for this session': 'שנה את שפת הבוט',
     'Please provide a question.': 'אנא ספק שאלה.',
     '❓ Help & Menu': '❓ עזרה ותפריט',
     'Help and navigation commands': 'פקודות עזרה וניווט',
@@ -178,7 +178,7 @@ const translations = {
     '🔧 Utilities': '🔧 כלי עזר',
     'Data management and maintenance tools': 'כלי ניהול ותחזוקה של נתונים',
     '👤 Admin Commands': '👤 פקודות מנהל',
-    'Administrative tools and functions': 'כלי ותפקידי ניהול',
+    'Administrative tools and functions': 'כלים ופעולות ניהול',
     '📱 Menu': '📱 תפריט',
     'Show interactive menu with all available commands.':
       'הצג תפריט אינטראקטיבי עם כל הפקודות הזמינות.',
@@ -226,7 +226,7 @@ const translations = {
     'Error: Scraping trigger URL is not configured.': 'שגיאה: כתובת ההפעלה לסריקה אינה מוגדרת.',
     'Sorry, only admins can trigger scraping.': 'מצטער, רק מנהלים יכולים להפעיל סריקה.',
     'Web scraping triggered successfully.': 'סריקת הרשת הופעלה בהצלחה.',
-    'Failed to trigger web scraping: {ERROR}': 'נכשל להפעיל סריקה: {ERROR}',
+    'Failed to trigger web scraping: {ERROR}': 'הפעלת סריקה נכשלה: {ERROR}',
     'Commit ID: {ID}\nCommit message: {MSG}\nLink: {LINK}':
       'מזהה קומיט: {ID}\nהודעת קומיט: {MSG}\nקישור: {LINK}',
     '🏁 Usage Flow': '🏁 תהליך שימוש',
@@ -247,6 +247,14 @@ const translations = {
     '❌ Error fetching user list: {ERROR}': '❌ שגיאה בקבלת רשימת משתמשים: {ERROR}',
     '👥 List Users': '👥 רשימת משתמשים',
     'List all registered bot users': 'הצג את כל המשתמשים הרשומים בבוט',
+    'You are already at team {TEAM}. No changes needed.': 'אתה כבר בקבוצה {TEAM}. אין צורך בשינויים.',
+    'No team found for number {NUM}.': 'לא נמצאה קבוצה עבור מספר {NUM}.',
+    'No cached teams available. Please send full JSON data or images first and then run the {CMD} command.':
+      'אין קבוצות שמורות במטמון. אנא שלח נתוני JSON מלאים או תמונות קודם ולאחר מכן הפעל את הפקודה {CMD}.',
+    'DRS': 'DRS',
+    '🌦️ Next Race Weather': '🌦️ מזג אוויר למרוץ הבא',
+    'Get detailed weather forecast for the next race':
+      'קבל תחזית מזג אוויר מפורטת למרוץ הבא',
   }
 };
 

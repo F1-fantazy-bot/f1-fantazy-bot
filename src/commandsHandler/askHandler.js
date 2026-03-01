@@ -1,11 +1,11 @@
 const { AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPEN_AI_MODEL } = process.env;
 const { AzureOpenAI } = require('openai');
 const { t } = require('../i18n');
-const { sendLogMessage } = require('../utils');
+const { sendLogMessage, isAdminMessage } = require('../utils');
 const { handleNumberMessage } = require('./numberInputHandler');
 const { executeCommand } = require('./commandHandlers');
 
-const { ASK_SYSTEM_PROMPT } = require('../prompts');
+const { buildAskSystemPrompt } = require('../prompts');
 
 const apiVersion = '2024-04-01-preview';
 const client = new AzureOpenAI({
@@ -29,7 +29,8 @@ async function handleAskCommand(bot, msg) {
     return;
   }
 
-  const systemMessage = { role: 'system', content: ASK_SYSTEM_PROMPT };
+  const isAdmin = isAdminMessage(msg);
+  const systemMessage = { role: 'system', content: buildAskSystemPrompt(isAdmin) };
   const userMessage = { role: 'user', content: text };
 
   let completion;
