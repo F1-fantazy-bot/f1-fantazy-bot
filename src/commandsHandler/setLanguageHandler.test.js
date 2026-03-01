@@ -1,8 +1,8 @@
 const { KILZI_CHAT_ID } = require('../constants');
-jest.mock('../azureStorageService', () => ({
-  saveUserSettings: jest.fn().mockResolvedValue(undefined),
+jest.mock('../userRegistryService', () => ({
+  updateUserLanguage: jest.fn().mockResolvedValue(undefined),
 }));
-const azureStorageService = require('../azureStorageService');
+const { updateUserLanguage } = require('../userRegistryService');
 const { getLanguage, languageCache, t, getLanguageName } = require('../i18n');
 const { handleSetLanguage } = require('./setLanguageHandler');
 
@@ -26,10 +26,9 @@ describe('handleSetLanguage', () => {
       KILZI_CHAT_ID,
       t('Language changed to {LANG}.', KILZI_CHAT_ID, { LANG: getLanguageName('he', KILZI_CHAT_ID) })
     );
-    expect(azureStorageService.saveUserSettings).toHaveBeenCalledWith(
-      botMock,
+    expect(updateUserLanguage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      { lang: 'he' }
+      'he'
     );
   });
 
@@ -43,7 +42,7 @@ describe('handleSetLanguage', () => {
       KILZI_CHAT_ID,
       t('Invalid language. Supported languages: {LANGS}', KILZI_CHAT_ID, { LANGS: 'en, he' })
     );
-    expect(azureStorageService.saveUserSettings).not.toHaveBeenCalled();
+    expect(updateUserLanguage).not.toHaveBeenCalled();
   });
 
   it('should send usage message when no language provided', async () => {
@@ -60,6 +59,6 @@ describe('handleSetLanguage', () => {
         reply_markup: { inline_keyboard: expect.any(Array) },
       })
     );
-    expect(azureStorageService.saveUserSettings).not.toHaveBeenCalled();
+    expect(updateUserLanguage).not.toHaveBeenCalled();
   });
 });

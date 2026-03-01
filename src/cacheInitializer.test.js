@@ -11,9 +11,9 @@ const {
 const {
   getFantasyData,
   listAllUserTeamData,
-  listAllUserSettingsData,
   getNextRaceInfoData,
 } = require('./azureStorageService');
+const { listAllUserLanguages } = require('./userRegistryService');
 const { initializeCaches, loadSimulationData } = require('./cacheInitializer');
 
 // Mock dependencies
@@ -28,8 +28,11 @@ jest.mock('./utils', () => ({
 jest.mock('./azureStorageService', () => ({
   getFantasyData: jest.fn(),
   listAllUserTeamData: jest.fn(),
-  listAllUserSettingsData: jest.fn(),
   getNextRaceInfoData: jest.fn(),
+}));
+
+jest.mock('./userRegistryService', () => ({
+  listAllUserLanguages: jest.fn(),
 }));
 
 describe('cacheInitializer', () => {
@@ -64,10 +67,10 @@ describe('cacheInitializer', () => {
     },
   };
 
-  // Mock user settings data
-  const mockUserSettings = {
-    123: { lang: 'en' },
-    456: { lang: 'he' },
+  // Mock user language preferences
+  const mockUserLanguages = {
+    123: 'en',
+    456: 'he',
   };
 
   beforeEach(() => {
@@ -92,7 +95,7 @@ describe('cacheInitializer', () => {
     validateJsonData.mockResolvedValue(true);
     getFantasyData.mockResolvedValue(mockFantasyData);
     listAllUserTeamData.mockResolvedValue(mockUserTeams);
-    listAllUserSettingsData.mockResolvedValue(mockUserSettings);
+    listAllUserLanguages.mockResolvedValue(mockUserLanguages);
     getNextRaceInfoData.mockResolvedValue({
       raceName: 'Test Race',
       season: '2025',
@@ -105,7 +108,7 @@ describe('cacheInitializer', () => {
     // Verify Azure Storage was queried
     expect(getFantasyData).toHaveBeenCalled();
     expect(listAllUserTeamData).toHaveBeenCalled();
-    expect(listAllUserSettingsData).toHaveBeenCalled();
+    expect(listAllUserLanguages).toHaveBeenCalled();
     expect(getNextRaceInfoData).toHaveBeenCalled();
 
     // Verify success message was sent via utils
@@ -145,7 +148,7 @@ describe('cacheInitializer', () => {
     // Verify user teams were cached correctly
     expect(currentTeamCache).toEqual(mockUserTeams);
 
-    // Verify user settings were cached correctly
+    // Verify user language preferences were cached correctly
     expect(languageCache).toEqual({
       123: 'en',
       456: 'he',
@@ -161,7 +164,7 @@ describe('cacheInitializer', () => {
     expect(utils.sendLogMessage).toHaveBeenCalledWith(
       mockBot,
       expect.stringContaining(
-        `Loaded ${Object.keys(mockUserSettings).length} user settings`
+        `Loaded ${Object.keys(mockUserLanguages).length} user language preferences`
       )
     );
   });

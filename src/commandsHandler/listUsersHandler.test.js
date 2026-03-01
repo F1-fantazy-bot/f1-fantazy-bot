@@ -56,19 +56,21 @@ describe('listUsersHandler', () => {
       expect(isAdminMessage).toHaveBeenCalledWith(mockMsg);
     });
 
-    it('should display all users with their data', async () => {
+    it('should display all users with their data including language', async () => {
       const mockUsers = [
         {
           chatId: '111',
           chatName: 'Alice',
           firstSeen: '2025-01-01T10:00:00.000Z',
           lastSeen: '2025-01-15T14:30:00.000Z',
+          lang: 'en',
         },
         {
           chatId: '222',
           chatName: 'Bob',
           firstSeen: '2025-01-05T08:00:00.000Z',
           lastSeen: '2025-01-20T16:45:00.000Z',
+          lang: 'he',
         },
       ];
       listAllUsers.mockResolvedValue(mockUsers);
@@ -100,8 +102,35 @@ describe('listUsersHandler', () => {
         expect.stringContaining('`222`'),
         { parse_mode: 'Markdown' },
       );
+      // Verify language is displayed
+      expect(mockBot.sendMessage).toHaveBeenCalledWith(
+        mockChatId,
+        expect.stringContaining('🌐'),
+        { parse_mode: 'Markdown' },
+      );
       expect(formatDateTime).toHaveBeenCalledTimes(4); // 2 users × 2 dates each
       expect(isAdminMessage).toHaveBeenCalledWith(mockMsg);
+    });
+
+    it('should show default language (English) when user has no lang set', async () => {
+      const mockUsers = [
+        {
+          chatId: '333',
+          chatName: 'Charlie',
+          firstSeen: '2025-01-01T10:00:00.000Z',
+          lastSeen: '2025-01-15T14:30:00.000Z',
+          // no lang field
+        },
+      ];
+      listAllUsers.mockResolvedValue(mockUsers);
+
+      await handleListUsersCommand(mockBot, mockMsg);
+
+      expect(mockBot.sendMessage).toHaveBeenCalledWith(
+        mockChatId,
+        expect.stringContaining('English'),
+        { parse_mode: 'Markdown' },
+      );
     });
 
     it('should handle errors gracefully', async () => {
@@ -128,6 +157,7 @@ describe('listUsersHandler', () => {
           chatName: 'Alice',
           firstSeen: '2025-01-01T10:00:00.000Z',
           lastSeen: '2025-01-15T14:30:00.000Z',
+          lang: 'en',
         },
       ];
       listAllUsers.mockResolvedValue(mockUsers);

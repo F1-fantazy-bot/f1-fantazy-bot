@@ -1,5 +1,6 @@
 const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 const azureStorageService = require('./azureStorageService');
+const { updateUserLanguage } = require('./userRegistryService');
 const {
   photoCache,
   currentTeamCache,
@@ -112,7 +113,7 @@ async function handleLanguageCallback(bot, query) {
   const lang = query.data.split(':')[1];
 
   setLanguage(lang, chatId);
-  await azureStorageService.saveUserSettings(bot, chatId, { lang });
+  await updateUserLanguage(chatId, lang);
 
   await bot.editMessageText(
     t('Language changed to {LANG}.', chatId, {

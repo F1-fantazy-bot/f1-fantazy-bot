@@ -1,6 +1,6 @@
 const { listAllUsers } = require('../userRegistryService');
 const { sendLogMessage, isAdminMessage, formatDateTime } = require('../utils/utils');
-const { t } = require('../i18n');
+const { t, getLanguageName } = require('../i18n');
 
 /**
  * Handle the /list_users admin command.
@@ -73,8 +73,11 @@ function formatUsersMessage(users, chatId) {
     const firstSeenFormatted = formatDateTime(firstSeenDate, chatId);
     const lastSeenFormatted = formatDateTime(lastSeenDate, chatId);
 
+    const langDisplay = getLanguageName(user.lang || 'en', chatId);
+
     message += `*${index + 1}. ${user.chatName}*\n`;
     message += `🆔 ${t('Chat ID', chatId)}: \`${user.chatId}\`\n`;
+    message += `🌐 ${t('Language', chatId)}: ${langDisplay}\n`;
     message += `📅 ${t('First Seen', chatId)}: ${firstSeenFormatted.dateStr}, ${firstSeenFormatted.timeStr}\n`;
     message += `🕐 ${t('Last Seen', chatId)}: ${lastSeenFormatted.dateStr}, ${lastSeenFormatted.timeStr}\n\n`;
   });

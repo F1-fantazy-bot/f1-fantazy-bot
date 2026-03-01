@@ -14,6 +14,7 @@ const {
 const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 const cache = require('./cache');
 const azureStorageService = require('./azureStorageService');
+const { updateUserLanguage } = require('./userRegistryService');
 const { t, getLanguage, languageCache, getLanguageName } = require('./i18n');
 
 jest.mock('./utils', () => ({
@@ -42,8 +43,10 @@ jest.mock('openai', () => ({
 jest.mock('./jsonDataExtraction');
 jest.mock('./azureStorageService', () => ({
   saveUserTeam: jest.fn().mockResolvedValue(undefined),
-  saveUserSettings: jest.fn().mockResolvedValue(undefined),
   deleteUserTeam: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock('./userRegistryService', () => ({
+  updateUserLanguage: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('./cache', () => ({
   photoCache: {},
@@ -375,10 +378,9 @@ describe('handleCallbackQuery', () => {
       );
       expect(bot.answerCallbackQuery).toHaveBeenCalledWith('langQueryId');
       expect(getLanguage(chatId)).toBe('he');
-      expect(azureStorageService.saveUserSettings).toHaveBeenCalledWith(
-        bot,
+      expect(updateUserLanguage).toHaveBeenCalledWith(
         chatId,
-        { lang: 'he' }
+        'he'
       );
     });
   });
