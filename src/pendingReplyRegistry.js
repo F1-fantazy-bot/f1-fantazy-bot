@@ -3,6 +3,7 @@
 // serializable command IDs rather than in-memory functions.
 
 const { t } = require('./i18n');
+const { REPORTED_BUGS_GROUP_ID } = require('./constants');
 const { getChatName, sendMessageToAdmins } = require('./utils/utils');
 
 /**
@@ -26,6 +27,12 @@ const PENDING_REPLY_REGISTRY = {
       );
 
       await sendMessageToAdmins(replyBot, adminMessage);
+
+      await replyBot
+        .sendMessage(REPORTED_BUGS_GROUP_ID, adminMessage)
+        .catch((err) =>
+          console.error('Error sending bug report to bugs group:', err),
+        );
 
       const confirmation = t(
         'Your message has been sent to the admins. Thank you!',
