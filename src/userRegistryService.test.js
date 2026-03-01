@@ -49,7 +49,7 @@ describe('userRegistryService', () => {
   }
 
   describe('upsertUser', () => {
-    it('should create new user with firstSeen and lastSeen', async () => {
+    it('should create new user with firstSeen, lastSeen, and chatName using Merge mode', async () => {
       mockGetEntity.mockRejectedValueOnce(createNotFoundError());
       mockUpsertEntity.mockResolvedValueOnce();
 
@@ -63,6 +63,7 @@ describe('userRegistryService', () => {
           firstSeen: expect.any(String),
           lastSeen: expect.any(String),
         }),
+        'Merge',
       );
 
       // firstSeen and lastSeen should be the same for new users
@@ -70,13 +71,12 @@ describe('userRegistryService', () => {
       expect(entity.firstSeen).toBe(entity.lastSeen);
     });
 
-    it('should preserve firstSeen when user already exists', async () => {
-      const originalFirstSeen = '2025-01-01T00:00:00.000Z';
+    it('should not include firstSeen when user already exists (Merge preserves it)', async () => {
       mockGetEntity.mockResolvedValueOnce({
         partitionKey: 'User',
         rowKey: '12345',
         chatName: 'OldName',
-        firstSeen: originalFirstSeen,
+        firstSeen: '2025-01-01T00:00:00.000Z',
         lastSeen: '2025-06-01T00:00:00.000Z',
       });
       mockUpsertEntity.mockResolvedValueOnce();
@@ -88,18 +88,17 @@ describe('userRegistryService', () => {
           partitionKey: 'User',
           rowKey: '12345',
           chatName: 'NewName',
-          firstSeen: originalFirstSeen,
           lastSeen: expect.any(String),
         }),
+        'Merge',
       );
 
-      // firstSeen should be preserved, lastSeen should be different
+      // firstSeen should NOT be in the entity — Merge mode preserves it automatically
       const entity = mockUpsertEntity.mock.calls[0][0];
-      expect(entity.firstSeen).toBe(originalFirstSeen);
-      expect(entity.lastSeen).not.toBe(originalFirstSeen);
+      expect(entity.firstSeen).toBeUndefined();
     });
 
-    it('should preserve lang when user already exists with a language', async () => {
+    it('should not include lang or other attributes — Merge mode preserves them automatically', async () => {
       mockGetEntity.mockResolvedValueOnce({
         partitionKey: 'User',
         rowKey: '12345',
@@ -107,16 +106,21 @@ describe('userRegistryService', () => {
         firstSeen: '2025-01-01T00:00:00.000Z',
         lastSeen: '2025-06-01T00:00:00.000Z',
         lang: 'he',
+        someNewAttribute: 'value',
       });
       mockUpsertEntity.mockResolvedValueOnce();
 
       await userRegistryService.upsertUser(12345, 'TestUser');
 
       const entity = mockUpsertEntity.mock.calls[0][0];
-      expect(entity.lang).toBe('he');
+      // Only chatName and lastSeen should be sent — Merge preserves everything else
+      expect(entity.lang).toBeUndefined();
+      expect(entity.someNewAttribute).toBeUndefined();
+      expect(entity.chatName).toBe('TestUser');
+      expect(entity.lastSeen).toBeDefined();
     });
 
-    it('should not include lang field when user has no language set', async () => {
+    it('should not include lang field when user is new', async () => {
       mockGetEntity.mockRejectedValueOnce(createNotFoundError());
       mockUpsertEntity.mockResolvedValueOnce();
 
@@ -168,74 +172,69 @@ describe('userRegistryService', () => {
     });
   });
 
-  describe('updateUserLanguage', () => {
-    it('should update language for existing user', async () => {
-      mockGetEntity.mockResolvedValueOnce({
-        partitionKey: 'User',
-        rowKey: '12345',
-        chatName: 'TestUser',
-        firstSeen: '2025-01-01T00:00:00.000Z',
-        lastSeen: '2025-06-01T00:00:00.000Z',
-      });
+  describe('updateUserAttributes', () => {
+    it('should update a single attribute using Merge mode', async () => {
       mockUpsertEntity.mockResolvedValueOnce();
 
-      await userRegistryService.updateUserLanguage(12345, 'he');
+      await userRegistryService.updateUserAttributes(12345, { lang: 'he' });
 
       expect(mockUpsertEntity).toHaveBeenCalledWith(
-        expect.objectContaining({
+        {
           partitionKey: 'User',
           rowKey: '12345',
-          chatName: 'TestUser',
-          firstSeen: '2025-01-01T00:00:00.000Z',
-          lastSeen: '2025-06-01T00:00:00.000Z',
           lang: 'he',
-        }),
+        },
+        'Merge',
       );
     });
 
-    it('should create minimal entity if user does not exist (404)', async () => {
-      mockGetEntity.mockRejectedValueOnce(createNotFoundError());
+    it('should update multiple attributes at once', async () => {
       mockUpsertEntity.mockResolvedValueOnce();
 
-      await userRegistryService.updateUserLanguage(99999, 'en');
+      await userRegistryService.updateUserAttributes(12345, {
+        lang: 'he',
+        timezone: 'Asia/Jerusalem',
+      });
 
       expect(mockUpsertEntity).toHaveBeenCalledWith(
-        expect.objectContaining({
+        {
           partitionKey: 'User',
-          rowKey: '99999',
-          chatName: '',
-          lang: 'en',
-          firstSeen: expect.any(String),
-          lastSeen: expect.any(String),
-        }),
+          rowKey: '12345',
+          lang: 'he',
+          timezone: 'Asia/Jerusalem',
+        },
+        'Merge',
       );
+    });
+
+    it('should not require a read before writing (no getEntity call)', async () => {
+      mockUpsertEntity.mockResolvedValueOnce();
+
+      await userRegistryService.updateUserAttributes(12345, { lang: 'en' });
+
+      expect(mockGetEntity).not.toHaveBeenCalled();
+      expect(mockUpsertEntity).toHaveBeenCalledTimes(1);
     });
 
     it('should throw on storage errors (not swallowed)', async () => {
-      mockGetEntity.mockResolvedValueOnce({
-        partitionKey: 'User',
-        rowKey: '12345',
-        chatName: 'TestUser',
-        firstSeen: '2025-01-01T00:00:00.000Z',
-        lastSeen: '2025-06-01T00:00:00.000Z',
-      });
       mockUpsertEntity.mockRejectedValueOnce(new Error('Storage error'));
 
       await expect(
-        userRegistryService.updateUserLanguage(12345, 'he'),
+        userRegistryService.updateUserAttributes(12345, { lang: 'he' }),
       ).rejects.toThrow('Storage error');
     });
 
-    it('should throw on real getEntity errors (non-404)', async () => {
-      const realError = new Error('Auth failure');
-      realError.statusCode = 403;
-      mockGetEntity.mockRejectedValueOnce(realError);
+    it('should accept string chatId', async () => {
+      mockUpsertEntity.mockResolvedValueOnce();
 
-      await expect(
-        userRegistryService.updateUserLanguage(12345, 'he'),
-      ).rejects.toThrow('Auth failure');
-      // upsertEntity should NOT have been called
-      expect(mockUpsertEntity).not.toHaveBeenCalled();
+      await userRegistryService.updateUserAttributes('12345', { lang: 'en' });
+
+      expect(mockUpsertEntity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rowKey: '12345',
+        }),
+        'Merge',
+      );
     });
   });
 
@@ -318,6 +317,67 @@ describe('userRegistryService', () => {
       const result = await userRegistryService.listAllUsers();
 
       expect(result).toEqual([]);
+    });
+
+    it('should automatically include future/unknown attributes', async () => {
+      const mockEntities = [
+        {
+          partitionKey: 'User',
+          rowKey: '444',
+          chatName: 'Diana',
+          firstSeen: '2025-01-01T00:00:00.000Z',
+          lastSeen: '2025-06-01T00:00:00.000Z',
+          lang: 'en',
+          timezone: 'Asia/Jerusalem',
+          notifications: true,
+        },
+      ];
+
+      mockListEntities.mockReturnValueOnce({
+        [Symbol.asyncIterator]: async function* () {
+          yield* mockEntities;
+        },
+      });
+
+      const result = await userRegistryService.listAllUsers();
+
+      expect(result[0]).toEqual({
+        chatId: '444',
+        chatName: 'Diana',
+        firstSeen: '2025-01-01T00:00:00.000Z',
+        lastSeen: '2025-06-01T00:00:00.000Z',
+        lang: 'en',
+        timezone: 'Asia/Jerusalem',
+        notifications: true,
+      });
+    });
+
+    it('should exclude Azure system fields from returned data', async () => {
+      const mockEntities = [
+        {
+          partitionKey: 'User',
+          rowKey: '555',
+          etag: 'some-etag',
+          timestamp: '2025-01-01T00:00:00.000Z',
+          chatName: 'Eve',
+          firstSeen: '2025-01-01T00:00:00.000Z',
+          lastSeen: '2025-06-01T00:00:00.000Z',
+        },
+      ];
+
+      mockListEntities.mockReturnValueOnce({
+        [Symbol.asyncIterator]: async function* () {
+          yield* mockEntities;
+        },
+      });
+
+      const result = await userRegistryService.listAllUsers();
+
+      expect(result[0].partitionKey).toBeUndefined();
+      expect(result[0].etag).toBeUndefined();
+      expect(result[0].timestamp).toBeUndefined();
+      expect(result[0].chatId).toBe('555');
+      expect(result[0].chatName).toBe('Eve');
     });
   });
 

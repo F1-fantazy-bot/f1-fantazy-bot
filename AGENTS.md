@@ -230,12 +230,23 @@ All methods are **async** — they interact with Azure Table Storage. The table 
 ### How It Works
 
 1. On every incoming message from an allowed user, `messageHandler.js` calls `upsertUser(chatId, chatName)` **without `await`** (fire-and-forget).
-2. `upsertUser` reads the existing entity (if any) to preserve `firstSeen` and `lang`, then upserts with updated `chatName` and `lastSeen`.
+2. `upsertUser` uses Azure Table Storage **Merge mode** — it only sends `chatName` and `lastSeen` (plus `firstSeen` for new users). All other existing attributes (lang, future fields) are automatically preserved by Merge mode without needing to read them first.
 3. Errors are caught and logged silently (`console.error`) — the user registry never blocks or breaks message handling.
-4. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) calls `listAllUsers()` to fetch all registered users and displays them with chatId, chatName, lang, firstSeen, and lastSeen formatted via `formatDateTime`.
-5. Language preferences are stored directly in the `UserRegistry` entity via `updateUserLanguage()` — called by `setLanguageHandler.js` and `callbackQueryHandler.js` when the user changes language. On startup, `cacheInitializer.js` calls `listAllUserLanguages()` to populate the in-memory `languageCache`.
+4. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) calls `listAllUsers()` to fetch all registered users. `listAllUsers()` automatically returns all non-system fields from each entity, so new attributes are included without code changes.
+5. User attributes (e.g., language preferences) are stored via `updateUserAttributes(chatId, { lang })` — called by `setLanguageHandler.js` and `callbackQueryHandler.js`. This generic function uses Merge mode so it only writes the specified attributes without reading or overwriting others. On startup, `cacheInitializer.js` calls `listAllUserLanguages()` to populate the in-memory `languageCache`.
+
+### Generic Merge Pattern
+
+The service uses Azure Table Storage's **Merge mode** (`upsertEntity(entity, 'Merge')`) as its core pattern. This means:
+
+- **`upsertUser`** only sends fields it owns (`chatName`, `lastSeen`, `firstSeen`) — all other attributes are untouched.
+- **`updateUserAttributes`** only sends the provided key-value pairs — no read step needed, no risk of overwriting unrelated fields.
+- **Adding a new attribute** requires only calling `updateUserAttributes(chatId, { newField: value })` — no changes to `upsertUser` or any existing code.
+- **Race conditions are eliminated** — Merge mode is atomic for the fields being updated, unlike the old read-then-write pattern.
 
 ### Table Schema
+
+The table is **extensible** — new attributes can be added at any time without schema changes. Known fields:
 
 | Field          | Type     | Description                                                               |
 | -------------- | -------- | ------------------------------------------------------------------------- |
@@ -248,12 +259,12 @@ All methods are **async** — they interact with Azure Table Storage. The table 
 
 ### API Reference
 
-| Method                 | Signature                                                                        | Purpose                                                                                          |
-| ---------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `upsertUser`           | `upsertUser(chatId, chatName) → Promise`                                         | Track a user interaction. Fire-and-forget — errors are logged, never thrown. Preserves `lang`.   |
-| `updateUserLanguage`   | `updateUserLanguage(chatId, lang) → Promise`                                     | Update the user's language preference. Read-merge-write to preserve other fields.                |
-| `listAllUsers`         | `listAllUsers() → Promise<Array<{chatId, chatName, firstSeen, lastSeen, lang}>>` | Return all registered users. Used by `/list_users` admin command.                                |
-| `listAllUserLanguages` | `listAllUserLanguages() → Promise<Object>`                                       | Return `{ chatId: lang }` mapping for all users with a language set. Used by `cacheInitializer`. |
+| Method                 | Signature                                            | Purpose                                                                                                                            |
+| ---------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `upsertUser`           | `upsertUser(chatId, chatName) → Promise`             | Track a user interaction. Fire-and-forget — errors are logged, never thrown. Uses Merge mode to preserve all other fields.         |
+| `updateUserAttributes` | `updateUserAttributes(chatId, attributes) → Promise` | Update one or more user attributes using Merge mode. No read step needed. Example: `updateUserAttributes(chatId, { lang: 'he' })`. |
+| `listAllUsers`         | `listAllUsers() → Promise<Array<Object>>`            | Return all registered users with all stored attributes. Automatically includes future fields.                                      |
+| `listAllUserLanguages` | `listAllUserLanguages() → Promise<Object>`           | Return `{ chatId: lang }` mapping for all users with a language set. Used by `cacheInitializer`.                                   |
 
 ---
 
