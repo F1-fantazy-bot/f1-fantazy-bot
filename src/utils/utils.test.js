@@ -13,6 +13,7 @@ const {
   KILZI_CHAT_ID,
   DORSE_CHAT_ID,
   YEHONATAN_CHAT_ID,
+  HAIM_CHAT_ID,
 } = require('../constants');
 const { setLanguage, languageCache } = require('../i18n');
 
@@ -610,6 +611,11 @@ describe('utils', () => {
 
     it('returns true for YEHONATAN_CHAT_ID (regular user)', () => {
       const msg = { chat: { id: YEHONATAN_CHAT_ID } };
+      expect(isMessageFromAllowedUser(msg)).toBe(true);
+    });
+
+    it('returns true for HAIM_CHAT_ID (regular user)', () => {
+      const msg = { chat: { id: HAIM_CHAT_ID } };
       expect(isMessageFromAllowedUser(msg)).toBe(true);
     });
 
