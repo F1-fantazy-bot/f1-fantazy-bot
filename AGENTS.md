@@ -56,7 +56,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/menu`, `/help`, `/lang`
 - `/report_bug` _(reply-based — uses pending reply manager)_
 
-**Admin-only:** `/load_simulation`, `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`
+**Admin-only:** `/load_simulation`, `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`
 
 ---
 
@@ -202,6 +202,7 @@ Follow the standard "Adding a New Command" steps above, **plus** these specifics
 ### Existing Examples
 
 - **Single-step:** See `src/commandsHandler/reportBugHandler.js` — the `/report_bug` command registers `'report_bug'` as a pending reply. The handler logic (sending to admins, validation for text-only) lives in `src/pendingReplyRegistry.js` under the `report_bug` entry.
+- **Single-step (broadcast):** See `src/commandsHandler/broadcastHandler.js` — the `/broadcast` admin command registers `'broadcast'` as a pending reply. The handler in `src/pendingReplyRegistry.js` fetches all users via `listAllUsers()`, sends the broadcast message to each (localized per recipient), and reports a success/failure summary back to the admin.
 - **Multi-step:** See `src/commandsHandler/sendMessageToUserHandler.js` — the `/send_message_to_user` admin command uses a two-step reply flow with intermediate data storage. Step 1 collects the target user's chat ID (validated against the User Registry), then re-registers with `{ step: 'collect_message', targetChatId }`. Step 2 collects the message text and sends it to the target user. The handler uses lazy `require` for `pendingReplyManager` to avoid circular dependencies.
 
 ### API Reference
