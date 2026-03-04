@@ -9,8 +9,6 @@ jest.mock('./utils/utils', () => ({
 
 jest.mock('./constants', () => ({
   REPORTED_BUGS_GROUP_ID: -5161566735,
-  KILZI_CHAT_ID: 454873194,
-  DORSE_CHAT_ID: 673447790,
 }));
 
 jest.mock('./userRegistryService', () => ({
@@ -30,7 +28,6 @@ const { t } = require('./i18n');
 const { getChatName, sendMessageToAdmins } = require('./utils/utils');
 const { getUserById, listAllUsers } = require('./userRegistryService');
 const { registerPendingReply } = require('./pendingReplyManager');
-const { KILZI_CHAT_ID, DORSE_CHAT_ID } = require('./constants');
 
 describe('pendingReplyRegistry', () => {
   beforeEach(() => {
@@ -514,8 +511,9 @@ describe('pendingReplyRegistry', () => {
     describe('buildHandler', () => {
       it('should send the message to all registered users and report summary', async () => {
         listAllUsers.mockResolvedValue([
-          { chatId: String(KILZI_CHAT_ID), chatName: 'User A' },
-          { chatId: String(DORSE_CHAT_ID), chatName: 'User B' },
+          { chatId: '100', chatName: 'User A' },
+          { chatId: '200', chatName: 'User B' },
+          { chatId: '300', chatName: 'User C' },
         ]);
         const botMock = {
           sendMessage: jest.fn().mockResolvedValue(),
@@ -530,11 +528,15 @@ describe('pendingReplyRegistry', () => {
 
         // Should send broadcast to each user
         expect(botMock.sendMessage).toHaveBeenCalledWith(
-          KILZI_CHAT_ID,
+          100,
           '📢 Broadcast from bot admin:\n\n{MESSAGE}',
         );
         expect(botMock.sendMessage).toHaveBeenCalledWith(
-          DORSE_CHAT_ID,
+          200,
+          '📢 Broadcast from bot admin:\n\n{MESSAGE}',
+        );
+        expect(botMock.sendMessage).toHaveBeenCalledWith(
+          300,
           '📢 Broadcast from bot admin:\n\n{MESSAGE}',
         );
 
@@ -542,7 +544,7 @@ describe('pendingReplyRegistry', () => {
         expect(t).toHaveBeenCalledWith(
           'Broadcast complete.\n\n✅ Sent successfully: {SUCCESS}\n❌ Failed: {FAILED}',
           999,
-          { SUCCESS: '2', FAILED: '0' },
+          { SUCCESS: '3', FAILED: '0' },
         );
         expect(botMock.sendMessage).toHaveBeenCalledWith(
           999,
@@ -555,14 +557,16 @@ describe('pendingReplyRegistry', () => {
           .spyOn(console, 'error')
           .mockImplementation(() => {});
         listAllUsers.mockResolvedValue([
-          { chatId: String(KILZI_CHAT_ID), chatName: 'User A' },
-          { chatId: String(DORSE_CHAT_ID), chatName: 'User B' },
+          { chatId: '100', chatName: 'User A' },
+          { chatId: '200', chatName: 'User B' },
+          { chatId: '300', chatName: 'User C' },
         ]);
         const botMock = {
           sendMessage: jest
             .fn()
             .mockResolvedValueOnce() // User A success
             .mockRejectedValueOnce(new Error('User blocked bot')) // User B fails
+            .mockResolvedValueOnce() // User C success
             .mockResolvedValue(), // summary message
         };
         const replyMsg = {
@@ -576,10 +580,10 @@ describe('pendingReplyRegistry', () => {
         expect(t).toHaveBeenCalledWith(
           'Broadcast complete.\n\n✅ Sent successfully: {SUCCESS}\n❌ Failed: {FAILED}',
           999,
-          { SUCCESS: '1', FAILED: '1' },
+          { SUCCESS: '2', FAILED: '1' },
         );
         expect(t).toHaveBeenCalledWith('Failed to send to:\n{DETAILS}', 999, {
-          DETAILS: `User B (${DORSE_CHAT_ID})`,
+          DETAILS: 'User B (200)',
         });
         consoleSpy.mockRestore();
       });
@@ -632,7 +636,7 @@ describe('pendingReplyRegistry', () => {
       });
 
       it('should handle users with missing chatName', async () => {
-        listAllUsers.mockResolvedValue([{ chatId: String(KILZI_CHAT_ID) }]);
+        listAllUsers.mockResolvedValue([{ chatId: '100' }]);
         const botMock = {
           sendMessage: jest
             .fn()
@@ -651,7 +655,7 @@ describe('pendingReplyRegistry', () => {
         await resolved.handler(botMock, replyMsg);
 
         expect(t).toHaveBeenCalledWith('Failed to send to:\n{DETAILS}', 999, {
-          DETAILS: `Unknown (${KILZI_CHAT_ID})`,
+          DETAILS: 'Unknown (100)',
         });
         consoleSpy.mockRestore();
       });

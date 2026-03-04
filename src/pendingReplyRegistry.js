@@ -4,11 +4,7 @@
 // Supports optional data parameter for multi-step commands that need intermediate state.
 
 const { t } = require('./i18n');
-const {
-  REPORTED_BUGS_GROUP_ID,
-  KILZI_CHAT_ID,
-  DORSE_CHAT_ID,
-} = require('./constants');
+const { REPORTED_BUGS_GROUP_ID } = require('./constants');
 const { getChatName, sendMessageToAdmins } = require('./utils/utils');
 const { getUserById, listAllUsers } = require('./userRegistryService');
 
@@ -197,12 +193,6 @@ const PENDING_REPLY_REGISTRY = {
       let users;
       try {
         users = await listAllUsers();
-        // todo: kilzi: only for testing!
-        users = users.filter(
-          (u) =>
-            u.chatId === KILZI_CHAT_ID.toString() ||
-            u.chatId === DORSE_CHAT_ID.toString(),
-        );
       } catch (err) {
         console.error('Error fetching users for broadcast:', err);
         await replyBot
