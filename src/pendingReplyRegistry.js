@@ -6,7 +6,7 @@
 const { t } = require('./i18n');
 const { REPORTED_BUGS_GROUP_ID } = require('./constants');
 const { getChatName, sendMessageToAdmins } = require('./utils/utils');
-const { getUserById } = require('./userRegistryService');
+const { getUserById, listAllUsers } = require('./userRegistryService');
 
 /**
  * Each entry provides builder functions that reconstruct the handler, validator,
@@ -187,6 +187,81 @@ const PENDING_REPLY_REGISTRY = {
         chatId,
       );
     },
+  },
+  broadcast: {
+    buildHandler: (chatId) => async (replyBot, replyMsg) => {
+      let users;
+      try {
+        users = await listAllUsers();
+      } catch (err) {
+        console.error('Error fetching users for broadcast:', err);
+        await replyBot
+          .sendMessage(
+            chatId,
+            t('❌ Error fetching user list: {ERROR}', chatId, {
+              ERROR: err.message,
+            }),
+          )
+          .catch((sendErr) =>
+            console.error('Error sending user list error message:', sendErr),
+          );
+
+        return;
+      }
+
+      if (!users || users.length === 0) {
+        await replyBot
+          .sendMessage(
+            chatId,
+            t('No registered users found to broadcast to.', chatId),
+          )
+          .catch((err) =>
+            console.error('Error sending no users message:', err),
+          );
+
+        return;
+      }
+
+      let successCount = 0;
+      const failures = [];
+
+      for (const user of users) {
+        try {
+          const prefixedMessage = t(
+            '📢 Broadcast from bot admin:\n\n{MESSAGE}',
+            Number(user.chatId),
+            { MESSAGE: replyMsg.text },
+          );
+
+          await replyBot.sendMessage(Number(user.chatId), prefixedMessage);
+          successCount++;
+        } catch (err) {
+          console.error(`Error sending broadcast to user ${user.chatId}:`, err);
+          failures.push(`${user.chatName || 'Unknown'} (${user.chatId})`);
+        }
+      }
+
+      let summary = t(
+        'Broadcast complete.\n\n✅ Sent successfully: {SUCCESS}\n❌ Failed: {FAILED}',
+        chatId,
+        { SUCCESS: String(successCount), FAILED: String(failures.length) },
+      );
+
+      if (failures.length > 0) {
+        summary +=
+          '\n\n' +
+          t('Failed to send to:\n{DETAILS}', chatId, {
+            DETAILS: failures.join('\n'),
+          });
+      }
+
+      await replyBot
+        .sendMessage(chatId, summary)
+        .catch((err) => console.error('Error sending broadcast summary:', err));
+    },
+    buildValidate: () => (replyMsg) => !!replyMsg.text,
+    buildResendPrompt: (chatId) =>
+      t('We support only text. Please enter the message to broadcast.', chatId),
   },
 };
 

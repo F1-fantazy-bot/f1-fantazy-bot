@@ -28,6 +28,7 @@ const {
   handleReportBugCommand,
   handleListUsersCommand,
   handleSendMessageToUserCommand,
+  handleBroadcastCommand,
 } = require('./commandsHandler');
 
 // Import constants
@@ -58,6 +59,7 @@ const {
   COMMAND_REPORT_BUG,
   COMMAND_LIST_USERS,
   COMMAND_SEND_MESSAGE_TO_USER,
+  COMMAND_BROADCAST,
 } = require('./constants');
 
 exports.handleTextMessage = async function (bot, msg) {
@@ -124,6 +126,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleListUsersCommand(bot, msg);
     case msg.text === COMMAND_SEND_MESSAGE_TO_USER:
       return await handleSendMessageToUserCommand(bot, msg);
+    case msg.text === COMMAND_BROADCAST:
+      return await handleBroadcastCommand(bot, msg);
     default:
       try {
         const jsonData = JSON.parse(textTrimmed);

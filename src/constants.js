@@ -47,6 +47,7 @@ exports.COMMAND_START = '/start';
 exports.COMMAND_REPORT_BUG = '/report_bug';
 exports.COMMAND_LIST_USERS = '/list_users';
 exports.COMMAND_SEND_MESSAGE_TO_USER = '/send_message_to_user';
+exports.COMMAND_BROADCAST = '/broadcast';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -193,6 +194,11 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_SEND_MESSAGE_TO_USER,
         title: '✉️ Send Message to User',
         description: 'Send a message to a specific bot user',
+      },
+      {
+        constant: exports.COMMAND_BROADCAST,
+        title: '📢 Broadcast',
+        description: 'Send a message to all bot users',
       },
     ],
   },

@@ -274,6 +274,21 @@ const translations = {
       'אנו תומכים רק בטקסט. אנא הזן את ההודעה לשליחה.',
     '📩 Message from bot admin:\n\n{MESSAGE}':
       '📩 הודעה ממנהל הבוט:\n\n{MESSAGE}',
+    'Please enter the message you want to broadcast to all users:':
+      'אנא הזן את ההודעה שברצונך לשלוח לכל המשתמשים:',
+    '📢 Broadcast from bot admin:\n\n{MESSAGE}':
+      '📢 הודעה ממנהל הבוט:\n\n{MESSAGE}',
+    'Broadcast complete.\n\n✅ Sent successfully: {SUCCESS}\n❌ Failed: {FAILED}':
+      'השידור הושלם.\n\n✅ נשלח בהצלחה: {SUCCESS}\n❌ נכשל: {FAILED}',
+    'Failed to send to:\n{DETAILS}':
+      'שליחה נכשלה אל:\n{DETAILS}',
+    '📢 Broadcast': '📢 שידור',
+    'Send a message to all bot users':
+      'שלח הודעה לכל משתמשי הבוט',
+    'We support only text. Please enter the message to broadcast.':
+      'אנו תומכים רק בטקסט. אנא הזן את ההודעה לשידור.',
+    'No registered users found to broadcast to.':
+      'לא נמצאו משתמשים רשומים לשידור.',
   }
 };
 
