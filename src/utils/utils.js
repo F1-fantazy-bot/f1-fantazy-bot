@@ -9,6 +9,7 @@ const {
   HAIM_CHAT_ID,
   RONGO_CHAT_ID,
   TOM_CHAT_ID,
+  OMER_CHAT_ID,
 } = require('../constants');
 
 const {
@@ -317,6 +318,7 @@ exports.isMessageFromAllowedUser = function (msg) {
     HAIM_CHAT_ID,
     RONGO_CHAT_ID,
     TOM_CHAT_ID,
+    OMER_CHAT_ID,
   ];
 
   return allowList.includes(msg.chat.id);
