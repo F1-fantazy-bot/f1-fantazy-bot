@@ -3,7 +3,8 @@ jest.mock('../userRegistryService', () => ({
   updateUserAttributes: jest.fn().mockResolvedValue(undefined),
 }));
 const { updateUserAttributes } = require('../userRegistryService');
-const { getLanguage, languageCache, t, getLanguageName } = require('../i18n');
+const { getLanguage, t, getLanguageName } = require('../i18n');
+const { userCache } = require('../cache');
 const { handleSetLanguage } = require('./setLanguageHandler');
 
 describe('handleSetLanguage', () => {
@@ -13,7 +14,7 @@ describe('handleSetLanguage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    Object.keys(languageCache).forEach((key) => delete languageCache[key]);
+    Object.keys(userCache).forEach((key) => delete userCache[key]);
   });
 
   it('should change language when valid code provided', async () => {

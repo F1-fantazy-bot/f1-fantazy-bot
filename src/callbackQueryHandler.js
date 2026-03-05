@@ -21,7 +21,7 @@ const {
   LANG_CALLBACK_TYPE,
 } = require('./constants');
 
-const { sendLogMessage, sendMessageToUser } = require('./utils');
+const { sendLogMessage, sendMessageToUser, getDisplayName } = require('./utils');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
 const { t, setLanguage, getLanguageName } = require('./i18n');
 
@@ -46,10 +46,11 @@ async function handlePhotoCallback(bot, query) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
   const [_, type, fileId] = query.data.split(':');
+  const displayName = getDisplayName(chatId);
 
   // Save or process the selection (just logging here)
   console.log(
-    `User ${chatId} labeled photo ${fileId} as ${type.toUpperCase()}`,
+    `User ${displayName} (${chatId}) labeled photo ${fileId} as ${type.toUpperCase()}`,
   );
 
   // Optional: edit the message to confirm

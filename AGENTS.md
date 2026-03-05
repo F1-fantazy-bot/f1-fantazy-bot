@@ -12,11 +12,12 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
   - `src/textMessageHandler.js` routes command strings to handler functions defined in `src/commandsHandler`.
   - Generic command execution is centralized in `src/commandsHandler/commandHandlers.js`, which maps command constants to handler implementations.
 - **Pending Reply Manager:** `src/pendingReplyManager.js` provides a centralized mechanism for commands that need a follow-up reply from the user (text or photo). State is stored in **Azure Table Storage** for multi-server support. The check happens in `messageHandler.js` **before** the text/photo branching, so reply handlers receive the full message regardless of type. Supports optional `data` parameter for multi-step commands that need to store intermediate state between steps.
-- **Pending Reply Registry:** `src/pendingReplyRegistry.js` maps command identifiers (e.g., `'report_bug'`, `'send_message_to_user'`) to builder functions that reconstruct handlers, validators, and prompts. This enables serializable storage — only the command ID and optional data are persisted, and the full behavior is rebuilt on any server instance. Builder functions receive `(chatId, data)` where `data` is optional stored state for multi-step commands.
-- **Caching:** `src/cache.js` holds in-memory data for drivers, constructors, current team info, simulations, next race info, weather forecasts, and language preferences. `src/cacheInitializer.js` populates those caches on startup — most data comes from Azure Blob Storage, while language preferences are loaded from the `UserRegistry` Azure Table via `listAllUserLanguages()`.
-- **User Registry:** `src/userRegistryService.js` tracks all users who interact with the bot in an Azure Table Storage table (`UserRegistry`). On every allowed message, `messageHandler.js` calls `upsertUser(chatId, chatName)` in a fire-and-forget manner (no `await`) so that registry failures never block message handling. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) displays all registered users with their details.
+- **Pending Reply Registry:** `src/pendingReplyRegistry.js` maps command identifiers (e.g., `'report_bug'`, `'send_message_to_user'`, `'set_nickname'`) to builder functions that reconstruct handlers, validators, and prompts. This enables serializable storage — only the command ID and optional data are persisted, and the full behavior is rebuilt on any server instance. Builder functions receive `(chatId, data)` where `data` is optional stored state for multi-step commands.
+- **Caching:** `src/cache.js` holds in-memory data for drivers, constructors, current team info, simulations, next race info, weather forecasts, and a unified `userCache`. `src/cacheInitializer.js` populates those caches on startup — most data comes from Azure Blob Storage, while `userCache` is populated from the `UserRegistry` Azure Table via a single `listAllUsers()` call. Each entry in `userCache` is keyed by `chatId` and holds `{ lang, nickname, chatName, ... }`.
+- **Display Names:** `src/utils/utils.js` provides `getDisplayName(chatId)` which checks the in-memory `userCache` and returns the nickname if set, then falls back to `chatName`, then to the stringified `chatId`. This is used in `messageHandler.js` for all log messages so admins see nicknames in logs instead of Telegram display names.
+- **User Registry:** `src/userRegistryService.js` tracks all users who interact with the bot in an Azure Table Storage table (`UserRegistry`). On every allowed message, `messageHandler.js` calls `upsertUser(chatId, chatName)` in a fire-and-forget manner (no `await`) so that registry failures never block message handling. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) displays all registered users with their details, including nicknames when set.
 - **Utilities & Services:**
-  - `src/utils` contains Telegram helpers, formatting (`formatDateTime`), and logging utilities.
+  - `src/utils` contains Telegram helpers, formatting (`formatDateTime`), display name resolution (`getDisplayName`), and logging utilities.
   - `src/utils/weatherApi.js` interacts with external weather services.
   - `src/azureStorageService.js` and `src/azureBillingService.js` wrap Azure integrations.
 - **Internationalization:** `src/i18n.js` and `src/translations.js` provide language support (English/Hebrew) used throughout handlers.
@@ -31,6 +32,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
    - `nextRaceInfoHandler.js` – detailed next race info.
    - `nextRaceWeatherHandler.js` – weather forecasts.
    - `nextRacesHandler.js` – upcoming race schedule (new `/next_races`).
+   - `setNicknameHandler.js` – admin command to set user nicknames.
 3. **Exports:** `src/commandsHandler/index.js` re-exports all handler functions for convenient imports elsewhere.
 4. **Command Router:** `src/commandsHandler/commandHandlers.js` maps constants to handler functions and implements `executeCommand` used by the ASK agent and menu callbacks.
 5. **Text Routing:** `src/textMessageHandler.js` checks incoming text and dispatches to the appropriate handler; non-command text is parsed as JSON or delegated to the ASK agent.
@@ -56,7 +58,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/menu`, `/help`, `/lang`
 - `/report_bug` _(reply-based — uses pending reply manager)_
 
-**Admin-only:** `/load_simulation`, `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`
+**Admin-only:** `/load_simulation`, `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`
 
 ---
 
@@ -204,6 +206,7 @@ Follow the standard "Adding a New Command" steps above, **plus** these specifics
 - **Single-step:** See `src/commandsHandler/reportBugHandler.js` — the `/report_bug` command registers `'report_bug'` as a pending reply. The handler logic (sending to admins, validation for text-only) lives in `src/pendingReplyRegistry.js` under the `report_bug` entry.
 - **Single-step (broadcast):** See `src/commandsHandler/broadcastHandler.js` — the `/broadcast` admin command registers `'broadcast'` as a pending reply. The handler in `src/pendingReplyRegistry.js` fetches all users via `listAllUsers()`, sends the broadcast message to each (localized per recipient), and reports a success/failure summary back to the admin.
 - **Multi-step:** See `src/commandsHandler/sendMessageToUserHandler.js` — the `/send_message_to_user` admin command uses a two-step reply flow with intermediate data storage. Step 1 collects the target user's chat ID (validated against the User Registry), then re-registers with `{ step: 'collect_message', targetChatId }`. Step 2 collects the message text and sends it to the target user. The handler uses lazy `require` for `pendingReplyManager` to avoid circular dependencies.
+- **Multi-step (set nickname):** See `src/commandsHandler/setNicknameHandler.js` — the `/set_nickname` admin command uses a two-step reply flow. Step 1 collects the target user's chat ID (validated against the User Registry), then re-registers with `{ step: 'collect_nickname', targetChatId, targetChatName }`. Step 2 collects the nickname text, stores it via `updateUserAttributes()`, updates the in-memory `userCache`, and confirms to the admin.
 
 ### API Reference
 
@@ -233,10 +236,10 @@ All methods are **async** — they interact with Azure Table Storage. The table 
 ### How It Works
 
 1. On every incoming message from an allowed user, `messageHandler.js` calls `upsertUser(chatId, chatName)` **without `await`** (fire-and-forget).
-2. `upsertUser` uses Azure Table Storage **Merge mode** — it only sends `chatName` and `lastSeen` (plus `firstSeen` for new users). All other existing attributes (lang, future fields) are automatically preserved by Merge mode without needing to read them first.
+2. `upsertUser` uses Azure Table Storage **Merge mode** — it only sends `chatName` and `lastSeen` (plus `firstSeen` for new users). All other existing attributes (lang, nickname, future fields) are automatically preserved by Merge mode without needing to read them first.
 3. Errors are caught and logged silently (`console.error`) — the user registry never blocks or breaks message handling.
-4. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) calls `listAllUsers()` to fetch all registered users. `listAllUsers()` automatically returns all non-system fields from each entity, so new attributes are included without code changes.
-5. User attributes (e.g., language preferences) are stored via `updateUserAttributes(chatId, { lang })` — called by `setLanguageHandler.js` and `callbackQueryHandler.js`. This generic function uses Merge mode so it only writes the specified attributes without reading or overwriting others. On startup, `cacheInitializer.js` calls `listAllUserLanguages()` to populate the in-memory `languageCache`.
+4. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) calls `listAllUsers()` to fetch all registered users. `listAllUsers()` automatically returns all non-system fields from each entity, so new attributes are included without code changes. Nicknames are displayed when present.
+5. User attributes (e.g., language preferences, nicknames) are stored via `updateUserAttributes(chatId, { lang })` or `updateUserAttributes(chatId, { nickname })` — called by `setLanguageHandler.js`, `callbackQueryHandler.js`, and the `set_nickname` pending reply handler. This generic function uses Merge mode so it only writes the specified attributes without reading or overwriting others. On startup, `cacheInitializer.js` calls `listAllUsers()` once and populates the unified in-memory `userCache` with all user data (lang, nickname, chatName, etc.).
 
 ### Generic Merge Pattern
 
@@ -251,24 +254,53 @@ The service uses Azure Table Storage's **Merge mode** (`upsertEntity(entity, 'Me
 
 The table is **extensible** — new attributes can be added at any time without schema changes. Known fields:
 
-| Field          | Type     | Description                                                               |
-| -------------- | -------- | ------------------------------------------------------------------------- |
-| `partitionKey` | `string` | Always `'User'`                                                           |
-| `rowKey`       | `string` | The `chatId` (stringified)                                                |
-| `chatName`     | `string` | Display name from `getChatName(msg)`                                      |
-| `lang`         | `string` | Language code (`'en'`, `'he'`). Optional — absent means default (`'en'`). |
-| `firstSeen`    | `string` | ISO timestamp — set on first interaction, preserved on updates            |
-| `lastSeen`     | `string` | ISO timestamp — updated on every message                                  |
+| Field          | Type     | Description                                                                                   |
+| -------------- | -------- | --------------------------------------------------------------------------------------------- |
+| `partitionKey` | `string` | Always `'User'`                                                                               |
+| `rowKey`       | `string` | The `chatId` (stringified)                                                                    |
+| `chatName`     | `string` | Display name from `getChatName(msg)`                                                          |
+| `lang`         | `string` | Language code (`'en'`, `'he'`). Optional — absent means default (`'en'`).                     |
+| `nickname`     | `string` | Admin-assigned display name for logs. Optional — when set, replaces `chatName` in log output. |
+| `firstSeen`    | `string` | ISO timestamp — set on first interaction, preserved on updates                                |
+| `lastSeen`     | `string` | ISO timestamp — updated on every message                                                      |
 
 ### API Reference
 
 | Method                 | Signature                                            | Purpose                                                                                                                            |
 | ---------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `upsertUser`           | `upsertUser(chatId, chatName) → Promise`             | Track a user interaction. Fire-and-forget — errors are logged, never thrown. Uses Merge mode to preserve all other fields.         |
-| `updateUserAttributes` | `updateUserAttributes(chatId, attributes) → Promise` | Update one or more user attributes using Merge mode. No read step needed. Example: `updateUserAttributes(chatId, { lang: 'he' })`. |
+| `updateUserAttributes` | `updateUserAttributes(chatId, attributes) → Promise` | Update one or more user attributes using Merge mode. No read step needed. Example: `updateUserAttributes(chatId, { nickname: 'Max' })`. |
 | `getUserById`          | `getUserById(chatId) → Promise<Object\|null>`         | Point lookup for a single user by chat ID. Returns user object with all stored attributes, or `null` if not found. Throws on real storage errors. More efficient than `listAllUsers` when you only need one user. |
-| `listAllUsers`         | `listAllUsers() → Promise<Array<Object>>`            | Return all registered users with all stored attributes. Automatically includes future fields.                                      |
-| `listAllUserLanguages` | `listAllUserLanguages() → Promise<Object>`           | Return `{ chatId: lang }` mapping for all users with a language set. Used by `cacheInitializer`.                                   |
+| `listAllUsers`         | `listAllUsers() → Promise<Array<Object>>`            | Return all registered users with all stored attributes. Automatically includes future fields. Used by `cacheInitializer` to populate `userCache` on startup. |
+
+---
+
+## Nickname System
+
+The nickname system allows admins to assign custom display names to users that replace the Telegram `chatName` in all bot log messages.
+
+### How It Works
+
+1. Admin runs `/set_nickname` → two-step reply flow collects target user chat ID, then the nickname text.
+2. The nickname is stored in the `UserRegistry` Azure Table via `updateUserAttributes(chatId, { nickname })`.
+3. The in-memory `userCache` (in `src/cache.js`) is updated immediately with the nickname field.
+4. On startup, `cacheInitializer.js` loads all users via `listAllUsers()` into `userCache` — nicknames are included automatically.
+5. `getDisplayName(chatId)` in `src/utils/utils.js` checks `userCache` — returns the nickname if set, falls back to `chatName`, then to the stringified `chatId`.
+6. `messageHandler.js` calls `getDisplayName()` for all `sendLogMessage()` calls, so log messages show nicknames.
+7. `/list_users` output shows the nickname (📛) when present for each user.
+
+### Key Files
+
+| File | Role |
+| ---- | ---- |
+| `src/cache.js` | `userCache` — in-memory `{ chatId: { lang, nickname, chatName, ... } }` map |
+| `src/userRegistryService.js` | `listAllUsers()` — loads all user data from Azure Table |
+| `src/cacheInitializer.js` | Populates `userCache` on startup via single `listAllUsers()` call |
+| `src/utils/utils.js` | `getDisplayName(chatId)` — resolves nickname → chatName → chatId fallback |
+| `src/messageHandler.js` | Uses `getDisplayName()` in all log messages; updates `userCache` chatName on every message |
+| `src/commandsHandler/setNicknameHandler.js` | `/set_nickname` command handler (admin-only, two-step reply) |
+| `src/pendingReplyRegistry.js` | `set_nickname` entry — collects chat ID then nickname, stores, updates `userCache` |
+| `src/commandsHandler/listUsersHandler.js` | Shows nickname in `/list_users` output |
 
 ---
 

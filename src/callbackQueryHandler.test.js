@@ -15,11 +15,13 @@ const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 const cache = require('./cache');
 const azureStorageService = require('./azureStorageService');
 const { updateUserAttributes } = require('./userRegistryService');
-const { t, getLanguage, languageCache, getLanguageName } = require('./i18n');
+const { t, getLanguage, getLanguageName } = require('./i18n');
+const { userCache } = require('./cache');
 
 jest.mock('./utils', () => ({
   sendLogMessage: jest.fn().mockResolvedValue(undefined),
   sendMessageToUser: jest.fn().mockResolvedValue(undefined),
+  getDisplayName: jest.fn().mockReturnValue('TestUser'),
 }));
 
 jest.mock('openai', () => ({
@@ -55,7 +57,7 @@ jest.mock('./cache', () => ({
   driversCache: {},
   bestTeamsCache: {},
   selectedChipCache: {},
-  languageCache: {},
+  userCache: {},
   getPrintableCache: jest.fn(),
 }));
 
@@ -355,7 +357,7 @@ describe('handleCallbackQuery', () => {
   describe('language selection handling', () => {
     beforeEach(() => {
       jest.clearAllMocks();
-      Object.keys(languageCache).forEach((key) => delete languageCache[key]);
+      Object.keys(userCache).forEach((key) => delete userCache[key]);
     });
 
     it('should set language and edit message', async () => {

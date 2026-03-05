@@ -15,7 +15,8 @@ const {
   YEHONATAN_CHAT_ID,
   HAIM_CHAT_ID,
 } = require('../constants');
-const { setLanguage, languageCache } = require('../i18n');
+const { setLanguage } = require('../i18n');
+const { userCache } = require('../cache');
 
 describe('utils', () => {
   describe('getChatName', () => {
@@ -563,7 +564,7 @@ describe('utils', () => {
   describe('formatDateTime', () => {
     const chatId = 12345;
     afterEach(() => {
-      Object.keys(languageCache).forEach((key) => delete languageCache[key]);
+      Object.keys(userCache).forEach((key) => delete userCache[key]);
     });
 
     it('uses English locale by default', () => {

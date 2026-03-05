@@ -26,6 +26,7 @@ const {
   COMMAND_LIST_USERS,
   COMMAND_SEND_MESSAGE_TO_USER,
   COMMAND_BROADCAST,
+  COMMAND_SET_NICKNAME,
 } = require('../constants');
 
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
@@ -56,6 +57,7 @@ const { handleReportBugCommand } = require('./reportBugHandler');
 const { handleListUsersCommand } = require('./listUsersHandler');
 const { handleSendMessageToUserCommand } = require('./sendMessageToUserHandler');
 const { handleBroadcastCommand } = require('./broadcastHandler');
+const { handleSetNicknameCommand } = require('./setNicknameHandler');
 
 // Mapping of command constants to their handler functions
 const COMMAND_HANDLERS = {
@@ -86,6 +88,7 @@ const COMMAND_HANDLERS = {
   [COMMAND_LIST_USERS]: handleListUsersCommand,
   [COMMAND_SEND_MESSAGE_TO_USER]: handleSendMessageToUserCommand,
   [COMMAND_BROADCAST]: handleBroadcastCommand,
+  [COMMAND_SET_NICKNAME]: handleSetNicknameCommand,
 };
 
 async function executeCommand(bot, msg, command) {

@@ -1,5 +1,5 @@
 const { BlobServiceClient } = require('@azure/storage-blob');
-const { sendLogMessage } = require('./utils/utils');
+const { sendLogMessage, getDisplayName } = require('./utils/utils');
 
 let blobServiceClient;
 let containerClient;
@@ -138,9 +138,11 @@ async function saveUserTeam(bot, chatId, teamData) {
       blobHTTPHeaders: { blobContentType: 'application/json' },
     });
 
+    const displayName = getDisplayName(chatId);
+
     await sendLogMessage(
       bot,
-      `Successfully saved team data for chatId: ${chatId}`
+      `Successfully saved team data for ${displayName} (${chatId})`
     );
   } catch (error) {
     throw new Error(`Failed to save user team for ${chatId}: ${error.message}`);
@@ -162,9 +164,11 @@ async function deleteUserTeam(bot, chatId) {
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
     await blockBlobClient.deleteIfExists();
 
+    const displayName = getDisplayName(chatId);
+
     await sendLogMessage(
       bot,
-      `Successfully deleted team data for chatId: ${chatId}`
+      `Successfully deleted team data for ${displayName} (${chatId})`
     );
   } catch (error) {
     throw new Error(

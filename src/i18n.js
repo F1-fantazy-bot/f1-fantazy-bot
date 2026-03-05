@@ -1,5 +1,5 @@
 const { translations, LANGUAGE_NAME_KEYS } = require('./translations');
-const { languageCache } = require('./cache');
+const { userCache } = require('./cache');
 const defaultLanguage = process.env.BOT_LANGUAGE || 'en';
 
 function setLanguage(lang, chatId) {
@@ -7,14 +7,20 @@ function setLanguage(lang, chatId) {
     return false;
   }
 
-  languageCache[chatId] = lang;
+  const key = String(chatId);
+
+  if (!userCache[key]) {
+    userCache[key] = {};
+  }
+
+  userCache[key].lang = lang;
 
   return true;
 }
 
 function getLanguage(chatId) {
   if (chatId !== undefined) {
-    return languageCache[chatId] || defaultLanguage;
+    return userCache[String(chatId)]?.lang || defaultLanguage;
   }
 
   return defaultLanguage;
@@ -58,7 +64,6 @@ module.exports = {
   setLanguage,
   getLanguage,
   getSupportedLanguages,
-  languageCache,
   getLanguageName,
   getLocale,
 };

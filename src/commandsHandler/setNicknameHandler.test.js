@@ -1,0 +1,93 @@
+const { handleSetNicknameCommand } = require('./setNicknameHandler');
+
+jest.mock('../i18n', () => ({
+  t: jest.fn((key) => key),
+}));
+
+jest.mock('../utils/utils', () => ({
+  isAdminMessage: jest.fn(),
+}));
+
+jest.mock('../pendingReplyManager', () => ({
+  registerPendingReply: jest.fn().mockResolvedValue(),
+}));
+
+const { t } = require('../i18n');
+const { isAdminMessage } = require('../utils/utils');
+const { registerPendingReply } = require('../pendingReplyManager');
+
+describe('setNicknameHandler', () => {
+  let botMock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    botMock = {
+      sendMessage: jest.fn().mockResolvedValue(),
+    };
+  });
+
+  describe('handleSetNicknameCommand', () => {
+    it('should reject non-admin users', async () => {
+      isAdminMessage.mockReturnValue(false);
+      const msg = { chat: { id: 999 } };
+
+      await handleSetNicknameCommand(botMock, msg);
+
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        999,
+        'Sorry, only admins can use this command.',
+      );
+      expect(registerPendingReply).not.toHaveBeenCalled();
+    });
+
+    it('should register a pending reply with command ID and step data for admin users', async () => {
+      isAdminMessage.mockReturnValue(true);
+      const msg = { chat: { id: 123 } };
+
+      await handleSetNicknameCommand(botMock, msg);
+
+      expect(registerPendingReply).toHaveBeenCalledWith(
+        123,
+        'set_nickname',
+        { step: 'collect_user_id' },
+      );
+    });
+
+    it('should send a prompt message with force_reply', async () => {
+      isAdminMessage.mockReturnValue(true);
+      const msg = { chat: { id: 123 } };
+
+      await handleSetNicknameCommand(botMock, msg);
+
+      expect(t).toHaveBeenCalledWith(
+        'Please enter the chat ID of the user you want to set a nickname for:',
+        123,
+      );
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        123,
+        'Please enter the chat ID of the user you want to set a nickname for:',
+        { reply_markup: { force_reply: true } },
+      );
+    });
+
+    it('should handle sendMessage errors gracefully', async () => {
+      const consoleSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      isAdminMessage.mockReturnValue(true);
+      botMock.sendMessage = jest
+        .fn()
+        .mockRejectedValue(new Error('Send failed'));
+      const msg = { chat: { id: 123 } };
+
+      await handleSetNicknameCommand(botMock, msg);
+
+      expect(registerPendingReply).toHaveBeenCalledWith(
+        123,
+        'set_nickname',
+        { step: 'collect_user_id' },
+      );
+      consoleSpy.mockRestore();
+    });
+  });
+});

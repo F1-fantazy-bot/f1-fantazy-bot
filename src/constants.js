@@ -4,7 +4,8 @@ exports.YEHONATAN_CHAT_ID = 740312192;
 exports.HAIM_CHAT_ID = 488951260;
 exports.RONGO_CHAT_ID = 393514146;
 exports.TOM_CHAT_ID = 94086234;
-exports.OMER_CHAT_ID = 417371432;
+exports.OMER_BAREL_CHAT_ID = 417371432;
+exports.OMER_BENBENISTY_CHAT_ID = 1389508932;
 
 exports.LOG_CHANNEL_ID = -1002298860617;
 exports.REPORTED_BUGS_GROUP_ID = -5161566735;
@@ -52,6 +53,7 @@ exports.COMMAND_REPORT_BUG = '/report_bug';
 exports.COMMAND_LIST_USERS = '/list_users';
 exports.COMMAND_SEND_MESSAGE_TO_USER = '/send_message_to_user';
 exports.COMMAND_BROADCAST = '/broadcast';
+exports.COMMAND_SET_NICKNAME = '/set_nickname';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -203,6 +205,11 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_BROADCAST,
         title: '📢 Broadcast',
         description: 'Send a message to all bot users',
+      },
+      {
+        constant: exports.COMMAND_SET_NICKNAME,
+        title: '📛 Set Nickname',
+        description: 'Set a nickname for a user to display in logs',
       },
     ],
   },
