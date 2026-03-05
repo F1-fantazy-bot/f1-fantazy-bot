@@ -14,13 +14,14 @@ const { userCache } = require('./cache');
 exports.handleMessage = async function (bot, msg) {
   const chatId = msg.chat.id;
   const chatName = getChatName(msg);
+  const key = String(chatId);
 
   // Update userCache so getDisplayName can resolve names without a msg object
-  if (!userCache[String(chatId)]) {
-    userCache[String(chatId)] = {};
+  if (!userCache[key]) {
+    userCache[key] = {};
   }
 
-  userCache[String(chatId)].chatName = chatName;
+  userCache[key].chatName = chatName;
 
   const displayName = getDisplayName(chatId);
 

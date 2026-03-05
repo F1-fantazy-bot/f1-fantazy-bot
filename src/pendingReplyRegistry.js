@@ -349,7 +349,7 @@ const PENDING_REPLY_REGISTRY = {
             await replyBot
               .sendMessage(
                 chatId,
-                t('❌ Error fetching user list: {ERROR}', chatId, {
+                t('❌ Error setting nickname: {ERROR}', chatId, {
                   ERROR: err.message,
                 }),
               )
@@ -389,7 +389,7 @@ const PENDING_REPLY_REGISTRY = {
       }
 
       return t(
-        'We support only text. Please enter the message to send.',
+        'We support only text. Please enter the nickname.',
         chatId,
       );
     },

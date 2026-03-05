@@ -295,6 +295,9 @@ const translations = {
       'אנא הזן כינוי עבור {NAME}:',
     'Nickname for {NAME} ({ID}) set to "{NICKNAME}".':
       'הכינוי עבור {NAME} ({ID}) הוגדר ל"{NICKNAME}".',
+    '❌ Error setting nickname: {ERROR}': '❌ שגיאה בהגדרת כינוי: {ERROR}',
+    'We support only text. Please enter the nickname.':
+      'אנו תומכים רק בטקסט. אנא הזן את הכינוי.',
     '📛 Set Nickname': '📛 הגדר כינוי',
     'Set a nickname for a user to display in logs':
       'הגדר כינוי למשתמש להצגה ביומנים',

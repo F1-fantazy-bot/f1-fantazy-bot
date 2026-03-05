@@ -7,18 +7,20 @@ function setLanguage(lang, chatId) {
     return false;
   }
 
-  if (!userCache[chatId]) {
-    userCache[chatId] = {};
+  const key = String(chatId);
+
+  if (!userCache[key]) {
+    userCache[key] = {};
   }
 
-  userCache[chatId].lang = lang;
+  userCache[key].lang = lang;
 
   return true;
 }
 
 function getLanguage(chatId) {
   if (chatId !== undefined) {
-    return (userCache[chatId] && userCache[chatId].lang) || defaultLanguage;
+    return userCache[String(chatId)]?.lang || defaultLanguage;
   }
 
   return defaultLanguage;

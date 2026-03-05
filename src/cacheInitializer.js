@@ -58,12 +58,9 @@ async function initializeCaches(bot) {
   const users = await listAllUsers();
   for (const user of users) {
     const key = String(user.chatId);
+    const { chatId: _id, ...userData } = user;
 
-    userCache[key] = {
-      ...(user.chatName && { chatName: user.chatName }),
-      ...(user.lang && { lang: user.lang }),
-      ...(user.nickname && { nickname: user.nickname }),
-    };
+    userCache[key] = userData;
   }
 
   await sendLogMessage(
