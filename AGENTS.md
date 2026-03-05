@@ -6,7 +6,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 
 ## Core Concepts
 
-- **Entry Point:** `src/bot.js` bootstraps the Telegram bot, initializes caches via Azure Storage, and registers message/callback listeners.
+- **Entry Point:** `src/bot.js` bootstraps the Telegram bot, initializes caches via Azure Storage, and registers message/callback listeners. It exports both the bot instance and a `cacheReady` promise. The Azure Function webhook (`telegramWebhook/index.js`) awaits `cacheReady` before processing any update, preventing a race condition where the first cold-start message would be handled before caches are populated.
 - **Message Flow:**
   - `src/messageHandler.js` distinguishes between text, photo, and other message types. It also checks for pending replies (see Pending Reply Manager below) before routing to type-specific handlers.
   - `src/textMessageHandler.js` routes command strings to handler functions defined in `src/commandsHandler`.
@@ -74,6 +74,8 @@ Required environment variables (see `readme.md` for full list):
 - Scraping trigger: `AZURE_LOGICAPP_TRIGGER_URL`
 
 Start the bot with `npm start` (polling in dev) or configure webhook as needed for production.
+
+**Cold-Start Initialization:** `src/bot.js` stores the `initializeCaches()` promise as `cacheReady` and exports it. The Azure Function webhook (`telegramWebhook/index.js`) awaits `bot.cacheReady` before calling `bot.processUpdate(update)`. On a cold start the first request waits for caches to be ready; on warm invocations the resolved promise returns instantly. In polling dev mode `cacheReady` is unused — the natural polling delay avoids the race.
 
 ---
 
