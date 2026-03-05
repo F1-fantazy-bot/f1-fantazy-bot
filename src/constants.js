@@ -277,6 +277,7 @@ exports.NAME_TO_CODE_DRIVERS_MAPPING = {
   bottas: 'BOT',
 };
 
+// important note - all keys in NAME_TO_CODE_MAPPING must be in lowercase, and all values must be uppercase, as this is how they are used in the code (lowercase for matching user input, uppercase for generating the final team code)
 exports.NAME_TO_CODE_CONSTRUCTORS_MAPPING = {
   mclaren: 'MCL',
   mercedes: 'MER',
@@ -285,7 +286,7 @@ exports.NAME_TO_CODE_CONSTRUCTORS_MAPPING = {
   williams: 'WIL',
   'racing bulls': 'VRB',
   alpine: 'ALP',
-  haas: 'HAA',
+  'haas f1 team': 'HAA',
   'aston martin': 'AST',
   'kick sauber': 'KCK',
   cadillac: 'CAD',
