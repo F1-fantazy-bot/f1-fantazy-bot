@@ -6,9 +6,7 @@ const {
   COMMAND_HELP,
 } = require('../constants');
 
-// Import command handlers directly to avoid circular dependency in mapping
 const { displayHelpMessage } = require('./helpHandler');
-const { COMMAND_HANDLERS, executeCommand } = require('./commandHandlers');
 const { t } = require('../i18n');
 
 async function displayMenuMessage(bot, msg) {
@@ -200,6 +198,9 @@ async function executeMenuCommand(bot, query, command) {
     text: command,
     message_id: messageId,
   };
+
+  // Lazy require to avoid circular dependency (commandHandlers imports menuHandler)
+  const { COMMAND_HANDLERS, executeCommand } = require('./commandHandlers');
 
   // Find and execute the command handler
   const handler = COMMAND_HANDLERS[command];

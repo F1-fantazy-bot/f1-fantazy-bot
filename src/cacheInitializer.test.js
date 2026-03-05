@@ -6,14 +6,14 @@ const {
   simulationInfoCache,
   sharedKey,
   nextRaceInfoCache,
-  languageCache,
+  userCache,
 } = require('./cache');
 const {
   getFantasyData,
   listAllUserTeamData,
   getNextRaceInfoData,
 } = require('./azureStorageService');
-const { listAllUserLanguages } = require('./userRegistryService');
+const { listAllUsers } = require('./userRegistryService');
 const { initializeCaches, loadSimulationData } = require('./cacheInitializer');
 
 // Mock dependencies
@@ -32,7 +32,7 @@ jest.mock('./azureStorageService', () => ({
 }));
 
 jest.mock('./userRegistryService', () => ({
-  listAllUserLanguages: jest.fn(),
+  listAllUsers: jest.fn(),
 }));
 
 describe('cacheInitializer', () => {
@@ -67,11 +67,11 @@ describe('cacheInitializer', () => {
     },
   };
 
-  // Mock user language preferences
-  const mockUserLanguages = {
-    123: 'en',
-    456: 'he',
-  };
+  // Mock users (combined data from UserRegistry)
+  const mockUsers = [
+    { chatId: '123', chatName: 'Alice', lang: 'en', nickname: 'Max' },
+    { chatId: '456', chatName: 'Bob', lang: 'he', nickname: 'Lewis' },
+  ];
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -89,13 +89,13 @@ describe('cacheInitializer', () => {
     Object.keys(nextRaceInfoCache).forEach(
       (key) => delete nextRaceInfoCache[key]
     );
-    Object.keys(languageCache).forEach((key) => delete languageCache[key]);
+    Object.keys(userCache).forEach((key) => delete userCache[key]);
 
     // Setup mock implementations
     validateJsonData.mockResolvedValue(true);
     getFantasyData.mockResolvedValue(mockFantasyData);
     listAllUserTeamData.mockResolvedValue(mockUserTeams);
-    listAllUserLanguages.mockResolvedValue(mockUserLanguages);
+    listAllUsers.mockResolvedValue(mockUsers);
     getNextRaceInfoData.mockResolvedValue({
       raceName: 'Test Race',
       season: '2025',
@@ -108,7 +108,7 @@ describe('cacheInitializer', () => {
     // Verify Azure Storage was queried
     expect(getFantasyData).toHaveBeenCalled();
     expect(listAllUserTeamData).toHaveBeenCalled();
-    expect(listAllUserLanguages).toHaveBeenCalled();
+    expect(listAllUsers).toHaveBeenCalled();
     expect(getNextRaceInfoData).toHaveBeenCalled();
 
     // Verify success message was sent via utils
@@ -148,10 +148,10 @@ describe('cacheInitializer', () => {
     // Verify user teams were cached correctly
     expect(currentTeamCache).toEqual(mockUserTeams);
 
-    // Verify user language preferences were cached correctly
-    expect(languageCache).toEqual({
-      123: 'en',
-      456: 'he',
+    // Verify userCache was populated correctly
+    expect(userCache).toEqual({
+      123: { chatName: 'Alice', lang: 'en', nickname: 'Max' },
+      456: { chatName: 'Bob', lang: 'he', nickname: 'Lewis' },
     });
 
     // Verify user teams loaded message
@@ -164,7 +164,7 @@ describe('cacheInitializer', () => {
     expect(utils.sendLogMessage).toHaveBeenCalledWith(
       mockBot,
       expect.stringContaining(
-        `Loaded ${Object.keys(mockUserLanguages).length} user language preferences`
+        `Loaded ${mockUsers.length} users into cache`
       )
     );
   });

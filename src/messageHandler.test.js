@@ -4,6 +4,7 @@ const mockIsAllowedUser = jest.fn((msg) => msg.chat.id === KILZI_CHAT_ID);
 
 jest.mock('./utils/utils', () => ({
   getChatName: jest.fn().mockReturnValue('Unknown'),
+  getDisplayName: jest.fn().mockReturnValue('Unknown'),
   sendLogMessage: jest.fn(),
   isMessageFromAllowedUser: mockIsAllowedUser,
 }));
@@ -26,7 +27,7 @@ jest.mock('./photoMessageHandler', () => ({
 }));
 
 const { handleMessage } = require('./messageHandler');
-const { sendLogMessage } = require('./utils/utils');
+const { sendLogMessage, getDisplayName } = require('./utils/utils');
 const { getPendingReply, clearPendingReply } = require('./pendingReplyManager');
 const { upsertUser } = require('./userRegistryService');
 const { handleTextMessage } = require('./textMessageHandler');
@@ -40,6 +41,7 @@ describe('handleMessage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     getPendingReply.mockResolvedValue(undefined);
+    getDisplayName.mockReturnValue('Unknown');
   });
 
   it('when got message from unknown sender, dont handle the message', async () => {
@@ -86,6 +88,25 @@ describe('handleMessage', () => {
       `Received unsupported message type from Unknown (${KILZI_CHAT_ID}).`
     );
     // Should track allowed users even for unsupported message types
+    expect(upsertUser).toHaveBeenCalledWith(KILZI_CHAT_ID, 'Unknown');
+  });
+
+  it('should use nickname from getDisplayName in log messages', async () => {
+    getDisplayName.mockReturnValue('Nickname');
+    const msgMock = {
+      chat: {
+        id: KILZI_CHAT_ID,
+      },
+      text: 'hello',
+    };
+
+    await handleMessage(botMock, msgMock);
+
+    expect(sendLogMessage).toHaveBeenCalledWith(
+      botMock,
+      `Received a message from Nickname (${KILZI_CHAT_ID})`
+    );
+    // Should still pass the real chatName (from getChatName) to upsertUser
     expect(upsertUser).toHaveBeenCalledWith(KILZI_CHAT_ID, 'Unknown');
   });
 

@@ -25,7 +25,7 @@ jest.mock('../utils/weatherApi', () => ({
   getWeatherForecast: jest.fn(),
 }));
 
-const { nextRaceInfoCache, weatherForecastCache, languageCache } = require('../cache');
+const { nextRaceInfoCache, weatherForecastCache, userCache } = require('../cache');
 const { setLanguage, t } = require('../i18n');
 
 const { handleNextRaceInfoCommand } = require('./nextRaceInfoHandler');
@@ -42,7 +42,7 @@ describe('handleNextRaceInfoCommand', () => {
     Object.keys(weatherForecastCache).forEach(
       (key) => delete weatherForecastCache[key]
     );
-    Object.keys(languageCache).forEach((key) => delete languageCache[key]);
+    Object.keys(userCache).forEach((key) => delete userCache[key]);
   });
 
   it('should handle unavailable next race info', async () => {

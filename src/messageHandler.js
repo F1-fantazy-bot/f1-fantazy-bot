@@ -1,5 +1,6 @@
 const {
   getChatName,
+  getDisplayName,
   sendLogMessage,
   isMessageFromAllowedUser,
 } = require('./utils/utils');
@@ -8,15 +9,25 @@ const { handlePhotoMessage } = require('./photoMessageHandler');
 const { t } = require('./i18n');
 const { getPendingReply, clearPendingReply } = require('./pendingReplyManager');
 const { upsertUser } = require('./userRegistryService');
+const { userCache } = require('./cache');
 
 exports.handleMessage = async function (bot, msg) {
   const chatId = msg.chat.id;
   const chatName = getChatName(msg);
 
+  // Update userCache so getDisplayName can resolve names without a msg object
+  if (!userCache[String(chatId)]) {
+    userCache[String(chatId)] = {};
+  }
+
+  userCache[String(chatId)].chatName = chatName;
+
+  const displayName = getDisplayName(chatId);
+
   if (!isMessageFromAllowedUser(msg)) {
     await sendLogMessage(
       bot,
-      `Message from unknown chat: ${chatName} (${chatId})`,
+      `Message from unknown chat: ${displayName} (${chatId})`,
     );
 
     return;
@@ -25,7 +36,7 @@ exports.handleMessage = async function (bot, msg) {
   // Track user in registry (fire-and-forget — errors are logged silently)
   upsertUser(chatId, chatName);
 
-  await sendLogMessage(bot, `Received a message from ${chatName} (${chatId})`);
+  await sendLogMessage(bot, `Received a message from ${displayName} (${chatId})`);
 
   // Handle pending replies before text/photo branching
   // This supports reply-based commands that expect text or photo responses
@@ -71,7 +82,7 @@ exports.handleMessage = async function (bot, msg) {
 
   await sendLogMessage(
     bot,
-    `Received unsupported message type from ${chatName} (${chatId}).`,
+    `Received unsupported message type from ${displayName} (${chatId}).`,
   );
 
   // For unsupported message types

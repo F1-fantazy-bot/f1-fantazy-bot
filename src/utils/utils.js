@@ -18,6 +18,7 @@ const {
   EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT,
 } = require('../prompts');
 const { t, getLocale } = require('../i18n');
+const { userCache } = require('../cache');
 
 const sendMessage = async function (bot, chatId, message, options) {
   if (!chatId) {
@@ -140,6 +141,23 @@ exports.getChatName = function (msg) {
   }
 
   return 'Unknown Chat';
+};
+
+/**
+ * Get the display name for a user in logs.
+ * Checks nickname first, then the cached chat name, then falls back to String(chatId).
+ * @param {number|string} chatId - The chat ID of the user
+ * @returns {string} The nickname if set, otherwise the cached chatName, otherwise chatId as a string
+ */
+exports.getDisplayName = function (chatId) {
+  const key = String(chatId);
+  const user = userCache[key];
+
+  if (!user) {
+    return key;
+  }
+
+  return user.nickname || user.chatName || key;
 };
 
 exports.mapPhotoTypeToSystemPrompt = {

@@ -5,7 +5,7 @@ const {
   simulationInfoCache,
   sharedKey,
   nextRaceInfoCache,
-  languageCache,
+  userCache,
 } = require('./cache');
 const {
   sendLogMessage,
@@ -22,7 +22,7 @@ const {
   listAllUserTeamData,
   getNextRaceInfoData,
 } = require('./azureStorageService');
-const { listAllUserLanguages } = require('./userRegistryService');
+const { listAllUsers } = require('./userRegistryService');
 
 /**
  * Initialize all application caches with data from Azure Storage
@@ -54,15 +54,21 @@ async function initializeCaches(bot) {
     `Loaded ${Object.keys(userTeams).length} user teams from storage`
   );
 
-  // Load all user language preferences into cache (from UserRegistry table)
-  const userLanguages = await listAllUserLanguages();
-  Object.entries(userLanguages).forEach(([id, lang]) => {
-    languageCache[id] = lang;
-  });
+  // Load all user data into userCache (from UserRegistry table)
+  const users = await listAllUsers();
+  for (const user of users) {
+    const key = String(user.chatId);
+
+    userCache[key] = {
+      ...(user.chatName && { chatName: user.chatName }),
+      ...(user.lang && { lang: user.lang }),
+      ...(user.nickname && { nickname: user.nickname }),
+    };
+  }
 
   await sendLogMessage(
     bot,
-    `Loaded ${Object.keys(userLanguages).length} user language preferences from storage`
+    `Loaded ${users.length} users into cache from storage`
   );
 }
 

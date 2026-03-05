@@ -1,6 +1,6 @@
 // User Registry Service
 // Tracks all users who interact with the bot in Azure Table Storage.
-// Also stores user attributes (language preferences, etc.) using a generic merge pattern.
+// Also stores user attributes (language preferences, nicknames, etc.) using a generic merge pattern.
 // Uses fire-and-forget pattern for upsertUser — errors are logged but never thrown to avoid blocking message handling.
 // Uses Azure Table Storage "Merge" mode so that only the fields being updated are written —
 // all other existing fields are automatically preserved without needing to read them first.
@@ -60,7 +60,7 @@ async function ensureTable() {
 /**
  * Upsert a user in the registry.
  * Uses Azure Table Storage "Merge" mode — only sends chatName and lastSeen (and firstSeen for new users).
- * All other existing attributes (lang, future fields) are automatically preserved by Merge mode.
+ * All other existing attributes (lang, nickname, future fields) are automatically preserved by Merge mode.
  * Errors are caught and logged — this function never throws.
  * @param {number} chatId - The chat ID of the user
  * @param {string} chatName - The display name of the user/chat
@@ -159,6 +159,7 @@ async function getUserById(chatId) {
 /**
  * List all registered users.
  * Returns all non-system fields from each entity, automatically including any future attributes.
+ * Used by cacheInitializer to populate userCache and by admin commands to display user lists.
  * @returns {Promise<Array<Object>>} Array of user objects with chatId and all stored attributes
  */
 async function listAllUsers() {
@@ -183,31 +184,9 @@ async function listAllUsers() {
   return users;
 }
 
-/**
- * List all user language preferences from the registry.
- * Returns a mapping of chatId → lang code, used by cacheInitializer to populate languageCache.
- * @returns {Promise<Object>} mapping of chatId (string) to language code (string)
- */
-async function listAllUserLanguages() {
-  await ensureTable();
-
-  const languages = {};
-
-  for await (const entity of tableClient.listEntities({
-    queryOptions: { filter: `PartitionKey eq '${PARTITION_KEY}'` },
-  })) {
-    if (entity.lang) {
-      languages[entity.rowKey] = entity.lang;
-    }
-  }
-
-  return languages;
-}
-
 module.exports = {
   upsertUser,
   updateUserAttributes,
   getUserById,
   listAllUsers,
-  listAllUserLanguages,
 };

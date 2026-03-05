@@ -289,6 +289,16 @@ const translations = {
       'אנו תומכים רק בטקסט. אנא הזן את ההודעה לשידור.',
     'No registered users found to broadcast to.':
       'לא נמצאו משתמשים רשומים לשידור.',
+    'Please enter the chat ID of the user you want to set a nickname for:':
+      'אנא הזן את מזהה הצ׳אט של המשתמש שעבורו תרצה להגדיר כינוי:',
+    'Please enter the nickname for {NAME}:':
+      'אנא הזן כינוי עבור {NAME}:',
+    'Nickname for {NAME} ({ID}) set to "{NICKNAME}".':
+      'הכינוי עבור {NAME} ({ID}) הוגדר ל"{NICKNAME}".',
+    '📛 Set Nickname': '📛 הגדר כינוי',
+    'Set a nickname for a user to display in logs':
+      'הגדר כינוי למשתמש להצגה ביומנים',
+    'Nickname': 'כינוי',
   }
 };
 

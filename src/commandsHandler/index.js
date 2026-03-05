@@ -30,6 +30,7 @@ const { handleReportBugCommand } = require('./reportBugHandler');
 const { handleListUsersCommand } = require('./listUsersHandler');
 const { handleSendMessageToUserCommand } = require('./sendMessageToUserHandler');
 const { handleBroadcastCommand } = require('./broadcastHandler');
+const { handleSetNicknameCommand } = require('./setNicknameHandler');
 
 module.exports = {
   handleBestTeamsMessage,
@@ -61,4 +62,5 @@ module.exports = {
   handleListUsersCommand,
   handleSendMessageToUserCommand,
   handleBroadcastCommand,
+  handleSetNicknameCommand,
 };

@@ -4,7 +4,7 @@ const { getPrintableCache, selectedChipCache } = require('../cache');
 jest.mock('../cache', () => ({
   getPrintableCache: jest.fn(),
   selectedChipCache: {},
-  languageCache: {},
+  userCache: {},
 }));
 
 const { sendPrintableCache } = require('./printCacheHandler');

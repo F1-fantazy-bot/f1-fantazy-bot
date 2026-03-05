@@ -1,9 +1,10 @@
-const { getLocale, setLanguage, languageCache } = require('./i18n');
+const { getLocale, setLanguage } = require('./i18n');
+const { userCache } = require('./cache');
 
 describe('getLocale', () => {
   const chatId = 67890;
   afterEach(() => {
-    Object.keys(languageCache).forEach((key) => delete languageCache[key]);
+    Object.keys(userCache).forEach((key) => delete userCache[key]);
   });
 
   it('returns English locale by default', () => {

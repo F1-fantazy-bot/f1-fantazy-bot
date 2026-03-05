@@ -25,8 +25,9 @@ exports.simulationInfoCache = {};
 
 exports.selectedChipCache = {};
 
-// In-memory cache for language by chat id
-exports.languageCache = {};
+// In-memory cache for user data by chat id
+// Each entry: { lang, nickname, chatName, ... }
+exports.userCache = {};
 
 // In-memory cache for next race info
 exports.nextRaceInfoCache = {};

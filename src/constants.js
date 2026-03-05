@@ -52,6 +52,7 @@ exports.COMMAND_REPORT_BUG = '/report_bug';
 exports.COMMAND_LIST_USERS = '/list_users';
 exports.COMMAND_SEND_MESSAGE_TO_USER = '/send_message_to_user';
 exports.COMMAND_BROADCAST = '/broadcast';
+exports.COMMAND_SET_NICKNAME = '/set_nickname';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -203,6 +204,11 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_BROADCAST,
         title: '📢 Broadcast',
         description: 'Send a message to all bot users',
+      },
+      {
+        constant: exports.COMMAND_SET_NICKNAME,
+        title: '📛 Set Nickname',
+        description: 'Set a nickname for a user to display in logs',
       },
     ],
   },

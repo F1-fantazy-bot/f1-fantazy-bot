@@ -6,7 +6,8 @@
 const { t } = require('./i18n');
 const { REPORTED_BUGS_GROUP_ID } = require('./constants');
 const { getChatName, sendMessageToAdmins } = require('./utils/utils');
-const { getUserById, listAllUsers } = require('./userRegistryService');
+const { getUserById, listAllUsers, updateUserAttributes } = require('./userRegistryService');
+const { userCache } = require('./cache');
 
 /**
  * Each entry provides builder functions that reconstruct the handler, validator,
@@ -262,6 +263,136 @@ const PENDING_REPLY_REGISTRY = {
     buildValidate: () => (replyMsg) => !!replyMsg.text,
     buildResendPrompt: (chatId) =>
       t('We support only text. Please enter the message to broadcast.', chatId),
+  },
+  set_nickname: {
+    buildHandler: (chatId, data) => {
+      // Lazy require to avoid circular dependency
+      const { registerPendingReply } = require('./pendingReplyManager');
+
+      return async (replyBot, replyMsg) => {
+        if (!data || data.step === 'collect_user_id') {
+          // Step 1: Admin provided a valid target chat ID (validated by buildValidate)
+          const targetChatId = replyMsg.text.trim();
+
+          let user;
+          try {
+            user = await getUserById(targetChatId);
+          } catch (err) {
+            console.error(
+              'Error fetching user in set_nickname handler:',
+              err,
+            );
+            await replyBot
+              .sendMessage(
+                chatId,
+                t('❌ Error fetching user list: {ERROR}', chatId, {
+                  ERROR: err.message,
+                }),
+              )
+              .catch((sendErr) =>
+                console.error(
+                  'Error sending user list error message:',
+                  sendErr,
+                ),
+              );
+
+            return;
+          }
+
+          await registerPendingReply(chatId, 'set_nickname', {
+            step: 'collect_nickname',
+            targetChatId,
+            targetChatName: user.chatName,
+          });
+
+          await replyBot
+            .sendMessage(
+              chatId,
+              t('Please enter the nickname for {NAME}:', chatId, {
+                NAME: user.chatName,
+              }),
+              { reply_markup: { force_reply: true } },
+            )
+            .catch((err) =>
+              console.error('Error sending collect nickname prompt:', err),
+            );
+        } else if (data.step === 'collect_nickname') {
+          // Step 2: Admin provided the nickname text
+          const nickname = replyMsg.text.trim();
+
+          try {
+            await updateUserAttributes(data.targetChatId, { nickname });
+
+            // Update in-memory userCache
+            const key = String(data.targetChatId);
+            if (!userCache[key]) {
+              userCache[key] = {};
+            }
+
+            userCache[key].nickname = nickname;
+
+            await replyBot
+              .sendMessage(
+                chatId,
+                t('Nickname for {NAME} ({ID}) set to "{NICKNAME}".', chatId, {
+                  NAME: data.targetChatName || data.targetChatId,
+                  ID: data.targetChatId,
+                  NICKNAME: nickname,
+                }),
+              )
+              .catch((err) =>
+                console.error('Error sending nickname confirmation:', err),
+              );
+          } catch (err) {
+            console.error('Error setting nickname:', err);
+
+            await replyBot
+              .sendMessage(
+                chatId,
+                t('❌ Error fetching user list: {ERROR}', chatId, {
+                  ERROR: err.message,
+                }),
+              )
+              .catch((sendErr) =>
+                console.error('Error sending nickname error message:', sendErr),
+              );
+          }
+        }
+      };
+    },
+    buildValidate: (chatId, data) => {
+      if (!data || data.step === 'collect_user_id') {
+        // Step 1: Validate text is present AND chat ID exists in user registry
+        return async (replyMsg) => {
+          if (!replyMsg.text) {
+            return false;
+          }
+
+          try {
+            const user = await getUserById(replyMsg.text.trim());
+
+            return user !== null;
+          } catch (err) {
+            console.error('Error validating user ID for nickname:', err);
+
+            return false;
+          }
+        };
+      }
+
+      // Step 2: Only require text
+      return (replyMsg) => !!replyMsg.text;
+    },
+    buildResendPrompt: (chatId, data) => {
+      if (!data || data.step === 'collect_user_id') {
+        return t('User not found. Please enter a valid chat ID:', chatId);
+      }
+
+      return t(
+        'We support only text. Please enter the message to send.',
+        chatId,
+      );
+    },
   },
 };
 

@@ -9,7 +9,7 @@ const { photoCache } = require('./cache');
 
 jest.mock('./cache', () => ({
   photoCache: {},
-  languageCache: {},
+  userCache: {},
 }));
 
 describe('handlePhotoMessage', () => {
