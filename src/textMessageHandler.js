@@ -30,6 +30,7 @@ const {
   handleSendMessageToUserCommand,
   handleBroadcastCommand,
   handleSetNicknameCommand,
+  handleSelectTeamCommand,
 } = require('./commandsHandler');
 
 // Import constants
@@ -62,6 +63,7 @@ const {
   COMMAND_SEND_MESSAGE_TO_USER,
   COMMAND_BROADCAST,
   COMMAND_SET_NICKNAME,
+  COMMAND_SELECT_TEAM,
 } = require('./constants');
 
 exports.handleTextMessage = async function (bot, msg) {
@@ -132,6 +134,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleBroadcastCommand(bot, msg);
     case msg.text === COMMAND_SET_NICKNAME:
       return await handleSetNicknameCommand(bot, msg);
+    case msg.text === COMMAND_SELECT_TEAM:
+      return await handleSelectTeamCommand(bot, msg);
     default:
       try {
         const jsonData = JSON.parse(textTrimmed);

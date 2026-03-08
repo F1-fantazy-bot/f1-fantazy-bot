@@ -28,9 +28,12 @@ const {
 const { handleFlowCommand } = require('./flowHandler');
 const { handleReportBugCommand } = require('./reportBugHandler');
 const { handleListUsersCommand } = require('./listUsersHandler');
-const { handleSendMessageToUserCommand } = require('./sendMessageToUserHandler');
+const {
+  handleSendMessageToUserCommand,
+} = require('./sendMessageToUserHandler');
 const { handleBroadcastCommand } = require('./broadcastHandler');
 const { handleSetNicknameCommand } = require('./setNicknameHandler');
+const { handleSelectTeamCommand } = require('./selectTeamHandler');
 
 module.exports = {
   handleBestTeamsMessage,
@@ -63,4 +66,5 @@ module.exports = {
   handleSendMessageToUserCommand,
   handleBroadcastCommand,
   handleSetNicknameCommand,
+  handleSelectTeamCommand,
 };

@@ -11,17 +11,21 @@ jest.mock('../azureStorageService', () => ({
   saveUserTeam: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../userRegistryService', () => ({
+  updateUserAttributes: jest.fn().mockResolvedValue(undefined),
+}));
+
 const { sendPrintableCache } = require('./printCacheHandler');
 jest.mock('./printCacheHandler', () => ({
   sendPrintableCache: jest.fn(),
 }));
-
 
 const {
   driversCache,
   constructorsCache,
   currentTeamCache,
   bestTeamsCache,
+  userCache,
 } = require('../cache');
 
 const { handleJsonMessage } = require('./jsonInputHandler');
@@ -40,8 +44,8 @@ describe('handleJsonMessage', () => {
     delete constructorsCache[KILZI_CHAT_ID];
     delete currentTeamCache[KILZI_CHAT_ID];
     delete bestTeamsCache[KILZI_CHAT_ID];
+    delete userCache[String(KILZI_CHAT_ID)];
   });
-
 
   it('should return early if validation fails', async () => {
     mockValidateJsonData.mockResolvedValue(false);
@@ -57,7 +61,7 @@ describe('handleJsonMessage', () => {
     expect(mockValidateJsonData).toHaveBeenCalledWith(
       botMock,
       jsonData,
-      KILZI_CHAT_ID
+      KILZI_CHAT_ID,
     );
     expect(azureStorageService.saveUserTeam).not.toHaveBeenCalled();
     expect(sendPrintableCache).not.toHaveBeenCalled();
@@ -86,7 +90,7 @@ describe('handleJsonMessage', () => {
     expect(mockValidateJsonData).toHaveBeenCalledWith(
       botMock,
       jsonData,
-      KILZI_CHAT_ID
+      KILZI_CHAT_ID,
     );
 
     // Verify data was stored in cache
@@ -104,16 +108,16 @@ describe('handleJsonMessage', () => {
       price: 15.0,
     });
 
-    expect(currentTeamCache[KILZI_CHAT_ID]).toEqual(jsonData.CurrentTeam);
+    // Team is stored nested under T1 (default for new user)
+    expect(currentTeamCache[KILZI_CHAT_ID]).toBeDefined();
+    expect(currentTeamCache[KILZI_CHAT_ID]['T1']).toEqual(jsonData.CurrentTeam);
 
-    // Verify bestTeamsCache was cleared
-    expect(bestTeamsCache[KILZI_CHAT_ID]).toBeUndefined();
-
-    // Verify team was saved to Azure Storage
+    // Verify team was saved to Azure Storage with teamId
     expect(azureStorageService.saveUserTeam).toHaveBeenCalledWith(
       botMock,
       KILZI_CHAT_ID,
-      jsonData.CurrentTeam
+      'T1',
+      jsonData.CurrentTeam,
     );
 
     // Verify printable cache was sent
@@ -125,7 +129,9 @@ describe('handleJsonMessage', () => {
     const existingConstructorsCache = { RBR: { price: 20.0 } };
     driversCache[KILZI_CHAT_ID] = existingDriversCache;
     constructorsCache[KILZI_CHAT_ID] = existingConstructorsCache;
-    bestTeamsCache[KILZI_CHAT_ID] = { cached: true };
+    bestTeamsCache[KILZI_CHAT_ID] = { T1: { cached: true } };
+    // Set up existing team so resolveTeamIdForJson picks it up
+    currentTeamCache[KILZI_CHAT_ID] = { T1: { drivers: ['VER'] } };
 
     const jsonData = {
       CurrentTeam: {
@@ -144,17 +150,18 @@ describe('handleJsonMessage', () => {
       jsonData,
       KILZI_CHAT_ID,
       true,
-      false
+      false,
     );
 
     expect(driversCache[KILZI_CHAT_ID]).toBe(existingDriversCache);
     expect(constructorsCache[KILZI_CHAT_ID]).toBe(existingConstructorsCache);
-    expect(currentTeamCache[KILZI_CHAT_ID]).toEqual(jsonData.CurrentTeam);
-    expect(bestTeamsCache[KILZI_CHAT_ID]).toBeUndefined();
+    // Team data stored under T1 (auto-resolved since single team)
+    expect(currentTeamCache[KILZI_CHAT_ID]['T1']).toEqual(jsonData.CurrentTeam);
     expect(azureStorageService.saveUserTeam).toHaveBeenCalledWith(
       botMock,
       KILZI_CHAT_ID,
-      jsonData.CurrentTeam
+      'T1',
+      jsonData.CurrentTeam,
     );
     expect(sendPrintableCache).toHaveBeenCalledWith(KILZI_CHAT_ID, botMock);
   });

@@ -19,6 +19,7 @@ describe('calcCurrentTeamInfo', () => {
   const botMock = {
     sendMessage: jest.fn().mockResolvedValue(),
   };
+  const TEAM_ID = 'T1';
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -31,9 +32,11 @@ describe('calcCurrentTeamInfo', () => {
     // Only constructors and currentTeam set
     constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.0 } };
     currentTeamCache[KILZI_CHAT_ID] = {
-      drivers: [],
-      constructors: [],
-      costCapRemaining: 0,
+      [TEAM_ID]: {
+        drivers: [],
+        constructors: [],
+        costCapRemaining: 0,
+      },
     };
 
     await calcCurrentTeamInfo(botMock, KILZI_CHAT_ID);
@@ -48,9 +51,11 @@ describe('calcCurrentTeamInfo', () => {
   it('should send missing cache message if constructors cache is missing', async () => {
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
     currentTeamCache[KILZI_CHAT_ID] = {
-      drivers: [],
-      constructors: [],
-      costCapRemaining: 0,
+      [TEAM_ID]: {
+        drivers: [],
+        constructors: [],
+        costCapRemaining: 0,
+      },
     };
 
     await calcCurrentTeamInfo(botMock, KILZI_CHAT_ID);
@@ -62,7 +67,7 @@ describe('calcCurrentTeamInfo', () => {
     expect(mockCalculateTeamInfo).not.toHaveBeenCalled();
   });
 
-  it('should send missing cache message if current team cache is missing', async () => {
+  it('should send no teams message if current team cache is missing', async () => {
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
     constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.0 } };
 
@@ -70,7 +75,7 @@ describe('calcCurrentTeamInfo', () => {
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.'
+      'No teams found. Please upload a team screenshot first.'
     );
     expect(mockCalculateTeamInfo).not.toHaveBeenCalled();
   });
@@ -93,7 +98,7 @@ describe('calcCurrentTeamInfo', () => {
 
     driversCache[KILZI_CHAT_ID] = mockDrivers;
     constructorsCache[KILZI_CHAT_ID] = mockConstructors;
-    currentTeamCache[KILZI_CHAT_ID] = mockCurrentTeam;
+    currentTeamCache[KILZI_CHAT_ID] = { [TEAM_ID]: mockCurrentTeam };
 
     const expectedTotalPrice = 30.5 + 25.0 + 20.0 + 15.0; // 90.5
     const expectedCostCap = 3.5;
@@ -143,7 +148,7 @@ describe('calcCurrentTeamInfo', () => {
     // Set shared cache instead of chat-specific for drivers and constructors
     driversCache[sharedKey] = mockDrivers;
     constructorsCache[sharedKey] = mockConstructors;
-    currentTeamCache[KILZI_CHAT_ID] = mockCurrentTeam;
+    currentTeamCache[KILZI_CHAT_ID] = { [TEAM_ID]: mockCurrentTeam };
 
     mockCalculateTeamInfo.mockReturnValue({
       totalPrice: 50.5,
@@ -172,8 +177,10 @@ describe('calcCurrentTeamInfo', () => {
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.567 } };
     constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.123 } };
     currentTeamCache[KILZI_CHAT_ID] = {
-      drivers: ['VER'],
-      constructors: ['RBR'],
+      [TEAM_ID]: {
+        drivers: ['VER'],
+        constructors: ['RBR'],
+      },
     };
 
     mockCalculateTeamInfo.mockReturnValue({

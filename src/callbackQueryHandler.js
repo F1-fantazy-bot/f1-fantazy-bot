@@ -8,6 +8,7 @@ const {
   driversCache,
   getPrintableCache,
   bestTeamsCache,
+  userCache,
 } = require('./cache');
 const { selectChip } = require('./commandsHandler/selectChipHandlers');
 const {
@@ -19,11 +20,20 @@ const {
   CHIP_CALLBACK_TYPE,
   MENU_CALLBACK_TYPE,
   LANG_CALLBACK_TYPE,
+  TEAM_CALLBACK_TYPE,
+  TEAM_ASSIGN_CALLBACK_TYPE,
 } = require('./constants');
 
-const { sendLogMessage, sendMessageToUser, getDisplayName } = require('./utils');
+const {
+  sendLogMessage,
+  sendMessageToUser,
+  getDisplayName,
+} = require('./utils');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
 const { t, setLanguage, getLanguageName } = require('./i18n');
+
+// Module-level map for temporarily storing team data when AI couldn't extract teamId
+const pendingTeamAssignments = {};
 
 exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
@@ -37,6 +47,10 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handleLanguageCallback(bot, query);
     case MENU_CALLBACK_TYPE:
       return await handleMenuCallback(bot, query);
+    case TEAM_CALLBACK_TYPE:
+      return await handleTeamCallback(bot, query);
+    case TEAM_ASSIGN_CALLBACK_TYPE:
+      return await handleTeamAssignCallback(bot, query);
     default:
       await sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
   }
@@ -75,13 +89,20 @@ async function handlePhotoCallback(bot, query) {
       fileLink,
     ]);
 
-    await storeInCache(bot, chatId, type, extractedData);
-    delete bestTeamsCache[chatId];
+    const teamId = await storeInCache(bot, chatId, type, extractedData, fileId);
 
-    await sendMessageToUser(bot, chatId, getPrintableCache(chatId, type), {
-      useMarkdown: true,
-      errorMessageToLog: 'Error sending extracted data to user',
-    });
+    // Invalidate best teams cache for the specific team (or all if no teamId yet)
+    if (teamId && bestTeamsCache[chatId]) {
+      delete bestTeamsCache[chatId][teamId];
+    }
+
+    // Only send printable cache if storage happened (teamId resolved)
+    if (teamId) {
+      await sendMessageToUser(bot, chatId, getPrintableCache(chatId, type), {
+        useMarkdown: true,
+        errorMessageToLog: 'Error sending extracted data to user',
+      });
+    }
   } catch (err) {
     sendLogMessage(bot, `Error extracting data from photo: ${err.message}`);
     sendMessageToUser(
@@ -92,17 +113,20 @@ async function handlePhotoCallback(bot, query) {
     );
   }
 }
+
 async function handleChipCallback(bot, query) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
   const chip = query.data.split(':')[1];
 
-  const message = selectChip(chatId, chip);
+  const message = await selectChip(bot, chatId, chip);
 
-  await bot.editMessageText(message, {
-    chat_id: chatId,
-    message_id: messageId,
-  });
+  if (message) {
+    await bot.editMessageText(message, {
+      chat_id: chatId,
+      message_id: messageId,
+    });
+  }
 
   // Answer callback to remove "Loading..." spinner
   await bot.answerCallbackQuery(query.id);
@@ -129,7 +153,103 @@ async function handleLanguageCallback(bot, query) {
   await bot.answerCallbackQuery(query.id);
 }
 
-async function storeInCache(bot, chatId, type, extractedData) {
+async function handleTeamCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const messageId = query.message.message_id;
+  const teamId = query.data.split(':')[1];
+
+  // Update selection in memory
+  const key = String(chatId);
+  if (!userCache[key]) {
+    userCache[key] = {};
+  }
+  userCache[key].selectedTeam = teamId;
+
+  // Persist selection
+  await updateUserAttributes(chatId, { selectedTeam: teamId });
+
+  // Edit message to confirm
+  await bot.editMessageText(
+    t('Active team switched to {TEAM}.', chatId, { TEAM: teamId }),
+    { chat_id: chatId, message_id: messageId },
+  );
+  await bot.answerCallbackQuery(query.id);
+}
+
+async function handleTeamAssignCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const messageId = query.message.message_id;
+  const [_, uniqueKey, teamId] = query.data.split(':');
+
+  // Retrieve temporarily stored team data
+  const teamData = pendingTeamAssignments[uniqueKey];
+  if (!teamData) {
+    await bot.editMessageText(
+      t('An error occurred while extracting data from the photo.', chatId),
+      { chat_id: chatId, message_id: messageId },
+    );
+    await bot.answerCallbackQuery(query.id);
+
+    return;
+  }
+  delete pendingTeamAssignments[uniqueKey];
+
+  // Store in cache (team-scoped)
+  if (!currentTeamCache[chatId]) {
+    currentTeamCache[chatId] = {};
+  }
+  currentTeamCache[chatId][teamId] = teamData;
+
+  // Persist to blob storage
+  await azureStorageService.saveUserTeam(bot, chatId, teamId, teamData);
+
+  // Auto-select this team
+  const key = String(chatId);
+  if (!userCache[key]) {
+    userCache[key] = {};
+  }
+  userCache[key].selectedTeam = teamId;
+  await updateUserAttributes(chatId, { selectedTeam: teamId });
+
+  // Invalidate best teams for this team
+  if (bestTeamsCache[chatId]) {
+    delete bestTeamsCache[chatId][teamId];
+  }
+
+  // Edit message to confirm
+  await bot.editMessageText(
+    t('Selected Team: {TEAM}', chatId, { TEAM: teamId }),
+    { chat_id: chatId, message_id: messageId },
+  );
+
+  // Notify about auto-switch
+  await sendMessageToUser(
+    bot,
+    chatId,
+    t('🔄 Active team auto-switched to {TEAM}.', chatId, { TEAM: teamId }),
+    { errorMessageToLog: 'Error sending auto-switch message' },
+  );
+
+  // Send printable cache
+  await sendMessageToUser(
+    bot,
+    chatId,
+    getPrintableCache(chatId, CURRENT_TEAM_PHOTO_TYPE),
+    {
+      useMarkdown: true,
+      errorMessageToLog: 'Error sending extracted data to user',
+    },
+  );
+
+  await bot.answerCallbackQuery(query.id);
+}
+
+/**
+ * Stores extracted photo data in the appropriate cache.
+ * Returns the teamId if storage happened, or null if deferred (pending team assignment).
+ */
+// eslint-disable-next-line max-params
+async function storeInCache(bot, chatId, type, extractedData, fileUniqueId) {
   const cleanedJsonString = extractedData
     .replace(/^```json\s*/, '')
     .replace(/\s*```$/, '');
@@ -162,7 +282,7 @@ async function storeInCache(bot, chatId, type, extractedData) {
       driversCache[chatId][driver.DR] = driver;
     }
 
-    return;
+    return null;
   }
   if (type === CONSTRUCTORS_PHOTO_TYPE) {
     constructorsCache[chatId] = {
@@ -172,7 +292,7 @@ async function storeInCache(bot, chatId, type, extractedData) {
       constructorsCache[chatId][constructor.CN] = constructor;
     }
 
-    return;
+    return null;
   }
   if (type === CURRENT_TEAM_PHOTO_TYPE) {
     // Convert drivers and constructors to code names
@@ -187,16 +307,68 @@ async function storeInCache(bot, chatId, type, extractedData) {
       jsonObject.CurrentTeam.drsBoost,
     );
 
-    const updatedTeam = {
-      ...currentTeamCache[chatId],
-      ...jsonObject.CurrentTeam,
-    };
+    // Extract teamId from AI response
+    const teamId = jsonObject.CurrentTeam.teamId || null;
 
-    currentTeamCache[chatId] = updatedTeam;
-    await azureStorageService.saveUserTeam(bot, chatId, updatedTeam);
+    // Remove teamId from team data (it's metadata, not team data)
+    const { teamId: _removedTeamId, ...teamDataWithoutId } =
+      jsonObject.CurrentTeam;
 
-    return;
+    if (!teamId) {
+      // AI couldn't extract teamId — ask user to assign
+      const uniqueKey = fileUniqueId || String(Date.now());
+      pendingTeamAssignments[uniqueKey] = teamDataWithoutId;
+
+      const keyboard = [
+        ['T1', 'T2', 'T3'].map((tid) => ({
+          text: tid,
+          callback_data: `${TEAM_ASSIGN_CALLBACK_TYPE}:${uniqueKey}:${tid}`,
+        })),
+      ];
+
+      await bot.sendMessage(
+        chatId,
+        t('Which team is this screenshot from?', chatId),
+        { reply_markup: { inline_keyboard: keyboard } },
+      );
+
+      return null; // Storage deferred
+    }
+
+    // teamId is present — store directly
+    if (!currentTeamCache[chatId]) {
+      currentTeamCache[chatId] = {};
+    }
+    currentTeamCache[chatId][teamId] = teamDataWithoutId;
+
+    // Persist to blob storage
+    await azureStorageService.saveUserTeam(
+      bot,
+      chatId,
+      teamId,
+      teamDataWithoutId,
+    );
+
+    // Auto-select this team
+    const key = String(chatId);
+    if (!userCache[key]) {
+      userCache[key] = {};
+    }
+    userCache[key].selectedTeam = teamId;
+    await updateUserAttributes(chatId, { selectedTeam: teamId });
+
+    // Notify about auto-switch
+    await sendMessageToUser(
+      bot,
+      chatId,
+      t('🔄 Active team auto-switched to {TEAM}.', chatId, { TEAM: teamId }),
+      { errorMessageToLog: 'Error sending auto-switch message' },
+    );
+
+    return teamId;
   }
 
   console.error('Unknown photo type:', type);
+
+  return null;
 }

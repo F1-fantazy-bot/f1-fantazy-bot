@@ -24,6 +24,8 @@ exports.PHOTO_CALLBACK_TYPE = 'PHOTO';
 exports.CHIP_CALLBACK_TYPE = 'CHIP';
 exports.MENU_CALLBACK_TYPE = 'MENU';
 exports.LANG_CALLBACK_TYPE = 'LANG';
+exports.TEAM_CALLBACK_TYPE = 'TEAM';
+exports.TEAM_ASSIGN_CALLBACK_TYPE = 'TEAM_ASSIGN';
 
 exports.MAX_TELEGRAM_MESSAGE_LENGTH = 4096;
 
@@ -55,6 +57,7 @@ exports.COMMAND_LIST_USERS = '/list_users';
 exports.COMMAND_SEND_MESSAGE_TO_USER = '/send_message_to_user';
 exports.COMMAND_BROADCAST = '/broadcast';
 exports.COMMAND_SET_NICKNAME = '/set_nickname';
+exports.COMMAND_SELECT_TEAM = '/select_team';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -107,6 +110,11 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_CHIPS,
         title: '🎯 Chips Selection',
         description: 'Choose a chip to use for the current race',
+      },
+      {
+        constant: exports.COMMAND_SELECT_TEAM,
+        title: '🔀 Select Team',
+        description: 'Switch between your fantasy teams',
       },
     ],
   },

@@ -26,6 +26,7 @@ describe('handleBestTeamsMessage', () => {
   const botMock = {
     sendMessage: jest.fn().mockResolvedValue(),
   };
+  const TEAM_ID = 'T1';
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -38,12 +39,12 @@ describe('handleBestTeamsMessage', () => {
     delete selectedChipCache[KILZI_CHAT_ID];
   });
 
-  it('should handle /best_teams command and send missing cache message if no cache', async () => {
+  it('should send no teams message if no current team cache exists', async () => {
     await handleBestTeamsMessage(botMock, KILZI_CHAT_ID);
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.'
+      'No teams found. Please upload a team screenshot first.',
     );
   });
 
@@ -51,44 +52,50 @@ describe('handleBestTeamsMessage', () => {
     // Only constructors and currentTeam set
     constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.0 } };
     currentTeamCache[KILZI_CHAT_ID] = {
-      drivers: [],
-      constructors: [],
-      costCapRemaining: 0,
+      [TEAM_ID]: {
+        drivers: [],
+        constructors: [],
+        costCapRemaining: 0,
+      },
     };
 
     await handleBestTeamsMessage(botMock, KILZI_CHAT_ID);
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.'
+      'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.',
     );
   });
 
   it('should send missing cache message if constructors cache is missing', async () => {
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
     currentTeamCache[KILZI_CHAT_ID] = {
-      drivers: [],
-      constructors: [],
-      costCapRemaining: 0,
+      [TEAM_ID]: {
+        drivers: [],
+        constructors: [],
+        costCapRemaining: 0,
+      },
     };
 
     await handleBestTeamsMessage(botMock, KILZI_CHAT_ID);
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.'
+      'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.',
     );
   });
 
-  it('should send missing cache message if current team cache is missing', async () => {
+  it('should send missing cache message if current team cache is missing for resolved team', async () => {
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
     constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.0 } };
+    // currentTeamCache has a team entry but the resolved team data is empty
+    currentTeamCache[KILZI_CHAT_ID] = { [TEAM_ID]: null };
 
     await handleBestTeamsMessage(botMock, KILZI_CHAT_ID);
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.'
+      'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.',
     );
   });
 
@@ -98,9 +105,11 @@ describe('handleBestTeamsMessage', () => {
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
     constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.0 } };
     currentTeamCache[KILZI_CHAT_ID] = {
-      drivers: ['VER'],
-      constructors: ['RBR'],
-      costCapRemaining: 5.0,
+      [TEAM_ID]: {
+        drivers: ['VER'],
+        constructors: ['RBR'],
+        costCapRemaining: 5.0,
+      },
     };
 
     await handleBestTeamsMessage(botMock, KILZI_CHAT_ID);
@@ -126,8 +135,8 @@ describe('handleBestTeamsMessage', () => {
 
     driversCache[KILZI_CHAT_ID] = mockDrivers;
     constructorsCache[KILZI_CHAT_ID] = mockConstructors;
-    currentTeamCache[KILZI_CHAT_ID] = mockCurrentTeam;
-    selectedChipCache[KILZI_CHAT_ID] = 'LIMITLESS_CHIP';
+    currentTeamCache[KILZI_CHAT_ID] = { [TEAM_ID]: mockCurrentTeam };
+    selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: 'LIMITLESS_CHIP' };
 
     const mockBestTeams = [
       {
@@ -164,10 +173,10 @@ describe('handleBestTeamsMessage', () => {
         Constructors: mockConstructors,
         CurrentTeam: mockCurrentTeam,
       },
-      'LIMITLESS_CHIP'
+      'LIMITLESS_CHIP',
     );
 
-    expect(bestTeamsCache[KILZI_CHAT_ID]).toEqual({
+    expect(bestTeamsCache[KILZI_CHAT_ID][TEAM_ID]).toEqual({
       currentTeam: mockCurrentTeam,
       bestTeams: mockBestTeams,
     });
@@ -195,12 +204,12 @@ describe('handleBestTeamsMessage', () => {
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
       expectedMessage,
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'Markdown' },
     );
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'Please send a number to get the required changes to that team.'
+      'Please send a number to get the required changes to that team.',
     );
   });
 
@@ -212,7 +221,7 @@ describe('handleBestTeamsMessage', () => {
     // Set shared cache instead of chat-specific for drivers and constructors
     driversCache[sharedKey] = mockDrivers;
     constructorsCache[sharedKey] = mockConstructors;
-    currentTeamCache[KILZI_CHAT_ID] = mockCurrentTeam;
+    currentTeamCache[KILZI_CHAT_ID] = { [TEAM_ID]: mockCurrentTeam };
 
     const mockBestTeams = [
       {
@@ -238,7 +247,7 @@ describe('handleBestTeamsMessage', () => {
         Constructors: mockConstructors,
         CurrentTeam: mockCurrentTeam,
       },
-      undefined
+      undefined,
     );
   });
 
@@ -246,8 +255,10 @@ describe('handleBestTeamsMessage', () => {
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
     constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.0 } };
     currentTeamCache[KILZI_CHAT_ID] = {
-      drivers: ['VER'],
-      constructors: ['RBR'],
+      [TEAM_ID]: {
+        drivers: ['VER'],
+        constructors: ['RBR'],
+      },
     };
 
     const mockBestTeams = [
@@ -272,7 +283,7 @@ describe('handleBestTeamsMessage', () => {
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
       expect.stringContaining('*Extra DRS Driver:* HAM'),
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'Markdown' },
     );
   });
 });
