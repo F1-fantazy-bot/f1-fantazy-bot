@@ -97,10 +97,12 @@ exports.getPrintableCache = function (chatId, type) {
 
   // Handle the default scenario when no specific type is provided
   if (!type) {
-    // Build teams object with chip field included in each team entry
+    // Build teams object with chip field included in each team entry, sorted by team ID
     const teams = {};
     if (teamsData && chatId !== exports.sharedKey) {
-      for (const [teamId, teamData] of Object.entries(teamsData)) {
+      const sortedTeamIds = Object.keys(teamsData).sort();
+      for (const teamId of sortedTeamIds) {
+        const teamData = teamsData[teamId];
         const chip = exports.selectedChipCache[chatId]?.[teamId];
         teams[teamId] = chip
           ? { ...teamData, chip }
