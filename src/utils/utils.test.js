@@ -14,6 +14,8 @@ const {
   DORSE_CHAT_ID,
   YEHONATAN_CHAT_ID,
   HAIM_CHAT_ID,
+  IDO_KLOTZ_CHAT_ID,
+  RAVIV_MAROM_CHAT_ID,
 } = require('../constants');
 const { setLanguage } = require('../i18n');
 const { userCache } = require('../cache');
@@ -617,6 +619,17 @@ describe('utils', () => {
 
     it('returns true for HAIM_CHAT_ID (regular user)', () => {
       const msg = { chat: { id: HAIM_CHAT_ID } };
+      expect(isMessageFromAllowedUser(msg)).toBe(true);
+    });
+
+
+    it('returns true for IDO_KLOTZ_CHAT_ID (regular user)', () => {
+      const msg = { chat: { id: IDO_KLOTZ_CHAT_ID } };
+      expect(isMessageFromAllowedUser(msg)).toBe(true);
+    });
+
+    it('returns true for RAVIV_MAROM_CHAT_ID (regular user)', () => {
+      const msg = { chat: { id: RAVIV_MAROM_CHAT_ID } };
       expect(isMessageFromAllowedUser(msg)).toBe(true);
     });
 
