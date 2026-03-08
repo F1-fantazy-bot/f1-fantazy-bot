@@ -47,6 +47,9 @@ jest.mock('./azureStorageService', () => ({
   saveUserTeam: jest.fn().mockResolvedValue(undefined),
   deleteUserTeam: jest.fn().mockResolvedValue(undefined),
   deleteAllUserTeams: jest.fn().mockResolvedValue(undefined),
+  savePendingTeamAssignment: jest.fn().mockResolvedValue(undefined),
+  getPendingTeamAssignment: jest.fn().mockResolvedValue(null),
+  deletePendingTeamAssignment: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('./userRegistryService', () => ({
   updateUserAttributes: jest.fn().mockResolvedValue(undefined),
@@ -192,6 +195,16 @@ describe('handleCallbackQuery', () => {
 
     await handleCallbackQuery(bot, query);
 
+    // Should save pending team assignment to Azure Blob Storage
+    expect(azureStorageService.savePendingTeamAssignment).toHaveBeenCalledWith(
+      chatId,
+      fileId,
+      expect.objectContaining({
+        drivers: expect.any(Array),
+        constructors: expect.any(Array),
+      }),
+    );
+
     // Should send team assignment keyboard
     expect(bot.sendMessage).toHaveBeenCalledWith(
       chatId,
@@ -203,7 +216,7 @@ describe('handleCallbackQuery', () => {
       }),
     );
 
-    // Azure Storage should NOT have been called (deferred)
+    // saveUserTeam should NOT have been called (deferred)
     expect(azureStorageService.saveUserTeam).not.toHaveBeenCalled();
   });
 

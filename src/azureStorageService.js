@@ -255,6 +255,89 @@ async function listAllUserTeamData() {
   }
 }
 
+/**
+ * Save pending team assignment data to Azure Blob Storage.
+ * Used when AI can't extract teamId and the user must assign it.
+ * @param {string} chatId - The chat ID of the user
+ * @param {string} uniqueKey - A unique key for this pending assignment (e.g., fileUniqueId)
+ * @param {Object} teamData - The extracted team data to store temporarily
+ * @throws {Error} If the data cannot be saved
+ */
+async function savePendingTeamAssignment(chatId, uniqueKey, teamData) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = `pending-team-assignments/${chatId}_${uniqueKey}.json`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    const content = JSON.stringify(teamData, null, 2);
+
+    await blockBlobClient.upload(content, content.length, {
+      blobHTTPHeaders: { blobContentType: 'application/json' },
+    });
+  } catch (error) {
+    throw new Error(
+      `Failed to save pending team assignment for ${chatId}: ${error.message}`,
+    );
+  }
+}
+
+/**
+ * Get pending team assignment data from Azure Blob Storage.
+ * @param {string} chatId - The chat ID of the user
+ * @param {string} uniqueKey - The unique key for this pending assignment
+ * @returns {Promise<Object|null>} The stored team data or null if not found
+ * @throws {Error} If there's an error retrieving the data
+ */
+async function getPendingTeamAssignment(chatId, uniqueKey) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = `pending-team-assignments/${chatId}_${uniqueKey}.json`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const exists = await blockBlobClient.exists();
+    if (!exists) {
+      return null;
+    }
+
+    const downloadResponse = await blockBlobClient.download();
+    const jsonString = await streamToString(
+      downloadResponse.readableStreamBody,
+    );
+
+    return JSON.parse(jsonString);
+  } catch (error) {
+    throw new Error(
+      `Failed to get pending team assignment for ${chatId}: ${error.message}`,
+    );
+  }
+}
+
+/**
+ * Delete pending team assignment data from Azure Blob Storage.
+ * @param {string} chatId - The chat ID of the user
+ * @param {string} uniqueKey - The unique key for this pending assignment
+ */
+async function deletePendingTeamAssignment(chatId, uniqueKey) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = `pending-team-assignments/${chatId}_${uniqueKey}.json`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    await blockBlobClient.deleteIfExists();
+  } catch (error) {
+    console.error(
+      `Failed to delete pending team assignment for ${chatId}: ${error.message}`,
+    );
+  }
+}
+
 module.exports = {
   getFantasyData,
   getUserTeam,
@@ -263,4 +346,7 @@ module.exports = {
   deleteAllUserTeams,
   listAllUserTeamData,
   getNextRaceInfoData,
+  savePendingTeamAssignment,
+  getPendingTeamAssignment,
+  deletePendingTeamAssignment,
 };

@@ -97,15 +97,14 @@ exports.getPrintableCache = function (chatId, type) {
 
   // Handle the default scenario when no specific type is provided
   if (!type) {
-    const selectedTeam = exports.getSelectedTeam(chatId);
-    const teamEntries = {};
-
+    // Build teams object with chip field included in each team entry
+    const teams = {};
     if (teamsData && chatId !== exports.sharedKey) {
       for (const [teamId, teamData] of Object.entries(teamsData)) {
-        const marker = teamId === selectedTeam ? ' ✅' : '';
-        const chipSelection = exports.selectedChipCache[chatId]?.[teamId];
-        const chipInfo = chipSelection ? ` (Chip: ${chipSelection})` : '';
-        teamEntries[`${teamId}${marker}${chipInfo}`] = teamData;
+        const chip = exports.selectedChipCache[chatId]?.[teamId];
+        teams[teamId] = chip
+          ? { ...teamData, chip }
+          : { ...teamData };
       }
     }
 
@@ -113,7 +112,8 @@ exports.getPrintableCache = function (chatId, type) {
       Drivers: Object.values(driversData || {}),
       Constructors: Object.values(constructorsData || {}),
       ...(chatId !== exports.sharedKey && {
-        Teams: teamEntries,
+        SelectedTeam: exports.getSelectedTeam(chatId),
+        Teams: teams,
       }),
     };
 

@@ -382,13 +382,13 @@ Blob naming includes the team ID:
 `EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT` in `src/prompts.js` instructs the AI to extract a `teamId` field from team screenshots (found inside a colored square icon next to the team name):
 
 - If `teamId` is successfully extracted → data is stored under that team ID, and `selectedTeam` is auto-updated with a notification to the user.
-- If `teamId` is `null` (not detected) → bot asks the user via inline keyboard ("Which team is this screenshot from?") using `TEAM_ASSIGN_CALLBACK_TYPE`. `callbackQueryHandler.js` uses a `pendingTeamAssignments` module-level map to temporarily store the extracted team data while awaiting the user's selection.
+- If `teamId` is `null` (not detected) → bot asks the user via inline keyboard ("Which team is this screenshot from?") using `TEAM_ASSIGN_CALLBACK_TYPE`. The extracted team data is temporarily stored in **Azure Blob Storage** (`pending-team-assignments/{chatId}_{uniqueKey}.json`) for multi-server support while awaiting the user's selection.
 
 ### Updated Command Behaviors
 
 - **`selectChip()`** is now async and accepts `bot` as a parameter (needed for `resolveSelectedTeam`).
 - **`/reset_cache`** deletes all teams via `deleteAllUserTeams(bot, chatId)` and clears `selectedTeam`.
-- **`/print_cache`** (`getPrintableCache`) shows all teams with ✅ on the selected team and per-team chip display.
+- **`/print_cache`** (`getPrintableCache`) shows all teams in a JSON object with a `SelectedTeam` field indicating the active team, plus a `Teams` object containing all team data.
 
 ### Constants
 
@@ -405,7 +405,7 @@ Blob naming includes the team ID:
 | `src/cache.js`                             | Nested team caches, `getSelectedTeam`, `getUserTeamIds`, `resolveSelectedTeam`, `getPrintableCache` |
 | `src/azureStorageService.js`               | Team-aware blob naming (`{chatId}_{teamId}.json`), `deleteAllUserTeams`                             |
 | `src/cacheInitializer.js`                  | Populates nested `currentTeamCache` from `listAllUserTeamData()`                                    |
-| `src/callbackQueryHandler.js`              | Handles `TEAM_CALLBACK_TYPE` and `TEAM_ASSIGN_CALLBACK_TYPE`, `pendingTeamAssignments` map          |
+| `src/callbackQueryHandler.js`              | Handles `TEAM_CALLBACK_TYPE` and `TEAM_ASSIGN_CALLBACK_TYPE`, pending assignments via Azure Blob    |
 | `src/prompts.js`                           | `teamId` extraction in current team photo prompt                                                    |
 | `src/constants.js`                         | `COMMAND_SELECT_TEAM`, `TEAM_CALLBACK_TYPE`, `TEAM_ASSIGN_CALLBACK_TYPE`                            |
 | `src/commandsHandler/selectTeamHandler.js` | `/select_team` command handler                                                                      |

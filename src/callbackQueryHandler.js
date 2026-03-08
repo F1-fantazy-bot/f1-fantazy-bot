@@ -32,9 +32,6 @@ const {
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
 const { t, setLanguage, getLanguageName } = require('./i18n');
 
-// Module-level map for temporarily storing team data when AI couldn't extract teamId
-const pendingTeamAssignments = {};
-
 exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
 
@@ -181,8 +178,11 @@ async function handleTeamAssignCallback(bot, query) {
   const messageId = query.message.message_id;
   const [_, uniqueKey, teamId] = query.data.split(':');
 
-  // Retrieve temporarily stored team data
-  const teamData = pendingTeamAssignments[uniqueKey];
+  // Retrieve temporarily stored team data from Azure Blob Storage
+  const teamData = await azureStorageService.getPendingTeamAssignment(
+    chatId,
+    uniqueKey,
+  );
   if (!teamData) {
     await bot.editMessageText(
       t('An error occurred while extracting data from the photo.', chatId),
@@ -192,7 +192,7 @@ async function handleTeamAssignCallback(bot, query) {
 
     return;
   }
-  delete pendingTeamAssignments[uniqueKey];
+  await azureStorageService.deletePendingTeamAssignment(chatId, uniqueKey);
 
   // Store in cache (team-scoped)
   if (!currentTeamCache[chatId]) {
@@ -315,9 +315,13 @@ async function storeInCache(bot, chatId, type, extractedData, fileUniqueId) {
       jsonObject.CurrentTeam;
 
     if (!teamId) {
-      // AI couldn't extract teamId — ask user to assign
+      // AI couldn't extract teamId — store in Azure Blob and ask user to assign
       const uniqueKey = fileUniqueId || String(Date.now());
-      pendingTeamAssignments[uniqueKey] = teamDataWithoutId;
+      await azureStorageService.savePendingTeamAssignment(
+        chatId,
+        uniqueKey,
+        teamDataWithoutId,
+      );
 
       const keyboard = [
         ['T1', 'T2', 'T3'].map((tid) => ({

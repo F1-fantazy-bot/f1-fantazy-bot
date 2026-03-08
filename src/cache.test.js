@@ -194,7 +194,7 @@ describe('cache', () => {
       });
     });
 
-    it('marks selected team with checkmark in all caches view', () => {
+    it('includes SelectedTeam field in all caches view', () => {
       currentTeamCache[chatId] = {
         T1: { drivers: ['VER'] },
         T2: { drivers: ['HAM'] },
@@ -205,23 +205,22 @@ describe('cache', () => {
       const parsed = JSON.parse(
         result.replace(/```json\n/, '').replace(/\n```/, ''),
       );
-      expect(parsed.Teams['T1 ✅']).toEqual({ drivers: ['VER'] });
+      expect(parsed.SelectedTeam).toBe('T1');
+      expect(parsed.Teams['T1']).toEqual({ drivers: ['VER'] });
       expect(parsed.Teams['T2']).toEqual({ drivers: ['HAM'] });
     });
 
-    it('shows chip selection per team in all caches view', () => {
+    it('includes SelectedTeam as null when no team selected', () => {
       currentTeamCache[chatId] = {
         T1: { drivers: ['VER'] },
       };
-      selectedChipCache[chatId] = { T1: 'EXTRA_DRS' };
 
       const result = getPrintableCache(chatId);
       const parsed = JSON.parse(
         result.replace(/```json\n/, '').replace(/\n```/, ''),
       );
-      expect(parsed.Teams['T1 (Chip: EXTRA_DRS)']).toEqual({
-        drivers: ['VER'],
-      });
+      expect(parsed.SelectedTeam).toBeNull();
+      expect(parsed.Teams['T1']).toEqual({ drivers: ['VER'] });
     });
 
     it('returns empty arrays/objects when caches are missing and type is not passed', () => {
