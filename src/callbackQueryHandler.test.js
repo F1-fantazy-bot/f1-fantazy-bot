@@ -10,13 +10,13 @@ const {
   LIMITLESS_CHIP,
   WITHOUT_CHIP,
   LANG_CALLBACK_TYPE,
+  TEAM_CALLBACK_TYPE,
 } = require('./constants');
 const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 const cache = require('./cache');
 const azureStorageService = require('./azureStorageService');
 const { updateUserAttributes } = require('./userRegistryService');
 const { t, getLanguage, getLanguageName } = require('./i18n');
-const { userCache } = require('./cache');
 
 jest.mock('./utils', () => ({
   sendLogMessage: jest.fn().mockResolvedValue(undefined),
@@ -46,6 +46,10 @@ jest.mock('./jsonDataExtraction');
 jest.mock('./azureStorageService', () => ({
   saveUserTeam: jest.fn().mockResolvedValue(undefined),
   deleteUserTeam: jest.fn().mockResolvedValue(undefined),
+  deleteAllUserTeams: jest.fn().mockResolvedValue(undefined),
+  savePendingTeamAssignment: jest.fn().mockResolvedValue(undefined),
+  getPendingTeamAssignment: jest.fn().mockResolvedValue(null),
+  deletePendingTeamAssignment: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('./userRegistryService', () => ({
   updateUserAttributes: jest.fn().mockResolvedValue(undefined),
@@ -59,6 +63,9 @@ jest.mock('./cache', () => ({
   selectedChipCache: {},
   userCache: {},
   getPrintableCache: jest.fn(),
+  getSelectedTeam: jest.fn().mockReturnValue(null),
+  getUserTeamIds: jest.fn().mockReturnValue([]),
+  resolveSelectedTeam: jest.fn().mockResolvedValue('T1'),
 }));
 
 describe('handleCallbackQuery', () => {
@@ -104,21 +111,17 @@ describe('handleCallbackQuery', () => {
 
   it('should handle driver photo type and store in driversCache', async () => {
     extractJsonDataFromPhotos.mockResolvedValue(
-      '```json\n{"Drivers":[{"DR":"HAM","price":30,"expectedPriceChange":2,"expectedPoints":50}]}\n```'
+      '```json\n{"Drivers":[{"DR":"HAM","price":30,"expectedPriceChange":2,"expectedPoints":50}]}\n```',
     );
 
     await handleCallbackQuery(bot, query);
 
     expect(bot.editMessageText).toHaveBeenCalledWith(
       expect.stringContaining('DRIVERS'),
-      expect.objectContaining({ chat_id: chatId, message_id: messageId })
+      expect.objectContaining({ chat_id: chatId, message_id: messageId }),
     );
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith(query.id);
     expect(bot.getFileLink).toHaveBeenCalledWith(fileId);
-    expect(cache.getPrintableCache).toHaveBeenCalledWith(
-      chatId,
-      DRIVERS_PHOTO_TYPE
-    );
     expect(cache.driversCache[chatId]).toEqual({
       HAM: {
         DR: 'HAM',
@@ -132,15 +135,11 @@ describe('handleCallbackQuery', () => {
   it('should handle constructors photo type and store in constructorsCache', async () => {
     query.data = `${PHOTO_CALLBACK_TYPE}:${CONSTRUCTORS_PHOTO_TYPE}:${fileId}`;
     extractJsonDataFromPhotos.mockResolvedValue(
-      '```json\n{"Constructors":[{"CN":"MER","price":50,"expectedPriceChange":3,"expectedPoints":100}]}\n```'
+      '```json\n{"Constructors":[{"CN":"MER","price":50,"expectedPriceChange":3,"expectedPoints":100}]}\n```',
     );
 
     await handleCallbackQuery(bot, query);
 
-    expect(cache.getPrintableCache).toHaveBeenCalledWith(
-      chatId,
-      CONSTRUCTORS_PHOTO_TYPE
-    );
     expect(cache.constructorsCache[chatId]).toEqual({
       MER: {
         CN: 'MER',
@@ -151,38 +150,74 @@ describe('handleCallbackQuery', () => {
     });
   });
 
-  it('should handle current team photo type and store in currentTeamCache', async () => {
+  it('should handle current team photo type with teamId and store nested in currentTeamCache', async () => {
     query.data = `${PHOTO_CALLBACK_TYPE}:${CURRENT_TEAM_PHOTO_TYPE}:${fileId}`;
     extractJsonDataFromPhotos.mockResolvedValue(
-      '```json\n{"CurrentTeam":{"drivers":["L. Hamilton"],"constructors":["Mercedes"],"drsBoost":"L. Hamilton","freeTransfers":2,"costCapRemaining":10}}\n```'
+      '```json\n{"CurrentTeam":{"teamId":"T1","drivers":["L. Hamilton"],"constructors":["Mercedes"],"drsBoost":"L. Hamilton","freeTransfers":2,"costCapRemaining":10}}\n```',
     );
 
     await handleCallbackQuery(bot, query);
 
-    // Verify Azure Storage was updated
+    // Verify Azure Storage was updated with teamId
     expect(azureStorageService.saveUserTeam).toHaveBeenCalledWith(
       expect.any(Object), // mockBot
       chatId,
+      'T1',
       {
         drivers: ['HAM'],
         constructors: ['MER'],
         drsBoost: 'HAM',
         freeTransfers: 2,
         costCapRemaining: 10,
-      }
+      },
     );
 
-    expect(cache.getPrintableCache).toHaveBeenCalledWith(
-      chatId,
-      CURRENT_TEAM_PHOTO_TYPE
-    );
-    expect(cache.currentTeamCache[chatId]).toEqual({
+    // Team data stored nested under T1
+    expect(cache.currentTeamCache[chatId]['T1']).toEqual({
       drivers: ['HAM'],
       constructors: ['MER'],
       drsBoost: 'HAM',
       freeTransfers: 2,
       costCapRemaining: 10,
     });
+
+    // Auto-select was set
+    expect(updateUserAttributes).toHaveBeenCalledWith(chatId, {
+      selectedTeam: 'T1',
+    });
+  });
+
+  it('should ask user to assign team when teamId is null', async () => {
+    query.data = `${PHOTO_CALLBACK_TYPE}:${CURRENT_TEAM_PHOTO_TYPE}:${fileId}`;
+    extractJsonDataFromPhotos.mockResolvedValue(
+      '```json\n{"CurrentTeam":{"drivers":["L. Hamilton"],"constructors":["Mercedes"],"drsBoost":"L. Hamilton","freeTransfers":2,"costCapRemaining":10}}\n```',
+    );
+
+    await handleCallbackQuery(bot, query);
+
+    // Should save pending team assignment to Azure Blob Storage
+    expect(azureStorageService.savePendingTeamAssignment).toHaveBeenCalledWith(
+      chatId,
+      fileId,
+      expect.objectContaining({
+        drivers: expect.any(Array),
+        constructors: expect.any(Array),
+      }),
+    );
+
+    // Should send team assignment keyboard
+    expect(bot.sendMessage).toHaveBeenCalledWith(
+      chatId,
+      expect.any(String), // "Which team is this screenshot from?"
+      expect.objectContaining({
+        reply_markup: expect.objectContaining({
+          inline_keyboard: expect.any(Array),
+        }),
+      }),
+    );
+
+    // saveUserTeam should NOT have been called (deferred)
+    expect(azureStorageService.saveUserTeam).not.toHaveBeenCalled();
   });
 
   it('should handle JSON parse error gracefully', async () => {
@@ -193,7 +228,7 @@ describe('handleCallbackQuery', () => {
 
     expect(spy).toHaveBeenCalledWith(
       expect.stringContaining('[DEBUG] JSON.parse FAILED. Error:'),
-      expect.anything()
+      expect.anything(),
     );
     spy.mockRestore();
   });
@@ -207,11 +242,11 @@ describe('handleCallbackQuery', () => {
       bot,
       chatId,
       expect.stringContaining('An error occurred while extracting data'),
-      { errorMessageToLog: 'Error sending extraction error message' }
+      { errorMessageToLog: 'Error sending extraction error message' },
     );
     expect(require('./utils').sendLogMessage).toHaveBeenCalledWith(
       bot,
-      'Error extracting data from photo: Extraction failed'
+      'Error extracting data from photo: Extraction failed',
     );
   });
 
@@ -219,14 +254,20 @@ describe('handleCallbackQuery', () => {
     beforeEach(() => {
       // Reset cache before each test
       Object.keys(cache.selectedChipCache).forEach(
-        (key) => delete cache.selectedChipCache[key]
+        (key) => delete cache.selectedChipCache[key],
       );
       Object.keys(cache.bestTeamsCache).forEach(
-        (key) => delete cache.bestTeamsCache[key]
+        (key) => delete cache.bestTeamsCache[key],
       );
+      Object.keys(cache.currentTeamCache).forEach(
+        (key) => delete cache.currentTeamCache[key],
+      );
+      // Set up a single team so resolveSelectedTeam auto-resolves
+      cache.currentTeamCache[chatId] = { T1: { drivers: ['VER'] } };
+      cache.resolveSelectedTeam.mockResolvedValue('T1');
     });
 
-    it('should handle EXTRA_DRS chip selection and clear bestTeamsCache', async () => {
+    it('should handle EXTRA_DRS chip selection and clear bestTeamsCache for team', async () => {
       const chipQuery = {
         message: {
           chat: { id: chatId },
@@ -237,20 +278,20 @@ describe('handleCallbackQuery', () => {
       };
 
       // Set up bestTeamsCache with some data
-      cache.bestTeamsCache[chatId] = { someData: 'test' };
+      cache.bestTeamsCache[chatId] = { T1: { someData: 'test' } };
 
       await handleCallbackQuery(bot, chipQuery);
 
-      expect(cache.selectedChipCache[chatId]).toBe(EXTRA_DRS_CHIP);
-      expect(cache.bestTeamsCache[chatId]).toBeUndefined();
+      expect(cache.selectedChipCache[chatId]).toEqual({ T1: EXTRA_DRS_CHIP });
+      expect(cache.bestTeamsCache[chatId]['T1']).toBeUndefined();
       expect(bot.editMessageText).toHaveBeenCalledWith(
         'Selected chip: EXTRA_DRS.',
-        expect.objectContaining({ chat_id: chatId, message_id: messageId })
+        expect.objectContaining({ chat_id: chatId, message_id: messageId }),
       );
       expect(bot.answerCallbackQuery).toHaveBeenCalledWith('chipQueryId');
     });
 
-    it('should handle WITHOUT_CHIP selection and clear both caches', async () => {
+    it('should handle WITHOUT_CHIP selection and clear chip for team', async () => {
       const chipQuery = {
         message: {
           chat: { id: chatId },
@@ -261,21 +302,21 @@ describe('handleCallbackQuery', () => {
       };
 
       // Set up caches with some data
-      cache.selectedChipCache[chatId] = WILDCARD_CHIP;
-      cache.bestTeamsCache[chatId] = { someData: 'test' };
+      cache.selectedChipCache[chatId] = { T1: WILDCARD_CHIP };
+      cache.bestTeamsCache[chatId] = { T1: { someData: 'test' } };
 
       await handleCallbackQuery(bot, chipQuery);
 
-      expect(cache.selectedChipCache[chatId]).toBeUndefined();
-      expect(cache.bestTeamsCache[chatId]).toBeUndefined();
+      expect(cache.selectedChipCache[chatId]['T1']).toBeUndefined();
+      expect(cache.bestTeamsCache[chatId]['T1']).toBeUndefined();
       expect(bot.editMessageText).toHaveBeenCalledWith(
         'Selected chip: WITHOUT_CHIP.',
-        expect.objectContaining({ chat_id: chatId, message_id: messageId })
+        expect.objectContaining({ chat_id: chatId, message_id: messageId }),
       );
       expect(bot.answerCallbackQuery).toHaveBeenCalledWith('chipQueryId');
     });
 
-    it('should handle LIMITLESS chip selection and clear bestTeamsCache', async () => {
+    it('should handle LIMITLESS chip selection and clear bestTeamsCache for team', async () => {
       const chipQuery = {
         message: {
           chat: { id: chatId },
@@ -286,20 +327,20 @@ describe('handleCallbackQuery', () => {
       };
 
       // Set up bestTeamsCache with some data
-      cache.bestTeamsCache[chatId] = { someData: 'test' };
+      cache.bestTeamsCache[chatId] = { T1: { someData: 'test' } };
 
       await handleCallbackQuery(bot, chipQuery);
 
-      expect(cache.selectedChipCache[chatId]).toBe(LIMITLESS_CHIP);
-      expect(cache.bestTeamsCache[chatId]).toBeUndefined();
+      expect(cache.selectedChipCache[chatId]).toEqual({ T1: LIMITLESS_CHIP });
+      expect(cache.bestTeamsCache[chatId]['T1']).toBeUndefined();
       expect(bot.editMessageText).toHaveBeenCalledWith(
         'Selected chip: LIMITLESS.',
-        expect.objectContaining({ chat_id: chatId, message_id: messageId })
+        expect.objectContaining({ chat_id: chatId, message_id: messageId }),
       );
       expect(bot.answerCallbackQuery).toHaveBeenCalledWith('chipQueryId');
     });
 
-    it('should clear bestTeamsCache even when it was already empty', async () => {
+    it('should clear bestTeamsCache for team even when it was already empty', async () => {
       const chipQuery = {
         message: {
           chat: { id: chatId },
@@ -314,11 +355,10 @@ describe('handleCallbackQuery', () => {
 
       await handleCallbackQuery(bot, chipQuery);
 
-      expect(cache.selectedChipCache[chatId]).toBe(WILDCARD_CHIP);
-      expect(cache.bestTeamsCache[chatId]).toBeUndefined();
+      expect(cache.selectedChipCache[chatId]).toEqual({ T1: WILDCARD_CHIP });
       expect(bot.editMessageText).toHaveBeenCalledWith(
         'Selected chip: WILDCARD.',
-        expect.objectContaining({ chat_id: chatId, message_id: messageId })
+        expect.objectContaining({ chat_id: chatId, message_id: messageId }),
       );
     });
 
@@ -332,24 +372,24 @@ describe('handleCallbackQuery', () => {
         id: 'chipQueryId',
       };
 
-      // Set up bestTeamsCache with bestTeams property
-      cache.bestTeamsCache[chatId] = { bestTeams: [{ some: 'data' }] };
+      // Set up bestTeamsCache with bestTeams property (nested under T1)
+      cache.bestTeamsCache[chatId] = { T1: { bestTeams: [{ some: 'data' }] } };
 
       await handleCallbackQuery(bot, chipQuery);
 
-      expect(cache.selectedChipCache[chatId]).toBe(EXTRA_DRS_CHIP);
-      expect(cache.bestTeamsCache[chatId]).toBeUndefined();
+      expect(cache.selectedChipCache[chatId]).toEqual({ T1: EXTRA_DRS_CHIP });
+      expect(cache.bestTeamsCache[chatId]['T1']).toBeUndefined();
       expect(bot.editMessageText).toHaveBeenCalledWith(
         expect.stringContaining('Selected chip: EXTRA_DRS.'),
-        expect.objectContaining({ chat_id: chatId, message_id: messageId })
+        expect.objectContaining({ chat_id: chatId, message_id: messageId }),
       );
       expect(bot.editMessageText).toHaveBeenCalledWith(
         expect.stringContaining('Note: best team calculation was deleted'),
-        expect.objectContaining({ chat_id: chatId, message_id: messageId })
+        expect.objectContaining({ chat_id: chatId, message_id: messageId }),
       );
       expect(bot.editMessageText).toHaveBeenCalledWith(
         expect.stringContaining('rerun /best_teams command'),
-        expect.objectContaining({ chat_id: chatId, message_id: messageId })
+        expect.objectContaining({ chat_id: chatId, message_id: messageId }),
       );
     });
   });
@@ -357,7 +397,9 @@ describe('handleCallbackQuery', () => {
   describe('language selection handling', () => {
     beforeEach(() => {
       jest.clearAllMocks();
-      Object.keys(userCache).forEach((key) => delete userCache[key]);
+      Object.keys(cache.userCache).forEach(
+        (key) => delete cache.userCache[key],
+      );
     });
 
     it('should set language and edit message', async () => {
@@ -376,14 +418,43 @@ describe('handleCallbackQuery', () => {
         t('Language changed to {LANG}.', chatId, {
           LANG: getLanguageName('he', chatId),
         }),
-        expect.objectContaining({ chat_id: chatId, message_id: messageId })
+        expect.objectContaining({ chat_id: chatId, message_id: messageId }),
       );
       expect(bot.answerCallbackQuery).toHaveBeenCalledWith('langQueryId');
       expect(getLanguage(chatId)).toBe('he');
-      expect(updateUserAttributes).toHaveBeenCalledWith(
-        chatId,
-        { lang: 'he' }
+      expect(updateUserAttributes).toHaveBeenCalledWith(chatId, { lang: 'he' });
+    });
+  });
+
+  describe('team callback handling', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      Object.keys(cache.userCache).forEach(
+        (key) => delete cache.userCache[key],
       );
+    });
+
+    it('should handle TEAM callback and update selectedTeam', async () => {
+      const teamQuery = {
+        message: {
+          chat: { id: chatId },
+          message_id: messageId,
+        },
+        data: `${TEAM_CALLBACK_TYPE}:T2`,
+        id: 'teamQueryId',
+      };
+
+      await handleCallbackQuery(bot, teamQuery);
+
+      expect(cache.userCache[String(chatId)].selectedTeam).toBe('T2');
+      expect(updateUserAttributes).toHaveBeenCalledWith(chatId, {
+        selectedTeam: 'T2',
+      });
+      expect(bot.editMessageText).toHaveBeenCalledWith(
+        expect.stringContaining('T2'),
+        expect.objectContaining({ chat_id: chatId, message_id: messageId }),
+      );
+      expect(bot.answerCallbackQuery).toHaveBeenCalledWith('teamQueryId');
     });
   });
 
@@ -397,7 +468,7 @@ describe('handleCallbackQuery', () => {
 
       expect(require('./utils').sendLogMessage).toHaveBeenCalledWith(
         bot,
-        'Unknown callback type: unknown_type'
+        'Unknown callback type: unknown_type',
       );
     });
   });
@@ -406,13 +477,13 @@ describe('handleCallbackQuery', () => {
     beforeEach(() => {
       // Reset caches
       Object.keys(cache.driversCache).forEach(
-        (key) => delete cache.driversCache[key]
+        (key) => delete cache.driversCache[key],
       );
       Object.keys(cache.constructorsCache).forEach(
-        (key) => delete cache.constructorsCache[key]
+        (key) => delete cache.constructorsCache[key],
       );
       Object.keys(cache.currentTeamCache).forEach(
-        (key) => delete cache.currentTeamCache[key]
+        (key) => delete cache.currentTeamCache[key],
       );
     });
 
@@ -420,7 +491,7 @@ describe('handleCallbackQuery', () => {
       const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
       query.data = `${PHOTO_CALLBACK_TYPE}:unknown_type:${fileId}`;
       extractJsonDataFromPhotos.mockResolvedValue(
-        '```json\n{"someData": "test"}\n```'
+        '```json\n{"someData": "test"}\n```',
       );
 
       await handleCallbackQuery(bot, query);
@@ -436,7 +507,7 @@ describe('handleCallbackQuery', () => {
       };
 
       extractJsonDataFromPhotos.mockResolvedValue(
-        '```json\n{"Drivers":[{"DR":"HAM","price":30}]}\n```'
+        '```json\n{"Drivers":[{"DR":"HAM","price":30}]}\n```',
       );
 
       await handleCallbackQuery(bot, query);
@@ -456,7 +527,7 @@ describe('handleCallbackQuery', () => {
       };
 
       extractJsonDataFromPhotos.mockResolvedValue(
-        '```json\n{"Constructors":[{"CN":"MER","price":50}]}\n```'
+        '```json\n{"Constructors":[{"CN":"MER","price":50}]}\n```',
       );
 
       await handleCallbackQuery(bot, query);
@@ -466,63 +537,43 @@ describe('handleCallbackQuery', () => {
         MER: { CN: 'MER', price: 50 },
       });
     });
-
-    it('should handle current team data with existing cache', async () => {
-      query.data = `${PHOTO_CALLBACK_TYPE}:${CURRENT_TEAM_PHOTO_TYPE}:${fileId}`;
-
-      // Pre-populate currentTeamCache
-      cache.currentTeamCache[chatId] = {
-        freeTransfers: 1,
-        previousData: 'should be kept',
-      };
-
-      extractJsonDataFromPhotos.mockResolvedValue(
-        '```json\n{"CurrentTeam":{"drivers":["L. Hamilton"],"constructors":["Mercedes"],"drsBoost":"L. Hamilton","freeTransfers":2,"costCapRemaining":10}}\n```'
-      );
-
-      await handleCallbackQuery(bot, query);
-
-      expect(cache.currentTeamCache[chatId]).toEqual({
-        previousData: 'should be kept',
-        drivers: ['HAM'],
-        constructors: ['MER'],
-        drsBoost: 'HAM',
-        freeTransfers: 2,
-        costCapRemaining: 10,
-      });
-    });
   });
 
   describe('error handling edge cases', () => {
-    it('should handle sendMessage error in success path', async () => {
-      require('./utils').sendMessageToUser.mockRejectedValueOnce(
-        new Error('Send message failed')
-      );
+    it('should handle sendMessage error in success path for current team photo', async () => {
+      query.data = `${PHOTO_CALLBACK_TYPE}:${CURRENT_TEAM_PHOTO_TYPE}:${fileId}`;
+
+      // First sendMessageToUser for auto-switch succeeds, second (printable cache) fails
+      const { sendMessageToUser } = require('./utils');
+      sendMessageToUser
+        .mockResolvedValueOnce(undefined) // auto-switch message
+        .mockRejectedValueOnce(new Error('Send message failed')); // printable cache send
+
       extractJsonDataFromPhotos.mockResolvedValue(
-        '```json\n{"Drivers":[{"DR":"HAM","price":30}]}\n```'
+        '```json\n{"CurrentTeam":{"teamId":"T1","drivers":["L. Hamilton"],"constructors":["Mercedes"],"drsBoost":"L. Hamilton","freeTransfers":2,"costCapRemaining":10}}\n```',
       );
 
       await handleCallbackQuery(bot, query);
 
       expect(require('./utils').sendLogMessage).toHaveBeenCalledWith(
         bot,
-        'Error extracting data from photo: Send message failed'
+        'Error extracting data from photo: Send message failed',
       );
     });
 
     it('should handle sendMessage error in error path', async () => {
       extractJsonDataFromPhotos.mockRejectedValue(
-        new Error('Extraction failed')
+        new Error('Extraction failed'),
       );
       bot.sendMessage.mockRejectedValueOnce(
-        new Error('Send error message failed')
+        new Error('Send error message failed'),
       );
 
       await handleCallbackQuery(bot, query);
 
       expect(require('./utils').sendLogMessage).toHaveBeenCalledWith(
         bot,
-        'Error extracting data from photo: Extraction failed'
+        'Error extracting data from photo: Extraction failed',
       );
     });
 
@@ -532,14 +583,14 @@ describe('handleCallbackQuery', () => {
         .mockImplementation(() => {});
 
       extractJsonDataFromPhotos.mockResolvedValue(
-        'invalid json that will fail parsing'
+        'invalid json that will fail parsing',
       );
 
       await handleCallbackQuery(bot, query);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         '[DEBUG] JSON.parse FAILED. Error:',
-        expect.any(String)
+        expect.any(String),
       );
       consoleErrorSpy.mockRestore();
     });

@@ -13,7 +13,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
   - Generic command execution is centralized in `src/commandsHandler/commandHandlers.js`, which maps command constants to handler implementations.
 - **Pending Reply Manager:** `src/pendingReplyManager.js` provides a centralized mechanism for commands that need a follow-up reply from the user (text or photo). State is stored in **Azure Table Storage** for multi-server support. The check happens in `messageHandler.js` **before** the text/photo branching, so reply handlers receive the full message regardless of type. Supports optional `data` parameter for multi-step commands that need to store intermediate state between steps.
 - **Pending Reply Registry:** `src/pendingReplyRegistry.js` maps command identifiers (e.g., `'report_bug'`, `'send_message_to_user'`, `'set_nickname'`) to builder functions that reconstruct handlers, validators, and prompts. This enables serializable storage — only the command ID and optional data are persisted, and the full behavior is rebuilt on any server instance. Builder functions receive `(chatId, data)` where `data` is optional stored state for multi-step commands.
-- **Caching:** `src/cache.js` holds in-memory data for drivers, constructors, current team info, simulations, next race info, weather forecasts, and a unified `userCache`. `src/cacheInitializer.js` populates those caches on startup — most data comes from Azure Blob Storage, while `userCache` is populated from the `UserRegistry` Azure Table via a single `listAllUsers()` call. Each entry in `userCache` is keyed by `chatId` and holds `{ lang, nickname, chatName, ... }`.
+- **Caching:** `src/cache.js` holds in-memory data for drivers, constructors, current team info, simulations, next race info, weather forecasts, and a unified `userCache`. Team-related caches (`currentTeamCache`, `bestTeamsCache`, `selectedChipCache`) are **nested by team ID** — see the [Multi-Team System](#multi-team-system) section below. `src/cacheInitializer.js` populates those caches on startup — most data comes from Azure Blob Storage (with team-aware blob naming), while `userCache` is populated from the `UserRegistry` Azure Table via a single `listAllUsers()` call. Each entry in `userCache` is keyed by `chatId` and holds `{ lang, nickname, chatName, selectedTeam, ... }`.
 - **Display Names:** `src/utils/utils.js` provides `getDisplayName(chatId)` which checks the in-memory `userCache` and returns the nickname if set, then falls back to `chatName`, then to the stringified `chatId`. This is used in `messageHandler.js` for all log messages so admins see nicknames in logs instead of Telegram display names.
 - **User Registry:** `src/userRegistryService.js` tracks all users who interact with the bot in an Azure Table Storage table (`UserRegistry`). On every allowed message, `messageHandler.js` calls `upsertUser(chatId, chatName)` in a fire-and-forget manner (no `await`) so that registry failures never block message handling. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) displays all registered users with their details, including nicknames when set.
 - **Utilities & Services:**
@@ -32,6 +32,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
    - `nextRaceInfoHandler.js` – detailed next race info.
    - `nextRaceWeatherHandler.js` – weather forecasts.
    - `nextRacesHandler.js` – upcoming race schedule (new `/next_races`).
+   - `selectTeamHandler.js` – switch between multiple teams.
    - `setNicknameHandler.js` – admin command to set user nicknames.
 3. **Exports:** `src/commandsHandler/index.js` re-exports all handler functions for convenient imports elsewhere.
 4. **Command Router:** `src/commandsHandler/commandHandlers.js` maps constants to handler functions and implements `executeCommand` used by the ASK agent and menu callbacks.
@@ -52,7 +53,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 ## Key Commands (User-Facing)
 
 - `/best_teams`, `/current_team_info`, `/chips`, `/extra_drs`, `/limitless`, `/wildcard`, `/reset_chip`
-- `/print_cache`, `/reset_cache`
+- `/select_team`, `/print_cache`, `/reset_cache`
 - `/next_race_info`, `/next_races`, `/next_race_weather`
 - `/get_current_simulation`
 - `/menu`, `/help`, `/lang`
@@ -263,17 +264,18 @@ The table is **extensible** — new attributes can be added at any time without 
 | `chatName`     | `string` | Display name from `getChatName(msg)`                                                          |
 | `lang`         | `string` | Language code (`'en'`, `'he'`). Optional — absent means default (`'en'`).                     |
 | `nickname`     | `string` | Admin-assigned display name for logs. Optional — when set, replaces `chatName` in log output. |
+| `selectedTeam` | `string` | Currently selected team ID (`'T1'`, `'T2'`, etc.). Optional — absent means no team selected.  |
 | `firstSeen`    | `string` | ISO timestamp — set on first interaction, preserved on updates                                |
 | `lastSeen`     | `string` | ISO timestamp — updated on every message                                                      |
 
 ### API Reference
 
-| Method                 | Signature                                            | Purpose                                                                                                                            |
-| ---------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `upsertUser`           | `upsertUser(chatId, chatName) → Promise`             | Track a user interaction. Fire-and-forget — errors are logged, never thrown. Uses Merge mode to preserve all other fields.         |
-| `updateUserAttributes` | `updateUserAttributes(chatId, attributes) → Promise` | Update one or more user attributes using Merge mode. No read step needed. Example: `updateUserAttributes(chatId, { nickname: 'Max' })`. |
-| `getUserById`          | `getUserById(chatId) → Promise<Object\|null>`         | Point lookup for a single user by chat ID. Returns user object with all stored attributes, or `null` if not found. Throws on real storage errors. More efficient than `listAllUsers` when you only need one user. |
-| `listAllUsers`         | `listAllUsers() → Promise<Array<Object>>`            | Return all registered users with all stored attributes. Automatically includes future fields. Used by `cacheInitializer` to populate `userCache` on startup. |
+| Method                 | Signature                                            | Purpose                                                                                                                                                                                                           |
+| ---------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `upsertUser`           | `upsertUser(chatId, chatName) → Promise`             | Track a user interaction. Fire-and-forget — errors are logged, never thrown. Uses Merge mode to preserve all other fields.                                                                                        |
+| `updateUserAttributes` | `updateUserAttributes(chatId, attributes) → Promise` | Update one or more user attributes using Merge mode. No read step needed. Example: `updateUserAttributes(chatId, { nickname: 'Max' })`.                                                                           |
+| `getUserById`          | `getUserById(chatId) → Promise<Object\|null>`        | Point lookup for a single user by chat ID. Returns user object with all stored attributes, or `null` if not found. Throws on real storage errors. More efficient than `listAllUsers` when you only need one user. |
+| `listAllUsers`         | `listAllUsers() → Promise<Array<Object>>`            | Return all registered users with all stored attributes. Automatically includes future fields. Used by `cacheInitializer` to populate `userCache` on startup.                                                      |
 
 ---
 
@@ -293,16 +295,120 @@ The nickname system allows admins to assign custom display names to users that r
 
 ### Key Files
 
-| File | Role |
-| ---- | ---- |
-| `src/cache.js` | `userCache` — in-memory `{ chatId: { lang, nickname, chatName, ... } }` map |
-| `src/userRegistryService.js` | `listAllUsers()` — loads all user data from Azure Table |
-| `src/cacheInitializer.js` | Populates `userCache` on startup via single `listAllUsers()` call |
-| `src/utils/utils.js` | `getDisplayName(chatId)` — resolves nickname → chatName → chatId fallback |
-| `src/messageHandler.js` | Uses `getDisplayName()` in all log messages; updates `userCache` chatName on every message |
-| `src/commandsHandler/setNicknameHandler.js` | `/set_nickname` command handler (admin-only, two-step reply) |
-| `src/pendingReplyRegistry.js` | `set_nickname` entry — collects chat ID then nickname, stores, updates `userCache` |
-| `src/commandsHandler/listUsersHandler.js` | Shows nickname in `/list_users` output |
+| File                                        | Role                                                                                       |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `src/cache.js`                              | `userCache` — in-memory `{ chatId: { lang, nickname, chatName, selectedTeam, ... } }` map  |
+| `src/userRegistryService.js`                | `listAllUsers()` — loads all user data from Azure Table                                    |
+| `src/cacheInitializer.js`                   | Populates `userCache` on startup via single `listAllUsers()` call                          |
+| `src/utils/utils.js`                        | `getDisplayName(chatId)` — resolves nickname → chatName → chatId fallback                  |
+| `src/messageHandler.js`                     | Uses `getDisplayName()` in all log messages; updates `userCache` chatName on every message |
+| `src/commandsHandler/setNicknameHandler.js` | `/set_nickname` command handler (admin-only, two-step reply)                               |
+| `src/pendingReplyRegistry.js`               | `set_nickname` entry — collects chat ID then nickname, stores, updates `userCache`         |
+| `src/commandsHandler/listUsersHandler.js`   | Shows nickname in `/list_users` output                                                     |
+
+---
+
+## Multi-Team System
+
+The bot supports **multiple teams per user** (e.g., T1, T2, T3). Each team has its own cached data, chip selection, and best-teams calculation. A `selectedTeam` preference determines which team context commands operate on.
+
+### Cache Structure
+
+Team-related caches are **nested by team ID** under each `chatId`:
+
+```javascript
+// Per-user, per-team caches
+currentTeamCache[chatId][teamId]; // e.g., { T1: { drivers, constructors, ... }, T2: { ... } }
+bestTeamsCache[chatId][teamId]; // e.g., { T1: { currentTeam, bestTeams }, T2: { ... } }
+selectedChipCache[chatId][teamId]; // e.g., { T1: 'EXTRA_DRS', T2: 'WILDCARD' }
+
+// Per-user caches (shared across all teams — NOT nested by team ID)
+driversCache[chatId]; // driver data shared across teams
+constructorsCache[chatId]; // constructor data shared across teams
+```
+
+### Cache Helper Functions
+
+`src/cache.js` exports the following team-aware helpers:
+
+| Function              | Signature                                                    | Purpose                                                                                                                                                                                   |
+| --------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getSelectedTeam`     | `getSelectedTeam(chatId) → string \| null`                   | Returns the user's selected team from `userCache`, or `null` if none set.                                                                                                                 |
+| `getUserTeamIds`      | `getUserTeamIds(chatId) → string[]`                          | Returns array of team IDs the user has (keys of `currentTeamCache[chatId]`).                                                                                                              |
+| `resolveSelectedTeam` | `resolveSelectedTeam(bot, chatId) → Promise<string \| null>` | Guard function for team-related commands. Auto-resolves single team, prompts user to select for multiple teams, tells user to upload screenshot for no teams. Returns `teamId` or `null`. |
+
+### Team Selection Guard
+
+All team-related commands (`/best_teams`, `/current_team_info`, `/chips`, `/extra_drs`, `/limitless`, `/wildcard`, `/reset_chip`) must call `resolveSelectedTeam(bot, chatId)` at the start and return early if it returns `null`. The guard logic:
+
+1. **0 teams** → sends "upload a screenshot" message → returns `null`.
+2. **1 team** → auto-resolves to that team ID (no prompt needed) → returns `teamId`.
+3. **2+ teams, `selectedTeam` is set and valid** → returns `selectedTeam`.
+4. **2+ teams, `selectedTeam` is not set or invalid** → sends "run `/select_team`" message → returns `null`.
+
+### `selectedTeam` User Preference
+
+Stored in `userCache[chatId].selectedTeam`, following the same pattern as `lang`:
+
+- Persisted to Azure Table Storage via `updateUserAttributes(chatId, { selectedTeam })`.
+- Auto-updated when a user uploads a team screenshot with a detected team identifier — the user is notified of the switch.
+- Manually changed via the `/select_team` command.
+- Cleared when `/reset_cache` is run.
+
+### `/select_team` Command
+
+User command to manually switch between teams:
+
+1. Bot reads `currentTeamCache[chatId]` keys to find available teams.
+2. Bot shows an inline keyboard with buttons for each team, ✅ on current selection.
+3. User taps a button → `userCache[chatId].selectedTeam` is updated, persisted via `updateUserAttributes`, and confirmed.
+
+Uses `TEAM_CALLBACK_TYPE` callback type in `callbackQueryHandler.js`.
+
+### Azure Blob Storage (Team-Aware)
+
+Blob naming includes the team ID:
+
+| Operation  | Blob Path                                  | Signature                                                                      |
+| ---------- | ------------------------------------------ | ------------------------------------------------------------------------------ |
+| Read       | `user-teams/{chatId}_{teamId}.json`        | `getUserTeam(chatId, teamId)` — `teamId` is required, no default.              |
+| Write      | `user-teams/{chatId}_{teamId}.json`        | `saveUserTeam(bot, chatId, teamId, teamData)`                                  |
+| Delete one | `user-teams/{chatId}_{teamId}.json`        | `deleteUserTeam(bot, chatId, teamId)`                                          |
+| Delete all | `user-teams/{chatId}_*.json`               | `deleteAllUserTeams(bot, chatId)` — deletes all team blobs for a user.         |
+| List all   | Parses `{chatId}_{teamId}` from blob names | `listAllUserTeamData()` — returns nested `{ chatId: { T1: data, T2: data } }`. |
+
+### Image Extraction — Team Identifier
+
+`EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT` in `src/prompts.js` instructs the AI to extract a `teamId` field from team screenshots (found inside a colored square icon next to the team name):
+
+- If `teamId` is successfully extracted → data is stored under that team ID, and `selectedTeam` is auto-updated with a notification to the user.
+- If `teamId` is `null` (not detected) → bot asks the user via inline keyboard ("Which team is this screenshot from?") using `TEAM_ASSIGN_CALLBACK_TYPE`. The extracted team data is temporarily stored in **Azure Blob Storage** (`pending-team-assignments/{chatId}_{uniqueKey}.json`) for multi-server support while awaiting the user's selection.
+
+### Updated Command Behaviors
+
+- **`selectChip()`** is now async and accepts `bot` as a parameter (needed for `resolveSelectedTeam`).
+- **`/reset_cache`** deletes all teams via `deleteAllUserTeams(bot, chatId)` and clears `selectedTeam`.
+- **`/print_cache`** (`getPrintableCache`) shows all teams in a JSON object with a `SelectedTeam` field indicating the active team, plus a `Teams` object containing all team data.
+
+### Constants
+
+| Constant                    | Value            | Purpose                                                           |
+| --------------------------- | ---------------- | ----------------------------------------------------------------- |
+| `COMMAND_SELECT_TEAM`       | `'/select_team'` | Command string for team selection.                                |
+| `TEAM_CALLBACK_TYPE`        | `'TEAM'`         | Callback type for `/select_team` inline keyboard.                 |
+| `TEAM_ASSIGN_CALLBACK_TYPE` | `'TEAM_ASSIGN'`  | Callback type for asking user which team a screenshot belongs to. |
+
+### Key Files
+
+| File                                       | Role                                                                                                |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `src/cache.js`                             | Nested team caches, `getSelectedTeam`, `getUserTeamIds`, `resolveSelectedTeam`, `getPrintableCache` |
+| `src/azureStorageService.js`               | Team-aware blob naming (`{chatId}_{teamId}.json`), `deleteAllUserTeams`                             |
+| `src/cacheInitializer.js`                  | Populates nested `currentTeamCache` from `listAllUserTeamData()`                                    |
+| `src/callbackQueryHandler.js`              | Handles `TEAM_CALLBACK_TYPE` and `TEAM_ASSIGN_CALLBACK_TYPE`, pending assignments via Azure Blob    |
+| `src/prompts.js`                           | `teamId` extraction in current team photo prompt                                                    |
+| `src/constants.js`                         | `COMMAND_SELECT_TEAM`, `TEAM_CALLBACK_TYPE`, `TEAM_ASSIGN_CALLBACK_TYPE`                            |
+| `src/commandsHandler/selectTeamHandler.js` | `/select_team` command handler                                                                      |
 
 ---
 
@@ -311,6 +417,7 @@ The nickname system allows admins to assign custom display names to users that r
 - **Console Noise in Tests:** Many tests intentionally log errors. Filter by test file name when diagnosing issues.
 - **Time Zone Handling:** `formatDateTime` currently uses `Asia/Jerusalem`; adjust carefully if adding time-sensitive features.
 - **Cache Awareness:** Before fetching external data, check relevant caches to avoid redundant requests (see `nextRaceInfoHandler` and `nextRacesHandler`).
+- **Multi-Team Awareness:** Team-related caches are nested by team ID. Always use `resolveSelectedTeam(bot, chatId)` as a guard before accessing team-scoped data. Access patterns: `currentTeamCache[chatId]?.[teamId]`, `bestTeamsCache[chatId]?.[teamId]`, `selectedChipCache[chatId]?.[teamId]`.
 - **Admin Safeguards:** Use `isAdminMessage` from `src/utils` to restrict sensitive commands.
 - **Menu Navigation:** Maintain `MENU_CATEGORIES` order for a consistent UI. Hiding a command from the interactive menu requires setting `hideFromMenu: true` in its category entry.
 - **Localization:** Always wrap user-facing strings with `t('key', chatId)` to ensure translation support.

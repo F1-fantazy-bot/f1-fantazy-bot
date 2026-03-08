@@ -53,7 +53,7 @@ async function getFantasyData() {
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
     const downloadResponse = await blockBlobClient.download();
     const jsonString = await streamToString(
-      downloadResponse.readableStreamBody
+      downloadResponse.readableStreamBody,
     );
 
     return JSON.parse(jsonString);
@@ -77,7 +77,7 @@ async function getNextRaceInfoData() {
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
     const downloadResponse = await blockBlobClient.download();
     const jsonString = await streamToString(
-      downloadResponse.readableStreamBody
+      downloadResponse.readableStreamBody,
     );
 
     return JSON.parse(jsonString);
@@ -89,16 +89,17 @@ async function getNextRaceInfoData() {
 /**
  * Get a user's team data from Azure Storage
  * @param {string} chatId - The chat ID of the user
+ * @param {string} teamId - The team identifier (e.g., 'T1', 'T2', 'T3')
  * @returns {Promise<Object|null>} The parsed team data or null if not found
  * @throws {Error} If there's an error retrieving or parsing the data
  */
-async function getUserTeam(chatId) {
+async function getUserTeam(chatId, teamId) {
   try {
     if (!containerClient) {
       initializeAzureStorage();
     }
 
-    const blobName = `user-teams/${chatId}.json`;
+    const blobName = `user-teams/${chatId}_${teamId}.json`;
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
     // Check if the blob exists
@@ -109,28 +110,32 @@ async function getUserTeam(chatId) {
 
     const downloadResponse = await blockBlobClient.download();
     const jsonString = await streamToString(
-      downloadResponse.readableStreamBody
+      downloadResponse.readableStreamBody,
     );
 
     return JSON.parse(jsonString);
   } catch (error) {
-    throw new Error(`Failed to get user team for ${chatId}: ${error.message}`);
+    throw new Error(
+      `Failed to get user team for ${chatId}_${teamId}: ${error.message}`,
+    );
   }
 }
 
 /**
  * Save a user's team data to Azure Storage
+ * @param {Object} bot - The Telegram bot instance
  * @param {string} chatId - The chat ID of the user
+ * @param {string} teamId - The team identifier (e.g., 'T1', 'T2', 'T3')
  * @param {Object} teamData - The team data to save
  * @throws {Error} If the data cannot be saved
  */
-async function saveUserTeam(bot, chatId, teamData) {
+async function saveUserTeam(bot, chatId, teamId, teamData) {
   try {
     if (!containerClient) {
       initializeAzureStorage();
     }
 
-    const blobName = `user-teams/${chatId}.json`;
+    const blobName = `user-teams/${chatId}_${teamId}.json`;
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
     const content = JSON.stringify(teamData, null, 2);
 
@@ -142,25 +147,29 @@ async function saveUserTeam(bot, chatId, teamData) {
 
     await sendLogMessage(
       bot,
-      `Successfully saved team data for ${displayName} (${chatId})`
+      `Successfully saved team data for ${displayName} (${chatId}) team ${teamId}`,
     );
   } catch (error) {
-    throw new Error(`Failed to save user team for ${chatId}: ${error.message}`);
+    throw new Error(
+      `Failed to save user team for ${chatId}_${teamId}: ${error.message}`,
+    );
   }
 }
 
 /**
  * Delete a user's team data from Azure Storage
+ * @param {Object} bot - The Telegram bot instance
  * @param {string} chatId - The chat ID of the user
+ * @param {string} teamId - The team identifier (e.g., 'T1', 'T2', 'T3')
  * @throws {Error} If the data cannot be deleted
  */
-async function deleteUserTeam(bot, chatId) {
+async function deleteUserTeam(bot, chatId, teamId) {
   try {
     if (!containerClient) {
       initializeAzureStorage();
     }
 
-    const blobName = `user-teams/${chatId}.json`;
+    const blobName = `user-teams/${chatId}_${teamId}.json`;
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
     await blockBlobClient.deleteIfExists();
 
@@ -168,18 +177,49 @@ async function deleteUserTeam(bot, chatId) {
 
     await sendLogMessage(
       bot,
-      `Successfully deleted team data for ${displayName} (${chatId})`
+      `Successfully deleted team data for ${displayName} (${chatId}) team ${teamId}`,
     );
   } catch (error) {
     throw new Error(
-      `Failed to delete user team for ${chatId}: ${error.message}`
+      `Failed to delete user team for ${chatId}_${teamId}: ${error.message}`,
+    );
+  }
+}
+
+/**
+ * Delete all team blobs for a user from Azure Storage
+ * @param {Object} bot - The Telegram bot instance
+ * @param {string} chatId - The chat ID of the user
+ * @throws {Error} If the data cannot be deleted
+ */
+async function deleteAllUserTeams(bot, chatId) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const prefix = `user-teams/${chatId}_`;
+    for await (const blob of containerClient.listBlobsFlat({ prefix })) {
+      const blockBlobClient = containerClient.getBlockBlobClient(blob.name);
+      await blockBlobClient.deleteIfExists();
+    }
+
+    const displayName = getDisplayName(chatId);
+
+    await sendLogMessage(
+      bot,
+      `Successfully deleted all team data for ${displayName} (${chatId})`,
+    );
+  } catch (error) {
+    throw new Error(
+      `Failed to delete all user teams for ${chatId}: ${error.message}`,
     );
   }
 }
 
 /**
  * List and fetch all user team data from Azure Storage
- * @returns {Promise<Array<{chatId: string, teamData: Object}>>} Array of user teams with their chat IDs
+ * @returns {Promise<Object>} Nested structure: { chatId: { T1: teamData, T2: teamData } }
  * @throws {Error} If the data cannot be retrieved or parsed
  */
 async function listAllUserTeamData() {
@@ -193,13 +233,19 @@ async function listAllUserTeamData() {
 
     // List all blobs in the user-teams directory
     for await (const blob of containerClient.listBlobsFlat({ prefix })) {
-      // Extract chatId from the blob name (remove prefix and .json)
-      const chatId = blob.name.substring(prefix.length).replace('.json', '');
+      // Extract chatId and teamId from the blob name (format: user-teams/{chatId}_{teamId}.json)
+      const fileName = blob.name.substring(prefix.length).replace('.json', '');
+      const separatorIdx = fileName.lastIndexOf('_');
+      const chatId = fileName.substring(0, separatorIdx);
+      const teamId = fileName.substring(separatorIdx + 1);
 
       // Get the team data for this user
-      const teamData = await getUserTeam(chatId);
+      const teamData = await getUserTeam(chatId, teamId);
       if (teamData) {
-        userTeams[chatId] = teamData;
+        if (!userTeams[chatId]) {
+          userTeams[chatId] = {};
+        }
+        userTeams[chatId][teamId] = teamData;
       }
     }
 
@@ -209,11 +255,98 @@ async function listAllUserTeamData() {
   }
 }
 
+/**
+ * Save pending team assignment data to Azure Blob Storage.
+ * Used when AI can't extract teamId and the user must assign it.
+ * @param {string} chatId - The chat ID of the user
+ * @param {string} uniqueKey - A unique key for this pending assignment (e.g., fileUniqueId)
+ * @param {Object} teamData - The extracted team data to store temporarily
+ * @throws {Error} If the data cannot be saved
+ */
+async function savePendingTeamAssignment(chatId, uniqueKey, teamData) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = `pending-team-assignments/${chatId}_${uniqueKey}.json`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    const content = JSON.stringify(teamData, null, 2);
+
+    await blockBlobClient.upload(content, content.length, {
+      blobHTTPHeaders: { blobContentType: 'application/json' },
+    });
+  } catch (error) {
+    throw new Error(
+      `Failed to save pending team assignment for ${chatId}: ${error.message}`,
+    );
+  }
+}
+
+/**
+ * Get pending team assignment data from Azure Blob Storage.
+ * @param {string} chatId - The chat ID of the user
+ * @param {string} uniqueKey - The unique key for this pending assignment
+ * @returns {Promise<Object|null>} The stored team data or null if not found
+ * @throws {Error} If there's an error retrieving the data
+ */
+async function getPendingTeamAssignment(chatId, uniqueKey) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = `pending-team-assignments/${chatId}_${uniqueKey}.json`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const exists = await blockBlobClient.exists();
+    if (!exists) {
+      return null;
+    }
+
+    const downloadResponse = await blockBlobClient.download();
+    const jsonString = await streamToString(
+      downloadResponse.readableStreamBody,
+    );
+
+    return JSON.parse(jsonString);
+  } catch (error) {
+    throw new Error(
+      `Failed to get pending team assignment for ${chatId}: ${error.message}`,
+    );
+  }
+}
+
+/**
+ * Delete pending team assignment data from Azure Blob Storage.
+ * @param {string} chatId - The chat ID of the user
+ * @param {string} uniqueKey - The unique key for this pending assignment
+ */
+async function deletePendingTeamAssignment(chatId, uniqueKey) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = `pending-team-assignments/${chatId}_${uniqueKey}.json`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    await blockBlobClient.deleteIfExists();
+  } catch (error) {
+    console.error(
+      `Failed to delete pending team assignment for ${chatId}: ${error.message}`,
+    );
+  }
+}
+
 module.exports = {
   getFantasyData,
   getUserTeam,
   saveUserTeam,
   deleteUserTeam,
+  deleteAllUserTeams,
   listAllUserTeamData,
   getNextRaceInfoData,
+  savePendingTeamAssignment,
+  getPendingTeamAssignment,
+  deletePendingTeamAssignment,
 };

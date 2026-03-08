@@ -10,6 +10,7 @@ const {
   driversCache,
   constructorsCache,
   selectedChipCache,
+  currentTeamCache,
   sharedKey,
 } = require('../cache');
 
@@ -19,6 +20,7 @@ describe('handleNumberMessage', () => {
   const botMock = {
     sendMessage: jest.fn().mockResolvedValue(),
   };
+  const TEAM_ID = 'T1';
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -26,6 +28,9 @@ describe('handleNumberMessage', () => {
     delete driversCache[KILZI_CHAT_ID];
     delete constructorsCache[KILZI_CHAT_ID];
     delete selectedChipCache[KILZI_CHAT_ID];
+    delete currentTeamCache[KILZI_CHAT_ID];
+    // Set up single team so resolveSelectedTeam auto-resolves to T1
+    currentTeamCache[KILZI_CHAT_ID] = { [TEAM_ID]: { drivers: ['VER'] } };
   });
 
   it('should handle number message and send no cached teams message if no cache', async () => {
@@ -33,13 +38,13 @@ describe('handleNumberMessage', () => {
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      expect.stringContaining('No cached teams available')
+      expect.stringContaining('No cached teams available'),
     );
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
       expect.stringContaining(
-        `Please send full JSON data or images first and then run the ${COMMAND_BEST_TEAMS} command`
-      )
+        `Please send full JSON data or images first and then run the ${COMMAND_BEST_TEAMS} command`,
+      ),
     );
   });
 
@@ -47,22 +52,24 @@ describe('handleNumberMessage', () => {
     const teamRowRequested = 5;
 
     bestTeamsCache[KILZI_CHAT_ID] = {
-      currentTeam: { drivers: [], constructors: [] },
-      bestTeams: [
-        { row: 1, transfers_needed: 2 },
-        { row: 2, transfers_needed: 1 },
-      ],
+      [TEAM_ID]: {
+        currentTeam: { drivers: [], constructors: [] },
+        bestTeams: [
+          { row: 1, transfers_needed: 2 },
+          { row: 2, transfers_needed: 1 },
+        ],
+      },
     };
 
     await handleNumberMessage(
       botMock,
       KILZI_CHAT_ID,
-      teamRowRequested.toString()
+      teamRowRequested.toString(),
     );
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      `No team found for number ${teamRowRequested}.`
+      `No team found for number ${teamRowRequested}.`,
     );
   });
 
@@ -70,25 +77,27 @@ describe('handleNumberMessage', () => {
     const teamRowRequested = 1;
 
     bestTeamsCache[KILZI_CHAT_ID] = {
-      currentTeam: { drivers: [], constructors: [] },
-      bestTeams: [
-        {
-          row: 1,
-          transfers_needed: 0,
-          extra_drs_driver: null, // no extra DRS
-        },
-      ],
+      [TEAM_ID]: {
+        currentTeam: { drivers: [], constructors: [] },
+        bestTeams: [
+          {
+            row: 1,
+            transfers_needed: 0,
+            extra_drs_driver: null, // no extra DRS
+          },
+        ],
+      },
     };
 
     await handleNumberMessage(
       botMock,
       KILZI_CHAT_ID,
-      teamRowRequested.toString()
+      teamRowRequested.toString(),
     );
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      `You are already at team ${teamRowRequested}. No changes needed.`
+      `You are already at team ${teamRowRequested}. No changes needed.`,
     );
   });
 
@@ -104,8 +113,10 @@ describe('handleNumberMessage', () => {
     };
 
     bestTeamsCache[KILZI_CHAT_ID] = {
-      currentTeam: mockCurrentTeam,
-      bestTeams: [mockSelectedTeam],
+      [TEAM_ID]: {
+        currentTeam: mockCurrentTeam,
+        bestTeams: [mockSelectedTeam],
+      },
     };
 
     driversCache[KILZI_CHAT_ID] = {
@@ -136,7 +147,7 @@ describe('handleNumberMessage', () => {
         expectedPriceChange: 0.2,
       },
     };
-    selectedChipCache[KILZI_CHAT_ID] = 'LIMITLESS_CHIP';
+    selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: 'LIMITLESS_CHIP' };
 
     const mockChanges = {
       driversToAdd: ['HAM'],
@@ -155,7 +166,7 @@ describe('handleNumberMessage', () => {
     await handleNumberMessage(
       botMock,
       KILZI_CHAT_ID,
-      teamRowRequested.toString()
+      teamRowRequested.toString(),
     );
 
     expect(calculateChangesToTeam).toHaveBeenCalledWith(
@@ -165,7 +176,7 @@ describe('handleNumberMessage', () => {
         CurrentTeam: mockCurrentTeam,
       },
       mockSelectedTeam,
-      'LIMITLESS_CHIP'
+      'LIMITLESS_CHIP',
     );
 
     const expectedMessage =
@@ -189,7 +200,7 @@ describe('handleNumberMessage', () => {
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
       expectedMessage,
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'Markdown' },
     );
   });
 
@@ -205,8 +216,10 @@ describe('handleNumberMessage', () => {
     };
 
     bestTeamsCache[KILZI_CHAT_ID] = {
-      currentTeam: mockCurrentTeam,
-      bestTeams: [mockSelectedTeam],
+      [TEAM_ID]: {
+        currentTeam: mockCurrentTeam,
+        bestTeams: [mockSelectedTeam],
+      },
     };
 
     driversCache[KILZI_CHAT_ID] = {
@@ -248,7 +261,7 @@ describe('handleNumberMessage', () => {
     await handleNumberMessage(
       botMock,
       KILZI_CHAT_ID,
-      teamRowRequested.toString()
+      teamRowRequested.toString(),
     );
 
     const expectedMessage =
@@ -268,7 +281,7 @@ describe('handleNumberMessage', () => {
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
       expectedMessage,
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'Markdown' },
     );
   });
 
@@ -283,8 +296,10 @@ describe('handleNumberMessage', () => {
     };
 
     bestTeamsCache[KILZI_CHAT_ID] = {
-      currentTeam: mockCurrentTeam,
-      bestTeams: [mockSelectedTeam],
+      [TEAM_ID]: {
+        currentTeam: mockCurrentTeam,
+        bestTeams: [mockSelectedTeam],
+      },
     };
 
     // Set shared cache instead of chat-specific
@@ -319,7 +334,7 @@ describe('handleNumberMessage', () => {
     await handleNumberMessage(
       botMock,
       KILZI_CHAT_ID,
-      teamRowRequested.toString()
+      teamRowRequested.toString(),
     );
 
     expect(calculateChangesToTeam).toHaveBeenCalledWith(
@@ -329,7 +344,7 @@ describe('handleNumberMessage', () => {
         CurrentTeam: mockCurrentTeam,
       },
       mockSelectedTeam,
-      undefined
+      undefined,
     );
   });
 });

@@ -93,18 +93,19 @@ describe('azureStorageService', () => {
       const azureService = require('./azureStorageService');
 
       await expect(azureService.getFantasyData()).rejects.toThrow(
-        'Missing required Azure storage configuration'
+        'Missing required Azure storage configuration',
       );
     });
   });
 
   describe('getUserTeam', () => {
     const chatId = '123456';
+    const teamId = 'T1';
 
     it('should return null if team does not exist', async () => {
       mockExists.mockResolvedValueOnce(false);
 
-      const result = await azureStorageService.getUserTeam(chatId);
+      const result = await azureStorageService.getUserTeam(chatId, teamId);
       expect(result).toBeNull();
       expect(mockExists).toHaveBeenCalled();
     });
@@ -120,13 +121,14 @@ describe('azureStorageService', () => {
         readableStreamBody: createMockStream(mockTeam),
       });
 
-      const result = await azureStorageService.getUserTeam(chatId);
+      const result = await azureStorageService.getUserTeam(chatId, teamId);
       expect(result).toEqual(mockTeam);
     });
   });
 
   describe('saveUserTeam', () => {
     const chatId = '123456';
+    const teamId = 'T1';
     const teamData = {
       drivers: ['VER', 'HAM'],
       constructors: ['RBR', 'MER'],
@@ -136,33 +138,57 @@ describe('azureStorageService', () => {
       mockUpload.mockResolvedValueOnce(undefined);
       const mockBot = { sendMessage: jest.fn() };
 
-      await azureStorageService.saveUserTeam(mockBot, chatId, teamData);
+      await azureStorageService.saveUserTeam(mockBot, chatId, teamId, teamData);
 
       expect(mockUpload).toHaveBeenCalledWith(
         JSON.stringify(teamData, null, 2),
         expect.any(Number),
-        expect.any(Object)
+        expect.any(Object),
       );
     });
   });
 
   describe('deleteUserTeam', () => {
     const chatId = '123456';
+    const teamId = 'T1';
 
     it('should delete user team data', async () => {
       mockDeleteIfExists.mockResolvedValueOnce(undefined);
       const mockBot = { sendMessage: jest.fn() };
 
-      await azureStorageService.deleteUserTeam(mockBot, chatId);
+      await azureStorageService.deleteUserTeam(mockBot, chatId, teamId);
       expect(mockDeleteIfExists).toHaveBeenCalled();
     });
   });
 
-  describe('listAllUserTeamData', () => {
-    it('should list and fetch all user teams', async () => {
+  describe('deleteAllUserTeams', () => {
+    const chatId = '123456';
+
+    it('should delete all team blobs for a user', async () => {
       const mockBlobs = [
-        { name: 'user-teams/123.json' },
-        { name: 'user-teams/456.json' },
+        { name: `user-teams/${chatId}_T1.json` },
+        { name: `user-teams/${chatId}_T2.json` },
+      ];
+
+      mockListBlobsFlat.mockReturnValueOnce({
+        [Symbol.asyncIterator]: async function* () {
+          yield* mockBlobs;
+        },
+      });
+
+      mockDeleteIfExists.mockResolvedValue(undefined);
+      const mockBot = { sendMessage: jest.fn() };
+
+      await azureStorageService.deleteAllUserTeams(mockBot, chatId);
+      expect(mockDeleteIfExists).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('listAllUserTeamData', () => {
+    it('should list and fetch all user teams in nested format', async () => {
+      const mockBlobs = [
+        { name: 'user-teams/123_T1.json' },
+        { name: 'user-teams/456_T2.json' },
       ];
 
       const mockTeam1 = {
@@ -194,8 +220,43 @@ describe('azureStorageService', () => {
       const result = await azureStorageService.listAllUserTeamData();
 
       expect(result).toEqual({
-        123: mockTeam1,
-        456: mockTeam2,
+        123: { T1: mockTeam1 },
+        456: { T2: mockTeam2 },
+      });
+    });
+
+    it('should group multiple teams under the same chatId', async () => {
+      const mockBlobs = [
+        { name: 'user-teams/123_T1.json' },
+        { name: 'user-teams/123_T2.json' },
+      ];
+
+      const mockTeam1 = { drivers: ['VER'] };
+      const mockTeam2 = { drivers: ['HAM'] };
+
+      mockListBlobsFlat.mockReturnValueOnce({
+        [Symbol.asyncIterator]: async function* () {
+          yield* mockBlobs;
+        },
+      });
+
+      mockExists.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+
+      mockDownload
+        .mockResolvedValueOnce({
+          readableStreamBody: createMockStream(mockTeam1),
+        })
+        .mockResolvedValueOnce({
+          readableStreamBody: createMockStream(mockTeam2),
+        });
+
+      const result = await azureStorageService.listAllUserTeamData();
+
+      expect(result).toEqual({
+        123: {
+          T1: mockTeam1,
+          T2: mockTeam2,
+        },
       });
     });
   });

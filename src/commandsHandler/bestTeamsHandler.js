@@ -7,24 +7,33 @@ const {
   currentTeamCache,
   selectedChipCache,
   sharedKey,
+  resolveSelectedTeam,
 } = require('../cache');
 const { t } = require('../i18n');
 
 async function handleBestTeamsMessage(bot, chatId) {
+  const teamId = await resolveSelectedTeam(bot, chatId);
+  if (!teamId) {
+    return;
+  }
+
   // Try to fetch cached data for this chat
   const drivers = driversCache[chatId] || driversCache[sharedKey];
   const constructors =
     constructorsCache[chatId] || constructorsCache[sharedKey];
-  const currentTeam = currentTeamCache[chatId];
+  const currentTeam = currentTeamCache[chatId]?.[teamId];
 
   if (!drivers || !constructors || !currentTeam) {
     await bot
       .sendMessage(
         chatId,
-        t('Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.', chatId)
+        t(
+          'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.',
+          chatId,
+        ),
       )
       .catch((err) =>
-        console.error('Error sending cache unavailable message:', err)
+        console.error('Error sending cache unavailable message:', err),
       );
 
     return;
@@ -45,16 +54,19 @@ async function handleBestTeamsMessage(bot, chatId) {
         Constructors: Object.values(constructors),
         CurrentTeam: currentTeam,
       },
-      chatId
+      chatId,
     )
   ) {
     return;
   }
   const bestTeams = calculateBestTeams(
     cachedJsonData,
-    selectedChipCache[chatId]
+    selectedChipCache[chatId]?.[teamId],
   );
-  bestTeamsCache[chatId] = {
+  if (!bestTeamsCache[chatId]) {
+    bestTeamsCache[chatId] = {};
+  }
+  bestTeamsCache[chatId][teamId] = {
     currentTeam: cachedJsonData.CurrentTeam,
     bestTeams,
   };
@@ -90,7 +102,7 @@ async function handleBestTeamsMessage(bot, chatId) {
         `*${t('Penalty', chatId)}:* ${team.penalty}\n` +
         `*${t('Projected Points', chatId)}:* ${Number(team.projected_points.toFixed(2))}\n` +
         `*${t('Expected Price Change', chatId)}:* ${Number(
-          team.expected_price_change.toFixed(2)
+          team.expected_price_change.toFixed(2),
         )}`;
 
       return teamMarkdown;
@@ -104,10 +116,13 @@ async function handleBestTeamsMessage(bot, chatId) {
   await bot
     .sendMessage(
       chatId,
-      t('Please send a number to get the required changes to that team.', chatId)
+      t(
+        'Please send a number to get the required changes to that team.',
+        chatId,
+      ),
     )
     .catch((err) =>
-      console.error('Error sending number request message:', err)
+      console.error('Error sending number request message:', err),
     );
 }
 

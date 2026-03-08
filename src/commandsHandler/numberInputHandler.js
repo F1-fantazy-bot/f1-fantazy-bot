@@ -5,18 +5,24 @@ const {
   constructorsCache,
   selectedChipCache,
   sharedKey,
+  resolveSelectedTeam,
 } = require('../cache');
 const { COMMAND_BEST_TEAMS } = require('../constants');
 const { t } = require('../i18n');
 
 // Handles the case when the message text is a number
 async function handleNumberMessage(bot, chatId, textTrimmed) {
+  const teamId = await resolveSelectedTeam(bot, chatId);
+  if (!teamId) {
+    return;
+  }
+
   const teamRowRequested = parseInt(textTrimmed, 10);
 
-  if (bestTeamsCache[chatId]) {
-    const currentTeam = bestTeamsCache[chatId].currentTeam;
-    const selectedTeam = bestTeamsCache[chatId].bestTeams.find(
-      (t) => t.row === teamRowRequested
+  if (bestTeamsCache[chatId]?.[teamId]) {
+    const currentTeam = bestTeamsCache[chatId][teamId].currentTeam;
+    const selectedTeam = bestTeamsCache[chatId][teamId].bestTeams.find(
+      (t) => t.row === teamRowRequested,
     );
 
     if (selectedTeam) {
@@ -29,10 +35,10 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
             chatId,
             t('You are already at team {TEAM}. No changes needed.', chatId, {
               TEAM: teamRowRequested,
-            })
+            }),
           )
           .catch((err) =>
-            console.error('Error sending no changes message:', err)
+            console.error('Error sending no changes message:', err),
           );
 
         return;
@@ -47,51 +53,57 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
       const changesToTeam = calculateChangesToTeam(
         cachedJsonData,
         selectedTeam,
-        selectedChipCache[chatId]
+        selectedChipCache[chatId]?.[teamId],
       );
 
       let changesToTeamMessage = getRequiredChangesMessage(
         teamRowRequested,
         changesToTeam,
-        selectedChipCache[chatId],
-        chatId
+        selectedChipCache[chatId]?.[teamId],
+        chatId,
       );
       changesToTeamMessage += getSelectedTeamInfo(
         teamRowRequested,
         selectedTeam,
         changesToTeam,
-        chatId
+        chatId,
       );
 
       changesToTeamMessage += getDriverAndConstructorsDetailsMessage(
         cachedJsonData,
         changesToTeam,
-        chatId
+        chatId,
       );
 
       await bot
         .sendMessage(chatId, changesToTeamMessage, { parse_mode: 'Markdown' })
         .catch((err) =>
-          console.error('Error sending changes to team message:', err)
+          console.error('Error sending changes to team message:', err),
         );
     } else {
       await bot
         .sendMessage(
           chatId,
-          t('No team found for number {NUM}.', chatId, { NUM: teamRowRequested })
+          t('No team found for number {NUM}.', chatId, {
+            NUM: teamRowRequested,
+          }),
         )
         .catch((err) =>
-          console.error('Error sending team not found message:', err)
+          console.error('Error sending team not found message:', err),
         );
     }
   } else {
     await bot
       .sendMessage(
         chatId,
-        t('No cached teams available. Please send full JSON data or images first and then run the {CMD} command.', chatId, { CMD: COMMAND_BEST_TEAMS })
+        t(
+          'No cached teams available. Please send full JSON data or images first and then run the {CMD} command.',
+          chatId,
+          { CMD: COMMAND_BEST_TEAMS },
+        ),
       )
       .catch((err) =>
-        console.error('Error sending cache unavailable message:', err)
+        console.error('Error sending cache unavailable message:', err),
       );
   }
 }
@@ -102,7 +114,7 @@ function getRequiredChangesMessage(
   teamRowRequested,
   changesToTeam,
   selectedChip,
-  chatId
+  chatId,
 ) {
   let message = `*${t('Team {NUM} Required Changes:', chatId, { NUM: teamRowRequested })}*\n`;
   if (changesToTeam.driversToAdd.length) {
@@ -111,18 +123,18 @@ function getRequiredChangesMessage(
 
   if (changesToTeam.driversToRemove.length) {
     message += `*${t('Drivers To Remove', chatId)}:* ${changesToTeam.driversToRemove.join(
-      ', '
+      ', ',
     )}\n`;
   }
 
   if (changesToTeam.constructorsToAdd.length) {
     message += `*${t('Constructors To Add', chatId)}:* ${changesToTeam.constructorsToAdd.join(
-      ', '
+      ', ',
     )}\n`;
   }
   if (changesToTeam.constructorsToRemove.length) {
     message += `*${t('Constructors To Remove', chatId)}:* ${changesToTeam.constructorsToRemove.join(
-      ', '
+      ', ',
     )}\n`;
   }
 
@@ -143,13 +155,18 @@ function getRequiredChangesMessage(
   return message;
 }
 
-function getSelectedTeamInfo(teamRowRequested, selectedTeam, changesToTeam, chatId) {
+function getSelectedTeamInfo(
+  teamRowRequested,
+  selectedTeam,
+  changesToTeam,
+  chatId,
+) {
   let message = `\n*${t('Team {NUM} Info:', chatId, { NUM: teamRowRequested })}*\n`;
   message += `*${t('Projected Points', chatId)}:* ${selectedTeam.projected_points.toFixed(
-    2
+    2,
   )}\n`;
   message += `*${t('Expected Price Change', chatId)}:* ${selectedTeam.expected_price_change.toFixed(
-    2
+    2,
   )}M\n`;
 
   if (changesToTeam.deltaPoints !== undefined) {
@@ -166,11 +183,15 @@ function getSelectedTeamInfo(teamRowRequested, selectedTeam, changesToTeam, chat
   return message;
 }
 
-function getDriverAndConstructorsDetailsMessage(cachedJsonData, changesToTeam, chatId) {
+function getDriverAndConstructorsDetailsMessage(
+  cachedJsonData,
+  changesToTeam,
+  chatId,
+) {
   // Get all drivers: current team drivers minus removed plus added
   const finalDrivers = [
     ...cachedJsonData.CurrentTeam.drivers.filter(
-      (driver) => !changesToTeam.driversToRemove.includes(driver)
+      (driver) => !changesToTeam.driversToRemove.includes(driver),
     ),
     ...changesToTeam.driversToAdd,
   ];
@@ -178,7 +199,8 @@ function getDriverAndConstructorsDetailsMessage(cachedJsonData, changesToTeam, c
   // Get all constructors: current team constructors minus removed plus added
   const finalConstructors = [
     ...cachedJsonData.CurrentTeam.constructors.filter(
-      (constructor) => !changesToTeam.constructorsToRemove.includes(constructor)
+      (constructor) =>
+        !changesToTeam.constructorsToRemove.includes(constructor),
     ),
     ...changesToTeam.constructorsToAdd,
   ];
@@ -234,7 +256,7 @@ function getDriverAndConstructorsDetailsMessage(cachedJsonData, changesToTeam, c
   let message = `\n\n*${t('Drivers', chatId)}:*\n`;
   processedDrivers.forEach((driver) => {
     message += `${driver.displayName}: ${driver.points.toFixed(
-      2
+      2,
     )} (${driver.priceChange.toFixed(2)}M)`;
 
     if (driver.isNew) {
@@ -246,7 +268,7 @@ function getDriverAndConstructorsDetailsMessage(cachedJsonData, changesToTeam, c
   message += `\n*${t('Constructors', chatId)}:*\n`;
   processedConstructors.forEach((constructor) => {
     message += `${constructor.displayName}: ${constructor.points.toFixed(
-      2
+      2,
     )} (${constructor.priceChange.toFixed(2)}M)`;
 
     if (constructor.isNew) {

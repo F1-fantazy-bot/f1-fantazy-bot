@@ -2,7 +2,11 @@ const { KILZI_CHAT_ID } = require('../constants');
 
 const azureStorageService = require('../azureStorageService');
 jest.mock('../azureStorageService', () => ({
-  deleteUserTeam: jest.fn().mockResolvedValue(undefined),
+  deleteAllUserTeams: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../userRegistryService', () => ({
+  updateUserAttributes: jest.fn().mockResolvedValue(undefined),
 }));
 
 const {
@@ -11,6 +15,7 @@ const {
   currentTeamCache,
   bestTeamsCache,
   selectedChipCache,
+  userCache,
 } = require('../cache');
 
 const { resetCacheForChat } = require('./resetCacheHandler');
@@ -22,9 +27,10 @@ describe('resetCacheForChat', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    azureStorageService.deleteUserTeam.mockClear();
-    azureStorageService.deleteUserTeam.mockResolvedValue(undefined);
+    azureStorageService.deleteAllUserTeams.mockClear();
+    azureStorageService.deleteAllUserTeams.mockResolvedValue(undefined);
     botMock.sendMessage.mockResolvedValue();
+    delete userCache[String(KILZI_CHAT_ID)];
   });
 
   it('should handle /reset_cache command and send reset confirmation', async () => {
@@ -32,23 +38,23 @@ describe('resetCacheForChat', () => {
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
     constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.0 } };
     currentTeamCache[KILZI_CHAT_ID] = {
-      drivers: ['VER'],
-      constructors: ['RBR'],
+      T1: { drivers: ['VER'], constructors: ['RBR'] },
     };
-    bestTeamsCache[KILZI_CHAT_ID] = { bestTeams: [] };
-    selectedChipCache[KILZI_CHAT_ID] = 'LIMITLESS_CHIP';
+    bestTeamsCache[KILZI_CHAT_ID] = { T1: { bestTeams: [] } };
+    selectedChipCache[KILZI_CHAT_ID] = { T1: 'LIMITLESS_CHIP' };
+    userCache[String(KILZI_CHAT_ID)] = { selectedTeam: 'T1' };
 
     await resetCacheForChat(KILZI_CHAT_ID, botMock);
 
-    // Verify Azure Storage team was deleted
-    expect(azureStorageService.deleteUserTeam).toHaveBeenCalledWith(
+    // Verify Azure Storage teams were deleted
+    expect(azureStorageService.deleteAllUserTeams).toHaveBeenCalledWith(
       botMock,
-      KILZI_CHAT_ID
+      KILZI_CHAT_ID,
     );
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'Cache has been reset for your chat.'
+      'Cache has been reset for your chat.',
     );
 
     // Verify all cache entries were deleted
@@ -57,24 +63,27 @@ describe('resetCacheForChat', () => {
     expect(currentTeamCache[KILZI_CHAT_ID]).toBeUndefined();
     expect(bestTeamsCache[KILZI_CHAT_ID]).toBeUndefined();
     expect(selectedChipCache[KILZI_CHAT_ID]).toBeUndefined();
+
+    // Verify selectedTeam was cleared
+    expect(userCache[String(KILZI_CHAT_ID)].selectedTeam).toBeNull();
   });
 
   it('should reset cache even when some cache entries are already undefined', async () => {
     // Only set some cache entries
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
-    currentTeamCache[KILZI_CHAT_ID] = { drivers: ['VER'] };
+    currentTeamCache[KILZI_CHAT_ID] = { T1: { drivers: ['VER'] } };
     // constructorsCache, bestTeamsCache, selectedChipCache are undefined
 
     await resetCacheForChat(KILZI_CHAT_ID, botMock);
 
-    expect(azureStorageService.deleteUserTeam).toHaveBeenCalledWith(
+    expect(azureStorageService.deleteAllUserTeams).toHaveBeenCalledWith(
       botMock,
-      KILZI_CHAT_ID
+      KILZI_CHAT_ID,
     );
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'Cache has been reset for your chat.'
+      'Cache has been reset for your chat.',
     );
 
     expect(driversCache[KILZI_CHAT_ID]).toBeUndefined();
@@ -85,12 +94,12 @@ describe('resetCacheForChat', () => {
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
 
     // Mock Azure Storage to throw an error
-    azureStorageService.deleteUserTeam.mockRejectedValueOnce(
-      new Error('Azure error')
+    azureStorageService.deleteAllUserTeams.mockRejectedValueOnce(
+      new Error('Azure error'),
     );
 
     await expect(resetCacheForChat(KILZI_CHAT_ID, botMock)).rejects.toThrow(
-      'Azure error'
+      'Azure error',
     );
 
     // Cache should still be cleared before the Azure call
@@ -109,7 +118,7 @@ describe('resetCacheForChat', () => {
 
     // Cache should still be cleared even if message sending fails
     expect(driversCache[KILZI_CHAT_ID]).toBeUndefined();
-    expect(azureStorageService.deleteUserTeam).toHaveBeenCalled();
+    expect(azureStorageService.deleteAllUserTeams).toHaveBeenCalled();
   });
 
   it('should not affect other chat caches', async () => {
@@ -118,8 +127,8 @@ describe('resetCacheForChat', () => {
     // Set up cache for multiple chats
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
     driversCache[otherChatId] = { HAM: { price: 25.0 } };
-    currentTeamCache[KILZI_CHAT_ID] = { drivers: ['VER'] };
-    currentTeamCache[otherChatId] = { drivers: ['HAM'] };
+    currentTeamCache[KILZI_CHAT_ID] = { T1: { drivers: ['VER'] } };
+    currentTeamCache[otherChatId] = { T1: { drivers: ['HAM'] } };
 
     await resetCacheForChat(KILZI_CHAT_ID, botMock);
 
@@ -129,6 +138,6 @@ describe('resetCacheForChat', () => {
 
     // Other chat cache should remain intact
     expect(driversCache[otherChatId]).toEqual({ HAM: { price: 25.0 } });
-    expect(currentTeamCache[otherChatId]).toEqual({ drivers: ['HAM'] });
+    expect(currentTeamCache[otherChatId]).toEqual({ T1: { drivers: ['HAM'] } });
   });
 });

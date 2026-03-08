@@ -1,4 +1,8 @@
-const { selectedChipCache, bestTeamsCache } = require('../cache');
+const {
+  selectedChipCache,
+  bestTeamsCache,
+  resolveSelectedTeam,
+} = require('../cache');
 const {
   EXTRA_DRS_CHIP,
   LIMITLESS_CHIP,
@@ -8,19 +12,34 @@ const {
 } = require('../constants');
 const { t } = require('../i18n');
 
-function selectChip(chatId, chip) {
-  const isThereDataInBestTeamsCache =
-    bestTeamsCache[chatId] && bestTeamsCache[chatId].bestTeams;
-
-  if (chip === WITHOUT_CHIP) {
-    delete selectedChipCache[chatId];
-  } else {
-    selectedChipCache[chatId] = chip;
+async function selectChip(bot, chatId, chip) {
+  const teamId = await resolveSelectedTeam(bot, chatId);
+  if (!teamId) {
+    return null;
   }
 
-  delete bestTeamsCache[chatId];
+  const isThereDataInBestTeamsCache =
+    bestTeamsCache[chatId]?.[teamId] &&
+    bestTeamsCache[chatId][teamId].bestTeams;
 
-  let message = t('Selected chip: {CHIP}.', chatId, { CHIP: chip.toUpperCase() });
+  if (chip === WITHOUT_CHIP) {
+    if (selectedChipCache[chatId]) {
+      delete selectedChipCache[chatId][teamId];
+    }
+  } else {
+    if (!selectedChipCache[chatId]) {
+      selectedChipCache[chatId] = {};
+    }
+    selectedChipCache[chatId][teamId] = chip;
+  }
+
+  if (bestTeamsCache[chatId]) {
+    delete bestTeamsCache[chatId][teamId];
+  }
+
+  let message = t('Selected chip: {CHIP}.', chatId, {
+    CHIP: chip.toUpperCase(),
+  });
 
   if (isThereDataInBestTeamsCache) {
     message +=
@@ -28,7 +47,7 @@ function selectChip(chatId, chip) {
       t(
         'Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.',
         chatId,
-        { CMD: COMMAND_BEST_TEAMS }
+        { CMD: COMMAND_BEST_TEAMS },
       );
   }
 
@@ -36,8 +55,10 @@ function selectChip(chatId, chip) {
 }
 
 async function sendChipSelection(bot, chatId, chip) {
-  const message = selectChip(chatId, chip);
-  await bot.sendMessage(chatId, message);
+  const message = await selectChip(bot, chatId, chip);
+  if (message) {
+    await bot.sendMessage(chatId, message);
+  }
 }
 
 async function handleSelectExtraDrs(bot, msg) {

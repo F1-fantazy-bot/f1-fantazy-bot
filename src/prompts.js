@@ -62,6 +62,7 @@ type Json = {
 `;
 
 exports.EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT = `You are a data extraction assistant. Extract data from photos containing:
+- The team identifier ("T1", "T2", or "T3") displayed inside a small colored square icon next to the team name. The square's background color may vary (purple, pink, blue, etc.) — identify the text regardless of the background color.
 - 5 drivers and 2 constructors names
 - The driver with DRS boost (2x)
 - Number of free transfers
@@ -69,6 +70,7 @@ exports.EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT = `You are a data ext
 
 Output:
 - An object containing:
+  - 'teamId': the team identifier string ("T1", "T2", or "T3") extracted from the colored square icon. If no identifier is found, set to null.
   - 'drivers': array of 5 drivers
   - 'constructors': array of 2 constructors
   - 'drsBoost': driver with the boost
@@ -86,6 +88,7 @@ Return a JSON object matching this structure:
 Types:
 
 type CurrentTeam = {
+  teamId: string | null;
   drivers: string[];
   constructors: string[];
   drsBoost: string;
@@ -125,9 +128,7 @@ function getAskCommands() {
 
 function buildAskSystemPrompt(isAdmin) {
   const { userCommands, adminCommands } = getAskCommands();
-  const commands = isAdmin
-    ? [...userCommands, ...adminCommands]
-    : userCommands;
+  const commands = isAdmin ? [...userCommands, ...adminCommands] : userCommands;
 
   return `You are an assistant for a Telegram bot that manages F1 Fantasy teams.
 Convert a free text request into an ordered list of bot commands to execute.
