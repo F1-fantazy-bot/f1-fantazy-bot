@@ -198,7 +198,7 @@ describe('cache', () => {
         drsBoost: 'M. Verstappen',
         freeTransfers: 1,
         costCapRemaining: 5,
-        bestTeamWeights: { pointsWeight: 1, priceChangeWeight: 0 },
+        bestTeamPriceWeight: 0,
       });
     });
 
@@ -222,11 +222,11 @@ describe('cache', () => {
       expect(parsed.SelectedTeam).toBe('T1');
       expect(parsed.Teams['T1']).toEqual({
         drivers: ['VER'],
-        bestTeamWeights: { pointsWeight: 0.75, priceChangeWeight: 0.25 },
+        bestTeamPriceWeight: 0.25,
       });
       expect(parsed.Teams['T2']).toEqual({
         drivers: ['HAM'],
-        bestTeamWeights: { pointsWeight: 0.25, priceChangeWeight: 0.75 },
+        bestTeamPriceWeight: 0.75,
       });
     });
 
@@ -242,7 +242,7 @@ describe('cache', () => {
       expect(parsed.SelectedTeam).toBeNull();
       expect(parsed.Teams['T1']).toEqual({
         drivers: ['VER'],
-        bestTeamWeights: { pointsWeight: 1, priceChangeWeight: 0 },
+        bestTeamPriceWeight: 0,
       });
     });
 

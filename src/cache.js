@@ -138,11 +138,14 @@ exports.getPrintableCache = function (chatId, type) {
       for (const teamId of sortedTeamIds) {
         const teamData = teamsData[teamId];
         const chip = exports.selectedChipCache[chatId]?.[teamId];
-        const bestTeamWeights = exports.getBestTeamWeights(chatId, teamId);
+        const bestTeamPriceWeight = exports.getBestTeamWeights(
+          chatId,
+          teamId,
+        ).priceChangeWeight;
         teams[teamId] = {
           ...teamData,
           ...(chip ? { chip } : {}),
-          bestTeamWeights,
+          bestTeamPriceWeight,
         };
       }
     }
