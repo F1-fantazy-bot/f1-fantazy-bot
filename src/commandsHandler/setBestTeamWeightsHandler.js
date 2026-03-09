@@ -1,5 +1,6 @@
 const { t } = require('../i18n');
 const { BEST_TEAM_WEIGHTS_CALLBACK_TYPE } = require('../constants');
+const { resolveSelectedTeam } = require('../cache');
 
 const BEST_TEAM_WEIGHT_PRESETS = [
   {
@@ -36,11 +37,15 @@ const BEST_TEAM_WEIGHT_PRESETS = [
 
 async function handleSetBestTeamWeights(bot, msg) {
   const chatId = msg.chat.id;
+  const teamId = await resolveSelectedTeam(bot, chatId);
+  if (!teamId) {
+    return;
+  }
 
   const inline_keyboard = BEST_TEAM_WEIGHT_PRESETS.map((preset) => [
     {
       text: t(preset.labelKey, chatId),
-      callback_data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:${preset.id}`,
+      callback_data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:${teamId}:${preset.id}`,
     },
   ]);
 

@@ -158,7 +158,8 @@ async function handleLanguageCallback(bot, query) {
 async function handleBestTeamWeightsCallback(bot, query) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
-  const presetId = query.data.split(':')[1];
+  const teamId = query.data.split(':')[1];
+  const presetId = query.data.split(':')[2];
 
   const preset = BEST_TEAM_WEIGHT_PRESETS.find((option) => option.id === presetId);
 
@@ -168,17 +169,21 @@ async function handleBestTeamWeightsCallback(bot, query) {
     return;
   }
 
-  await updateUserAttributes(chatId, {
-    bestTeamPointsWeight: preset.pointsWeight,
-    bestTeamPriceChangeWeight: preset.priceChangeWeight,
-  });
-
   const key = String(chatId);
   if (!userCache[key]) {
     userCache[key] = {};
   }
-  userCache[key].bestTeamPointsWeight = preset.pointsWeight;
-  userCache[key].bestTeamPriceChangeWeight = preset.priceChangeWeight;
+  if (!userCache[key].bestTeamWeights) {
+    userCache[key].bestTeamWeights = {};
+  }
+  userCache[key].bestTeamWeights[teamId] = {
+    pointsWeight: preset.pointsWeight,
+    priceChangeWeight: preset.priceChangeWeight,
+  };
+
+  await updateUserAttributes(chatId, {
+    bestTeamWeights: userCache[key].bestTeamWeights,
+  });
 
   await bot.editMessageText(
     t('Best team weights set: points {POINTS}% | price change {PRICE}%.', chatId, {

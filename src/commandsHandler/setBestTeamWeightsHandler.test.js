@@ -1,4 +1,14 @@
-const { KILZI_CHAT_ID, BEST_TEAM_WEIGHTS_CALLBACK_TYPE } = require('../constants');
+const {
+  KILZI_CHAT_ID,
+  BEST_TEAM_WEIGHTS_CALLBACK_TYPE,
+} = require('../constants');
+
+jest.mock('../cache', () => ({
+  resolveSelectedTeam: jest.fn().mockResolvedValue('T1'),
+  userCache: {},
+}));
+
+const { resolveSelectedTeam } = require('../cache');
 const { handleSetBestTeamWeights, BEST_TEAM_WEIGHT_PRESETS } = require('./setBestTeamWeightsHandler');
 
 describe('handleSetBestTeamWeights', () => {
@@ -12,6 +22,8 @@ describe('handleSetBestTeamWeights', () => {
     const msg = { chat: { id: KILZI_CHAT_ID }, text: '/set_best_team_weights' };
 
     await handleSetBestTeamWeights(botMock, msg);
+
+    expect(resolveSelectedTeam).toHaveBeenCalledWith(botMock, KILZI_CHAT_ID);
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -28,7 +40,7 @@ describe('handleSetBestTeamWeights', () => {
 
     BEST_TEAM_WEIGHT_PRESETS.forEach((preset, index) => {
       expect(sentKeyboard[index][0].callback_data).toBe(
-        `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:${preset.id}`,
+        `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T1:${preset.id}`,
       );
     });
   });

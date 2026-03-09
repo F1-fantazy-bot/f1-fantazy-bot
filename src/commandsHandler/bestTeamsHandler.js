@@ -63,7 +63,7 @@ async function handleBestTeamsMessage(bot, chatId) {
   const bestTeams = calculateBestTeams(
     cachedJsonData,
     selectedChipCache[chatId]?.[teamId],
-    getBestTeamWeights(chatId),
+    getBestTeamWeights(chatId, teamId),
   );
   if (!bestTeamsCache[chatId]) {
     bestTeamsCache[chatId] = {};

@@ -440,20 +440,28 @@ describe('handleCallbackQuery', () => {
           chat: { id: chatId },
           message_id: messageId,
         },
-        data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:balanced_price`,
+        data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T2:balanced_price`,
         id: 'weightsQueryId',
       };
 
       await handleCallbackQuery(bot, weightsQuery);
 
       expect(updateUserAttributes).toHaveBeenCalledWith(chatId, {
-        bestTeamPointsWeight: 0.25,
-        bestTeamPriceChangeWeight: 0.75,
+        bestTeamWeights: {
+          T2: {
+            pointsWeight: 0.25,
+            priceChangeWeight: 0.75,
+          },
+        },
       });
       expect(cache.userCache[String(chatId)]).toEqual(
         expect.objectContaining({
-          bestTeamPointsWeight: 0.25,
-          bestTeamPriceChangeWeight: 0.75,
+          bestTeamWeights: {
+            T2: {
+              pointsWeight: 0.25,
+              priceChangeWeight: 0.75,
+            },
+          },
         }),
       );
       expect(bot.editMessageText).toHaveBeenCalledWith(

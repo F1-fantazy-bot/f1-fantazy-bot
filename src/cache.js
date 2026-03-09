@@ -57,13 +57,31 @@ exports.getUserTeamIds = function (chatId) {
   return Object.keys(currentTeamCache[chatId] || {});
 };
 
-exports.getBestTeamWeights = function (chatId) {
+exports.getBestTeamWeights = function (chatId, teamId) {
   const key = String(chatId);
-  const pointsWeight = Number(userCache[key]?.bestTeamPointsWeight);
-  const priceChangeWeight = Number(userCache[key]?.bestTeamPriceChangeWeight);
+  const teamWeights = userCache[key]?.bestTeamWeights?.[teamId];
+  const pointsWeight = Number(teamWeights?.pointsWeight);
+  const priceChangeWeight = Number(teamWeights?.priceChangeWeight);
+
+  // Backward compatibility for old storage shape (flat, not team-based)
+  const legacyPointsWeight = Number(userCache[key]?.bestTeamPointsWeight);
+  const legacyPriceChangeWeight = Number(userCache[key]?.bestTeamPriceChangeWeight);
 
   const bothMissing = Number.isNaN(pointsWeight) && Number.isNaN(priceChangeWeight);
   if (bothMissing) {
+    const legacyBothMissing =
+      Number.isNaN(legacyPointsWeight) && Number.isNaN(legacyPriceChangeWeight);
+    if (!legacyBothMissing) {
+      return {
+        pointsWeight: Number.isNaN(legacyPointsWeight)
+          ? DEFAULT_BEST_TEAM_WEIGHTS.pointsWeight
+          : legacyPointsWeight,
+        priceChangeWeight: Number.isNaN(legacyPriceChangeWeight)
+          ? DEFAULT_BEST_TEAM_WEIGHTS.priceChangeWeight
+          : legacyPriceChangeWeight,
+      };
+    }
+
     return { ...DEFAULT_BEST_TEAM_WEIGHTS };
   }
 
@@ -131,9 +149,12 @@ exports.getPrintableCache = function (chatId, type) {
       for (const teamId of sortedTeamIds) {
         const teamData = teamsData[teamId];
         const chip = exports.selectedChipCache[chatId]?.[teamId];
-        teams[teamId] = chip
-          ? { ...teamData, chip }
-          : { ...teamData };
+        const bestTeamWeights = exports.getBestTeamWeights(chatId, teamId);
+        teams[teamId] = {
+          ...teamData,
+          ...(chip ? { chip } : {}),
+          bestTeamWeights,
+        };
       }
     }
 
