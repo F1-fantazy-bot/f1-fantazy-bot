@@ -409,6 +409,20 @@ describe('cache', () => {
       });
     });
 
+
+    it('supports bestTeamWeights stored as JSON string', () => {
+      userCache[chatId] = {
+        bestTeamWeights: JSON.stringify({
+          T2: { pointsWeight: 0.25, priceChangeWeight: 0.75 },
+        }),
+      };
+
+      expect(getBestTeamWeights(chatId, 'T2')).toEqual({
+        pointsWeight: 0.25,
+        priceChangeWeight: 0.75,
+      });
+    });
+
     it('returns team-specific weights when set', () => {
       userCache[chatId] = {
         bestTeamWeights: {
