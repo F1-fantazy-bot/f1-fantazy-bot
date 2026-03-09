@@ -449,13 +449,13 @@ describe('handleCallbackQuery', () => {
       await handleCallbackQuery(bot, weightsQuery);
 
       expect(updateUserAttributes).toHaveBeenCalledWith(chatId, {
-        bestTeamWeights: JSON.stringify({
+        bestTeamPriceWeights: JSON.stringify({
           T2: 0.75,
         }),
       });
       expect(cache.userCache[String(chatId)]).toEqual(
         expect.objectContaining({
-          bestTeamWeights: {
+          bestTeamPriceWeights: {
             T2: 0.75,
           },
         }),

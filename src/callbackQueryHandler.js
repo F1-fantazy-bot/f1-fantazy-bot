@@ -173,13 +173,13 @@ async function handleBestTeamWeightsCallback(bot, query) {
   if (!userCache[key]) {
     userCache[key] = {};
   }
-  if (!userCache[key].bestTeamWeights) {
-    userCache[key].bestTeamWeights = {};
+  if (!userCache[key].bestTeamPriceWeights) {
+    userCache[key].bestTeamPriceWeights = {};
   }
-  userCache[key].bestTeamWeights[teamId] = preset.priceChangeWeight;
+  userCache[key].bestTeamPriceWeights[teamId] = preset.priceChangeWeight;
 
   await updateUserAttributes(chatId, {
-    bestTeamWeights: JSON.stringify(userCache[key].bestTeamWeights),
+    bestTeamPriceWeights: JSON.stringify(userCache[key].bestTeamPriceWeights),
   });
 
   // Invalidate cached best teams for this team because ranking logic changed

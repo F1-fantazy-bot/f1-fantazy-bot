@@ -110,7 +110,7 @@ describe('cache', () => {
       };
       userCache[chatId] = {
         selectedTeam: 'T1',
-        bestTeamWeights: {
+        bestTeamPriceWeights: {
           T1: 0.25,
           T2: 0.75,
         },
@@ -209,7 +209,7 @@ describe('cache', () => {
       };
       userCache[chatId] = {
         selectedTeam: 'T1',
-        bestTeamWeights: {
+        bestTeamPriceWeights: {
           T1: 0.25,
           T2: 0.75,
         },
@@ -410,9 +410,9 @@ describe('cache', () => {
     });
 
 
-    it('supports bestTeamWeights stored as JSON string', () => {
+    it('supports bestTeamPriceWeights stored as JSON string', () => {
       userCache[chatId] = {
-        bestTeamWeights: JSON.stringify({
+        bestTeamPriceWeights: JSON.stringify({
           T2: 0.75,
         }),
       };
@@ -425,7 +425,7 @@ describe('cache', () => {
 
     it('returns team-specific weights when set', () => {
       userCache[chatId] = {
-        bestTeamWeights: {
+        bestTeamPriceWeights: {
           T2: 0.75,
         },
       };

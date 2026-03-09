@@ -59,18 +59,18 @@ exports.getUserTeamIds = function (chatId) {
 
 exports.getBestTeamWeights = function (chatId, teamId) {
   const key = String(chatId);
-  const rawBestTeamWeights = userCache[key]?.bestTeamWeights;
-  let bestTeamWeights = rawBestTeamWeights;
+  const rawBestTeamWeights = userCache[key]?.bestTeamPriceWeights;
+  let bestTeamPriceWeights = rawBestTeamWeights;
 
   if (typeof rawBestTeamWeights === 'string') {
     try {
-      bestTeamWeights = JSON.parse(rawBestTeamWeights);
+      bestTeamPriceWeights = JSON.parse(rawBestTeamWeights);
     } catch {
-      bestTeamWeights = {};
+      bestTeamPriceWeights = {};
     }
   }
 
-  const priceChangeWeight = Number(bestTeamWeights?.[teamId]);
+  const priceChangeWeight = Number(bestTeamPriceWeights?.[teamId]);
 
   if (Number.isNaN(priceChangeWeight)) {
     return { ...DEFAULT_BEST_TEAM_WEIGHTS };
