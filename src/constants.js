@@ -120,6 +120,11 @@ exports.MENU_CATEGORIES = {
         title: '🔀 Select Team',
         description: 'Switch between your fantasy teams',
       },
+      {
+        constant: exports.COMMAND_SET_BEST_TEAM_WEIGHTS,
+        title: '⚖️ Set Best Team Weights',
+        description: 'Set points/price-change weights for best teams ranking',
+      },
     ],
   },
   ANALYSIS_STATS: {
@@ -170,11 +175,6 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_SET_LANGUAGE,
         title: '🌐 Set Language',
         description: 'Change bot language for this session',
-      },
-      {
-        constant: exports.COMMAND_SET_BEST_TEAM_WEIGHTS,
-        title: '⚖️ Set Best Team Weights',
-        description: 'Set points/price-change weights for best teams ranking',
       },
     ],
   },
