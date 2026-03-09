@@ -138,7 +138,7 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleSetNicknameCommand(bot, msg);
     case msg.text === COMMAND_SELECT_TEAM:
       return await handleSelectTeamCommand(bot, msg);
-    case msg.text.startsWith(COMMAND_SET_BEST_TEAM_WEIGHTS):
+    case msg.text === COMMAND_SET_BEST_TEAM_WEIGHTS:
       return await handleSetBestTeamWeights(bot, msg);
     default:
       try {

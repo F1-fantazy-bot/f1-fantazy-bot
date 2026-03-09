@@ -172,7 +172,7 @@ describe('handleTextMessage', () => {
     it('should route /set_best_team_weights command to handleSetBestTeamWeights', async () => {
       const msgMock = {
         chat: { id: KILZI_CHAT_ID },
-        text: `${COMMAND_SET_BEST_TEAM_WEIGHTS} 80 20`,
+        text: COMMAND_SET_BEST_TEAM_WEIGHTS,
       };
 
       await handleTextMessage(botMock, msgMock);

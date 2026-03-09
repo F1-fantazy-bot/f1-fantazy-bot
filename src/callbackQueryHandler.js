@@ -22,6 +22,7 @@ const {
   LANG_CALLBACK_TYPE,
   TEAM_CALLBACK_TYPE,
   TEAM_ASSIGN_CALLBACK_TYPE,
+  BEST_TEAM_WEIGHTS_CALLBACK_TYPE,
 } = require('./constants');
 
 const {
@@ -31,6 +32,7 @@ const {
 } = require('./utils');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
 const { t, setLanguage, getLanguageName } = require('./i18n');
+const { BEST_TEAM_WEIGHT_PRESETS } = require('./commandsHandler/setBestTeamWeightsHandler');
 
 exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
@@ -48,6 +50,8 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handleTeamCallback(bot, query);
     case TEAM_ASSIGN_CALLBACK_TYPE:
       return await handleTeamAssignCallback(bot, query);
+    case BEST_TEAM_WEIGHTS_CALLBACK_TYPE:
+      return await handleBestTeamWeightsCallback(bot, query);
     default:
       await sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
   }
@@ -140,6 +144,46 @@ async function handleLanguageCallback(bot, query) {
   await bot.editMessageText(
     t('Language changed to {LANG}.', chatId, {
       LANG: getLanguageName(lang, chatId),
+    }),
+    {
+      chat_id: chatId,
+      message_id: messageId,
+    },
+  );
+
+  await bot.answerCallbackQuery(query.id);
+}
+
+
+async function handleBestTeamWeightsCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const messageId = query.message.message_id;
+  const presetId = query.data.split(':')[1];
+
+  const preset = BEST_TEAM_WEIGHT_PRESETS.find((option) => option.id === presetId);
+
+  if (!preset) {
+    await bot.answerCallbackQuery(query.id);
+
+    return;
+  }
+
+  await updateUserAttributes(chatId, {
+    bestTeamPointsWeight: preset.pointsWeight,
+    bestTeamPriceChangeWeight: preset.priceChangeWeight,
+  });
+
+  const key = String(chatId);
+  if (!userCache[key]) {
+    userCache[key] = {};
+  }
+  userCache[key].bestTeamPointsWeight = preset.pointsWeight;
+  userCache[key].bestTeamPriceChangeWeight = preset.priceChangeWeight;
+
+  await bot.editMessageText(
+    t('Best team weights set: points {POINTS}% | price change {PRICE}%.', chatId, {
+      POINTS: Number((preset.pointsWeight * 100).toFixed(0)),
+      PRICE: Number((preset.priceChangeWeight * 100).toFixed(0)),
     }),
     {
       chat_id: chatId,

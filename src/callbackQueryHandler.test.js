@@ -11,6 +11,7 @@ const {
   WITHOUT_CHIP,
   LANG_CALLBACK_TYPE,
   TEAM_CALLBACK_TYPE,
+  BEST_TEAM_WEIGHTS_CALLBACK_TYPE,
 } = require('./constants');
 const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 const cache = require('./cache');
@@ -423,6 +424,43 @@ describe('handleCallbackQuery', () => {
       expect(bot.answerCallbackQuery).toHaveBeenCalledWith('langQueryId');
       expect(getLanguage(chatId)).toBe('he');
       expect(updateUserAttributes).toHaveBeenCalledWith(chatId, { lang: 'he' });
+    });
+  });
+
+
+  describe('best team weights callback handling', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      Object.keys(cache.userCache).forEach((key) => delete cache.userCache[key]);
+    });
+
+    it('should handle BEST_TEAM_WEIGHTS callback and persist selected preset', async () => {
+      const weightsQuery = {
+        message: {
+          chat: { id: chatId },
+          message_id: messageId,
+        },
+        data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:balanced_price`,
+        id: 'weightsQueryId',
+      };
+
+      await handleCallbackQuery(bot, weightsQuery);
+
+      expect(updateUserAttributes).toHaveBeenCalledWith(chatId, {
+        bestTeamPointsWeight: 0.25,
+        bestTeamPriceChangeWeight: 0.75,
+      });
+      expect(cache.userCache[String(chatId)]).toEqual(
+        expect.objectContaining({
+          bestTeamPointsWeight: 0.25,
+          bestTeamPriceChangeWeight: 0.75,
+        }),
+      );
+      expect(bot.editMessageText).toHaveBeenCalledWith(
+        'Best team weights set: points 25% | price change 75%.',
+        expect.objectContaining({ chat_id: chatId, message_id: messageId }),
+      );
+      expect(bot.answerCallbackQuery).toHaveBeenCalledWith('weightsQueryId');
     });
   });
 

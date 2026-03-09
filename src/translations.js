@@ -187,6 +187,13 @@ const translations = {
       'לפחות אחד מהמשקלים חייב להיות גדול מ-0.',
     'Best team weights set: points {POINTS}% | price change {PRICE}%.':
       'משקלי הקבוצות המיטביות עודכנו: נקודות {POINTS}% | שינוי מחיר {PRICE}%.',
+    'Choose best-team ranking preference:':
+      'בחר העדפת דירוג לקבוצות המיטביות:',
+    '🎯 Favor Points (100/0)': '🎯 העדפת נקודות (100/0)',
+    '⚖️ Lean Points (75/25)': '⚖️ נטייה לנקודות (75/25)',
+    '🤝 Balanced (50/50)': '🤝 מאוזן (50/50)',
+    '💹 Lean Price Change (25/75)': '💹 נטייה לשינוי מחיר (25/75)',
+    '📈 Favor Price Change (0/100)': '📈 העדפת שינוי מחיר (0/100)',
     'Please provide a question.': 'אנא ספק שאלה.',
     '❓ Help & Menu': '❓ עזרה ותפריט',
     'Help and navigation commands': 'פקודות עזרה וניווט',

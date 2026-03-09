@@ -1,73 +1,52 @@
 const { t } = require('../i18n');
-const { updateUserAttributes } = require('../userRegistryService');
-const { userCache } = require('../cache');
+const { BEST_TEAM_WEIGHTS_CALLBACK_TYPE } = require('../constants');
+
+const BEST_TEAM_WEIGHT_PRESETS = [
+  {
+    id: 'favor_points',
+    pointsWeight: 1,
+    priceChangeWeight: 0,
+    labelKey: '🎯 Favor Points (100/0)',
+  },
+  {
+    id: 'balanced_points',
+    pointsWeight: 0.75,
+    priceChangeWeight: 0.25,
+    labelKey: '⚖️ Lean Points (75/25)',
+  },
+  {
+    id: 'balanced',
+    pointsWeight: 0.5,
+    priceChangeWeight: 0.5,
+    labelKey: '🤝 Balanced (50/50)',
+  },
+  {
+    id: 'balanced_price',
+    pointsWeight: 0.25,
+    priceChangeWeight: 0.75,
+    labelKey: '💹 Lean Price Change (25/75)',
+  },
+  {
+    id: 'favor_price',
+    pointsWeight: 0,
+    priceChangeWeight: 1,
+    labelKey: '📈 Favor Price Change (0/100)',
+  },
+];
 
 async function handleSetBestTeamWeights(bot, msg) {
   const chatId = msg.chat.id;
-  const parts = msg.text.trim().split(/\s+/);
 
-  if (parts.length < 3) {
-    await bot.sendMessage(
-      chatId,
-      t(
-        'Usage: /set_best_team_weights <points%> <price_change%>\nExample: /set_best_team_weights 80 20\nDefault: 100 0',
-        chatId,
-      ),
-    );
+  const inline_keyboard = BEST_TEAM_WEIGHT_PRESETS.map((preset) => [
+    {
+      text: t(preset.labelKey, chatId),
+      callback_data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:${preset.id}`,
+    },
+  ]);
 
-    return;
-  }
-
-  const pointsPercent = Number(parts[1]);
-  const priceChangePercent = Number(parts[2]);
-
-  const isValid =
-    Number.isFinite(pointsPercent) &&
-    Number.isFinite(priceChangePercent) &&
-    pointsPercent >= 0 &&
-    priceChangePercent >= 0;
-
-  if (!isValid) {
-    await bot.sendMessage(
-      chatId,
-      t('Weights must be non-negative numbers.', chatId),
-    );
-
-    return;
-  }
-
-  const total = pointsPercent + priceChangePercent;
-  if (total <= 0) {
-    await bot.sendMessage(
-      chatId,
-      t('At least one weight must be greater than 0.', chatId),
-    );
-
-    return;
-  }
-
-  const pointsWeight = pointsPercent / total;
-  const priceChangeWeight = priceChangePercent / total;
-
-  await updateUserAttributes(chatId, {
-    bestTeamPointsWeight: pointsWeight,
-    bestTeamPriceChangeWeight: priceChangeWeight,
+  await bot.sendMessage(chatId, t('Choose best-team ranking preference:', chatId), {
+    reply_markup: { inline_keyboard },
   });
-
-  const key = String(chatId);
-  if (!userCache[key]) {
-    userCache[key] = {};
-  }
-  userCache[key].bestTeamPointsWeight = pointsWeight;
-  userCache[key].bestTeamPriceChangeWeight = priceChangeWeight;
-
-  await bot.sendMessage(
-    chatId,
-    t('Best team weights set: points {POINTS}% | price change {PRICE}%.', chatId, {
-      POINTS: Number((pointsWeight * 100).toFixed(1)),
-      PRICE: Number((priceChangeWeight * 100).toFixed(1)),
-    }),
-  );
 }
 
-module.exports = { handleSetBestTeamWeights };
+module.exports = { handleSetBestTeamWeights, BEST_TEAM_WEIGHT_PRESETS };
