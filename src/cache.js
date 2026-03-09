@@ -63,25 +63,8 @@ exports.getBestTeamWeights = function (chatId, teamId) {
   const pointsWeight = Number(teamWeights?.pointsWeight);
   const priceChangeWeight = Number(teamWeights?.priceChangeWeight);
 
-  // Backward compatibility for old storage shape (flat, not team-based)
-  const legacyPointsWeight = Number(userCache[key]?.bestTeamPointsWeight);
-  const legacyPriceChangeWeight = Number(userCache[key]?.bestTeamPriceChangeWeight);
-
   const bothMissing = Number.isNaN(pointsWeight) && Number.isNaN(priceChangeWeight);
   if (bothMissing) {
-    const legacyBothMissing =
-      Number.isNaN(legacyPointsWeight) && Number.isNaN(legacyPriceChangeWeight);
-    if (!legacyBothMissing) {
-      return {
-        pointsWeight: Number.isNaN(legacyPointsWeight)
-          ? DEFAULT_BEST_TEAM_WEIGHTS.pointsWeight
-          : legacyPointsWeight,
-        priceChangeWeight: Number.isNaN(legacyPriceChangeWeight)
-          ? DEFAULT_BEST_TEAM_WEIGHTS.priceChangeWeight
-          : legacyPriceChangeWeight,
-      };
-    }
-
     return { ...DEFAULT_BEST_TEAM_WEIGHTS };
   }
 
