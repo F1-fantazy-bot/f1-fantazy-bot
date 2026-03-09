@@ -8,6 +8,7 @@ const {
   selectedChipCache,
   sharedKey,
   resolveSelectedTeam,
+  getBestTeamWeights,
 } = require('../cache');
 const { t } = require('../i18n');
 
@@ -62,6 +63,7 @@ async function handleBestTeamsMessage(bot, chatId) {
   const bestTeams = calculateBestTeams(
     cachedJsonData,
     selectedChipCache[chatId]?.[teamId],
+    getBestTeamWeights(chatId),
   );
   if (!bestTeamsCache[chatId]) {
     bestTeamsCache[chatId] = {};

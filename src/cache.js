@@ -37,6 +37,13 @@ exports.nextRaceInfoCache = {};
 // In-memory cache for weather forecast
 exports.weatherForecastCache = {};
 
+const DEFAULT_BEST_TEAM_WEIGHTS = {
+  pointsWeight: 1,
+  priceChangeWeight: 0,
+};
+
+exports.DEFAULT_BEST_TEAM_WEIGHTS = DEFAULT_BEST_TEAM_WEIGHTS;
+
 const currentTeamCache = exports.currentTeamCache;
 const userCache = exports.userCache;
 
@@ -48,6 +55,26 @@ exports.getSelectedTeam = function (chatId) {
 
 exports.getUserTeamIds = function (chatId) {
   return Object.keys(currentTeamCache[chatId] || {});
+};
+
+exports.getBestTeamWeights = function (chatId) {
+  const key = String(chatId);
+  const pointsWeight = Number(userCache[key]?.bestTeamPointsWeight);
+  const priceChangeWeight = Number(userCache[key]?.bestTeamPriceChangeWeight);
+
+  const bothMissing = Number.isNaN(pointsWeight) && Number.isNaN(priceChangeWeight);
+  if (bothMissing) {
+    return { ...DEFAULT_BEST_TEAM_WEIGHTS };
+  }
+
+  return {
+    pointsWeight: Number.isNaN(pointsWeight)
+      ? DEFAULT_BEST_TEAM_WEIGHTS.pointsWeight
+      : pointsWeight,
+    priceChangeWeight: Number.isNaN(priceChangeWeight)
+      ? DEFAULT_BEST_TEAM_WEIGHTS.priceChangeWeight
+      : priceChangeWeight,
+  };
 };
 
 /**

@@ -34,6 +34,7 @@ const {
 const { handleBroadcastCommand } = require('./broadcastHandler');
 const { handleSetNicknameCommand } = require('./setNicknameHandler');
 const { handleSelectTeamCommand } = require('./selectTeamHandler');
+const { handleSetBestTeamWeights } = require('./setBestTeamWeightsHandler');
 
 module.exports = {
   handleBestTeamsMessage,
@@ -67,4 +68,5 @@ module.exports = {
   handleBroadcastCommand,
   handleSetNicknameCommand,
   handleSelectTeamCommand,
+  handleSetBestTeamWeights,
 };

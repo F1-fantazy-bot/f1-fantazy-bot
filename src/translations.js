@@ -177,6 +177,16 @@ const translations = {
     Hebrew: 'עברית',
     '🌐 Set Language': '🌐 הגדר שפה',
     'Change bot language for this session': 'שנה את שפת הבוט',
+    '⚖️ Set Best Team Weights': '⚖️ הגדרת משקלי קבוצה מיטבית',
+    'Set points/price-change weights for best teams ranking':
+      'הגדר משקלים לנקודות/שינוי מחיר בדירוג הקבוצות המיטביות',
+    'Usage: /set_best_team_weights <points%> <price_change%>\nExample: /set_best_team_weights 80 20\nDefault: 100 0':
+      'שימוש: /set_best_team_weights <אחוז נקודות> <אחוז שינוי מחיר>\nדוגמה: /set_best_team_weights 80 20\nברירת מחדל: 100 0',
+    'Weights must be non-negative numbers.': 'המשקלים חייבים להיות מספרים אי-שליליים.',
+    'At least one weight must be greater than 0.':
+      'לפחות אחד מהמשקלים חייב להיות גדול מ-0.',
+    'Best team weights set: points {POINTS}% | price change {PRICE}%.':
+      'משקלי הקבוצות המיטביות עודכנו: נקודות {POINTS}% | שינוי מחיר {PRICE}%.',
     'Please provide a question.': 'אנא ספק שאלה.',
     '❓ Help & Menu': '❓ עזרה ותפריט',
     'Help and navigation commands': 'פקודות עזרה וניווט',

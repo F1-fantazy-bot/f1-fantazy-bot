@@ -5,7 +5,7 @@ const {
 } = require('./constants');
 const { calculateTeamInfo } = require('./utils');
 
-exports.calculateBestTeams = function (cachedJsonData, selectedChip) {
+exports.calculateBestTeams = function (cachedJsonData, selectedChip, weights = { pointsWeight: 1, priceChangeWeight: 0 }) {
   // Data for drivers
   const drivers_dict = cachedJsonData.Drivers;
 
@@ -14,6 +14,14 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip) {
 
   // Current team info
   const current_team = cachedJsonData.CurrentTeam;
+
+
+  const pointsWeight = Number.isFinite(weights?.pointsWeight)
+    ? Math.max(0, weights.pointsWeight)
+    : 1;
+  const priceChangeWeight = Number.isFinite(weights?.priceChangeWeight)
+    ? Math.max(0, weights.priceChangeWeight)
+    : 0;
 
   // Determine free transfers and budget based on selected chip
   let freeTransfers = current_team.freeTransfers;
@@ -161,8 +169,46 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip) {
     }
   }
 
-  // Sort the teams by projected points in descending order and select the top 20
-  teams.sort((a, b) => b.projected_points - a.projected_points);
+  const projectedPointsValues = teams.map((team) => team.projected_points);
+  const priceChangeValues = teams.map((team) => team.expected_price_change);
+
+  const pointsMin = projectedPointsValues.length
+    ? Math.min(...projectedPointsValues)
+    : 0;
+  const pointsMax = projectedPointsValues.length
+    ? Math.max(...projectedPointsValues)
+    : 0;
+  const priceMin = priceChangeValues.length ? Math.min(...priceChangeValues) : 0;
+  const priceMax = priceChangeValues.length ? Math.max(...priceChangeValues) : 0;
+
+  const normalize = (value, min, max) => {
+    if (max === min) {
+      return 0;
+    }
+
+    return (value - min) / (max - min);
+  };
+
+  teams.forEach((team) => {
+    const normalizedPoints = normalize(team.projected_points, pointsMin, pointsMax);
+    const normalizedPriceChange = normalize(
+      team.expected_price_change,
+      priceMin,
+      priceMax,
+    );
+
+    team.weighted_score =
+      normalizedPoints * pointsWeight + normalizedPriceChange * priceChangeWeight;
+  });
+
+  // Sort the teams by weighted score in descending order and select the top 20
+  teams.sort((a, b) => {
+    if (b.weighted_score !== a.weighted_score) {
+      return b.weighted_score - a.weighted_score;
+    }
+
+    return b.projected_points - a.projected_points;
+  });
   const top_teams = teams.slice(0, selectedChip === EXTRA_DRS_CHIP ? 19 : 20);
 
   // If LIMITLESS_CHIP is selected, set expected_price_change to current team's expected price change
@@ -189,6 +235,10 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip) {
     ...team,
     row: index + 1,
   }));
+
+  finalTeams.forEach((team) => {
+    delete team.weighted_score;
+  });
 
   return finalTeams;
 };

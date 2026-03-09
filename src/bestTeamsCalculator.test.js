@@ -256,6 +256,20 @@ describe('calculateBestTeams', () => {
     });
   });
 
+
+  it('should prioritize expected price change when using 100% price-change weight', () => {
+    const result = calculateBestTeams(mockJsonData, undefined, {
+      pointsWeight: 0,
+      priceChangeWeight: 1,
+    });
+
+    for (let i = 1; i < result.length; i++) {
+      expect(result[i - 1].expected_price_change).toBeGreaterThanOrEqual(
+        result[i].expected_price_change
+      );
+    }
+  });
+
   describe('calculateChangesToTeam', () => {
     it('should correctly identify drivers and constructors to add/remove', () => {
       const targetTeam = {
