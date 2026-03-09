@@ -70,22 +70,17 @@ exports.getBestTeamWeights = function (chatId, teamId) {
     }
   }
 
-  const teamWeights = bestTeamWeights?.[teamId];
-  const pointsWeight = Number(teamWeights?.pointsWeight);
-  const priceChangeWeight = Number(teamWeights?.priceChangeWeight);
+  const priceChangeWeight = Number(bestTeamWeights?.[teamId]);
 
-  const bothMissing = Number.isNaN(pointsWeight) && Number.isNaN(priceChangeWeight);
-  if (bothMissing) {
+  if (Number.isNaN(priceChangeWeight)) {
     return { ...DEFAULT_BEST_TEAM_WEIGHTS };
   }
 
+  const normalizedPriceChangeWeight = Math.max(0, Math.min(1, priceChangeWeight));
+
   return {
-    pointsWeight: Number.isNaN(pointsWeight)
-      ? DEFAULT_BEST_TEAM_WEIGHTS.pointsWeight
-      : pointsWeight,
-    priceChangeWeight: Number.isNaN(priceChangeWeight)
-      ? DEFAULT_BEST_TEAM_WEIGHTS.priceChangeWeight
-      : priceChangeWeight,
+    priceChangeWeight: normalizedPriceChangeWeight,
+    pointsWeight: 1 - normalizedPriceChangeWeight,
   };
 };
 

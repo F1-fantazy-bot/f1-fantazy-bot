@@ -176,10 +176,7 @@ async function handleBestTeamWeightsCallback(bot, query) {
   if (!userCache[key].bestTeamWeights) {
     userCache[key].bestTeamWeights = {};
   }
-  userCache[key].bestTeamWeights[teamId] = {
-    pointsWeight: preset.pointsWeight,
-    priceChangeWeight: preset.priceChangeWeight,
-  };
+  userCache[key].bestTeamWeights[teamId] = preset.priceChangeWeight;
 
   await updateUserAttributes(chatId, {
     bestTeamWeights: JSON.stringify(userCache[key].bestTeamWeights),
