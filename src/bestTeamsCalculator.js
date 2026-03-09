@@ -169,17 +169,35 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip, weights = {
     }
   }
 
-  const projectedPointsValues = teams.map((team) => team.projected_points);
-  const priceChangeValues = teams.map((team) => team.expected_price_change);
+  let pointsMin = Infinity;
+  let pointsMax = -Infinity;
+  let priceMin = Infinity;
+  let priceMax = -Infinity;
 
-  const pointsMin = projectedPointsValues.length
-    ? Math.min(...projectedPointsValues)
-    : 0;
-  const pointsMax = projectedPointsValues.length
-    ? Math.max(...projectedPointsValues)
-    : 0;
-  const priceMin = priceChangeValues.length ? Math.min(...priceChangeValues) : 0;
-  const priceMax = priceChangeValues.length ? Math.max(...priceChangeValues) : 0;
+  teams.forEach((team) => {
+    if (team.projected_points < pointsMin) {
+      pointsMin = team.projected_points;
+    }
+
+    if (team.projected_points > pointsMax) {
+      pointsMax = team.projected_points;
+    }
+
+    if (team.expected_price_change < priceMin) {
+      priceMin = team.expected_price_change;
+    }
+
+    if (team.expected_price_change > priceMax) {
+      priceMax = team.expected_price_change;
+    }
+  });
+
+  if (teams.length === 0) {
+    pointsMin = 0;
+    pointsMax = 0;
+    priceMin = 0;
+    priceMax = 0;
+  }
 
   const normalize = (value, min, max) => {
     if (max === min) {
