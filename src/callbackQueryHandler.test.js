@@ -435,6 +435,8 @@ describe('handleCallbackQuery', () => {
     });
 
     it('should handle BEST_TEAM_WEIGHTS callback and persist selected preset', async () => {
+      cache.bestTeamsCache[chatId] = { T2: { bestTeams: [{ a: 1 }] } };
+
       const weightsQuery = {
         message: {
           chat: { id: chatId },
@@ -465,9 +467,16 @@ describe('handleCallbackQuery', () => {
         }),
       );
       expect(bot.editMessageText).toHaveBeenCalledWith(
-        'Best team weights set: points 25% | price change 75%.',
+        expect.stringContaining(
+          'Best team weights set: points 25% | price change 75%.',
+        ),
         expect.objectContaining({ chat_id: chatId, message_id: messageId }),
       );
+      expect(bot.editMessageText).toHaveBeenCalledWith(
+        expect.stringContaining('rerun /best_teams command'),
+        expect.objectContaining({ chat_id: chatId, message_id: messageId }),
+      );
+      expect(cache.bestTeamsCache[chatId]['T2']).toBeUndefined();
       expect(bot.answerCallbackQuery).toHaveBeenCalledWith('weightsQueryId');
     });
   });

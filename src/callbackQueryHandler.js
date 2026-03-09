@@ -185,16 +185,27 @@ async function handleBestTeamWeightsCallback(bot, query) {
     bestTeamWeights: userCache[key].bestTeamWeights,
   });
 
-  await bot.editMessageText(
-    t('Best team weights set: points {POINTS}% | price change {PRICE}%.', chatId, {
+  // Invalidate cached best teams for this team because ranking logic changed
+  if (bestTeamsCache[chatId]) {
+    delete bestTeamsCache[chatId][teamId];
+  }
+
+  const confirmationMessage =
+    `${t('Best team weights set: points {POINTS}% | price change {PRICE}%.', chatId, {
       POINTS: Number((preset.pointsWeight * 100).toFixed(0)),
       PRICE: Number((preset.priceChangeWeight * 100).toFixed(0)),
-    }),
-    {
-      chat_id: chatId,
-      message_id: messageId,
-    },
-  );
+    })}
+` +
+    t(
+      'Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.',
+      chatId,
+      { CMD: '/best_teams' },
+    );
+
+  await bot.editMessageText(confirmationMessage, {
+    chat_id: chatId,
+    message_id: messageId,
+  });
 
   await bot.answerCallbackQuery(query.id);
 }
