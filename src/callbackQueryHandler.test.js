@@ -473,6 +473,41 @@ describe('handleCallbackQuery', () => {
       expect(cache.bestTeamsCache[chatId]['T2']).toBeUndefined();
       expect(bot.answerCallbackQuery).toHaveBeenCalledWith('weightsQueryId');
     });
+
+    it('should update bestTeamPriceWeights when userCache has JSON string', async () => {
+      cache.userCache[String(chatId)] = {
+        bestTeamPriceWeights: JSON.stringify({
+          T1: 0.25,
+        }),
+      };
+
+      const weightsQuery = {
+        message: {
+          chat: { id: chatId },
+          message_id: messageId,
+        },
+        data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T2:balanced_price`,
+        id: 'weightsQueryId',
+      };
+
+      await handleCallbackQuery(bot, weightsQuery);
+
+      expect(updateUserAttributes).toHaveBeenCalledWith(chatId, {
+        bestTeamPriceWeights: JSON.stringify({
+          T1: 0.25,
+          T2: 0.75,
+        }),
+      });
+      expect(cache.userCache[String(chatId)]).toEqual(
+        expect.objectContaining({
+          bestTeamPriceWeights: {
+            T1: 0.25,
+            T2: 0.75,
+          },
+        }),
+      );
+    });
+
   });
 
   describe('team callback handling', () => {

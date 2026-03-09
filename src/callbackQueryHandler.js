@@ -173,13 +173,26 @@ async function handleBestTeamWeightsCallback(bot, query) {
   if (!userCache[key]) {
     userCache[key] = {};
   }
-  if (!userCache[key].bestTeamPriceWeights) {
-    userCache[key].bestTeamPriceWeights = {};
+  const rawBestTeamPriceWeights = userCache[key].bestTeamPriceWeights;
+  let bestTeamPriceWeights = rawBestTeamPriceWeights;
+
+  if (typeof rawBestTeamPriceWeights === 'string') {
+    try {
+      bestTeamPriceWeights = JSON.parse(rawBestTeamPriceWeights);
+    } catch {
+      bestTeamPriceWeights = {};
+    }
   }
-  userCache[key].bestTeamPriceWeights[teamId] = preset.priceChangeWeight;
+
+  if (!bestTeamPriceWeights || typeof bestTeamPriceWeights !== 'object') {
+    bestTeamPriceWeights = {};
+  }
+
+  bestTeamPriceWeights[teamId] = preset.priceChangeWeight;
+  userCache[key].bestTeamPriceWeights = bestTeamPriceWeights;
 
   await updateUserAttributes(chatId, {
-    bestTeamPriceWeights: JSON.stringify(userCache[key].bestTeamPriceWeights),
+    bestTeamPriceWeights: JSON.stringify(bestTeamPriceWeights),
   });
 
   // Invalidate cached best teams for this team because ranking logic changed
