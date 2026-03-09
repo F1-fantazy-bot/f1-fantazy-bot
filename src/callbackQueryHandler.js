@@ -9,6 +9,7 @@ const {
   getPrintableCache,
   bestTeamsCache,
   userCache,
+  normalizeBestTeamPriceWeights,
 } = require('./cache');
 const { selectChip } = require('./commandsHandler/selectChipHandlers');
 const {
@@ -173,20 +174,9 @@ async function handleBestTeamWeightsCallback(bot, query) {
   if (!userCache[key]) {
     userCache[key] = {};
   }
-  const rawBestTeamPriceWeights = userCache[key].bestTeamPriceWeights;
-  let bestTeamPriceWeights = rawBestTeamPriceWeights;
-
-  if (typeof rawBestTeamPriceWeights === 'string') {
-    try {
-      bestTeamPriceWeights = JSON.parse(rawBestTeamPriceWeights);
-    } catch {
-      bestTeamPriceWeights = {};
-    }
-  }
-
-  if (!bestTeamPriceWeights || typeof bestTeamPriceWeights !== 'object') {
-    bestTeamPriceWeights = {};
-  }
+  const bestTeamPriceWeights = normalizeBestTeamPriceWeights(
+    userCache[key].bestTeamPriceWeights,
+  );
 
   bestTeamPriceWeights[teamId] = preset.priceChangeWeight;
   userCache[key].bestTeamPriceWeights = bestTeamPriceWeights;

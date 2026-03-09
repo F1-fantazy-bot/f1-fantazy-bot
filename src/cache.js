@@ -44,6 +44,26 @@ const DEFAULT_BEST_TEAM_WEIGHTS = {
 
 exports.DEFAULT_BEST_TEAM_WEIGHTS = DEFAULT_BEST_TEAM_WEIGHTS;
 
+exports.normalizeBestTeamPriceWeights = function (rawBestTeamPriceWeights) {
+  if (!rawBestTeamPriceWeights) {
+    return {};
+  }
+
+  if (typeof rawBestTeamPriceWeights === 'string') {
+    try {
+      const parsed = JSON.parse(rawBestTeamPriceWeights);
+
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  return typeof rawBestTeamPriceWeights === 'object'
+    ? rawBestTeamPriceWeights
+    : {};
+};
+
 const currentTeamCache = exports.currentTeamCache;
 const userCache = exports.userCache;
 
@@ -59,16 +79,9 @@ exports.getUserTeamIds = function (chatId) {
 
 exports.getBestTeamWeights = function (chatId, teamId) {
   const key = String(chatId);
-  const rawBestTeamWeights = userCache[key]?.bestTeamPriceWeights;
-  let bestTeamPriceWeights = rawBestTeamWeights;
-
-  if (typeof rawBestTeamWeights === 'string') {
-    try {
-      bestTeamPriceWeights = JSON.parse(rawBestTeamWeights);
-    } catch {
-      bestTeamPriceWeights = {};
-    }
-  }
+  const bestTeamPriceWeights = exports.normalizeBestTeamPriceWeights(
+    userCache[key]?.bestTeamPriceWeights,
+  );
 
   const priceChangeWeight = Number(bestTeamPriceWeights?.[teamId]);
 

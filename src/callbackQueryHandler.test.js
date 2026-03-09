@@ -67,6 +67,21 @@ jest.mock('./cache', () => ({
   getSelectedTeam: jest.fn().mockReturnValue(null),
   getUserTeamIds: jest.fn().mockReturnValue([]),
   resolveSelectedTeam: jest.fn().mockResolvedValue('T1'),
+  normalizeBestTeamPriceWeights: jest.fn((rawValue) => {
+    if (!rawValue) {
+      return {};
+    }
+
+    if (typeof rawValue === 'string') {
+      try {
+        return JSON.parse(rawValue);
+      } catch {
+        return {};
+      }
+    }
+
+    return typeof rawValue === 'object' ? rawValue : {};
+  }),
 }));
 
 describe('handleCallbackQuery', () => {

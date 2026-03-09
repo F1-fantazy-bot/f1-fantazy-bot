@@ -9,6 +9,7 @@ const {
   getUserTeamIds,
   resolveSelectedTeam,
   getBestTeamWeights,
+  normalizeBestTeamPriceWeights,
 } = require('./cache');
 
 const {
@@ -434,6 +435,20 @@ describe('cache', () => {
         pointsWeight: 0.25,
         priceChangeWeight: 0.75,
       });
+    });
+  });
+
+  describe('normalizeBestTeamPriceWeights', () => {
+    it('returns object as-is when input is already an object', () => {
+      expect(normalizeBestTeamPriceWeights({ T1: 0.25 })).toEqual({ T1: 0.25 });
+    });
+
+    it('parses JSON string into object', () => {
+      expect(normalizeBestTeamPriceWeights('{"T2":0.75}')).toEqual({ T2: 0.75 });
+    });
+
+    it('returns empty object for invalid JSON string', () => {
+      expect(normalizeBestTeamPriceWeights('{invalid-json')).toEqual({});
     });
   });
 
