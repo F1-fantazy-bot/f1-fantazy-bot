@@ -8,7 +8,7 @@ const {
   getSelectedTeam,
   getUserTeamIds,
   resolveSelectedTeam,
-  getBestTeamWeights,
+  getBestTeamPointsWeight,
   normalizeBestTeamPointsWeights,
 } = require('./cache');
 
@@ -396,7 +396,7 @@ describe('cache', () => {
   });
 
 
-  describe('getBestTeamWeights', () => {
+  describe('getBestTeamPointsWeight', () => {
     const chatId = '66666';
 
     afterEach(() => {
@@ -404,10 +404,7 @@ describe('cache', () => {
     });
 
     it('returns defaults when team-specific weights are missing', () => {
-      expect(getBestTeamWeights(chatId, 'T1')).toEqual({
-        pointsWeight: 1,
-        priceChangeWeight: 0,
-      });
+      expect(getBestTeamPointsWeight(chatId, 'T1')).toBe(1);
     });
 
 
@@ -418,10 +415,7 @@ describe('cache', () => {
         }),
       };
 
-      expect(getBestTeamWeights(chatId, 'T2')).toEqual({
-        pointsWeight: 0.75,
-        priceChangeWeight: 0.25,
-      });
+      expect(getBestTeamPointsWeight(chatId, 'T2')).toBe(0.75);
     });
 
     it('returns team-specific weights when set', () => {
@@ -431,10 +425,7 @@ describe('cache', () => {
         },
       };
 
-      expect(getBestTeamWeights(chatId, 'T2')).toEqual({
-        pointsWeight: 0.75,
-        priceChangeWeight: 0.25,
-      });
+      expect(getBestTeamPointsWeight(chatId, 'T2')).toBe(0.75);
     });
   });
 

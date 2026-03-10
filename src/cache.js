@@ -37,12 +37,9 @@ exports.nextRaceInfoCache = {};
 // In-memory cache for weather forecast
 exports.weatherForecastCache = {};
 
-const DEFAULT_BEST_TEAM_WEIGHTS = {
-  pointsWeight: 1,
-  priceChangeWeight: 0,
-};
+const DEFAULT_BEST_TEAM_POINTS_WEIGHT = 1;
 
-exports.DEFAULT_BEST_TEAM_WEIGHTS = DEFAULT_BEST_TEAM_WEIGHTS;
+exports.DEFAULT_BEST_TEAM_POINTS_WEIGHT = DEFAULT_BEST_TEAM_POINTS_WEIGHT;
 
 exports.normalizeBestTeamPointsWeights = function (rawBestTeamPointsWeights) {
   if (!rawBestTeamPointsWeights) {
@@ -77,7 +74,7 @@ exports.getUserTeamIds = function (chatId) {
   return Object.keys(currentTeamCache[chatId] || {});
 };
 
-exports.getBestTeamWeights = function (chatId, teamId) {
+exports.getBestTeamPointsWeight = function (chatId, teamId) {
   const key = String(chatId);
   const bestTeamPointsWeights = exports.normalizeBestTeamPointsWeights(
     userCache[key]?.bestTeamPointsWeights,
@@ -86,15 +83,12 @@ exports.getBestTeamWeights = function (chatId, teamId) {
   const pointsWeight = Number(bestTeamPointsWeights?.[teamId]);
 
   if (Number.isNaN(pointsWeight)) {
-    return { ...DEFAULT_BEST_TEAM_WEIGHTS };
+    return DEFAULT_BEST_TEAM_POINTS_WEIGHT;
   }
 
   const normalizedPointsWeight = Math.max(0, Math.min(1, pointsWeight));
 
-  return {
-    pointsWeight: normalizedPointsWeight,
-    priceChangeWeight: 1 - normalizedPointsWeight,
-  };
+  return normalizedPointsWeight;
 };
 
 /**
@@ -151,10 +145,10 @@ exports.getPrintableCache = function (chatId, type) {
       for (const teamId of sortedTeamIds) {
         const teamData = teamsData[teamId];
         const chip = exports.selectedChipCache[chatId]?.[teamId];
-        const bestTeamPointsWeight = exports.getBestTeamWeights(
+        const bestTeamPointsWeight = exports.getBestTeamPointsWeight(
           chatId,
           teamId,
-        ).pointsWeight;
+        );
         teams[teamId] = {
           ...teamData,
           ...(chip ? { chip } : {}),

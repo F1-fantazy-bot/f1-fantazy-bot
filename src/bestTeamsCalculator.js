@@ -5,7 +5,7 @@ const {
 } = require('./constants');
 const { calculateTeamInfo } = require('./utils');
 
-exports.calculateBestTeams = function (cachedJsonData, selectedChip, weights = { pointsWeight: 1, priceChangeWeight: 0 }) {
+exports.calculateBestTeams = function (cachedJsonData, selectedChip, pointsWeight = 1) {
   // Data for drivers
   const drivers_dict = cachedJsonData.Drivers;
 
@@ -16,12 +16,10 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip, weights = {
   const current_team = cachedJsonData.CurrentTeam;
 
 
-  const pointsWeight = Number.isFinite(weights?.pointsWeight)
-    ? Math.max(0, weights.pointsWeight)
+  const normalizedPointsWeight = Number.isFinite(pointsWeight)
+    ? Math.max(0, Math.min(1, pointsWeight))
     : 1;
-  const priceChangeWeight = Number.isFinite(weights?.priceChangeWeight)
-    ? Math.max(0, weights.priceChangeWeight)
-    : 0;
+  const priceChangeWeight = 1 - normalizedPointsWeight;
 
   // Determine free transfers and budget based on selected chip
   let freeTransfers = current_team.freeTransfers;
@@ -216,7 +214,7 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip, weights = {
     );
 
     team.weighted_score =
-      normalizedPoints * pointsWeight + normalizedPriceChange * priceChangeWeight;
+      normalizedPoints * normalizedPointsWeight + normalizedPriceChange * priceChangeWeight;
   });
 
   // Sort the teams by weighted score in descending order and select the top 20

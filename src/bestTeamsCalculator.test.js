@@ -258,10 +258,7 @@ describe('calculateBestTeams', () => {
 
 
   it('should prioritize expected price change when using 100% price-change weight', () => {
-    const result = calculateBestTeams(mockJsonData, undefined, {
-      pointsWeight: 0,
-      priceChangeWeight: 1,
-    });
+    const result = calculateBestTeams(mockJsonData, undefined, 0);
 
     for (let i = 1; i < result.length; i++) {
       expect(result[i - 1].expected_price_change).toBeGreaterThanOrEqual(
