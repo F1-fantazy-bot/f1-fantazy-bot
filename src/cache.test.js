@@ -199,7 +199,6 @@ describe('cache', () => {
         drsBoost: 'M. Verstappen',
         freeTransfers: 1,
         costCapRemaining: 5,
-        bestTeamPriceWeight: 0,
       });
     });
 
@@ -243,7 +242,6 @@ describe('cache', () => {
       expect(parsed.SelectedTeam).toBeNull();
       expect(parsed.Teams['T1']).toEqual({
         drivers: ['VER'],
-        bestTeamPriceWeight: 0,
       });
     });
 
