@@ -69,7 +69,13 @@ describe('cacheInitializer', () => {
 
   // Mock users (combined data from UserRegistry)
   const mockUsers = [
-    { chatId: '123', chatName: 'Alice', lang: 'en', nickname: 'Max' },
+    {
+      chatId: '123',
+      chatName: 'Alice',
+      lang: 'en',
+      nickname: 'Max',
+      bestTeamPointsWeights: JSON.stringify({ T1: 0.25 }),
+    },
     { chatId: '456', chatName: 'Bob', lang: 'he', nickname: 'Lewis' },
   ];
 
@@ -150,7 +156,12 @@ describe('cacheInitializer', () => {
 
     // Verify userCache was populated correctly
     expect(userCache).toEqual({
-      123: { chatName: 'Alice', lang: 'en', nickname: 'Max' },
+      123: {
+        chatName: 'Alice',
+        lang: 'en',
+        nickname: 'Max',
+        bestTeamPointsWeights: { T1: 0.25 },
+      },
       456: { chatName: 'Bob', lang: 'he', nickname: 'Lewis' },
     });
 

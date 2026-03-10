@@ -37,6 +37,30 @@ exports.nextRaceInfoCache = {};
 // In-memory cache for weather forecast
 exports.weatherForecastCache = {};
 
+const DEFAULT_BEST_TEAM_POINTS_WEIGHT = 1;
+
+exports.DEFAULT_BEST_TEAM_POINTS_WEIGHT = DEFAULT_BEST_TEAM_POINTS_WEIGHT;
+
+exports.normalizeBestTeamPointsWeights = function (rawBestTeamPointsWeights) {
+  if (!rawBestTeamPointsWeights) {
+    return {};
+  }
+
+  if (typeof rawBestTeamPointsWeights === 'string') {
+    try {
+      const parsed = JSON.parse(rawBestTeamPointsWeights);
+
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  return typeof rawBestTeamPointsWeights === 'object'
+    ? rawBestTeamPointsWeights
+    : {};
+};
+
 const currentTeamCache = exports.currentTeamCache;
 const userCache = exports.userCache;
 
@@ -48,6 +72,23 @@ exports.getSelectedTeam = function (chatId) {
 
 exports.getUserTeamIds = function (chatId) {
   return Object.keys(currentTeamCache[chatId] || {});
+};
+
+exports.getBestTeamPointsWeight = function (chatId, teamId) {
+  const key = String(chatId);
+  const bestTeamPointsWeights = exports.normalizeBestTeamPointsWeights(
+    userCache[key]?.bestTeamPointsWeights,
+  );
+
+  const pointsWeight = Number(bestTeamPointsWeights?.[teamId]);
+
+  if (Number.isNaN(pointsWeight)) {
+    return DEFAULT_BEST_TEAM_POINTS_WEIGHT;
+  }
+
+  const normalizedPointsWeight = Math.max(0, Math.min(1, pointsWeight));
+
+  return normalizedPointsWeight;
 };
 
 /**
@@ -104,9 +145,15 @@ exports.getPrintableCache = function (chatId, type) {
       for (const teamId of sortedTeamIds) {
         const teamData = teamsData[teamId];
         const chip = exports.selectedChipCache[chatId]?.[teamId];
-        teams[teamId] = chip
-          ? { ...teamData, chip }
-          : { ...teamData };
+        const bestTeamPointsWeight = exports.getBestTeamPointsWeight(
+          chatId,
+          teamId,
+        );
+        teams[teamId] = {
+          ...teamData,
+          ...(chip ? { chip } : {}),
+          bestTeamPointsWeight,
+        };
       }
     }
 

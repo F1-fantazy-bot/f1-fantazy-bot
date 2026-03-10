@@ -9,6 +9,7 @@ const {
   getPrintableCache,
   bestTeamsCache,
   userCache,
+  normalizeBestTeamPointsWeights,
 } = require('./cache');
 const { selectChip } = require('./commandsHandler/selectChipHandlers');
 const {
@@ -22,6 +23,7 @@ const {
   LANG_CALLBACK_TYPE,
   TEAM_CALLBACK_TYPE,
   TEAM_ASSIGN_CALLBACK_TYPE,
+  BEST_TEAM_WEIGHTS_CALLBACK_TYPE,
 } = require('./constants');
 
 const {
@@ -31,6 +33,7 @@ const {
 } = require('./utils');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
 const { t, setLanguage, getLanguageName } = require('./i18n');
+const { BEST_TEAM_WEIGHT_PRESETS } = require('./commandsHandler/setBestTeamWeightsHandler');
 
 exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
@@ -48,6 +51,8 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handleTeamCallback(bot, query);
     case TEAM_ASSIGN_CALLBACK_TYPE:
       return await handleTeamAssignCallback(bot, query);
+    case BEST_TEAM_WEIGHTS_CALLBACK_TYPE:
+      return await handleBestTeamWeightsCallback(bot, query);
     default:
       await sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
   }
@@ -146,6 +151,61 @@ async function handleLanguageCallback(bot, query) {
       message_id: messageId,
     },
   );
+
+  await bot.answerCallbackQuery(query.id);
+}
+
+
+async function handleBestTeamWeightsCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const messageId = query.message.message_id;
+  const teamId = query.data.split(':')[1];
+  const presetId = query.data.split(':')[2];
+
+  const preset = BEST_TEAM_WEIGHT_PRESETS.find((option) => option.id === presetId);
+
+  if (!preset) {
+    await bot.answerCallbackQuery(query.id);
+
+    return;
+  }
+
+  const key = String(chatId);
+  if (!userCache[key]) {
+    userCache[key] = {};
+  }
+  const bestTeamPointsWeights = normalizeBestTeamPointsWeights(
+    userCache[key].bestTeamPointsWeights,
+  );
+
+  bestTeamPointsWeights[teamId] = preset.pointsWeight;
+  userCache[key].bestTeamPointsWeights = bestTeamPointsWeights;
+
+  await updateUserAttributes(chatId, {
+    bestTeamPointsWeights: JSON.stringify(bestTeamPointsWeights),
+  });
+
+  // Invalidate cached best teams for this team because ranking logic changed
+  if (bestTeamsCache[chatId]) {
+    delete bestTeamsCache[chatId][teamId];
+  }
+
+  const confirmationMessage =
+    `${t('Best team weights set: points {POINTS}% | price change {PRICE}%.', chatId, {
+      POINTS: Number((preset.pointsWeight * 100).toFixed(0)),
+      PRICE: Number(((1 - preset.pointsWeight) * 100).toFixed(0)),
+    })}
+` +
+    t(
+      'Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.',
+      chatId,
+      { CMD: '/best_teams' },
+    );
+
+  await bot.editMessageText(confirmationMessage, {
+    chat_id: chatId,
+    message_id: messageId,
+  });
 
   await bot.answerCallbackQuery(query.id);
 }

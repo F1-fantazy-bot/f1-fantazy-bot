@@ -28,6 +28,7 @@ exports.MENU_CALLBACK_TYPE = 'MENU';
 exports.LANG_CALLBACK_TYPE = 'LANG';
 exports.TEAM_CALLBACK_TYPE = 'TEAM';
 exports.TEAM_ASSIGN_CALLBACK_TYPE = 'TEAM_ASSIGN';
+exports.BEST_TEAM_WEIGHTS_CALLBACK_TYPE = 'BEST_TEAM_WEIGHTS';
 
 exports.MAX_TELEGRAM_MESSAGE_LENGTH = 4096;
 
@@ -60,6 +61,7 @@ exports.COMMAND_SEND_MESSAGE_TO_USER = '/send_message_to_user';
 exports.COMMAND_BROADCAST = '/broadcast';
 exports.COMMAND_SET_NICKNAME = '/set_nickname';
 exports.COMMAND_SELECT_TEAM = '/select_team';
+exports.COMMAND_SET_BEST_TEAM_WEIGHTS = '/set_best_team_weights';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -117,6 +119,11 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_SELECT_TEAM,
         title: '🔀 Select Team',
         description: 'Switch between your fantasy teams',
+      },
+      {
+        constant: exports.COMMAND_SET_BEST_TEAM_WEIGHTS,
+        title: '⚖️ Set Best Team Weights',
+        description: 'Set points/price-change weights for best teams ranking',
       },
     ],
   },

@@ -11,6 +11,7 @@ const {
   WITHOUT_CHIP,
   LANG_CALLBACK_TYPE,
   TEAM_CALLBACK_TYPE,
+  BEST_TEAM_WEIGHTS_CALLBACK_TYPE,
 } = require('./constants');
 const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 const cache = require('./cache');
@@ -66,6 +67,21 @@ jest.mock('./cache', () => ({
   getSelectedTeam: jest.fn().mockReturnValue(null),
   getUserTeamIds: jest.fn().mockReturnValue([]),
   resolveSelectedTeam: jest.fn().mockResolvedValue('T1'),
+  normalizeBestTeamPointsWeights: jest.fn((rawValue) => {
+    if (!rawValue) {
+      return {};
+    }
+
+    if (typeof rawValue === 'string') {
+      try {
+        return JSON.parse(rawValue);
+      } catch {
+        return {};
+      }
+    }
+
+    return typeof rawValue === 'object' ? rawValue : {};
+  }),
 }));
 
 describe('handleCallbackQuery', () => {
@@ -424,6 +440,89 @@ describe('handleCallbackQuery', () => {
       expect(getLanguage(chatId)).toBe('he');
       expect(updateUserAttributes).toHaveBeenCalledWith(chatId, { lang: 'he' });
     });
+  });
+
+
+  describe('best team weights callback handling', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      Object.keys(cache.userCache).forEach((key) => delete cache.userCache[key]);
+    });
+
+    it('should handle BEST_TEAM_WEIGHTS callback and persist selected preset', async () => {
+      cache.bestTeamsCache[chatId] = { T2: { bestTeams: [{ a: 1 }] } };
+
+      const weightsQuery = {
+        message: {
+          chat: { id: chatId },
+          message_id: messageId,
+        },
+        data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T2:points_70`,
+        id: 'weightsQueryId',
+      };
+
+      await handleCallbackQuery(bot, weightsQuery);
+
+      expect(updateUserAttributes).toHaveBeenCalledWith(chatId, {
+        bestTeamPointsWeights: JSON.stringify({
+          T2: 0.7,
+        }),
+      });
+      expect(cache.userCache[String(chatId)]).toEqual(
+        expect.objectContaining({
+          bestTeamPointsWeights: {
+            T2: 0.7,
+          },
+        }),
+      );
+      expect(bot.editMessageText).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Best team weights set: points 70% | price change 30%.',
+        ),
+        expect.objectContaining({ chat_id: chatId, message_id: messageId }),
+      );
+      expect(bot.editMessageText).toHaveBeenCalledWith(
+        expect.stringContaining('rerun /best_teams command'),
+        expect.objectContaining({ chat_id: chatId, message_id: messageId }),
+      );
+      expect(cache.bestTeamsCache[chatId]['T2']).toBeUndefined();
+      expect(bot.answerCallbackQuery).toHaveBeenCalledWith('weightsQueryId');
+    });
+
+    it('should update bestTeamPointsWeights when userCache has JSON string', async () => {
+      cache.userCache[String(chatId)] = {
+        bestTeamPointsWeights: JSON.stringify({
+          T1: 0.25,
+        }),
+      };
+
+      const weightsQuery = {
+        message: {
+          chat: { id: chatId },
+          message_id: messageId,
+        },
+        data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T2:points_70`,
+        id: 'weightsQueryId',
+      };
+
+      await handleCallbackQuery(bot, weightsQuery);
+
+      expect(updateUserAttributes).toHaveBeenCalledWith(chatId, {
+        bestTeamPointsWeights: JSON.stringify({
+          T1: 0.25,
+          T2: 0.7,
+        }),
+      });
+      expect(cache.userCache[String(chatId)]).toEqual(
+        expect.objectContaining({
+          bestTeamPointsWeights: {
+            T1: 0.25,
+            T2: 0.7,
+          },
+        }),
+      );
+    });
+
   });
 
   describe('team callback handling', () => {

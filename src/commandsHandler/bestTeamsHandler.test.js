@@ -174,6 +174,7 @@ describe('handleBestTeamsMessage', () => {
         CurrentTeam: mockCurrentTeam,
       },
       'LIMITLESS_CHIP',
+      1,
     );
 
     expect(bestTeamsCache[KILZI_CHAT_ID][TEAM_ID]).toEqual({
@@ -248,6 +249,7 @@ describe('handleBestTeamsMessage', () => {
         CurrentTeam: mockCurrentTeam,
       },
       undefined,
+      1,
     );
   });
 

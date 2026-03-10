@@ -8,6 +8,8 @@ const {
   getSelectedTeam,
   getUserTeamIds,
   resolveSelectedTeam,
+  getBestTeamPointsWeight,
+  normalizeBestTeamPointsWeights,
 } = require('./cache');
 
 const {
@@ -107,7 +109,13 @@ describe('cache', () => {
           costCapRemaining: 10,
         },
       };
-      userCache[chatId] = { selectedTeam: 'T1' };
+      userCache[chatId] = {
+        selectedTeam: 'T1',
+        bestTeamPointsWeights: {
+          T1: 0.25,
+          T2: 0,
+        },
+      };
 
       const result = getPrintableCache(chatId, CURRENT_TEAM_PHOTO_TYPE);
       expect(result).toEqual(`\`\`\`json
@@ -191,6 +199,7 @@ describe('cache', () => {
         drsBoost: 'M. Verstappen',
         freeTransfers: 1,
         costCapRemaining: 5,
+        bestTeamPointsWeight: 1,
       });
     });
 
@@ -199,15 +208,27 @@ describe('cache', () => {
         T1: { drivers: ['VER'] },
         T2: { drivers: ['HAM'] },
       };
-      userCache[chatId] = { selectedTeam: 'T1' };
+      userCache[chatId] = {
+        selectedTeam: 'T1',
+        bestTeamPointsWeights: {
+          T1: 0.25,
+          T2: 0,
+        },
+      };
 
       const result = getPrintableCache(chatId);
       const parsed = JSON.parse(
         result.replace(/```json\n/, '').replace(/\n```/, ''),
       );
       expect(parsed.SelectedTeam).toBe('T1');
-      expect(parsed.Teams['T1']).toEqual({ drivers: ['VER'] });
-      expect(parsed.Teams['T2']).toEqual({ drivers: ['HAM'] });
+      expect(parsed.Teams['T1']).toEqual({
+        drivers: ['VER'],
+        bestTeamPointsWeight: 0.25,
+      });
+      expect(parsed.Teams['T2']).toEqual({
+        drivers: ['HAM'],
+        bestTeamPointsWeight: 0,
+      });
     });
 
     it('includes SelectedTeam as null when no team selected', () => {
@@ -220,7 +241,10 @@ describe('cache', () => {
         result.replace(/```json\n/, '').replace(/\n```/, ''),
       );
       expect(parsed.SelectedTeam).toBeNull();
-      expect(parsed.Teams['T1']).toEqual({ drivers: ['VER'] });
+      expect(parsed.Teams['T1']).toEqual({
+        drivers: ['VER'],
+        bestTeamPointsWeight: 1,
+      });
     });
 
     it('returns empty arrays/objects when caches are missing and type is not passed', () => {
@@ -370,4 +394,53 @@ describe('cache', () => {
       );
     });
   });
+
+
+  describe('getBestTeamPointsWeight', () => {
+    const chatId = '66666';
+
+    afterEach(() => {
+      delete userCache[chatId];
+    });
+
+    it('returns defaults when team-specific weights are missing', () => {
+      expect(getBestTeamPointsWeight(chatId, 'T1')).toBe(1);
+    });
+
+
+    it('supports bestTeamPointsWeights stored as JSON string', () => {
+      userCache[chatId] = {
+        bestTeamPointsWeights: JSON.stringify({
+          T2: 0.75,
+        }),
+      };
+
+      expect(getBestTeamPointsWeight(chatId, 'T2')).toBe(0.75);
+    });
+
+    it('returns team-specific weights when set', () => {
+      userCache[chatId] = {
+        bestTeamPointsWeights: {
+          T2: 0.75,
+        },
+      };
+
+      expect(getBestTeamPointsWeight(chatId, 'T2')).toBe(0.75);
+    });
+  });
+
+  describe('normalizeBestTeamPointsWeights', () => {
+    it('returns object as-is when input is already an object', () => {
+      expect(normalizeBestTeamPointsWeights({ T1: 0.25 })).toEqual({ T1: 0.25 });
+    });
+
+    it('parses JSON string into object', () => {
+      expect(normalizeBestTeamPointsWeights('{"T2":0.75}')).toEqual({ T2: 0.75 });
+    });
+
+    it('returns empty object for invalid JSON string', () => {
+      expect(normalizeBestTeamPointsWeights('{invalid-json')).toEqual({});
+    });
+  });
+
 });
