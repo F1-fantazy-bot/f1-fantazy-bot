@@ -158,7 +158,7 @@ exports.getPrintableCache = function (chatId, type) {
         teams[teamId] = {
           ...teamData,
           ...(chip ? { chip } : {}),
-          ...(bestTeamPointsWeight > 0 ? { bestTeamPointsWeight } : {}),
+          bestTeamPointsWeight,
         };
       }
     }

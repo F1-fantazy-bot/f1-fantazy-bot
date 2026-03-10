@@ -113,7 +113,7 @@ describe('cache', () => {
         selectedTeam: 'T1',
         bestTeamPointsWeights: {
           T1: 0.25,
-          T2: 0.75,
+          T2: 0,
         },
       };
 
@@ -212,7 +212,7 @@ describe('cache', () => {
         selectedTeam: 'T1',
         bestTeamPointsWeights: {
           T1: 0.25,
-          T2: 0.75,
+          T2: 0,
         },
       };
 
@@ -227,7 +227,7 @@ describe('cache', () => {
       });
       expect(parsed.Teams['T2']).toEqual({
         drivers: ['HAM'],
-        bestTeamPointsWeight: 0.75,
+        bestTeamPointsWeight: 0,
       });
     });
 
