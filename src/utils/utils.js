@@ -24,6 +24,10 @@ const {
 const { t, getLocale } = require('../i18n');
 const { userCache } = require('../cache');
 
+const normalizePrice = function (value) {
+  return Math.round(value * 10) / 10;
+};
+
 const sendMessage = async function (bot, chatId, message, options) {
   if (!chatId) {
     console.error('Chat ID is not set');
@@ -255,13 +259,14 @@ exports.validateJsonData = async function (
 
 // Calculate current team info: total price, overall budget (price + remaining costCap), expected points and price change
 exports.calculateTeamInfo = function (team, drivers, constructors) {
-  const totalPrice =
+  const totalPrice = normalizePrice(
     team.drivers.reduce((sum, dr) => sum + drivers[dr].price, 0) +
-    team.constructors.reduce((sum, cn) => sum + constructors[cn].price, 0);
+      team.constructors.reduce((sum, cn) => sum + constructors[cn].price, 0)
+  );
 
   // Add cost remaining
   const costCapRemaining = team.costCapRemaining;
-  const overallBudget = totalPrice + costCapRemaining;
+  const overallBudget = normalizePrice(totalPrice + costCapRemaining);
 
   // calculate current team expected points and price change
   let teamExpectedPoints =
@@ -291,6 +296,8 @@ exports.calculateTeamInfo = function (team, drivers, constructors) {
     teamPriceChange,
   };
 };
+
+exports.normalizePrice = normalizePrice;
 
 exports.triggerScraping = async function (bot, chatId) {
   const url = process.env.AZURE_LOGICAPP_TRIGGER_URL;

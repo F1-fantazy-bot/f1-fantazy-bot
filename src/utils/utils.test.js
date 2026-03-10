@@ -5,6 +5,7 @@ const {
   sendMessageToUser,
   sendPhotoToUser,
   calculateTeamInfo,
+  normalizePrice,
   validateJsonData,
   formatDateTime,
   isMessageFromAllowedUser,
@@ -376,6 +377,36 @@ describe('utils', () => {
         teamExpectedPoints: 0,
         teamPriceChange: 0,
       });
+    });
+
+    it('rounds monetary totals to avoid floating-point budget drift', () => {
+      const team = {
+        drivers: ['A', 'B', 'C', 'D', 'E'],
+        constructors: ['X', 'Y'],
+        costCapRemaining: 2.3,
+      };
+      const drivers = {
+        A: { price: 30.2, expectedPoints: 0, expectedPriceChange: 0 },
+        B: { price: 20.1, expectedPoints: 0, expectedPriceChange: 0 },
+        C: { price: 15.1, expectedPoints: 0, expectedPriceChange: 0 },
+        D: { price: 14.3, expectedPoints: 0, expectedPriceChange: 0 },
+        E: { price: 10.5, expectedPoints: 0, expectedPriceChange: 0 },
+      };
+      const constructors = {
+        X: { price: 5.0, expectedPoints: 0, expectedPriceChange: 0 },
+        Y: { price: 5.0, expectedPoints: 0, expectedPriceChange: 0 },
+      };
+
+      const result = calculateTeamInfo(team, drivers, constructors);
+
+      expect(result.totalPrice).toBe(100.2);
+      expect(result.overallBudget).toBe(102.5);
+    });
+  });
+
+  describe('normalizePrice', () => {
+    it('rounds values with floating-point noise to one decimal', () => {
+      expect(normalizePrice(102.49999999999999)).toBe(102.5);
     });
   });
 

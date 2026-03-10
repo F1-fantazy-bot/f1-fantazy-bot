@@ -267,6 +267,34 @@ describe('calculateBestTeams', () => {
     }
   });
 
+  it('includes teams whose total price matches the rounded budget ceiling', () => {
+    const budgetEdgeJsonData = {
+      Drivers: {
+        A: { price: 30.2, expectedPoints: 25, expectedPriceChange: 0 },
+        B: { price: 20.1, expectedPoints: 20, expectedPriceChange: 0 },
+        C: { price: 15.1, expectedPoints: 15, expectedPriceChange: 0 },
+        D: { price: 14.3, expectedPoints: 14, expectedPriceChange: 0 },
+        E: { price: 10.5, expectedPoints: 10, expectedPriceChange: 0 },
+        F: { price: 12.8, expectedPoints: 18, expectedPriceChange: 0 },
+      },
+      Constructors: {
+        X: { price: 5.0, expectedPoints: 5, expectedPriceChange: 0 },
+        Y: { price: 5.0, expectedPoints: 4, expectedPriceChange: 0 },
+      },
+      CurrentTeam: {
+        drivers: ['A', 'B', 'C', 'D', 'E'],
+        constructors: ['X', 'Y'],
+        drsBoost: 'A',
+        freeTransfers: 2,
+        costCapRemaining: 2.3,
+      },
+    };
+
+    const result = calculateBestTeams(budgetEdgeJsonData);
+
+    expect(result.some((team) => team.total_price === 102.5)).toBe(true);
+  });
+
   describe('calculateChangesToTeam', () => {
     it('should correctly identify drivers and constructors to add/remove', () => {
       const targetTeam = {
@@ -384,6 +412,44 @@ describe('calculateBestTeams', () => {
         targetTeam,
         LIMITLESS_CHIP
       );
+      expect(result.chipToActivate).toBeUndefined();
+    });
+
+    it('calculateChangesToTeam should not activate LIMITLESS_CHIP for rounded-equal budget values', () => {
+      const LIMITLESS_CHIP = 'LIMITLESS';
+      const budgetEdgeJsonData = {
+        Drivers: {
+          A: { price: 30.2, expectedPoints: 25, expectedPriceChange: 0 },
+          B: { price: 20.1, expectedPoints: 20, expectedPriceChange: 0 },
+          C: { price: 15.1, expectedPoints: 15, expectedPriceChange: 0 },
+          D: { price: 14.3, expectedPoints: 14, expectedPriceChange: 0 },
+          E: { price: 10.5, expectedPoints: 10, expectedPriceChange: 0 },
+        },
+        Constructors: {
+          X: { price: 5.0, expectedPoints: 5, expectedPriceChange: 0 },
+          Y: { price: 5.0, expectedPoints: 4, expectedPriceChange: 0 },
+        },
+        CurrentTeam: {
+          drivers: ['A', 'B', 'C', 'D', 'E'],
+          constructors: ['X', 'Y'],
+          drsBoost: 'A',
+          freeTransfers: 2,
+          costCapRemaining: 2.3,
+        },
+      };
+      const targetTeam = {
+        drivers: ['A', 'B', 'C', 'D', 'E'],
+        constructors: ['X', 'Y'],
+        drs_driver: 'A',
+        total_price: 102.5,
+      };
+
+      const result = calculateChangesToTeam(
+        budgetEdgeJsonData,
+        targetTeam,
+        LIMITLESS_CHIP
+      );
+
       expect(result.chipToActivate).toBeUndefined();
     });
 
