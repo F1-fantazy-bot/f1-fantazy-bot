@@ -67,7 +67,7 @@ jest.mock('./cache', () => ({
   getSelectedTeam: jest.fn().mockReturnValue(null),
   getUserTeamIds: jest.fn().mockReturnValue([]),
   resolveSelectedTeam: jest.fn().mockResolvedValue('T1'),
-  normalizeBestTeamPriceWeights: jest.fn((rawValue) => {
+  normalizeBestTeamPointsWeights: jest.fn((rawValue) => {
     if (!rawValue) {
       return {};
     }
@@ -464,14 +464,14 @@ describe('handleCallbackQuery', () => {
       await handleCallbackQuery(bot, weightsQuery);
 
       expect(updateUserAttributes).toHaveBeenCalledWith(chatId, {
-        bestTeamPriceWeights: JSON.stringify({
-          T2: 0.75,
+        bestTeamPointsWeights: JSON.stringify({
+          T2: 0.25,
         }),
       });
       expect(cache.userCache[String(chatId)]).toEqual(
         expect.objectContaining({
-          bestTeamPriceWeights: {
-            T2: 0.75,
+          bestTeamPointsWeights: {
+            T2: 0.25,
           },
         }),
       );
@@ -489,9 +489,9 @@ describe('handleCallbackQuery', () => {
       expect(bot.answerCallbackQuery).toHaveBeenCalledWith('weightsQueryId');
     });
 
-    it('should update bestTeamPriceWeights when userCache has JSON string', async () => {
+    it('should update bestTeamPointsWeights when userCache has JSON string', async () => {
       cache.userCache[String(chatId)] = {
-        bestTeamPriceWeights: JSON.stringify({
+        bestTeamPointsWeights: JSON.stringify({
           T1: 0.25,
         }),
       };
@@ -508,16 +508,16 @@ describe('handleCallbackQuery', () => {
       await handleCallbackQuery(bot, weightsQuery);
 
       expect(updateUserAttributes).toHaveBeenCalledWith(chatId, {
-        bestTeamPriceWeights: JSON.stringify({
+        bestTeamPointsWeights: JSON.stringify({
           T1: 0.25,
-          T2: 0.75,
+          T2: 0.25,
         }),
       });
       expect(cache.userCache[String(chatId)]).toEqual(
         expect.objectContaining({
-          bestTeamPriceWeights: {
+          bestTeamPointsWeights: {
             T1: 0.25,
-            T2: 0.75,
+            T2: 0.25,
           },
         }),
       );

@@ -6,7 +6,7 @@ const {
   sharedKey,
   nextRaceInfoCache,
   userCache,
-  normalizeBestTeamPriceWeights,
+  normalizeBestTeamPointsWeights,
 } = require('./cache');
 const {
   sendLogMessage,
@@ -61,9 +61,9 @@ async function initializeCaches(bot) {
     const key = String(user.chatId);
     const { chatId: _id, ...userData } = user;
 
-    if ('bestTeamPriceWeights' in userData) {
-      userData.bestTeamPriceWeights = normalizeBestTeamPriceWeights(
-        userData.bestTeamPriceWeights,
+    if ('bestTeamPointsWeights' in userData) {
+      userData.bestTeamPointsWeights = normalizeBestTeamPointsWeights(
+        userData.bestTeamPointsWeights,
       );
     }
 

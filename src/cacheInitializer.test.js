@@ -74,7 +74,7 @@ describe('cacheInitializer', () => {
       chatName: 'Alice',
       lang: 'en',
       nickname: 'Max',
-      bestTeamPriceWeights: JSON.stringify({ T1: 0.25 }),
+      bestTeamPointsWeights: JSON.stringify({ T1: 0.25 }),
     },
     { chatId: '456', chatName: 'Bob', lang: 'he', nickname: 'Lewis' },
   ];
@@ -160,7 +160,7 @@ describe('cacheInitializer', () => {
         chatName: 'Alice',
         lang: 'en',
         nickname: 'Max',
-        bestTeamPriceWeights: { T1: 0.25 },
+        bestTeamPointsWeights: { T1: 0.25 },
       },
       456: { chatName: 'Bob', lang: 'he', nickname: 'Lewis' },
     });

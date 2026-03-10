@@ -44,14 +44,14 @@ const DEFAULT_BEST_TEAM_WEIGHTS = {
 
 exports.DEFAULT_BEST_TEAM_WEIGHTS = DEFAULT_BEST_TEAM_WEIGHTS;
 
-exports.normalizeBestTeamPriceWeights = function (rawBestTeamPriceWeights) {
-  if (!rawBestTeamPriceWeights) {
+exports.normalizeBestTeamPointsWeights = function (rawBestTeamPointsWeights) {
+  if (!rawBestTeamPointsWeights) {
     return {};
   }
 
-  if (typeof rawBestTeamPriceWeights === 'string') {
+  if (typeof rawBestTeamPointsWeights === 'string') {
     try {
-      const parsed = JSON.parse(rawBestTeamPriceWeights);
+      const parsed = JSON.parse(rawBestTeamPointsWeights);
 
       return parsed && typeof parsed === 'object' ? parsed : {};
     } catch {
@@ -59,8 +59,8 @@ exports.normalizeBestTeamPriceWeights = function (rawBestTeamPriceWeights) {
     }
   }
 
-  return typeof rawBestTeamPriceWeights === 'object'
-    ? rawBestTeamPriceWeights
+  return typeof rawBestTeamPointsWeights === 'object'
+    ? rawBestTeamPointsWeights
     : {};
 };
 
@@ -79,21 +79,21 @@ exports.getUserTeamIds = function (chatId) {
 
 exports.getBestTeamWeights = function (chatId, teamId) {
   const key = String(chatId);
-  const bestTeamPriceWeights = exports.normalizeBestTeamPriceWeights(
-    userCache[key]?.bestTeamPriceWeights,
+  const bestTeamPointsWeights = exports.normalizeBestTeamPointsWeights(
+    userCache[key]?.bestTeamPointsWeights,
   );
 
-  const priceChangeWeight = Number(bestTeamPriceWeights?.[teamId]);
+  const pointsWeight = Number(bestTeamPointsWeights?.[teamId]);
 
-  if (Number.isNaN(priceChangeWeight)) {
+  if (Number.isNaN(pointsWeight)) {
     return { ...DEFAULT_BEST_TEAM_WEIGHTS };
   }
 
-  const normalizedPriceChangeWeight = Math.max(0, Math.min(1, priceChangeWeight));
+  const normalizedPointsWeight = Math.max(0, Math.min(1, pointsWeight));
 
   return {
-    priceChangeWeight: normalizedPriceChangeWeight,
-    pointsWeight: 1 - normalizedPriceChangeWeight,
+    pointsWeight: normalizedPointsWeight,
+    priceChangeWeight: 1 - normalizedPointsWeight,
   };
 };
 
@@ -151,14 +151,14 @@ exports.getPrintableCache = function (chatId, type) {
       for (const teamId of sortedTeamIds) {
         const teamData = teamsData[teamId];
         const chip = exports.selectedChipCache[chatId]?.[teamId];
-        const bestTeamPriceWeight = exports.getBestTeamWeights(
+        const bestTeamPointsWeight = exports.getBestTeamWeights(
           chatId,
           teamId,
-        ).priceChangeWeight;
+        ).pointsWeight;
         teams[teamId] = {
           ...teamData,
           ...(chip ? { chip } : {}),
-          ...(bestTeamPriceWeight > 0 ? { bestTeamPriceWeight } : {}),
+          ...(bestTeamPointsWeight > 0 ? { bestTeamPointsWeight } : {}),
         };
       }
     }

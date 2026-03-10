@@ -9,7 +9,7 @@ const {
   getPrintableCache,
   bestTeamsCache,
   userCache,
-  normalizeBestTeamPriceWeights,
+  normalizeBestTeamPointsWeights,
 } = require('./cache');
 const { selectChip } = require('./commandsHandler/selectChipHandlers');
 const {
@@ -174,15 +174,15 @@ async function handleBestTeamWeightsCallback(bot, query) {
   if (!userCache[key]) {
     userCache[key] = {};
   }
-  const bestTeamPriceWeights = normalizeBestTeamPriceWeights(
-    userCache[key].bestTeamPriceWeights,
+  const bestTeamPointsWeights = normalizeBestTeamPointsWeights(
+    userCache[key].bestTeamPointsWeights,
   );
 
-  bestTeamPriceWeights[teamId] = preset.priceChangeWeight;
-  userCache[key].bestTeamPriceWeights = bestTeamPriceWeights;
+  bestTeamPointsWeights[teamId] = preset.pointsWeight;
+  userCache[key].bestTeamPointsWeights = bestTeamPointsWeights;
 
   await updateUserAttributes(chatId, {
-    bestTeamPriceWeights: JSON.stringify(bestTeamPriceWeights),
+    bestTeamPointsWeights: JSON.stringify(bestTeamPointsWeights),
   });
 
   // Invalidate cached best teams for this team because ranking logic changed
@@ -193,7 +193,7 @@ async function handleBestTeamWeightsCallback(bot, query) {
   const confirmationMessage =
     `${t('Best team weights set: points {POINTS}% | price change {PRICE}%.', chatId, {
       POINTS: Number((preset.pointsWeight * 100).toFixed(0)),
-      PRICE: Number((preset.priceChangeWeight * 100).toFixed(0)),
+      PRICE: Number(((1 - preset.pointsWeight) * 100).toFixed(0)),
     })}
 ` +
     t(

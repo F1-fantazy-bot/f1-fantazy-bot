@@ -9,7 +9,7 @@ const {
   getUserTeamIds,
   resolveSelectedTeam,
   getBestTeamWeights,
-  normalizeBestTeamPriceWeights,
+  normalizeBestTeamPointsWeights,
 } = require('./cache');
 
 const {
@@ -111,7 +111,7 @@ describe('cache', () => {
       };
       userCache[chatId] = {
         selectedTeam: 'T1',
-        bestTeamPriceWeights: {
+        bestTeamPointsWeights: {
           T1: 0.25,
           T2: 0.75,
         },
@@ -199,6 +199,7 @@ describe('cache', () => {
         drsBoost: 'M. Verstappen',
         freeTransfers: 1,
         costCapRemaining: 5,
+        bestTeamPointsWeight: 1,
       });
     });
 
@@ -209,7 +210,7 @@ describe('cache', () => {
       };
       userCache[chatId] = {
         selectedTeam: 'T1',
-        bestTeamPriceWeights: {
+        bestTeamPointsWeights: {
           T1: 0.25,
           T2: 0.75,
         },
@@ -222,11 +223,11 @@ describe('cache', () => {
       expect(parsed.SelectedTeam).toBe('T1');
       expect(parsed.Teams['T1']).toEqual({
         drivers: ['VER'],
-        bestTeamPriceWeight: 0.25,
+        bestTeamPointsWeight: 0.25,
       });
       expect(parsed.Teams['T2']).toEqual({
         drivers: ['HAM'],
-        bestTeamPriceWeight: 0.75,
+        bestTeamPointsWeight: 0.75,
       });
     });
 
@@ -242,6 +243,7 @@ describe('cache', () => {
       expect(parsed.SelectedTeam).toBeNull();
       expect(parsed.Teams['T1']).toEqual({
         drivers: ['VER'],
+        bestTeamPointsWeight: 1,
       });
     });
 
@@ -409,44 +411,44 @@ describe('cache', () => {
     });
 
 
-    it('supports bestTeamPriceWeights stored as JSON string', () => {
+    it('supports bestTeamPointsWeights stored as JSON string', () => {
       userCache[chatId] = {
-        bestTeamPriceWeights: JSON.stringify({
+        bestTeamPointsWeights: JSON.stringify({
           T2: 0.75,
         }),
       };
 
       expect(getBestTeamWeights(chatId, 'T2')).toEqual({
-        pointsWeight: 0.25,
-        priceChangeWeight: 0.75,
+        pointsWeight: 0.75,
+        priceChangeWeight: 0.25,
       });
     });
 
     it('returns team-specific weights when set', () => {
       userCache[chatId] = {
-        bestTeamPriceWeights: {
+        bestTeamPointsWeights: {
           T2: 0.75,
         },
       };
 
       expect(getBestTeamWeights(chatId, 'T2')).toEqual({
-        pointsWeight: 0.25,
-        priceChangeWeight: 0.75,
+        pointsWeight: 0.75,
+        priceChangeWeight: 0.25,
       });
     });
   });
 
-  describe('normalizeBestTeamPriceWeights', () => {
+  describe('normalizeBestTeamPointsWeights', () => {
     it('returns object as-is when input is already an object', () => {
-      expect(normalizeBestTeamPriceWeights({ T1: 0.25 })).toEqual({ T1: 0.25 });
+      expect(normalizeBestTeamPointsWeights({ T1: 0.25 })).toEqual({ T1: 0.25 });
     });
 
     it('parses JSON string into object', () => {
-      expect(normalizeBestTeamPriceWeights('{"T2":0.75}')).toEqual({ T2: 0.75 });
+      expect(normalizeBestTeamPointsWeights('{"T2":0.75}')).toEqual({ T2: 0.75 });
     });
 
     it('returns empty object for invalid JSON string', () => {
-      expect(normalizeBestTeamPriceWeights('{invalid-json')).toEqual({});
+      expect(normalizeBestTeamPointsWeights('{invalid-json')).toEqual({});
     });
   });
 
