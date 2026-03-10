@@ -4,29 +4,24 @@ const { resolveSelectedTeam } = require('../cache');
 
 const BEST_TEAM_WEIGHT_PRESETS = [
   {
-    id: 'favor_points',
+    id: 'points_100',
     pointsWeight: 1,
-    labelKey: '🎯 Favor Points (100/0)',
+    labelKey: '🎯 100/0 - Maximum Points',
   },
   {
-    id: 'balanced_points',
-    pointsWeight: 0.75,
-    labelKey: '⚖️ Lean Points (75/25)',
+    id: 'points_90',
+    pointsWeight: 0.9,
+    labelKey: '⚖️ 90/10 - Strong Points Bias',
   },
   {
-    id: 'balanced',
-    pointsWeight: 0.5,
-    labelKey: '🤝 Balanced (50/50)',
+    id: 'points_80',
+    pointsWeight: 0.8,
+    labelKey: '📊 80/20 - Points Focused',
   },
   {
-    id: 'balanced_price',
-    pointsWeight: 0.25,
-    labelKey: '💹 Lean Price Change (25/75)',
-  },
-  {
-    id: 'favor_price',
-    pointsWeight: 0,
-    labelKey: '📈 Favor Price Change (0/100)',
+    id: 'points_70',
+    pointsWeight: 0.7,
+    labelKey: '🤝 70/30 - Balanced with Points Edge',
   },
 ];
 

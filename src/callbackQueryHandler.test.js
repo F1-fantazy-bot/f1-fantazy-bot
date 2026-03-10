@@ -457,7 +457,7 @@ describe('handleCallbackQuery', () => {
           chat: { id: chatId },
           message_id: messageId,
         },
-        data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T2:balanced_price`,
+        data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T2:points_70`,
         id: 'weightsQueryId',
       };
 
@@ -465,19 +465,19 @@ describe('handleCallbackQuery', () => {
 
       expect(updateUserAttributes).toHaveBeenCalledWith(chatId, {
         bestTeamPointsWeights: JSON.stringify({
-          T2: 0.25,
+          T2: 0.7,
         }),
       });
       expect(cache.userCache[String(chatId)]).toEqual(
         expect.objectContaining({
           bestTeamPointsWeights: {
-            T2: 0.25,
+            T2: 0.7,
           },
         }),
       );
       expect(bot.editMessageText).toHaveBeenCalledWith(
         expect.stringContaining(
-          'Best team weights set: points 25% | price change 75%.',
+          'Best team weights set: points 70% | price change 30%.',
         ),
         expect.objectContaining({ chat_id: chatId, message_id: messageId }),
       );
@@ -501,7 +501,7 @@ describe('handleCallbackQuery', () => {
           chat: { id: chatId },
           message_id: messageId,
         },
-        data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T2:balanced_price`,
+        data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T2:points_70`,
         id: 'weightsQueryId',
       };
 
@@ -510,14 +510,14 @@ describe('handleCallbackQuery', () => {
       expect(updateUserAttributes).toHaveBeenCalledWith(chatId, {
         bestTeamPointsWeights: JSON.stringify({
           T1: 0.25,
-          T2: 0.25,
+          T2: 0.7,
         }),
       });
       expect(cache.userCache[String(chatId)]).toEqual(
         expect.objectContaining({
           bestTeamPointsWeights: {
             T1: 0.25,
-            T2: 0.25,
+            T2: 0.7,
           },
         }),
       );
