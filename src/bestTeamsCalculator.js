@@ -3,7 +3,7 @@ const {
   WILDCARD_CHIP,
   LIMITLESS_CHIP,
 } = require('./constants');
-const { calculateTeamInfo } = require('./utils');
+const { calculateTeamInfo, normalizePrice } = require('./utils');
 
 exports.calculateBestTeams = function (cachedJsonData, selectedChip, pointsWeight = 1) {
   // Data for drivers
@@ -28,7 +28,7 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip, pointsWeigh
     drivers_dict,
     constructors_dict
   );
-  let budget = teamInfo.overallBudget;
+  let budget = normalizePrice(teamInfo.overallBudget);
 
   switch (selectedChip) {
     case WILDCARD_CHIP:
@@ -125,7 +125,7 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip, pointsWeigh
         0
       );
 
-      const total_price = driver_prices + cons_prices;
+      const total_price = normalizePrice(driver_prices + cons_prices);
 
       // Check if the team is within the allowed budget
       if (total_price <= budget) {
@@ -300,7 +300,7 @@ exports.calculateChangesToTeam = function (
   }
 
   if (selectedChip === LIMITLESS_CHIP) {
-    if (targetTeam.total_price > currentTeamInfo.overallBudget) {
+    if (normalizePrice(targetTeam.total_price) > normalizePrice(currentTeamInfo.overallBudget)) {
       chipToActivate = LIMITLESS_CHIP;
     }
   }
