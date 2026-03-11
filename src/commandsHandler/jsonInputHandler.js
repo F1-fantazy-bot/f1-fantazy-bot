@@ -24,23 +24,33 @@ async function handleJsonMessage(bot, chatId, jsonData) {
   const shouldValidateCurrentTeam = hasCurrentTeam || !hasTeamsData;
 
   if (hasDriversData || hasConstructorsData) {
+    const hasNonEmptyDriversData = hasDriversData && jsonData.Drivers.length > 0;
+    const hasNonEmptyConstructorsData =
+      hasConstructorsData && jsonData.Constructors.length > 0;
+
     if (
       !(await validateJsonData(
         bot,
         jsonData,
         chatId,
         shouldValidateCurrentTeam,
+        hasNonEmptyDriversData || hasNonEmptyConstructorsData,
       ))
     ) {
       return;
     }
 
-    driversCache[chatId] = Object.fromEntries(
-      jsonData.Drivers.map((driver) => [driver.DR, driver]),
-    );
-    constructorsCache[chatId] = Object.fromEntries(
-      jsonData.Constructors.map((constructor) => [constructor.CN, constructor]),
-    );
+    if (hasDriversData) {
+      driversCache[chatId] = Object.fromEntries(
+        jsonData.Drivers.map((driver) => [driver.DR, driver]),
+      );
+    }
+
+    if (hasConstructorsData) {
+      constructorsCache[chatId] = Object.fromEntries(
+        jsonData.Constructors.map((constructor) => [constructor.CN, constructor]),
+      );
+    }
 
     if (hasTeamsData) {
       await saveTeamsData(bot, chatId, jsonData.Teams, jsonData.SelectedTeam);
@@ -121,6 +131,7 @@ async function handleJsonMessage(bot, chatId, jsonData) {
     return;
   }
 
+  await bot.sendMessage(chatId, t('JSON data imported successfully.', chatId));
   await sendPrintableCache(chatId, bot);
 }
 

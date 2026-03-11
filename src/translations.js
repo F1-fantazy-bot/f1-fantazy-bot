@@ -164,6 +164,7 @@ const translations = {
       'שלח תמונה (נהגים, קבוצות או צילום של הקבוצה הנוכחית) לחילוץ אוטומטי ושמירת הנתונים.',
     'Send valid JSON data to update your drivers, constructors, and current team cache.':
       'שלח נתוני JSON תקינים לעדכון המטמון של הנהגים, הקבוצות והקבוצה הנוכחית שלך.',
+    'JSON data imported successfully.': 'נתוני JSON יובאו בהצלחה.',
     'Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using {CMD}).':
       'שלח מספר (לדוגמה, 1) כדי לקבל את השינויים הנדרשים להגיע לקבוצה זו מהקבוצה הנוכחית (לאחר שימוש ב-{CMD}).',
     Unknown: 'לא ידוע',

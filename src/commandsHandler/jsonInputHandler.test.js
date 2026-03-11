@@ -67,6 +67,7 @@ describe('handleJsonMessage', () => {
       jsonData,
       KILZI_CHAT_ID,
       true,
+      false,
     );
     expect(azureStorageService.saveUserTeam).not.toHaveBeenCalled();
     expect(sendPrintableCache).not.toHaveBeenCalled();
@@ -97,6 +98,7 @@ describe('handleJsonMessage', () => {
       jsonData,
       KILZI_CHAT_ID,
       true,
+      true,
     );
 
     // Verify data was stored in cache
@@ -124,6 +126,11 @@ describe('handleJsonMessage', () => {
       KILZI_CHAT_ID,
       'T1',
       jsonData.CurrentTeam,
+    );
+
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'JSON data imported successfully.',
     );
 
     // Verify printable cache was sent
@@ -212,6 +219,7 @@ describe('handleJsonMessage', () => {
       jsonData,
       KILZI_CHAT_ID,
       false,
+      true,
     );
 
     expect(currentTeamCache[KILZI_CHAT_ID]).toEqual({
@@ -264,6 +272,49 @@ describe('handleJsonMessage', () => {
       },
     });
     expect(sendPrintableCache).toHaveBeenCalledWith(KILZI_CHAT_ID, botMock);
+  });
+
+
+  it('should accept empty Drivers/Constructors arrays and still import teams', async () => {
+    const jsonData = {
+      Drivers: [],
+      Constructors: [],
+      SelectedTeam: 'T1',
+      Teams: {
+        T1: {
+          drivers: ['VER', 'HAM'],
+          constructors: ['RBR', 'MER'],
+          drsBoost: 'VER',
+          freeTransfers: 2,
+          costCapRemaining: 1.2,
+        },
+      },
+    };
+
+    await handleJsonMessage(botMock, KILZI_CHAT_ID, jsonData);
+
+    expect(mockValidateJsonData).toHaveBeenCalledWith(
+      botMock,
+      jsonData,
+      KILZI_CHAT_ID,
+      false,
+      false,
+    );
+    expect(driversCache[KILZI_CHAT_ID]).toEqual({});
+    expect(constructorsCache[KILZI_CHAT_ID]).toEqual({});
+    expect(currentTeamCache[KILZI_CHAT_ID]).toEqual({
+      T1: {
+        drivers: ['VER', 'HAM'],
+        constructors: ['RBR', 'MER'],
+        drsBoost: 'VER',
+        freeTransfers: 2,
+        costCapRemaining: 1.2,
+      },
+    });
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'JSON data imported successfully.',
+    );
   });
 
 
