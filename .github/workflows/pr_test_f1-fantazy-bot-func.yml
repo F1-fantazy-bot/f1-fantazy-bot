@@ -36,9 +36,9 @@ jobs:
 
       - name: Write version information
         run: |
-          echo "COMMIT_ID=${{ env.COMMIT_ID }}" >> .env
-          echo "COMMIT_MESSAGE=${{ env.COMMIT_MESSAGE }}" >> .env
-          echo "COMMIT_LINK=${{ env.COMMIT_LINK }}" >> .env
+          echo "COMMIT_ID=$COMMIT_ID" >> .env
+          echo "COMMIT_MESSAGE=$COMMIT_MESSAGE" >> .env
+          echo "COMMIT_LINK=$COMMIT_LINK" >> .env
 
       - name: Zip artifact for deployment
         run: zip release.zip ./* -r
@@ -83,14 +83,14 @@ jobs:
           app-settings-json: |
             [
               { "name": "COMMIT_ID",
-                "value": "${{ env.COMMIT_ID }}",
+                "value": ${{ toJSON(env.COMMIT_ID) }},
                 "slotSetting": false },
 
               { "name": "COMMIT_MESSAGE",
-                "value": "${{ env.COMMIT_MESSAGE }}",
+                "value": ${{ toJSON(env.COMMIT_MESSAGE) }},
                 "slotSetting": false },
 
               { "name": "COMMIT_LINK",
-                "value": "${{ env.COMMIT_LINK }}",
+                "value": ${{ toJSON(env.COMMIT_LINK) }},
                 "slotSetting": false }
             ]

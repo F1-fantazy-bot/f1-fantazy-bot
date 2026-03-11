@@ -27,9 +27,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Extract commit title
+        id: extract_commit_title
         run: |
           title=$(printf '%s\n' "${{ env.COMMIT_MESSAGE }}" | head -n 1)
           echo "COMMIT_MESSAGE=$title" >> "$GITHUB_ENV"
+          printf 'commit_message=%s\n' "$title" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node ${{ env.NODE_VERSION }} Environment
         uses: actions/setup-node@v3
@@ -46,9 +48,11 @@ jobs:
           popd
 
       - name: Write version information
+        env:
+          COMMIT_TITLE: ${{ steps.extract_commit_title.outputs.commit_message }}
         run: |
           echo "COMMIT_ID=${{ env.COMMIT_ID }}" >> .env
-          echo "COMMIT_MESSAGE=${{ env.COMMIT_MESSAGE }}" >> .env
+          echo "COMMIT_MESSAGE=$COMMIT_TITLE" >> .env
           echo "COMMIT_LINK=${{ env.COMMIT_LINK }}" >> .env
 
       - name: Zip artifact for deployment
@@ -83,6 +87,12 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_8FDB1A8936224E90A898EAC192094784 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_00873174CBBD48D3871911006820901C }}
 
+      - name: Extract commit title
+        id: extract_commit_title
+        run: |
+          title=$(printf '%s\n' "${{ env.COMMIT_MESSAGE }}" | head -n 1)
+          printf 'commit_message=%s\n' "$title" >> "$GITHUB_OUTPUT"
+
       - name: 'Run Azure Functions Action'
         uses: Azure/functions-action@v1
         id: fa
@@ -99,14 +109,14 @@ jobs:
           app-settings-json: |
             [
               { "name": "COMMIT_ID",
-                "value": "${{ env.COMMIT_ID }}",
+                "value": ${{ toJSON(env.COMMIT_ID) }},
                 "slotSetting": false },
 
               { "name": "COMMIT_MESSAGE",
-                "value": "${{ env.COMMIT_MESSAGE }}",
+                "value": ${{ toJSON(steps.extract_commit_title.outputs.commit_message) }},
                 "slotSetting": false },
 
               { "name": "COMMIT_LINK",
-                "value": "${{ env.COMMIT_LINK }}",
+                "value": ${{ toJSON(env.COMMIT_LINK) }},
                 "slotSetting": false }
             ]
