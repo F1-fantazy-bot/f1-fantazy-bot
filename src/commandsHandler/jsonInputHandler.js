@@ -6,6 +6,7 @@ const {
   currentTeamCache,
   bestTeamsCache,
   userCache,
+  selectedChipCache,
   getSelectedTeam,
   getUserTeamIds,
 } = require('../cache');
@@ -18,9 +19,19 @@ async function handleJsonMessage(bot, chatId, jsonData) {
   const hasDriversData = Array.isArray(jsonData.Drivers);
   const hasConstructorsData = Array.isArray(jsonData.Constructors);
   const hasCurrentTeam = !!jsonData.CurrentTeam;
+  const hasTeamsData = !!jsonData.Teams && typeof jsonData.Teams === 'object';
+
+  const shouldValidateCurrentTeam = hasCurrentTeam || !hasTeamsData;
 
   if (hasDriversData || hasConstructorsData) {
-    if (!(await validateJsonData(bot, jsonData, chatId))) {
+    if (
+      !(await validateJsonData(
+        bot,
+        jsonData,
+        chatId,
+        shouldValidateCurrentTeam,
+      ))
+    ) {
       return;
     }
 
@@ -31,7 +42,9 @@ async function handleJsonMessage(bot, chatId, jsonData) {
       jsonData.Constructors.map((constructor) => [constructor.CN, constructor]),
     );
 
-    if (hasCurrentTeam) {
+    if (hasTeamsData) {
+      await saveTeamsData(bot, chatId, jsonData.Teams, jsonData.SelectedTeam);
+    } else if (hasCurrentTeam) {
       const teamId = await resolveTeamIdForJson(
         bot,
         chatId,
@@ -102,11 +115,60 @@ async function handleJsonMessage(bot, chatId, jsonData) {
         delete bestTeamsCache[chatId][teamId];
       }
     }
+  } else if (hasTeamsData) {
+    await saveTeamsData(bot, chatId, jsonData.Teams, jsonData.SelectedTeam);
   } else if (!(await validateJsonData(bot, jsonData, chatId))) {
     return;
   }
 
   await sendPrintableCache(chatId, bot);
+}
+
+async function saveTeamsData(bot, chatId, teamsData, selectedTeam) {
+  const key = String(chatId);
+  const teamIds = Object.keys(teamsData || {});
+
+  currentTeamCache[chatId] = {};
+  selectedChipCache[chatId] = {};
+
+  const bestTeamPointsWeights = {};
+
+  for (const teamId of teamIds) {
+    const teamData = teamsData[teamId] || {};
+    const { chip, bestTeamPointsWeight, ...teamDataWithoutMetadata } = teamData;
+
+    currentTeamCache[chatId][teamId] = teamDataWithoutMetadata;
+    if (chip) {
+      selectedChipCache[chatId][teamId] = chip;
+    }
+
+    if (bestTeamPointsWeight !== undefined && bestTeamPointsWeight !== null) {
+      bestTeamPointsWeights[teamId] = bestTeamPointsWeight;
+    }
+
+    await azureStorageService.saveUserTeam(
+      bot,
+      chatId,
+      teamId,
+      teamDataWithoutMetadata,
+    );
+
+    if (bestTeamsCache[chatId]) {
+      delete bestTeamsCache[chatId][teamId];
+    }
+  }
+
+  if (!userCache[key]) {
+    userCache[key] = {};
+  }
+
+  userCache[key].selectedTeam = selectedTeam || null;
+  userCache[key].bestTeamPointsWeights = bestTeamPointsWeights;
+
+  await updateUserAttributes(chatId, {
+    selectedTeam: selectedTeam || null,
+    bestTeamPointsWeights,
+  });
 }
 
 /**
