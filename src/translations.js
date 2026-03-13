@@ -253,8 +253,7 @@ const translations = {
       'נתוני JSON אינם תקינים. ודא שהם מכילים את המאפיינים הנדרשים תחת "CurrentTeam".',
     'Invalid cache snapshot. Paste the JSON output of /print_cache.':
       'צילום המטמון אינו תקין. הדבק את פלט ה-JSON של /print_cache.',
-    'Everything looks good. You can now manage your teams.':
-      'הכול נראה תקין. עכשיו אפשר לנהל את הקבוצות שלך.',
+    'Cache data saved successfully': 'נתוני המטמון נשמרו בהצלחה.',
     'Error: Scraping trigger URL is not configured.':
       'שגיאה: כתובת ההפעלה לסריקה אינה מוגדרת.',
     'Sorry, only admins can trigger scraping.':

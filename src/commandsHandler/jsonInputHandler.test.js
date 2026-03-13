@@ -151,7 +151,7 @@ describe('handleJsonMessage', () => {
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'Everything looks good. You can now manage your teams.',
+      'Cache data saved successfully',
     );
   });
 
@@ -233,7 +233,7 @@ describe('handleJsonMessage', () => {
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'Everything looks good. You can now manage your teams.',
+      'Cache data saved successfully',
     );
   });
 
@@ -301,7 +301,7 @@ describe('handleJsonMessage', () => {
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'Everything looks good. You can now manage your teams.',
+      'Cache data saved successfully',
     );
   });
 
