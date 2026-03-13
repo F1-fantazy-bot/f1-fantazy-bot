@@ -173,6 +173,13 @@ function filterUpcomingRaces(races) {
   });
 }
 
+async function fetchRemainingRaceCount() {
+  const data = await fetchCurrentSeasonRaces();
+  const races = data?.MRData?.RaceTable?.Races || [];
+
+  return filterUpcomingRaces(races).length;
+}
+
 async function handleNextRacesCommand(bot, chatId) {
   try {
     const data = await fetchCurrentSeasonRaces();
@@ -275,4 +282,9 @@ async function handleNextRacesCommand(bot, chatId) {
   }
 }
 
-module.exports = { handleNextRacesCommand };
+module.exports = {
+  handleNextRacesCommand,
+  fetchCurrentSeasonRaces,
+  filterUpcomingRaces,
+  fetchRemainingRaceCount,
+};

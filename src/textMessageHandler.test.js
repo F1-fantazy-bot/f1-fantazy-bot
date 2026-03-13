@@ -19,7 +19,7 @@ const {
   COMMAND_REPORT_BUG,
   COMMAND_LIST_USERS,
   COMMAND_SEND_MESSAGE_TO_USER,
-  COMMAND_SET_BEST_TEAM_WEIGHTS,
+  COMMAND_SET_BEST_TEAM_RANKING,
 } = require('./constants');
 
 jest.mock('openai', () => ({
@@ -73,8 +73,8 @@ const {
   handleSendMessageToUserCommand,
 } = require('./commandsHandler/sendMessageToUserHandler');
 const {
-  handleSetBestTeamWeights,
-} = require('./commandsHandler/setBestTeamWeightsHandler');
+  handleSetBestTeamRanking,
+} = require('./commandsHandler/setBestTeamRankingHandler');
 
 jest.mock('./commandsHandler/numberInputHandler');
 jest.mock('./commandsHandler/jsonInputHandler');
@@ -98,7 +98,7 @@ jest.mock('./commandsHandler/reportBugHandler');
 jest.mock('./commandsHandler/askHandler');
 jest.mock('./commandsHandler/listUsersHandler');
 jest.mock('./commandsHandler/sendMessageToUserHandler');
-jest.mock('./commandsHandler/setBestTeamWeightsHandler');
+jest.mock('./commandsHandler/setBestTeamRankingHandler');
 
 const { handleTextMessage } = require('./textMessageHandler');
 const { handleAskCommand } = require('./commandsHandler/askHandler');
@@ -169,15 +169,15 @@ describe('handleTextMessage', () => {
     });
 
 
-    it('should route /set_best_team_weights command to handleSetBestTeamWeights', async () => {
+    it('should route /set_best_team_ranking command to handleSetBestTeamRanking', async () => {
       const msgMock = {
         chat: { id: KILZI_CHAT_ID },
-        text: COMMAND_SET_BEST_TEAM_WEIGHTS,
+        text: COMMAND_SET_BEST_TEAM_RANKING,
       };
 
       await handleTextMessage(botMock, msgMock);
 
-      expect(handleSetBestTeamWeights).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleSetBestTeamRanking).toHaveBeenCalledWith(botMock, msgMock);
       expect(handleJsonMessage).not.toHaveBeenCalled();
     });
 

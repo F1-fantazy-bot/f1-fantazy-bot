@@ -13,7 +13,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
   - Generic command execution is centralized in `src/commandsHandler/commandHandlers.js`, which maps command constants to handler implementations.
 - **Pending Reply Manager:** `src/pendingReplyManager.js` provides a centralized mechanism for commands that need a follow-up reply from the user (text or photo). State is stored in **Azure Table Storage** for multi-server support. The check happens in `messageHandler.js` **before** the text/photo branching, so reply handlers receive the full message regardless of type. Supports optional `data` parameter for multi-step commands that need to store intermediate state between steps.
 - **Pending Reply Registry:** `src/pendingReplyRegistry.js` maps command identifiers (e.g., `'report_bug'`, `'send_message_to_user'`, `'set_nickname'`) to builder functions that reconstruct handlers, validators, and prompts. This enables serializable storage — only the command ID and optional data are persisted, and the full behavior is rebuilt on any server instance. Builder functions receive `(chatId, data)` where `data` is optional stored state for multi-step commands.
-- **Caching:** `src/cache.js` holds in-memory data for drivers, constructors, current team info, simulations, next race info, weather forecasts, and a unified `userCache`. Team-related caches (`currentTeamCache`, `bestTeamsCache`, `selectedChipCache`) are **nested by team ID** — see the [Multi-Team System](#multi-team-system) section below. `src/cacheInitializer.js` populates those caches on startup — most data comes from Azure Blob Storage (with team-aware blob naming), while `userCache` is populated from the `UserRegistry` Azure Table via a single `listAllUsers()` call. Each entry in `userCache` is keyed by `chatId` and holds `{ lang, nickname, chatName, selectedTeam, ... }`.
+- **Caching:** `src/cache.js` holds in-memory data for drivers, constructors, current team info, simulations, next race info, weather forecasts, a cached remaining-race count, and a unified `userCache`. Team-related caches (`currentTeamCache`, `bestTeamsCache`, `selectedChipCache`) are **nested by team ID** — see the [Multi-Team System](#multi-team-system) section below. `src/cacheInitializer.js` populates those caches on startup — most data comes from Azure Blob Storage (with team-aware blob naming), while `userCache` is populated from the `UserRegistry` Azure Table via a single `listAllUsers()` call. Each entry in `userCache` is keyed by `chatId` and holds `{ lang, nickname, chatName, selectedTeam, ... }`.
 - **Display Names:** `src/utils/utils.js` provides `getDisplayName(chatId)` which checks the in-memory `userCache` and returns the nickname if set, then falls back to `chatName`, then to the stringified `chatId`. This is used in `messageHandler.js` for all log messages so admins see nicknames in logs instead of Telegram display names.
 - **User Registry:** `src/userRegistryService.js` tracks all users who interact with the bot in an Azure Table Storage table (`UserRegistry`). On every allowed message, `messageHandler.js` calls `upsertUser(chatId, chatName)` in a fire-and-forget manner (no `await`) so that registry failures never block message handling. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) displays all registered users with their details, including nicknames when set.
 - **Utilities & Services:**
@@ -33,6 +33,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
    - `nextRaceWeatherHandler.js` – weather forecasts.
    - `nextRacesHandler.js` – upcoming race schedule (new `/next_races`).
    - `selectTeamHandler.js` – switch between multiple teams.
+   - `setBestTeamRankingHandler.js` – choose how expected budget changes influence best-team ranking.
    - `setNicknameHandler.js` – admin command to set user nicknames.
 3. **Exports:** `src/commandsHandler/index.js` re-exports all handler functions for convenient imports elsewhere.
 4. **Command Router:** `src/commandsHandler/commandHandlers.js` maps constants to handler functions and implements `executeCommand` used by the ASK agent and menu callbacks.
@@ -53,6 +54,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 ## Key Commands (User-Facing)
 
 - `/best_teams`, `/current_team_info`, `/chips`, `/extra_drs`, `/limitless`, `/wildcard`, `/reset_chip`
+- `/set_best_team_ranking`
 - `/select_team`, `/print_cache`, `/reset_cache`
 - `/next_race_info`, `/next_races`, `/next_race_weather`
 - `/get_current_simulation`
@@ -326,6 +328,16 @@ selectedChipCache[chatId][teamId]; // e.g., { T1: 'EXTRA_DRS', T2: 'WILDCARD' }
 driversCache[chatId]; // driver data shared across teams
 constructorsCache[chatId]; // constructor data shared across teams
 ```
+
+Best-team ranking preferences are stored per team in `userCache[chatId].bestTeamBudgetChangePointsPerMillion`. Legacy persisted `bestTeamPointsWeights` values and legacy imported snapshot fields named `bestTeamPointsWeight` are still accepted and mapped to the new ranking presets during load/import.
+
+### Best-Team Ranking
+
+`/set_best_team_ranking` lets the user choose how much expected budget change should influence `/best_teams` ordering. The calculator ranks teams using projected points plus a hidden budget-change bonus:
+
+`projected_points + (expected_price_change * ranking_value * races_after_next_race)`
+
+The adjusted score drives sorting. When a non-default ranking mode is active, `/best_teams` also shows it as `Budget-Adjusted Points`; in the default `Pure Points` mode that extra line is omitted. The remaining-race count is fetched once at startup and cached in memory. If that cached value is unavailable, `/best_teams` still works for the default `Pure Points` mode and fails for non-zero ranking modes to avoid misleading output.
 
 ### Cache Helper Functions
 

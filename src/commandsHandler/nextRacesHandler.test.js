@@ -11,7 +11,10 @@ jest.mock('../utils', () => {
   };
 });
 
-const { handleNextRacesCommand } = require('./nextRacesHandler');
+const {
+  handleNextRacesCommand,
+  fetchRemainingRaceCount,
+} = require('./nextRacesHandler');
 
 describe('handleNextRacesCommand', () => {
   const originalFetch = global.fetch;
@@ -176,5 +179,39 @@ describe('handleNextRacesCommand', () => {
       KILZI_CHAT_ID,
       'Unable to fetch upcoming races. Please try again later.'
     );
+  });
+
+  it('should return the full upcoming race count for the shared helper', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2025-05-01T12:00:00Z'));
+
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          MRData: {
+            RaceTable: {
+              Races: [
+                {
+                  raceName: 'Monaco Grand Prix',
+                  date: '2025-05-25',
+                  time: '13:00:00Z',
+                },
+                {
+                  raceName: 'Canadian Grand Prix',
+                  date: '2025-06-15',
+                  time: '18:00:00Z',
+                },
+                {
+                  raceName: 'British Grand Prix',
+                  date: '2025-07-06',
+                  time: '14:00:00Z',
+                },
+              ],
+            },
+          },
+        }),
+    });
+
+    await expect(fetchRemainingRaceCount()).resolves.toBe(3);
   });
 });

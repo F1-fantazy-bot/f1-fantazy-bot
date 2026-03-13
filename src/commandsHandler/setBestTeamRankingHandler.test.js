@@ -9,9 +9,12 @@ jest.mock('../cache', () => ({
 }));
 
 const { resolveSelectedTeam } = require('../cache');
-const { handleSetBestTeamWeights, BEST_TEAM_WEIGHT_PRESETS } = require('./setBestTeamWeightsHandler');
+const {
+  handleSetBestTeamRanking,
+  BEST_TEAM_RANKING_PRESETS,
+} = require('./setBestTeamRankingHandler');
 
-describe('handleSetBestTeamWeights', () => {
+describe('handleSetBestTeamRanking', () => {
   const botMock = { sendMessage: jest.fn().mockResolvedValue() };
 
   beforeEach(() => {
@@ -19,15 +22,15 @@ describe('handleSetBestTeamWeights', () => {
   });
 
   it('should send inline keyboard with 4 preset options', async () => {
-    const msg = { chat: { id: KILZI_CHAT_ID }, text: '/set_best_team_weights' };
+    const msg = { chat: { id: KILZI_CHAT_ID }, text: '/set_best_team_ranking' };
 
-    await handleSetBestTeamWeights(botMock, msg);
+    await handleSetBestTeamRanking(botMock, msg);
 
     expect(resolveSelectedTeam).toHaveBeenCalledWith(botMock, KILZI_CHAT_ID);
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'Choose best-team ranking preference:',
+      'Choose best-team ranking preference:\nValue = points added for each 1M budget change per race left.',
       {
         reply_markup: {
           inline_keyboard: expect.any(Array),
@@ -38,10 +41,14 @@ describe('handleSetBestTeamWeights', () => {
     const sentKeyboard = botMock.sendMessage.mock.calls[0][2].reply_markup.inline_keyboard;
     expect(sentKeyboard).toHaveLength(4);
 
-    BEST_TEAM_WEIGHT_PRESETS.forEach((preset, index) => {
+    BEST_TEAM_RANKING_PRESETS.forEach((preset, index) => {
       expect(sentKeyboard[index][0].callback_data).toBe(
         `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T1:${preset.id}`,
       );
     });
+
+    expect(sentKeyboard[0][0].text).toBe(
+      '🎯 Pure Points (0)',
+    );
   });
 });

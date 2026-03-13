@@ -9,7 +9,7 @@ const {
   getPrintableCache,
   bestTeamsCache,
   userCache,
-  normalizeBestTeamPointsWeights,
+  normalizeBestTeamBudgetChangePointsPerMillion,
 } = require('./cache');
 const { selectChip } = require('./commandsHandler/selectChipHandlers');
 const {
@@ -33,7 +33,9 @@ const {
 } = require('./utils');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
 const { t, setLanguage, getLanguageName } = require('./i18n');
-const { BEST_TEAM_WEIGHT_PRESETS } = require('./commandsHandler/setBestTeamWeightsHandler');
+const {
+  BEST_TEAM_RANKING_PRESETS,
+} = require('./commandsHandler/setBestTeamRankingHandler');
 
 exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
@@ -52,7 +54,7 @@ exports.handleCallbackQuery = async function (bot, query) {
     case TEAM_ASSIGN_CALLBACK_TYPE:
       return await handleTeamAssignCallback(bot, query);
     case BEST_TEAM_WEIGHTS_CALLBACK_TYPE:
-      return await handleBestTeamWeightsCallback(bot, query);
+      return await handleBestTeamRankingCallback(bot, query);
     default:
       await sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
   }
@@ -156,13 +158,13 @@ async function handleLanguageCallback(bot, query) {
 }
 
 
-async function handleBestTeamWeightsCallback(bot, query) {
+async function handleBestTeamRankingCallback(bot, query) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
   const teamId = query.data.split(':')[1];
   const presetId = query.data.split(':')[2];
 
-  const preset = BEST_TEAM_WEIGHT_PRESETS.find((option) => option.id === presetId);
+  const preset = BEST_TEAM_RANKING_PRESETS.find((option) => option.id === presetId);
 
   if (!preset) {
     await bot.answerCallbackQuery(query.id);
@@ -174,15 +176,22 @@ async function handleBestTeamWeightsCallback(bot, query) {
   if (!userCache[key]) {
     userCache[key] = {};
   }
-  const bestTeamPointsWeights = normalizeBestTeamPointsWeights(
-    userCache[key].bestTeamPointsWeights,
-  );
+  const bestTeamBudgetChangePointsPerMillion =
+    normalizeBestTeamBudgetChangePointsPerMillion(
+      userCache[key].bestTeamBudgetChangePointsPerMillion,
+      userCache[key].bestTeamPointsWeights,
+    );
 
-  bestTeamPointsWeights[teamId] = preset.pointsWeight;
-  userCache[key].bestTeamPointsWeights = bestTeamPointsWeights;
+  bestTeamBudgetChangePointsPerMillion[teamId] =
+    preset.budgetChangePointsPerMillion;
+  userCache[key].bestTeamBudgetChangePointsPerMillion =
+    bestTeamBudgetChangePointsPerMillion;
+  delete userCache[key].bestTeamPointsWeights;
 
   await updateUserAttributes(chatId, {
-    bestTeamPointsWeights: JSON.stringify(bestTeamPointsWeights),
+    bestTeamBudgetChangePointsPerMillion: JSON.stringify(
+      bestTeamBudgetChangePointsPerMillion,
+    ),
   });
 
   // Invalidate cached best teams for this team because ranking logic changed
@@ -191,10 +200,14 @@ async function handleBestTeamWeightsCallback(bot, query) {
   }
 
   const confirmationMessage =
-    `${t('Best team weights set: points {POINTS}% | price change {PRICE}%.', chatId, {
-      POINTS: Number((preset.pointsWeight * 100).toFixed(0)),
-      PRICE: Number(((1 - preset.pointsWeight) * 100).toFixed(0)),
-    })}
+    `${t(
+      'Best-team ranking set: {LABEL} ({VALUE} pts per 1M per remaining race).',
+      chatId,
+      {
+        LABEL: t(preset.labelKey, chatId),
+        VALUE: preset.budgetChangePointsPerMillion,
+      },
+    )}
 ` +
     t(
       'Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.',

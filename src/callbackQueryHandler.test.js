@@ -67,21 +67,38 @@ jest.mock('./cache', () => ({
   getSelectedTeam: jest.fn().mockReturnValue(null),
   getUserTeamIds: jest.fn().mockReturnValue([]),
   resolveSelectedTeam: jest.fn().mockResolvedValue('T1'),
-  normalizeBestTeamPointsWeights: jest.fn((rawValue) => {
-    if (!rawValue) {
-      return {};
-    }
+  normalizeBestTeamBudgetChangePointsPerMillion: jest.fn(
+    (rawValue, legacyRawValue) => {
+      if (rawValue) {
+        if (typeof rawValue === 'string') {
+          try {
+            return JSON.parse(rawValue);
+          } catch {
+            return {};
+          }
+        }
 
-    if (typeof rawValue === 'string') {
-      try {
-        return JSON.parse(rawValue);
-      } catch {
-        return {};
+        return typeof rawValue === 'object' ? rawValue : {};
       }
-    }
 
-    return typeof rawValue === 'object' ? rawValue : {};
-  }),
+      if (legacyRawValue) {
+        const legacyValue =
+          typeof legacyRawValue === 'string'
+            ? JSON.parse(legacyRawValue)
+            : legacyRawValue;
+
+        return Object.fromEntries(
+          Object.entries(legacyValue).map(([teamId, value]) => {
+            const mapped = { 1: 0, 0.9: 1.3, 0.8: 1.65, 0.7: 2 }[value];
+
+            return [teamId, mapped];
+          }),
+        );
+      }
+
+      return {};
+    },
+  ),
 }));
 
 describe('handleCallbackQuery', () => {
@@ -443,7 +460,7 @@ describe('handleCallbackQuery', () => {
   });
 
 
-  describe('best team weights callback handling', () => {
+  describe('best team ranking callback handling', () => {
     beforeEach(() => {
       jest.clearAllMocks();
       Object.keys(cache.userCache).forEach((key) => delete cache.userCache[key]);
@@ -457,27 +474,27 @@ describe('handleCallbackQuery', () => {
           chat: { id: chatId },
           message_id: messageId,
         },
-        data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T2:points_70`,
+        data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T2:balanced_budget_value`,
         id: 'weightsQueryId',
       };
 
       await handleCallbackQuery(bot, weightsQuery);
 
       expect(updateUserAttributes).toHaveBeenCalledWith(chatId, {
-        bestTeamPointsWeights: JSON.stringify({
-          T2: 0.7,
+        bestTeamBudgetChangePointsPerMillion: JSON.stringify({
+          T2: 2,
         }),
       });
       expect(cache.userCache[String(chatId)]).toEqual(
         expect.objectContaining({
-          bestTeamPointsWeights: {
-            T2: 0.7,
+          bestTeamBudgetChangePointsPerMillion: {
+            T2: 2,
           },
         }),
       );
       expect(bot.editMessageText).toHaveBeenCalledWith(
         expect.stringContaining(
-          'Best team weights set: points 70% | price change 30%.',
+          'Best-team ranking set: Balanced Budget Value (2 pts per 1M per remaining race).',
         ),
         expect.objectContaining({ chat_id: chatId, message_id: messageId }),
       );
@@ -489,10 +506,10 @@ describe('handleCallbackQuery', () => {
       expect(bot.answerCallbackQuery).toHaveBeenCalledWith('weightsQueryId');
     });
 
-    it('should update bestTeamPointsWeights when userCache has JSON string', async () => {
+    it('should merge with legacy weights when userCache has JSON string', async () => {
       cache.userCache[String(chatId)] = {
         bestTeamPointsWeights: JSON.stringify({
-          T1: 0.25,
+          T1: 0.8,
         }),
       };
 
@@ -501,23 +518,23 @@ describe('handleCallbackQuery', () => {
           chat: { id: chatId },
           message_id: messageId,
         },
-        data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T2:points_70`,
+        data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T2:balanced_budget_value`,
         id: 'weightsQueryId',
       };
 
       await handleCallbackQuery(bot, weightsQuery);
 
       expect(updateUserAttributes).toHaveBeenCalledWith(chatId, {
-        bestTeamPointsWeights: JSON.stringify({
-          T1: 0.25,
-          T2: 0.7,
+        bestTeamBudgetChangePointsPerMillion: JSON.stringify({
+          T1: 1.65,
+          T2: 2,
         }),
       });
       expect(cache.userCache[String(chatId)]).toEqual(
         expect.objectContaining({
-          bestTeamPointsWeights: {
-            T1: 0.25,
-            T2: 0.7,
+          bestTeamBudgetChangePointsPerMillion: {
+            T1: 1.65,
+            T2: 2,
           },
         }),
       );

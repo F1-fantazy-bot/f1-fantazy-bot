@@ -6,6 +6,8 @@ const {
   selectedChipCache,
   sharedKey,
   resolveSelectedTeam,
+  getBestTeamBudgetChangePointsPerMillion,
+  remainingRaceCountCache,
 } = require('../cache');
 const { COMMAND_BEST_TEAMS } = require('../constants');
 const { t } = require('../i18n');
@@ -54,6 +56,8 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
         cachedJsonData,
         selectedTeam,
         selectedChipCache[chatId]?.[teamId],
+        getBestTeamBudgetChangePointsPerMillion(chatId, teamId),
+        remainingRaceCountCache[sharedKey],
       );
 
       let changesToTeamMessage = getRequiredChangesMessage(
@@ -67,6 +71,7 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
         selectedTeam,
         changesToTeam,
         chatId,
+        getBestTeamBudgetChangePointsPerMillion(chatId, teamId),
       );
 
       changesToTeamMessage += getDriverAndConstructorsDetailsMessage(
@@ -160,11 +165,17 @@ function getSelectedTeamInfo(
   selectedTeam,
   changesToTeam,
   chatId,
+  budgetChangePointsPerMillion,
 ) {
   let message = `\n*${t('Team {NUM} Info:', chatId, { NUM: teamRowRequested })}*\n`;
   message += `*${t('Projected Points', chatId)}:* ${selectedTeam.projected_points.toFixed(
     2,
   )}\n`;
+  if (budgetChangePointsPerMillion > 0) {
+    message += `*${t('Budget-Adjusted Points', chatId)}:* ${selectedTeam.budget_adjusted_points.toFixed(
+      2,
+    )}\n`;
+  }
   message += `*${t('Expected Price Change', chatId)}:* ${selectedTeam.expected_price_change.toFixed(
     2,
   )}M\n`;
@@ -173,6 +184,14 @@ function getSelectedTeamInfo(
     message += `*${t('Δ Points', chatId)}:* ${
       changesToTeam.deltaPoints > 0 ? '+' : ''
     }${changesToTeam.deltaPoints.toFixed(2)}\n`;
+  }
+  if (
+    budgetChangePointsPerMillion > 0 &&
+    changesToTeam.deltaBudgetAdjustedPoints !== undefined
+  ) {
+    message += `*${t('Δ Budget-Adjusted Points', chatId)}:* ${
+      changesToTeam.deltaBudgetAdjustedPoints > 0 ? '+' : ''
+    }${changesToTeam.deltaBudgetAdjustedPoints.toFixed(2)}\n`;
   }
   if (changesToTeam.deltaPrice !== undefined) {
     message += `*${t('Δ Price', chatId)}:* ${

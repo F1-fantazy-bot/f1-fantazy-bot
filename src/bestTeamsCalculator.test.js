@@ -63,6 +63,7 @@ describe('calculateBestTeams', () => {
     expect(team).toHaveProperty('transfers_needed');
     expect(team).toHaveProperty('penalty');
     expect(team).toHaveProperty('projected_points');
+    expect(team).toHaveProperty('budget_adjusted_points');
     expect(team).toHaveProperty('expected_price_change');
   });
 
@@ -256,14 +257,60 @@ describe('calculateBestTeams', () => {
     });
   });
 
-
-  it('should prioritize expected price change when using 100% price-change weight', () => {
-    const result = calculateBestTeams(mockJsonData, undefined, 0);
+  it('should add budget-change bonus using races after the next race', () => {
+    const result = calculateBestTeams(mockJsonData, undefined, 2, 23);
 
     for (let i = 1; i < result.length; i++) {
-      expect(result[i - 1].expected_price_change).toBeGreaterThanOrEqual(
-        result[i].expected_price_change
-      );
+      const previousRankingScore =
+        result[i - 1].projected_points +
+        result[i - 1].expected_price_change * 22 * 2;
+      const currentRankingScore =
+        result[i].projected_points +
+        result[i].expected_price_change * 22 * 2;
+
+      expect(previousRankingScore).toBeGreaterThanOrEqual(currentRankingScore);
+    }
+  });
+
+  it('should break ranking ties using projected points', () => {
+    const tieBreakJsonData = {
+      Drivers: {
+        A: { price: 20, expectedPoints: 20, expectedPriceChange: 0.5 },
+        B: { price: 19, expectedPoints: 19, expectedPriceChange: 0.5 },
+        C: { price: 18, expectedPoints: 18, expectedPriceChange: 0.5 },
+        D: { price: 17, expectedPoints: 17, expectedPriceChange: 0.5 },
+        E: { price: 16, expectedPoints: 16, expectedPriceChange: 0.5 },
+        F: { price: 15, expectedPoints: 15, expectedPriceChange: 0.5 },
+      },
+      Constructors: {
+        X: { price: 10, expectedPoints: 10, expectedPriceChange: 0.5 },
+        Y: { price: 9, expectedPoints: 9, expectedPriceChange: 0.5 },
+        Z: { price: 8, expectedPoints: 8, expectedPriceChange: 0.5 },
+      },
+      CurrentTeam: {
+        drivers: ['A', 'B', 'C', 'D', 'E'],
+        constructors: ['X', 'Y'],
+        drsBoost: 'A',
+        freeTransfers: 7,
+        costCapRemaining: 50,
+      },
+    };
+
+    const result = calculateBestTeams(tieBreakJsonData, undefined, 2, 10);
+
+    for (let i = 1; i < result.length; i++) {
+      const previousRankingScore =
+        result[i - 1].projected_points +
+        result[i - 1].expected_price_change * 10 * 2;
+      const currentRankingScore =
+        result[i].projected_points +
+        result[i].expected_price_change * 10 * 2;
+
+      if (previousRankingScore === currentRankingScore) {
+        expect(result[i - 1].projected_points).toBeGreaterThanOrEqual(
+          result[i].projected_points,
+        );
+      }
     }
   });
 
@@ -498,15 +545,28 @@ describe('calculateBestTeams', () => {
           (sum, cn) => sum + mockConstructors[cn].expectedPriceChange,
           0
         );
-      const result = calculateChangesToTeam(mockJsonData, targetTeam);
+      const result = calculateChangesToTeam(mockJsonData, targetTeam, undefined, 2, 23);
 
       const expectedDeltaPoints =
         targetTeam.projected_points - actualCurrentTeamExpectedPoints;
       const expectedDeltaPrice =
         targetTeam.expected_price_change - actualCurrentTeamPriceChange;
+      const expectedCurrentBudgetAdjustedPoints =
+        actualCurrentTeamExpectedPoints + actualCurrentTeamPriceChange * 22 * 2;
+      const expectedTargetBudgetAdjustedPoints =
+        targetTeam.projected_points + targetTeam.expected_price_change * 22 * 2;
 
       expect(result.deltaPoints).toBeCloseTo(expectedDeltaPoints);
       expect(result.deltaPrice).toBeCloseTo(expectedDeltaPrice);
+      expect(result.currentBudgetAdjustedPoints).toBeCloseTo(
+        expectedCurrentBudgetAdjustedPoints,
+      );
+      expect(result.targetBudgetAdjustedPoints).toBeCloseTo(
+        expectedTargetBudgetAdjustedPoints,
+      );
+      expect(result.deltaBudgetAdjustedPoints).toBeCloseTo(
+        expectedTargetBudgetAdjustedPoints - expectedCurrentBudgetAdjustedPoints,
+      );
     });
   });
 });

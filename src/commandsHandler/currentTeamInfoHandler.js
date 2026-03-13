@@ -1,10 +1,12 @@
-const { calculateTeamInfo } = require('../utils');
+const { calculateTeamInfo, calculateBudgetAdjustedPoints } = require('../utils');
 const {
   driversCache,
   constructorsCache,
   currentTeamCache,
   sharedKey,
   resolveSelectedTeam,
+  getBestTeamBudgetChangePointsPerMillion,
+  remainingRaceCountCache,
 } = require('../cache');
 const { t } = require('../i18n');
 
@@ -36,6 +38,14 @@ async function calcCurrentTeamInfo(bot, chatId) {
   }
 
   const teamInfo = calculateTeamInfo(currentTeam, drivers, constructors);
+  const budgetChangePointsPerMillion =
+    getBestTeamBudgetChangePointsPerMillion(chatId, teamId);
+  const budgetAdjustedPoints = calculateBudgetAdjustedPoints(
+    teamInfo.teamExpectedPoints,
+    teamInfo.teamPriceChange,
+    budgetChangePointsPerMillion,
+    remainingRaceCountCache[sharedKey],
+  );
 
   const message =
     `*${t('Current Team Info', chatId)}:*\n` +
@@ -43,6 +53,9 @@ async function calcCurrentTeamInfo(bot, chatId) {
     `*${t('Cost Cap Remaining', chatId)}:* ${teamInfo.costCapRemaining.toFixed(2)}\n` +
     `*${t('Total Budget', chatId)}:* ${teamInfo.overallBudget.toFixed(2)}\n` +
     `*${t('Expected Points', chatId)}:* ${teamInfo.teamExpectedPoints.toFixed(2)}\n` +
+    (budgetChangePointsPerMillion > 0
+      ? `*${t('Budget-Adjusted Points', chatId)}:* ${budgetAdjustedPoints.toFixed(2)}\n`
+      : '') +
     `*${t('Expected Price Change', chatId)}:* ${teamInfo.teamPriceChange.toFixed(2)}`;
 
   await bot

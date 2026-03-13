@@ -67,7 +67,7 @@ describe('handleJsonMessage', () => {
           freeTransfers: 2,
           costCapRemaining: 3.5,
           chip: EXTRA_DRS_CHIP,
-          bestTeamPointsWeight: 0.25,
+          bestTeamPointsWeight: 0.8,
         },
         T2: {
           drivers: ['HAM', 'VER'],
@@ -75,7 +75,7 @@ describe('handleJsonMessage', () => {
           drsBoost: 'HAM',
           freeTransfers: 1,
           costCapRemaining: 1.1,
-          bestTeamPointsWeight: 0.75,
+          bestTeamBudgetChangePointsPerMillion: 2,
         },
       },
     };
@@ -112,9 +112,9 @@ describe('handleJsonMessage', () => {
     expect(bestTeamsCache[KILZI_CHAT_ID]).toBeUndefined();
     expect(userCache[String(KILZI_CHAT_ID)]).toEqual({
       selectedTeam: 'T2',
-      bestTeamPointsWeights: {
-        T1: 0.25,
-        T2: 0.75,
+      bestTeamBudgetChangePointsPerMillion: {
+        T1: 1.65,
+        T2: 2,
       },
     });
 
@@ -144,9 +144,9 @@ describe('handleJsonMessage', () => {
 
     expect(updateUserAttributes).toHaveBeenCalledWith(KILZI_CHAT_ID, {
       selectedTeam: 'T2',
-      bestTeamPointsWeights: JSON.stringify({
-        T1: 0.25,
-        T2: 0.75,
+      bestTeamBudgetChangePointsPerMillion: JSON.stringify({
+        T1: 1.65,
+        T2: 2,
       }),
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
@@ -188,7 +188,7 @@ describe('handleJsonMessage', () => {
     userCache[String(KILZI_CHAT_ID)] = {
       lang: 'en',
       selectedTeam: 'T9',
-      bestTeamPointsWeights: { T1: 0.1, T9: 0.9 },
+      bestTeamBudgetChangePointsPerMillion: { T1: 1.3, T9: 2 },
     };
 
     const jsonData = {
@@ -202,7 +202,7 @@ describe('handleJsonMessage', () => {
           drsBoost: 'NOR',
           freeTransfers: 2,
           costCapRemaining: 4,
-          bestTeamPointsWeight: 0.6,
+          bestTeamBudgetChangePointsPerMillion: 2,
         },
       },
     };
@@ -229,7 +229,7 @@ describe('handleJsonMessage', () => {
     expect(userCache[String(KILZI_CHAT_ID)]).toEqual({
       lang: 'en',
       selectedTeam: 'T1',
-      bestTeamPointsWeights: { T1: 0.6 },
+      bestTeamBudgetChangePointsPerMillion: { T1: 2 },
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -265,7 +265,7 @@ describe('handleJsonMessage', () => {
     userCache[String(KILZI_CHAT_ID)] = {
       lang: 'en',
       selectedTeam: 'T1',
-      bestTeamPointsWeights: { T1: 0.4 },
+      bestTeamBudgetChangePointsPerMillion: { T1: 1.65 },
     };
 
     await handleJsonMessage(botMock, KILZI_CHAT_ID, {
@@ -288,7 +288,7 @@ describe('handleJsonMessage', () => {
     expect(userCache[String(KILZI_CHAT_ID)]).toEqual({
       lang: 'en',
       selectedTeam: null,
-      bestTeamPointsWeights: {},
+      bestTeamBudgetChangePointsPerMillion: {},
     });
     expect(azureStorageService.deleteAllUserTeams).toHaveBeenCalledWith(
       botMock,
@@ -297,7 +297,7 @@ describe('handleJsonMessage', () => {
     expect(azureStorageService.saveUserTeam).not.toHaveBeenCalled();
     expect(updateUserAttributes).toHaveBeenCalledWith(KILZI_CHAT_ID, {
       selectedTeam: null,
-      bestTeamPointsWeights: JSON.stringify({}),
+      bestTeamBudgetChangePointsPerMillion: JSON.stringify({}),
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -340,7 +340,7 @@ describe('handleJsonMessage', () => {
             drsBoost: 'VER',
             freeTransfers: 2,
             costCapRemaining: 1,
-            bestTeamPointsWeight: 0.4,
+            bestTeamBudgetChangePointsPerMillion: 1.65,
           },
         },
       },
@@ -386,7 +386,7 @@ describe('handleJsonMessage', () => {
     };
     userCache[String(KILZI_CHAT_ID)] = {
       selectedTeam: 'T1',
-      bestTeamPointsWeights: { T1: 0.25 },
+      bestTeamBudgetChangePointsPerMillion: { T1: 1.65 },
     };
 
     const beforeState = {

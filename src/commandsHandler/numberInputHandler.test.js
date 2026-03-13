@@ -12,6 +12,8 @@ const {
   selectedChipCache,
   currentTeamCache,
   sharedKey,
+  remainingRaceCountCache,
+  userCache,
 } = require('../cache');
 
 const { handleNumberMessage } = require('./numberInputHandler');
@@ -29,6 +31,8 @@ describe('handleNumberMessage', () => {
     delete constructorsCache[KILZI_CHAT_ID];
     delete selectedChipCache[KILZI_CHAT_ID];
     delete currentTeamCache[KILZI_CHAT_ID];
+    delete remainingRaceCountCache[sharedKey];
+    delete userCache[String(KILZI_CHAT_ID)];
     // Set up single team so resolveSelectedTeam auto-resolves to T1
     currentTeamCache[KILZI_CHAT_ID] = { [TEAM_ID]: { drivers: ['VER'] } };
   });
@@ -109,6 +113,7 @@ describe('handleNumberMessage', () => {
       transfers_needed: 2,
       extra_drs_driver: null,
       projected_points: 0,
+      budget_adjusted_points: 30.2,
       expected_price_change: 0,
     };
 
@@ -148,6 +153,10 @@ describe('handleNumberMessage', () => {
       },
     };
     selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: 'LIMITLESS_CHIP' };
+    remainingRaceCountCache[sharedKey] = 22;
+    userCache[String(KILZI_CHAT_ID)] = {
+      bestTeamBudgetChangePointsPerMillion: { [TEAM_ID]: 2 },
+    };
 
     const mockChanges = {
       driversToAdd: ['HAM'],
@@ -158,6 +167,7 @@ describe('handleNumberMessage', () => {
       newDRS: 'HAM',
       chipToActivate: 'LIMITLESS_CHIP',
       deltaPoints: 10.5,
+      deltaBudgetAdjustedPoints: 30.2,
       deltaPrice: -2.3,
     };
 
@@ -177,6 +187,8 @@ describe('handleNumberMessage', () => {
       },
       mockSelectedTeam,
       'LIMITLESS_CHIP',
+      2,
+      22,
     );
 
     const expectedMessage =
@@ -189,8 +201,10 @@ describe('handleNumberMessage', () => {
       `*Chip To Activate:* LIMITLESS CHIP\n` +
       `\n*Team ${teamRowRequested} Info:*\n` +
       `*Projected Points:* 0.00\n` +
+      `*Budget-Adjusted Points:* 30.20\n` +
       `*Expected Price Change:* 0.00M\n` +
       `*Δ Points:* +10.50\n` +
+      `*Δ Budget-Adjusted Points:* +30.20\n` +
       `*Δ Price:* -2.30M\n` +
       `\n*Drivers:*\n` +
       `HAM (DRS): 60.00 (0.10M) 🆕\n` +
@@ -212,6 +226,7 @@ describe('handleNumberMessage', () => {
       transfers_needed: 0,
       extra_drs_driver: 'HAM', // has extra DRS
       projected_points: 0,
+      budget_adjusted_points: 12.4,
       expected_price_change: 0,
     };
 
@@ -244,6 +259,10 @@ describe('handleNumberMessage', () => {
         expectedPriceChange: 0.3,
       },
     };
+    remainingRaceCountCache[sharedKey] = 22;
+    userCache[String(KILZI_CHAT_ID)] = {
+      bestTeamBudgetChangePointsPerMillion: { [TEAM_ID]: 2 },
+    };
 
     const mockChanges = {
       driversToAdd: [],
@@ -253,6 +272,7 @@ describe('handleNumberMessage', () => {
       extraDrsDriver: 'HAM',
       newDRS: 'VER',
       deltaPoints: 5.0,
+      deltaBudgetAdjustedPoints: 12.4,
       deltaPrice: 0,
     };
 
@@ -270,8 +290,10 @@ describe('handleNumberMessage', () => {
       `*DRS Driver:* VER\n` +
       `\n*Team ${teamRowRequested} Info:*\n` +
       `*Projected Points:* 0.00\n` +
+      `*Budget-Adjusted Points:* 12.40\n` +
       `*Expected Price Change:* 0.00M\n` +
       `*Δ Points:* +5.00\n` +
+      `*Δ Budget-Adjusted Points:* +12.40\n` +
       `*Δ Price:* 0.00M\n` +
       `\n*Drivers:*\n` +
       `VER (DRS): 50.00 (0.20M) 🆕\n` +
@@ -344,6 +366,8 @@ describe('handleNumberMessage', () => {
         CurrentTeam: mockCurrentTeam,
       },
       mockSelectedTeam,
+      undefined,
+      0,
       undefined,
     );
   });

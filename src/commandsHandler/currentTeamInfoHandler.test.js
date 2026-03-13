@@ -1,9 +1,11 @@
 const { KILZI_CHAT_ID } = require('../constants');
 
 const mockCalculateTeamInfo = jest.fn();
+const mockCalculateBudgetAdjustedPoints = jest.fn();
 
 jest.mock('../utils', () => ({
   calculateTeamInfo: mockCalculateTeamInfo,
+  calculateBudgetAdjustedPoints: mockCalculateBudgetAdjustedPoints,
 }));
 
 const {
@@ -11,6 +13,8 @@ const {
   constructorsCache,
   currentTeamCache,
   sharedKey,
+  remainingRaceCountCache,
+  userCache,
 } = require('../cache');
 
 const { calcCurrentTeamInfo } = require('./currentTeamInfoHandler');
@@ -23,9 +27,16 @@ describe('calcCurrentTeamInfo', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCalculateBudgetAdjustedPoints.mockReset();
+    mockCalculateBudgetAdjustedPoints.mockImplementation(
+      (expectedPoints, expectedPriceChange, budgetValue, remainingRaceCount) =>
+        expectedPoints + expectedPriceChange * Math.max(0, remainingRaceCount - 1) * budgetValue,
+    );
     delete driversCache[KILZI_CHAT_ID];
     delete constructorsCache[KILZI_CHAT_ID];
     delete currentTeamCache[KILZI_CHAT_ID];
+    delete remainingRaceCountCache[sharedKey];
+    delete userCache[String(KILZI_CHAT_ID)];
   });
 
   it('should send missing cache message if drivers cache is missing', async () => {
@@ -99,6 +110,10 @@ describe('calcCurrentTeamInfo', () => {
     driversCache[KILZI_CHAT_ID] = mockDrivers;
     constructorsCache[KILZI_CHAT_ID] = mockConstructors;
     currentTeamCache[KILZI_CHAT_ID] = { [TEAM_ID]: mockCurrentTeam };
+    remainingRaceCountCache[sharedKey] = 22;
+    userCache[String(KILZI_CHAT_ID)] = {
+      bestTeamBudgetChangePointsPerMillion: { [TEAM_ID]: 2 },
+    };
 
     const expectedTotalPrice = 30.5 + 25.0 + 20.0 + 15.0; // 90.5
     const expectedCostCap = 3.5;
@@ -122,6 +137,12 @@ describe('calcCurrentTeamInfo', () => {
       mockDrivers,
       mockConstructors
     );
+    expect(mockCalculateBudgetAdjustedPoints).toHaveBeenCalledWith(
+      expectedPoints,
+      expectedPriceChange,
+      2,
+      22,
+    );
 
     const expectedMessage =
       `*Current Team Info:*\n` +
@@ -131,6 +152,7 @@ describe('calcCurrentTeamInfo', () => {
       `*Cost Cap Remaining:* ${expectedCostCap.toFixed(2)}\n` +
       `*Total Budget:* ${expectedBudget.toFixed(2)}\n` +
       `*Expected Points:* ${expectedPoints.toFixed(2)}\n` +
+      `*Budget-Adjusted Points:* ${(expectedPoints + expectedPriceChange * 21 * 2).toFixed(2)}\n` +
       `*Expected Price Change:* ${expectedPriceChange.toFixed(2)}`;
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
@@ -171,6 +193,8 @@ describe('calcCurrentTeamInfo', () => {
       expect.stringContaining('*Current Team Info:*'),
       { parse_mode: 'Markdown' }
     );
+    const sentMessage = botMock.sendMessage.mock.calls[0][1];
+    expect(sentMessage).not.toContain('*Budget-Adjusted Points:*');
   });
 
   it('should format numbers correctly with two decimal places', async () => {

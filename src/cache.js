@@ -37,18 +37,28 @@ exports.nextRaceInfoCache = {};
 // In-memory cache for weather forecast
 exports.weatherForecastCache = {};
 
-const DEFAULT_BEST_TEAM_POINTS_WEIGHT = 1;
+// Shared in-memory cache for remaining upcoming Grand Prix count
+exports.remainingRaceCountCache = {};
+const DEFAULT_BEST_TEAM_BUDGET_CHANGE_POINTS_PER_MILLION = 0;
 
-exports.DEFAULT_BEST_TEAM_POINTS_WEIGHT = DEFAULT_BEST_TEAM_POINTS_WEIGHT;
+const LEGACY_POINTS_WEIGHT_TO_BUDGET_CHANGE_POINTS_PER_MILLION = {
+  1: 0,
+  0.9: 1.3,
+  0.8: 1.65,
+  0.7: 2,
+};
 
-exports.normalizeBestTeamPointsWeights = function (rawBestTeamPointsWeights) {
-  if (!rawBestTeamPointsWeights) {
+exports.DEFAULT_BEST_TEAM_BUDGET_CHANGE_POINTS_PER_MILLION =
+  DEFAULT_BEST_TEAM_BUDGET_CHANGE_POINTS_PER_MILLION;
+
+function parsePreferenceMap(rawPreferenceMap) {
+  if (!rawPreferenceMap) {
     return {};
   }
 
-  if (typeof rawBestTeamPointsWeights === 'string') {
+  if (typeof rawPreferenceMap === 'string') {
     try {
-      const parsed = JSON.parse(rawBestTeamPointsWeights);
+      const parsed = JSON.parse(rawPreferenceMap);
 
       return parsed && typeof parsed === 'object' ? parsed : {};
     } catch {
@@ -56,9 +66,54 @@ exports.normalizeBestTeamPointsWeights = function (rawBestTeamPointsWeights) {
     }
   }
 
-  return typeof rawBestTeamPointsWeights === 'object'
-    ? rawBestTeamPointsWeights
+  return typeof rawPreferenceMap === 'object'
+    ? rawPreferenceMap
     : {};
+}
+
+function mapLegacyBestTeamPointsWeights(rawLegacyBestTeamPointsWeights) {
+  const parsedLegacyWeights = parsePreferenceMap(rawLegacyBestTeamPointsWeights);
+
+  return Object.fromEntries(
+    Object.entries(parsedLegacyWeights).flatMap(([teamId, legacyWeight]) => {
+      const normalizedLegacyWeight = Number(legacyWeight);
+
+      if (!Number.isFinite(normalizedLegacyWeight)) {
+        return [];
+      }
+
+      const mappedValue =
+        LEGACY_POINTS_WEIGHT_TO_BUDGET_CHANGE_POINTS_PER_MILLION[
+          normalizedLegacyWeight
+        ];
+
+      return Number.isFinite(mappedValue) ? [[teamId, mappedValue]] : [];
+    }),
+  );
+}
+
+exports.normalizeBestTeamBudgetChangePointsPerMillion = function (
+  rawBudgetChangePointsPerMillion,
+  rawLegacyBestTeamPointsWeights,
+) {
+  const normalizedLegacyValues = mapLegacyBestTeamPointsWeights(
+    rawLegacyBestTeamPointsWeights,
+  );
+  const parsedCurrentValues = parsePreferenceMap(rawBudgetChangePointsPerMillion);
+  const normalizedCurrentValues = Object.fromEntries(
+    Object.entries(parsedCurrentValues).flatMap(([teamId, currentValue]) => {
+      const numericValue = Number(currentValue);
+
+      return Number.isFinite(numericValue)
+        ? [[teamId, Math.max(0, numericValue)]]
+        : [];
+    }),
+  );
+
+  return {
+    ...normalizedLegacyValues,
+    ...normalizedCurrentValues,
+  };
 };
 
 const currentTeamCache = exports.currentTeamCache;
@@ -74,21 +129,23 @@ exports.getUserTeamIds = function (chatId) {
   return Object.keys(currentTeamCache[chatId] || {});
 };
 
-exports.getBestTeamPointsWeight = function (chatId, teamId) {
+exports.getBestTeamBudgetChangePointsPerMillion = function (chatId, teamId) {
   const key = String(chatId);
-  const bestTeamPointsWeights = exports.normalizeBestTeamPointsWeights(
-    userCache[key]?.bestTeamPointsWeights,
+  const bestTeamBudgetChangePointsPerMillion =
+    exports.normalizeBestTeamBudgetChangePointsPerMillion(
+      userCache[key]?.bestTeamBudgetChangePointsPerMillion,
+      userCache[key]?.bestTeamPointsWeights,
+    );
+
+  const budgetChangePointsPerMillion = Number(
+    bestTeamBudgetChangePointsPerMillion?.[teamId],
   );
 
-  const pointsWeight = Number(bestTeamPointsWeights?.[teamId]);
-
-  if (Number.isNaN(pointsWeight)) {
-    return DEFAULT_BEST_TEAM_POINTS_WEIGHT;
+  if (Number.isNaN(budgetChangePointsPerMillion)) {
+    return DEFAULT_BEST_TEAM_BUDGET_CHANGE_POINTS_PER_MILLION;
   }
 
-  const normalizedPointsWeight = Math.max(0, Math.min(1, pointsWeight));
-
-  return normalizedPointsWeight;
+  return Math.max(0, budgetChangePointsPerMillion);
 };
 
 /**
@@ -145,14 +202,12 @@ exports.getPrintableCache = function (chatId, type) {
       for (const teamId of sortedTeamIds) {
         const teamData = teamsData[teamId];
         const chip = exports.selectedChipCache[chatId]?.[teamId];
-        const bestTeamPointsWeight = exports.getBestTeamPointsWeight(
-          chatId,
-          teamId,
-        );
+        const bestTeamBudgetChangePointsPerMillion =
+          exports.getBestTeamBudgetChangePointsPerMillion(chatId, teamId);
         teams[teamId] = {
           ...teamData,
           ...(chip ? { chip } : {}),
-          bestTeamPointsWeight,
+          bestTeamBudgetChangePointsPerMillion,
         };
       }
     }

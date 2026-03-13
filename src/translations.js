@@ -105,6 +105,8 @@ const translations = {
     'Cost Cap Remaining': 'יתרת תקציב',
     'Total Budget': 'תקציב כולל',
     'Expected Points': 'נקודות צפויות',
+    'Budget-Adjusted Points': 'נקודות מותאמות תקציב',
+    'Δ Budget-Adjusted Points': 'Δ נקודות מותאמות תקציב',
     'Δ Points': 'Δ נקודות',
     'Δ Price': 'Δ מחיר',
     'Weather Forecast': 'תחזית מזג אוויר',
@@ -177,22 +179,22 @@ const translations = {
     Hebrew: 'עברית',
     '🌐 Set Language': '🌐 הגדר שפה',
     'Change bot language for this session': 'שנה את שפת הבוט',
-    '⚖️ Set Best Team Weights': '⚖️ הגדרת משקלי קבוצה מיטבית',
-    'Set points/price-change weights for best teams ranking':
-      'הגדר משקלים לנקודות/שינוי מחיר בדירוג הקבוצות המיטביות',
-    'Usage: /set_best_team_weights <points%> <price_change%>\nExample: /set_best_team_weights 80 20\nDefault: 100 0':
-      'שימוש: /set_best_team_weights <אחוז נקודות> <אחוז שינוי מחיר>\nדוגמה: /set_best_team_weights 80 20\nברירת מחדל: 100 0',
-    'Weights must be non-negative numbers.': 'המשקלים חייבים להיות מספרים אי-שליליים.',
-    'At least one weight must be greater than 0.':
-      'לפחות אחד מהמשקלים חייב להיות גדול מ-0.',
-    'Best team weights set: points {POINTS}% | price change {PRICE}%.':
-      'משקלי הקבוצות המיטביות עודכנו: נקודות {POINTS}% | שינוי מחיר {PRICE}%.',
+    '⚖️ Set Best Team Ranking': '⚖️ הגדרת דירוג קבוצה מיטבית',
+    'Set how budget changes affect best-team ranking suggestions':
+      'הגדר כיצד שינויי תקציב משפיעים על דירוג הצעות לקבוצות מיטביות',
+    '{ICON} {LABEL} ({VALUE})': '{ICON} {LABEL} ({VALUE})',
+    'Best-team ranking set: {LABEL} ({VALUE} pts per 1M per remaining race).':
+      'דירוג הקבוצות המיטביות עודכן: {LABEL} ({VALUE} נק׳ לכל 1M לכל מרוץ שנותר).',
     'Choose best-team ranking preference:':
       'בחר העדפת דירוג לקבוצות המיטביות:',
-    '🎯 100/0 - Maximum Points': '🎯 100/0 - מקסימום נקודות',
-    '⚖️ 90/10 - Strong Points Bias': '⚖️ 90/10 - הטיה חזקה לנקודות',
-    '📊 80/20 - Points Focused': '📊 80/20 - מיקוד בנקודות',
-    '🤝 70/30 - Balanced with Points Edge': '🤝 70/30 - מאוזן עם עדיפות לנקודות',
+    'Value = points added for each 1M budget change per race left.':
+      'ערך = כמה נקודות מתווספות על כל שינוי של 1M לכל מרוץ שנותר.',
+    'Pure Points': 'נקודות בלבד',
+    'Points Lean': 'הטיה לנקודות',
+    'Points Plus Budget': 'נקודות עם ערך לתקציב',
+    'Balanced Budget Value': 'איזון עם ערך לתקציב',
+    'Remaining race count is unavailable right now. Switch to Pure Points or try again later.':
+      'מספר המרוצים שנותרו אינו זמין כרגע. עבור לנקודות בלבד או נסה שוב מאוחר יותר.',
     'Please provide a question.': 'אנא ספק שאלה.',
     '❓ Help & Menu': '❓ עזרה ותפריט',
     'Help and navigation commands': 'פקודות עזרה וניווט',

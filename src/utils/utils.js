@@ -28,6 +28,31 @@ const normalizePrice = function (value) {
   return Math.round(value * 10) / 10;
 };
 
+exports.calculateBudgetAdjustedPoints = function (
+  expectedPoints,
+  expectedPriceChange,
+  budgetChangePointsPerMillion = 0,
+  remainingRaceCount = 0,
+) {
+  const normalizedBudgetChangePointsPerMillion = Number.isFinite(
+    budgetChangePointsPerMillion,
+  )
+    ? Math.max(0, budgetChangePointsPerMillion)
+    : 0;
+  // The next race drives the price change itself, so only later races should
+  // receive value from that budget swing when ranking teams.
+  const normalizedRemainingRaceCount = Number.isFinite(remainingRaceCount)
+    ? Math.max(0, remainingRaceCount - 1)
+    : 0;
+
+  return (
+    expectedPoints +
+    expectedPriceChange *
+      normalizedRemainingRaceCount *
+      normalizedBudgetChangePointsPerMillion
+  );
+};
+
 const sendMessage = async function (bot, chatId, message, options) {
   if (!chatId) {
     console.error('Chat ID is not set');
