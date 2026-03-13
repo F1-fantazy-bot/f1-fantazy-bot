@@ -214,7 +214,7 @@ async function sendImportSuccessMessage(bot, chatId) {
   await bot
     .sendMessage(
       chatId,
-      t('Everything looks good. You can now manage your teams.', chatId),
+      t('Cache data saved successfully', chatId),
     )
     .catch((err) =>
       console.error('Error sending cache import success message:', err),
