@@ -1,8 +1,3 @@
-const { KILZI_CHAT_ID } = require('../constants');
-
-const mockValidateJsonData = jest.fn().mockResolvedValue(true);
-
-jest.mock('../utils', () => ({
   validateJsonData: mockValidateJsonData,
 }));
 
@@ -129,8 +124,10 @@ describe('handleJsonMessage', () => {
     const existingConstructorsCache = { RBR: { price: 20.0 } };
     driversCache[KILZI_CHAT_ID] = existingDriversCache;
     constructorsCache[KILZI_CHAT_ID] = existingConstructorsCache;
-    bestTeamsCache[KILZI_CHAT_ID] = { T1: { cached: true } };
-    // Set up existing team so resolveTeamIdForJson picks it up
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'Cache snapshot imported successfully. You can continue managing your team.',
+    );
     currentTeamCache[KILZI_CHAT_ID] = { T1: { drivers: ['VER'] } };
 
     const jsonData = {

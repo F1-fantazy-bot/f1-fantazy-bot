@@ -1,4 +1,3 @@
-const { validateJsonData } = require('../utils');
 const azureStorageService = require('../azureStorageService');
 const {
   driversCache,
@@ -56,7 +55,7 @@ async function handleJsonMessage(bot, chatId, jsonData) {
         if (!userCache[key]) {
           userCache[key] = {};
         }
-        userCache[key].selectedTeam = teamId;
+  await sendSuccessMessage(bot, chatId);
         await updateUserAttributes(chatId, { selectedTeam: teamId });
 
         // Invalidate best teams for this team
@@ -149,3 +148,17 @@ async function resolveTeamIdForJson(bot, chatId, currentTeamData) {
 }
 
 module.exports = { handleJsonMessage };
+async function sendSuccessMessage(bot, chatId) {
+  await bot
+    .sendMessage(
+      chatId,
+      t(
+        'Cache snapshot imported successfully. You can continue managing your team.',
+        chatId,
+      ),
+    )
+    .catch((err) =>
+      console.error('Error sending successful cache snapshot import message:', err),
+    );
+}
+

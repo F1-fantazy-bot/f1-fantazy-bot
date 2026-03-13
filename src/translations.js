@@ -251,6 +251,8 @@ const translations = {
       'נתוני JSON אינם תקינים. ודא שהם מכילים 11 קבוצות תחת "Constructors".',
     'Invalid JSON data. Please ensure it contains the required properties under "CurrentTeam" property.':
       'נתוני JSON אינם תקינים. ודא שהם מכילים את המאפיינים הנדרשים תחת "CurrentTeam".',
+    'Cache snapshot imported successfully. You can continue managing your team.':
+      'צילום המטמון יובא בהצלחה. אפשר להמשיך לנהל את הקבוצה שלך.',
     'Error: Scraping trigger URL is not configured.':
       'שגיאה: כתובת ההפעלה לסריקה אינה מוגדרת.',
     'Sorry, only admins can trigger scraping.':
