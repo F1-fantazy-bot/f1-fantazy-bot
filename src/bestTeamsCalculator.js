@@ -220,6 +220,7 @@ exports.calculateBestTeams = function (
   return finalTeams;
 };
 
+// eslint-disable-next-line max-params
 exports.calculateChangesToTeam = function (
   cachedJsonData,
   targetTeam,
