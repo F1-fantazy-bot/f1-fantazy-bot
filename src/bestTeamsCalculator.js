@@ -3,9 +3,18 @@ const {
   WILDCARD_CHIP,
   LIMITLESS_CHIP,
 } = require('./constants');
-const { calculateTeamInfo, normalizePrice } = require('./utils');
+const {
+  calculateTeamInfo,
+  normalizePrice,
+  calculateBudgetAdjustedPoints,
+} = require('./utils');
 
-exports.calculateBestTeams = function (cachedJsonData, selectedChip, pointsWeight = 1) {
+exports.calculateBestTeams = function (
+  cachedJsonData,
+  selectedChip,
+  budgetChangePointsPerMillion = 0,
+  remainingRaceCount = 0,
+) {
   // Data for drivers
   const drivers_dict = cachedJsonData.Drivers;
 
@@ -14,12 +23,6 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip, pointsWeigh
 
   // Current team info
   const current_team = cachedJsonData.CurrentTeam;
-
-
-  const normalizedPointsWeight = Number.isFinite(pointsWeight)
-    ? Math.max(0, Math.min(1, pointsWeight))
-    : 1;
-  const priceChangeWeight = 1 - normalizedPointsWeight;
 
   // Determine free transfers and budget based on selected chip
   let freeTransfers = current_team.freeTransfers;
@@ -72,6 +75,15 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip, pointsWeigh
   // Convert current team arrays to Sets for efficient membership tests
   const currentDriversSet = new Set(current_team.drivers);
   const currentConstructorsSet = new Set(current_team.constructors);
+  const currentTeamPriceChange =
+    current_team.drivers.reduce(
+      (sum, dr) => sum + drivers_dict[dr].expectedPriceChange,
+      0,
+    ) +
+    current_team.constructors.reduce(
+      (sum, cn) => sum + constructors_dict[cn].expectedPriceChange,
+      0,
+    );
 
   // Iterate over all combinations: 5 drivers and 2 constructors
   for (const driverCombo of driverCombos) {
@@ -147,6 +159,16 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip, pointsWeigh
 
         // Sum expected price change for the entire team
         const total_price_change = driver_price_change + cons_price_change;
+        const rankingPriceChange =
+          selectedChip === LIMITLESS_CHIP
+            ? currentTeamPriceChange
+            : total_price_change;
+        const ranking_score = calculateBudgetAdjustedPoints(
+          projected_points,
+          rankingPriceChange,
+          budgetChangePointsPerMillion,
+          remainingRaceCount,
+        );
 
         const team = {
           drivers: driverCombo,
@@ -157,6 +179,7 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip, pointsWeigh
           penalty: penalty,
           projected_points: projected_points,
           expected_price_change: total_price_change,
+          ranking_score,
         };
 
         if (selectedChip === EXTRA_DRS_CHIP) {
@@ -167,60 +190,10 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip, pointsWeigh
     }
   }
 
-  let pointsMin = Infinity;
-  let pointsMax = -Infinity;
-  let priceMin = Infinity;
-  let priceMax = -Infinity;
-
-  teams.forEach((team) => {
-    if (team.projected_points < pointsMin) {
-      pointsMin = team.projected_points;
-    }
-
-    if (team.projected_points > pointsMax) {
-      pointsMax = team.projected_points;
-    }
-
-    if (team.expected_price_change < priceMin) {
-      priceMin = team.expected_price_change;
-    }
-
-    if (team.expected_price_change > priceMax) {
-      priceMax = team.expected_price_change;
-    }
-  });
-
-  if (teams.length === 0) {
-    pointsMin = 0;
-    pointsMax = 0;
-    priceMin = 0;
-    priceMax = 0;
-  }
-
-  const normalize = (value, min, max) => {
-    if (max === min) {
-      return 0;
-    }
-
-    return (value - min) / (max - min);
-  };
-
-  teams.forEach((team) => {
-    const normalizedPoints = normalize(team.projected_points, pointsMin, pointsMax);
-    const normalizedPriceChange = normalize(
-      team.expected_price_change,
-      priceMin,
-      priceMax,
-    );
-
-    team.weighted_score =
-      normalizedPoints * normalizedPointsWeight + normalizedPriceChange * priceChangeWeight;
-  });
-
-  // Sort the teams by weighted score in descending order and select the top 20
+  // Sort the teams by ranking score in descending order and select the top 20
   teams.sort((a, b) => {
-    if (b.weighted_score !== a.weighted_score) {
-      return b.weighted_score - a.weighted_score;
+    if (b.ranking_score !== a.ranking_score) {
+      return b.ranking_score - a.ranking_score;
     }
 
     return b.projected_points - a.projected_points;
@@ -229,18 +202,6 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip, pointsWeigh
 
   // If LIMITLESS_CHIP is selected, set expected_price_change to current team's expected price change
   if (selectedChip === LIMITLESS_CHIP) {
-    const currentDrivers = current_team.drivers;
-    const currentConstructors = current_team.constructors;
-    const currentDriversPriceChange = currentDrivers.reduce(
-      (sum, dr) => sum + drivers_dict[dr].expectedPriceChange,
-      0
-    );
-    const currentConstructorsPriceChange = currentConstructors.reduce(
-      (sum, cn) => sum + constructors_dict[cn].expectedPriceChange,
-      0
-    );
-    const currentTeamPriceChange =
-      currentDriversPriceChange + currentConstructorsPriceChange;
     top_teams.forEach((team) => {
       team.expected_price_change = currentTeamPriceChange;
     });
@@ -249,20 +210,24 @@ exports.calculateBestTeams = function (cachedJsonData, selectedChip, pointsWeigh
   // Add a row number to each team and rearrange the output fields
   const finalTeams = top_teams.map((team, index) => ({
     ...team,
+    budget_adjusted_points: team.ranking_score,
     row: index + 1,
   }));
 
   finalTeams.forEach((team) => {
-    delete team.weighted_score;
+    delete team.ranking_score;
   });
 
   return finalTeams;
 };
 
+// eslint-disable-next-line max-params
 exports.calculateChangesToTeam = function (
   cachedJsonData,
   targetTeam,
-  selectedChip
+  selectedChip,
+  budgetChangePointsPerMillion = 0,
+  remainingRaceCount = 0,
 ) {
   const currentTeam = cachedJsonData.CurrentTeam;
   const currentTeamInfo = calculateTeamInfo(
@@ -316,6 +281,22 @@ exports.calculateChangesToTeam = function (
     targetTeam.projected_points - currentTeamInfo.teamExpectedPoints;
   const deltaPrice =
     targetTeam.expected_price_change - currentTeamInfo.teamPriceChange;
+  const currentBudgetAdjustedPoints = calculateBudgetAdjustedPoints(
+    currentTeamInfo.teamExpectedPoints,
+    currentTeamInfo.teamPriceChange,
+    budgetChangePointsPerMillion,
+    remainingRaceCount,
+  );
+  const targetBudgetAdjustedPoints = Number.isFinite(
+    targetTeam.budget_adjusted_points,
+  )
+    ? targetTeam.budget_adjusted_points
+    : calculateBudgetAdjustedPoints(
+        targetTeam.projected_points,
+        targetTeam.expected_price_change,
+        budgetChangePointsPerMillion,
+        remainingRaceCount,
+      );
 
   return {
     driversToAdd,
@@ -327,5 +308,9 @@ exports.calculateChangesToTeam = function (
     chipToActivate,
     deltaPoints,
     deltaPrice,
+    currentBudgetAdjustedPoints,
+    targetBudgetAdjustedPoints,
+    deltaBudgetAdjustedPoints:
+      targetBudgetAdjustedPoints - currentBudgetAdjustedPoints,
   };
 };

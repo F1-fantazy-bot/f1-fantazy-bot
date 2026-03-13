@@ -61,7 +61,7 @@ exports.COMMAND_SEND_MESSAGE_TO_USER = '/send_message_to_user';
 exports.COMMAND_BROADCAST = '/broadcast';
 exports.COMMAND_SET_NICKNAME = '/set_nickname';
 exports.COMMAND_SELECT_TEAM = '/select_team';
-exports.COMMAND_SET_BEST_TEAM_WEIGHTS = '/set_best_team_weights';
+exports.COMMAND_SET_BEST_TEAM_RANKING = '/set_best_team_ranking';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -121,9 +121,10 @@ exports.MENU_CATEGORIES = {
         description: 'Switch between your fantasy teams',
       },
       {
-        constant: exports.COMMAND_SET_BEST_TEAM_WEIGHTS,
-        title: '⚖️ Set Best Team Weights',
-        description: 'Set points/price-change weights for best teams ranking',
+        constant: exports.COMMAND_SET_BEST_TEAM_RANKING,
+        title: '⚖️ Set Best Team Ranking',
+        description:
+          'Set how budget changes affect best-team ranking suggestions',
       },
     ],
   },

@@ -2,8 +2,11 @@ const { sendLogMessage } = require('../utils');
 const { formatDateTime } = require('../utils/utils');
 const { t } = require('../i18n');
 const { MAX_TELEGRAM_MESSAGE_LENGTH } = require('../constants');
-
-const NEXT_RACES_ENDPOINT = 'https://api.jolpi.ca/ergast/f1/current.json';
+const {
+  buildDate,
+  fetchCurrentSeasonRaces,
+  filterUpcomingRaces,
+} = require('../raceScheduleService');
 
 const SESSION_CONFIG = [
   { key: 'FirstPractice', label: 'FP1' },
@@ -13,26 +16,6 @@ const SESSION_CONFIG = [
   { key: 'Sprint', label: 'Sprint' },
   { key: 'Qualifying', label: 'Qualifying' },
 ];
-
-function buildDate(dateStr, timeStr) {
-  if (!dateStr) {
-    return null;
-  }
-
-  let timeComponent = timeStr || '00:00:00Z';
-  if (!/[zZ]$/.test(timeComponent)) {
-    timeComponent += 'Z';
-  }
-
-  const isoString = `${dateStr}T${timeComponent}`;
-  const date = new Date(isoString);
-
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date;
-}
 
 function formatSession(sessionData, label, chatId) {
   if (!sessionData || !sessionData.date) {
@@ -153,26 +136,6 @@ function buildRaceBlock(race, chatId) {
   return { text: block, raceDate };
 }
 
-async function fetchCurrentSeasonRaces() {
-  const response = await fetch(NEXT_RACES_ENDPOINT);
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-
-  return response.json();
-}
-
-function filterUpcomingRaces(races) {
-  const now = new Date();
-
-  return races.filter((race) => {
-    const raceDate = buildDate(race.date, race.time);
-
-    return raceDate && raceDate >= now;
-  });
-}
-
 async function handleNextRacesCommand(bot, chatId) {
   try {
     const data = await fetchCurrentSeasonRaces();
@@ -275,4 +238,6 @@ async function handleNextRacesCommand(bot, chatId) {
   }
 }
 
-module.exports = { handleNextRacesCommand };
+module.exports = {
+  handleNextRacesCommand,
+};

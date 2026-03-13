@@ -12,6 +12,8 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
 ### Team Optimization & Analysis
 
 - **Best Teams Calculator**: Calculate and display the best possible fantasy teams based on cached data
+- **Best-Team Ranking Preference**: Tune how much expected budget changes should affect best-team ranking via `/set_best_team_ranking`
+  - Non-default ranking modes also show `Budget-Adjusted Points` in `/best_teams` output so users can see the impact of the selected ranking mode
 - **Budget & Team Info**: Display current team information, including budget details and composition
 - **Team Simulations**: Load and view fantasy team simulations for strategic planning
 
@@ -150,6 +152,7 @@ All users can access these commands:
 #### Team Management
 
 - **`/best_teams`** - Calculate and display the best possible teams based on your cached data
+- **`/set_best_team_ranking`** - Set how expected budget changes affect best-team ranking suggestions
 - **`/current_team_info`** - Calculate current team info and budget based on your cached data
 - **`/chips`** - Choose a chip to use for the current race (Extra DRS, Wildcard, Limitless)
 

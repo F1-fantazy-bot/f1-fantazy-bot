@@ -11,6 +11,7 @@ const {
   bestTeamsCache,
   selectedChipCache,
   userCache,
+  normalizeBestTeamBudgetChangePointsPerMillion,
 } = require('../cache');
 const { updateUserAttributes } = require('../userRegistryService');
 const { t } = require('../i18n');
@@ -62,8 +63,9 @@ async function handleJsonMessage(bot, chatId, jsonData) {
     userCache[key] = {};
   }
   userCache[key].selectedTeam = normalizedSnapshot.selectedTeam;
-  userCache[key].bestTeamPointsWeights =
-    normalizedSnapshot.bestTeamPointsWeights;
+  userCache[key].bestTeamBudgetChangePointsPerMillion =
+    normalizedSnapshot.bestTeamBudgetChangePointsPerMillion;
+  delete userCache[key].bestTeamPointsWeights;
 
   await azureStorageService.deleteAllUserTeams(bot, chatId);
 
@@ -75,8 +77,8 @@ async function handleJsonMessage(bot, chatId, jsonData) {
 
   await updateUserAttributes(chatId, {
     selectedTeam: normalizedSnapshot.selectedTeam,
-    bestTeamPointsWeights: JSON.stringify(
-      normalizedSnapshot.bestTeamPointsWeights,
+    bestTeamBudgetChangePointsPerMillion: JSON.stringify(
+      normalizedSnapshot.bestTeamBudgetChangePointsPerMillion,
     ),
   });
 
@@ -117,7 +119,8 @@ function normalizeCacheSnapshot(jsonData) {
   }
 
   const teamsMap = {};
-  const bestTeamPointsWeights = {};
+  const bestTeamBudgetChangePointsPerMillion = {};
+  const legacyBestTeamPointsWeights = {};
   const selectedChips = {};
 
   for (const [teamId, teamSnapshot] of Object.entries(jsonData.Teams)) {
@@ -127,12 +130,19 @@ function normalizeCacheSnapshot(jsonData) {
 
     const {
       chip,
+      bestTeamBudgetChangePointsPerMillion: currentBestTeamBudgetChangePointsPerMillion,
       bestTeamPointsWeight,
       ...teamDataWithoutMetadata
     } = teamSnapshot;
 
     teamsMap[teamId] = teamDataWithoutMetadata;
-    bestTeamPointsWeights[teamId] = bestTeamPointsWeight;
+    if (Number.isFinite(currentBestTeamBudgetChangePointsPerMillion)) {
+      bestTeamBudgetChangePointsPerMillion[teamId] =
+        currentBestTeamBudgetChangePointsPerMillion;
+    }
+    if (Number.isFinite(bestTeamPointsWeight)) {
+      legacyBestTeamPointsWeights[teamId] = bestTeamPointsWeight;
+    }
 
     if (chip !== undefined) {
       selectedChips[teamId] = chip;
@@ -155,7 +165,11 @@ function normalizeCacheSnapshot(jsonData) {
     teamsMap: Object.keys(teamsMap).length > 0 ? teamsMap : null,
     selectedChips:
       Object.keys(selectedChips).length > 0 ? selectedChips : null,
-    bestTeamPointsWeights,
+    bestTeamBudgetChangePointsPerMillion:
+      normalizeBestTeamBudgetChangePointsPerMillion(
+        bestTeamBudgetChangePointsPerMillion,
+        legacyBestTeamPointsWeights,
+      ),
     selectedTeam: jsonData.SelectedTeam,
   };
 }
@@ -172,9 +186,17 @@ function isValidTeamSnapshot(teamSnapshot) {
     !teamSnapshot.constructors.every(isNonEmptyString) ||
     !isNonEmptyString(teamSnapshot.drsBoost) ||
     !Number.isFinite(teamSnapshot.freeTransfers) ||
-    !Number.isFinite(teamSnapshot.costCapRemaining) ||
-    !Number.isFinite(teamSnapshot.bestTeamPointsWeight)
+    !Number.isFinite(teamSnapshot.costCapRemaining)
   ) {
+    return false;
+  }
+
+  const hasCurrentRankingField = Number.isFinite(
+    teamSnapshot.bestTeamBudgetChangePointsPerMillion,
+  );
+  const hasLegacyRankingField = Number.isFinite(teamSnapshot.bestTeamPointsWeight);
+
+  if (!hasCurrentRankingField && !hasLegacyRankingField) {
     return false;
   }
 

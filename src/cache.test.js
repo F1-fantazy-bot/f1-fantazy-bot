@@ -8,8 +8,8 @@ const {
   getSelectedTeam,
   getUserTeamIds,
   resolveSelectedTeam,
-  getBestTeamPointsWeight,
-  normalizeBestTeamPointsWeights,
+  getBestTeamBudgetChangePointsPerMillion,
+  normalizeBestTeamBudgetChangePointsPerMillion,
 } = require('./cache');
 
 const {
@@ -111,8 +111,8 @@ describe('cache', () => {
       };
       userCache[chatId] = {
         selectedTeam: 'T1',
-        bestTeamPointsWeights: {
-          T1: 0.25,
+        bestTeamBudgetChangePointsPerMillion: {
+          T1: 1.65,
           T2: 0,
         },
       };
@@ -199,7 +199,7 @@ describe('cache', () => {
         drsBoost: 'M. Verstappen',
         freeTransfers: 1,
         costCapRemaining: 5,
-        bestTeamPointsWeight: 1,
+        bestTeamBudgetChangePointsPerMillion: 0,
       });
     });
 
@@ -210,8 +210,8 @@ describe('cache', () => {
       };
       userCache[chatId] = {
         selectedTeam: 'T1',
-        bestTeamPointsWeights: {
-          T1: 0.25,
+        bestTeamBudgetChangePointsPerMillion: {
+          T1: 1.65,
           T2: 0,
         },
       };
@@ -223,11 +223,11 @@ describe('cache', () => {
       expect(parsed.SelectedTeam).toBe('T1');
       expect(parsed.Teams['T1']).toEqual({
         drivers: ['VER'],
-        bestTeamPointsWeight: 0.25,
+        bestTeamBudgetChangePointsPerMillion: 1.65,
       });
       expect(parsed.Teams['T2']).toEqual({
         drivers: ['HAM'],
-        bestTeamPointsWeight: 0,
+        bestTeamBudgetChangePointsPerMillion: 0,
       });
     });
 
@@ -243,7 +243,7 @@ describe('cache', () => {
       expect(parsed.SelectedTeam).toBeNull();
       expect(parsed.Teams['T1']).toEqual({
         drivers: ['VER'],
-        bestTeamPointsWeight: 1,
+        bestTeamBudgetChangePointsPerMillion: 0,
       });
     });
 
@@ -396,7 +396,7 @@ describe('cache', () => {
   });
 
 
-  describe('getBestTeamPointsWeight', () => {
+  describe('getBestTeamBudgetChangePointsPerMillion', () => {
     const chatId = '66666';
 
     afterEach(() => {
@@ -404,42 +404,52 @@ describe('cache', () => {
     });
 
     it('returns defaults when team-specific weights are missing', () => {
-      expect(getBestTeamPointsWeight(chatId, 'T1')).toBe(1);
+      expect(getBestTeamBudgetChangePointsPerMillion(chatId, 'T1')).toBe(0);
     });
 
 
-    it('supports bestTeamPointsWeights stored as JSON string', () => {
+    it('supports new values stored as JSON string', () => {
       userCache[chatId] = {
-        bestTeamPointsWeights: JSON.stringify({
-          T2: 0.75,
+        bestTeamBudgetChangePointsPerMillion: JSON.stringify({
+          T2: 1.65,
         }),
       };
 
-      expect(getBestTeamPointsWeight(chatId, 'T2')).toBe(0.75);
+      expect(getBestTeamBudgetChangePointsPerMillion(chatId, 'T2')).toBe(1.65);
     });
 
-    it('returns team-specific weights when set', () => {
+    it('maps legacy points weights when set', () => {
       userCache[chatId] = {
         bestTeamPointsWeights: {
-          T2: 0.75,
+          T2: 0.8,
         },
       };
 
-      expect(getBestTeamPointsWeight(chatId, 'T2')).toBe(0.75);
+      expect(getBestTeamBudgetChangePointsPerMillion(chatId, 'T2')).toBe(1.65);
     });
   });
 
-  describe('normalizeBestTeamPointsWeights', () => {
+  describe('normalizeBestTeamBudgetChangePointsPerMillion', () => {
     it('returns object as-is when input is already an object', () => {
-      expect(normalizeBestTeamPointsWeights({ T1: 0.25 })).toEqual({ T1: 0.25 });
+      expect(
+        normalizeBestTeamBudgetChangePointsPerMillion({ T1: 1.65 }),
+      ).toEqual({ T1: 1.65 });
     });
 
     it('parses JSON string into object', () => {
-      expect(normalizeBestTeamPointsWeights('{"T2":0.75}')).toEqual({ T2: 0.75 });
+      expect(
+        normalizeBestTeamBudgetChangePointsPerMillion('{"T2":2}'),
+      ).toEqual({ T2: 2 });
     });
 
     it('returns empty object for invalid JSON string', () => {
-      expect(normalizeBestTeamPointsWeights('{invalid-json')).toEqual({});
+      expect(normalizeBestTeamBudgetChangePointsPerMillion('{invalid-json')).toEqual({});
+    });
+
+    it('maps legacy values when provided', () => {
+      expect(
+        normalizeBestTeamBudgetChangePointsPerMillion(undefined, '{"T2":0.8}'),
+      ).toEqual({ T2: 1.65 });
     });
   });
 

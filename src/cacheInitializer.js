@@ -6,7 +6,8 @@ const {
   sharedKey,
   nextRaceInfoCache,
   userCache,
-  normalizeBestTeamPointsWeights,
+  remainingRaceCountCache,
+  normalizeBestTeamBudgetChangePointsPerMillion,
 } = require('./cache');
 const {
   sendLogMessage,
@@ -24,6 +25,7 @@ const {
   getNextRaceInfoData,
 } = require('./azureStorageService');
 const { listAllUsers } = require('./userRegistryService');
+const { fetchRemainingRaceCount } = require('./raceScheduleService');
 
 /**
  * Initialize all application caches with data from Azure Storage
@@ -46,6 +48,19 @@ async function initializeCaches(bot) {
     );
   }
 
+  try {
+    remainingRaceCountCache[sharedKey] = await fetchRemainingRaceCount();
+    await sendLogMessage(
+      bot,
+      `Remaining race count loaded successfully: ${remainingRaceCountCache[sharedKey]}`,
+    );
+  } catch (error) {
+    await sendLogMessage(
+      bot,
+      `Failed to load remaining race count: ${error.message}`,
+    );
+  }
+
   // Load all user teams into cache
   const userTeams = await listAllUserTeamData();
   Object.assign(currentTeamCache, userTeams);
@@ -61,11 +76,12 @@ async function initializeCaches(bot) {
     const key = String(user.chatId);
     const { chatId: _id, ...userData } = user;
 
-    if ('bestTeamPointsWeights' in userData) {
-      userData.bestTeamPointsWeights = normalizeBestTeamPointsWeights(
+    userData.bestTeamBudgetChangePointsPerMillion =
+      normalizeBestTeamBudgetChangePointsPerMillion(
+        userData.bestTeamBudgetChangePointsPerMillion,
         userData.bestTeamPointsWeights,
       );
-    }
+    delete userData.bestTeamPointsWeights;
 
     userCache[key] = userData;
   }

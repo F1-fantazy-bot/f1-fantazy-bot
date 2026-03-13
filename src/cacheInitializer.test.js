@@ -6,6 +6,7 @@ const {
   simulationInfoCache,
   sharedKey,
   nextRaceInfoCache,
+  remainingRaceCountCache,
   userCache,
 } = require('./cache');
 const {
@@ -15,6 +16,7 @@ const {
 } = require('./azureStorageService');
 const { listAllUsers } = require('./userRegistryService');
 const { initializeCaches, loadSimulationData } = require('./cacheInitializer');
+const { fetchRemainingRaceCount } = require('./raceScheduleService');
 
 // Mock dependencies
 const utils = require('./utils');
@@ -33,6 +35,10 @@ jest.mock('./azureStorageService', () => ({
 
 jest.mock('./userRegistryService', () => ({
   listAllUsers: jest.fn(),
+}));
+
+jest.mock('./raceScheduleService', () => ({
+  fetchRemainingRaceCount: jest.fn(),
 }));
 
 describe('cacheInitializer', () => {
@@ -74,7 +80,7 @@ describe('cacheInitializer', () => {
       chatName: 'Alice',
       lang: 'en',
       nickname: 'Max',
-      bestTeamPointsWeights: JSON.stringify({ T1: 0.25 }),
+      bestTeamPointsWeights: JSON.stringify({ T1: 0.8 }),
     },
     { chatId: '456', chatName: 'Bob', lang: 'he', nickname: 'Lewis' },
   ];
@@ -95,6 +101,9 @@ describe('cacheInitializer', () => {
     Object.keys(nextRaceInfoCache).forEach(
       (key) => delete nextRaceInfoCache[key]
     );
+    Object.keys(remainingRaceCountCache).forEach(
+      (key) => delete remainingRaceCountCache[key]
+    );
     Object.keys(userCache).forEach((key) => delete userCache[key]);
 
     // Setup mock implementations
@@ -106,6 +115,7 @@ describe('cacheInitializer', () => {
       raceName: 'Test Race',
       season: '2025',
     });
+    fetchRemainingRaceCount.mockResolvedValue(22);
   });
 
   it('should initialize all caches with data from Azure Storage', async () => {
@@ -116,6 +126,7 @@ describe('cacheInitializer', () => {
     expect(listAllUserTeamData).toHaveBeenCalled();
     expect(listAllUsers).toHaveBeenCalled();
     expect(getNextRaceInfoData).toHaveBeenCalled();
+    expect(fetchRemainingRaceCount).toHaveBeenCalled();
 
     // Verify success message was sent via utils
     expect(utils.sendLogMessage).toHaveBeenCalledWith(
@@ -138,6 +149,7 @@ describe('cacheInitializer', () => {
       raceName: 'Test Race',
       season: '2025',
     });
+    expect(remainingRaceCountCache[sharedKey]).toBe(22);
 
     // Verify drivers were cached correctly
     expect(driversCache[sharedKey]).toEqual({
@@ -160,9 +172,14 @@ describe('cacheInitializer', () => {
         chatName: 'Alice',
         lang: 'en',
         nickname: 'Max',
-        bestTeamPointsWeights: { T1: 0.25 },
+        bestTeamBudgetChangePointsPerMillion: { T1: 1.65 },
       },
-      456: { chatName: 'Bob', lang: 'he', nickname: 'Lewis' },
+      456: {
+        chatName: 'Bob',
+        lang: 'he',
+        nickname: 'Lewis',
+        bestTeamBudgetChangePointsPerMillion: {},
+      },
     });
 
     // Verify user teams loaded message
@@ -177,6 +194,18 @@ describe('cacheInitializer', () => {
       expect.stringContaining(
         `Loaded ${mockUsers.length} users into cache`
       )
+    );
+  });
+
+  it('should keep startup successful when remaining race count fetch fails', async () => {
+    fetchRemainingRaceCount.mockRejectedValue(new Error('schedule unavailable'));
+
+    await initializeCaches(mockBot);
+
+    expect(remainingRaceCountCache[sharedKey]).toBeUndefined();
+    expect(utils.sendLogMessage).toHaveBeenCalledWith(
+      mockBot,
+      expect.stringContaining('Failed to load remaining race count: schedule unavailable'),
     );
   });
 

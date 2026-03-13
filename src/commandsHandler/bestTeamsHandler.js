@@ -8,7 +8,8 @@ const {
   selectedChipCache,
   sharedKey,
   resolveSelectedTeam,
-  getBestTeamPointsWeight,
+  getBestTeamBudgetChangePointsPerMillion,
+  remainingRaceCountCache,
 } = require('../cache');
 const { t } = require('../i18n');
 
@@ -60,10 +61,34 @@ async function handleBestTeamsMessage(bot, chatId) {
   ) {
     return;
   }
+  const budgetChangePointsPerMillion =
+    getBestTeamBudgetChangePointsPerMillion(chatId, teamId);
+  const remainingRaceCount = remainingRaceCountCache[sharedKey];
+
+  if (
+    budgetChangePointsPerMillion > 0 &&
+    !Number.isFinite(remainingRaceCount)
+  ) {
+    await bot
+      .sendMessage(
+        chatId,
+        t(
+          'Remaining race count is unavailable right now. Switch to Pure Points or try again later.',
+          chatId,
+        ),
+      )
+      .catch((err) =>
+        console.error('Error sending remaining race count unavailable message:', err),
+      );
+
+    return;
+  }
+
   const bestTeams = calculateBestTeams(
     cachedJsonData,
     selectedChipCache[chatId]?.[teamId],
-    getBestTeamPointsWeight(chatId, teamId),
+    budgetChangePointsPerMillion,
+    Number.isFinite(remainingRaceCount) ? remainingRaceCount : 0,
   );
   if (!bestTeamsCache[chatId]) {
     bestTeamsCache[chatId] = {};
@@ -102,10 +127,17 @@ async function handleBestTeamsMessage(bot, chatId) {
         `*${t('Total Price', chatId)}:* ${Number(team.total_price.toFixed(2))}\n` +
         `*${t('Transfers Needed', chatId)}:* ${team.transfers_needed}\n` +
         `*${t('Penalty', chatId)}:* ${team.penalty}\n` +
-        `*${t('Projected Points', chatId)}:* ${Number(team.projected_points.toFixed(2))}\n` +
-        `*${t('Expected Price Change', chatId)}:* ${Number(
-          team.expected_price_change.toFixed(2),
-        )}`;
+        `*${t('Projected Points', chatId)}:* ${Number(team.projected_points.toFixed(2))}\n`;
+
+      if (budgetChangePointsPerMillion > 0) {
+        teamMarkdown += `*${t('Budget-Adjusted Points', chatId)}:* ${Number(
+          team.budget_adjusted_points.toFixed(2),
+        )}\n`;
+      }
+
+      teamMarkdown += `*${t('Expected Price Change', chatId)}:* ${Number(
+        team.expected_price_change.toFixed(2),
+      )}`;
 
       return teamMarkdown;
     })

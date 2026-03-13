@@ -1,6 +1,8 @@
 const { KILZI_CHAT_ID } = require('../constants');
 
 const mockSendLogMessage = jest.fn();
+const mockFetchCurrentSeasonRaces = jest.fn();
+const mockFilterUpcomingRaces = jest.fn();
 
 jest.mock('../utils', () => {
   const original = jest.requireActual('../utils');
@@ -11,22 +13,25 @@ jest.mock('../utils', () => {
   };
 });
 
+jest.mock('../raceScheduleService', () => ({
+  buildDate: jest.requireActual('../raceScheduleService').buildDate,
+  fetchCurrentSeasonRaces: mockFetchCurrentSeasonRaces,
+  filterUpcomingRaces: mockFilterUpcomingRaces,
+}));
+
 const { handleNextRacesCommand } = require('./nextRacesHandler');
 
 describe('handleNextRacesCommand', () => {
-  const originalFetch = global.fetch;
   const botMock = {
     sendMessage: jest.fn().mockResolvedValue(),
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    global.fetch = jest.fn();
   });
 
   afterEach(() => {
     jest.useRealTimers();
-    global.fetch = originalFetch;
   });
 
   it('should send upcoming races information when available', async () => {
@@ -102,15 +107,14 @@ describe('handleNextRacesCommand', () => {
       },
     };
 
-    global.fetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(apiResponse),
-    });
+    mockFetchCurrentSeasonRaces.mockResolvedValue(apiResponse);
+    mockFilterUpcomingRaces.mockReturnValue(apiResponse.MRData.RaceTable.Races);
 
     await handleNextRacesCommand(botMock, KILZI_CHAT_ID);
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      'https://api.jolpi.ca/ergast/f1/current.json'
+    expect(mockFetchCurrentSeasonRaces).toHaveBeenCalled();
+    expect(mockFilterUpcomingRaces).toHaveBeenCalledWith(
+      apiResponse.MRData.RaceTable.Races
     );
     expect(botMock.sendMessage).toHaveBeenCalledTimes(1);
     expect(botMock.sendMessage).toHaveBeenCalledWith(
@@ -149,10 +153,8 @@ describe('handleNextRacesCommand', () => {
       },
     };
 
-    global.fetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(apiResponse),
-    });
+    mockFetchCurrentSeasonRaces.mockResolvedValue(apiResponse);
+    mockFilterUpcomingRaces.mockReturnValue([]);
 
     await handleNextRacesCommand(botMock, KILZI_CHAT_ID);
 
@@ -164,7 +166,7 @@ describe('handleNextRacesCommand', () => {
 
   it('should handle fetch errors gracefully', async () => {
     const error = new Error('Network failure');
-    global.fetch.mockRejectedValue(error);
+    mockFetchCurrentSeasonRaces.mockRejectedValue(error);
 
     await handleNextRacesCommand(botMock, KILZI_CHAT_ID);
 
@@ -177,4 +179,5 @@ describe('handleNextRacesCommand', () => {
       'Unable to fetch upcoming races. Please try again later.'
     );
   });
+
 });
