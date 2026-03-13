@@ -16,7 +16,7 @@ const {
 } = require('./azureStorageService');
 const { listAllUsers } = require('./userRegistryService');
 const { initializeCaches, loadSimulationData } = require('./cacheInitializer');
-const { fetchRemainingRaceCount } = require('./commandsHandler/nextRacesHandler');
+const { fetchRemainingRaceCount } = require('./raceScheduleService');
 
 // Mock dependencies
 const utils = require('./utils');
@@ -37,7 +37,7 @@ jest.mock('./userRegistryService', () => ({
   listAllUsers: jest.fn(),
 }));
 
-jest.mock('./commandsHandler/nextRacesHandler', () => ({
+jest.mock('./raceScheduleService', () => ({
   fetchRemainingRaceCount: jest.fn(),
 }));
 

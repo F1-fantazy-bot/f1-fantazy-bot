@@ -25,7 +25,7 @@ const {
   getNextRaceInfoData,
 } = require('./azureStorageService');
 const { listAllUsers } = require('./userRegistryService');
-const { fetchRemainingRaceCount } = require('./commandsHandler/nextRacesHandler');
+const { fetchRemainingRaceCount } = require('./raceScheduleService');
 
 /**
  * Initialize all application caches with data from Azure Storage

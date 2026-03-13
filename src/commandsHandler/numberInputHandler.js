@@ -160,6 +160,7 @@ function getRequiredChangesMessage(
   return message;
 }
 
+// eslint-disable-next-line max-params
 function getSelectedTeamInfo(
   teamRowRequested,
   selectedTeam,
