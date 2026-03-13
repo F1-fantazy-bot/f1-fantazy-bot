@@ -2,6 +2,7 @@ const {
   EXTRA_DRS_CHIP,
   WILDCARD_CHIP,
   LIMITLESS_CHIP,
+  BEST_TEAMS_RESULT_COUNT,
 } = require('./constants');
 const {
   calculateTeamInfo,
@@ -190,7 +191,7 @@ exports.calculateBestTeams = function (
     }
   }
 
-  // Sort the teams by ranking score in descending order and select the top 20
+  // Sort the teams by ranking score in descending order and keep a fixed number of results
   teams.sort((a, b) => {
     if (b.ranking_score !== a.ranking_score) {
       return b.ranking_score - a.ranking_score;
@@ -198,7 +199,7 @@ exports.calculateBestTeams = function (
 
     return b.projected_points - a.projected_points;
   });
-  const top_teams = teams.slice(0, selectedChip === EXTRA_DRS_CHIP ? 19 : 20);
+  const top_teams = teams.slice(0, BEST_TEAMS_RESULT_COUNT);
 
   // If LIMITLESS_CHIP is selected, set expected_price_change to current team's expected price change
   if (selectedChip === LIMITLESS_CHIP) {

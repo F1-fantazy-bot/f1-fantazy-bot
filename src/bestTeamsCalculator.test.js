@@ -1,5 +1,6 @@
 const { calculateBestTeams } = require('./bestTeamsCalculator');
 const { calculateChangesToTeam } = require('./bestTeamsCalculator');
+const { BEST_TEAMS_RESULT_COUNT } = require('./constants');
 
 describe('calculateBestTeams', () => {
   const mockDrivers = {
@@ -46,9 +47,21 @@ describe('calculateBestTeams', () => {
     expect(Array.isArray(result)).toBe(true);
   });
 
-  it('should return max 20 teams', () => {
+  it('should return max configured number of teams', () => {
     const result = calculateBestTeams(mockJsonData);
-    expect(result.length).toBeLessThanOrEqual(20);
+    expect(result.length).toBeLessThanOrEqual(BEST_TEAMS_RESULT_COUNT);
+  });
+
+  it('should cap standard results to the configured team count', () => {
+    const result = calculateBestTeams(mockJsonData, undefined, 0, 0);
+
+    expect(result).toHaveLength(BEST_TEAMS_RESULT_COUNT);
+  });
+
+  it('should cap EXTRA_DRS results to the configured team count', () => {
+    const result = calculateBestTeams(mockJsonData, 'EXTRA_DRS', 0, 0);
+
+    expect(result).toHaveLength(BEST_TEAMS_RESULT_COUNT);
   });
 
   it('each team should have required properties', () => {
