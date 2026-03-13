@@ -241,6 +241,39 @@ describe('calculateBestTeams', () => {
     });
   });
 
+
+  it('should rank LIMITLESS teams using current team price change for budget-adjusted points', () => {
+    const LIMITLESS_CHIP = 'LIMITLESS';
+    const budgetChangePointsPerMillion = 2;
+    const remainingRaceCount = 23;
+    const result = calculateBestTeams(
+      mockJsonData,
+      LIMITLESS_CHIP,
+      budgetChangePointsPerMillion,
+      remainingRaceCount,
+    );
+
+    const currentTeamPriceChange =
+      mockCurrentTeam.drivers.reduce(
+        (sum, dr) => sum + mockDrivers[dr].expectedPriceChange,
+        0,
+      ) +
+      mockCurrentTeam.constructors.reduce(
+        (sum, cn) => sum + mockConstructors[cn].expectedPriceChange,
+        0,
+      );
+
+    result.forEach((team) => {
+      const expectedBudgetAdjustedPoints =
+        team.projected_points +
+        currentTeamPriceChange *
+          budgetChangePointsPerMillion *
+          (remainingRaceCount - 1);
+
+      expect(team.budget_adjusted_points).toBeCloseTo(expectedBudgetAdjustedPoints);
+    });
+  });
+
   it('should contain the extra_drs_driver property when EXTRA_DRS_CHIP is active', () => {
     const EXTRA_DRS_CHIP = 'EXTRA_DRS';
     const mockJsonDataWithExtraDRS = {
