@@ -2,9 +2,12 @@ const {
   KILZI_CHAT_ID,
   BEST_TEAM_WEIGHTS_CALLBACK_TYPE,
 } = require('../constants');
+const { remainingRaceCountCache, sharedKey } = require('../cache');
 
 jest.mock('../cache', () => ({
   resolveSelectedTeam: jest.fn().mockResolvedValue('T1'),
+  remainingRaceCountCache: {},
+  sharedKey: 'defaultSharedKey',
   userCache: {},
 }));
 
@@ -19,10 +22,12 @@ describe('handleSetBestTeamRanking', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    delete remainingRaceCountCache[sharedKey];
   });
 
   it('should send inline keyboard with 4 preset options', async () => {
     const msg = { chat: { id: KILZI_CHAT_ID }, text: '/set_best_team_ranking' };
+    remainingRaceCountCache[sharedKey] = 22;
 
     await handleSetBestTeamRanking(botMock, msg);
 
@@ -30,7 +35,7 @@ describe('handleSetBestTeamRanking', () => {
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'Choose best-team ranking preference:\nValue = points added for each 1M budget change per race left.',
+      'Choose best-team ranking preference:\nValue = points added for each 1M budget change per race left.\nRemaining races used now: 21.',
       {
         reply_markup: {
           inline_keyboard: expect.any(Array),
@@ -49,6 +54,22 @@ describe('handleSetBestTeamRanking', () => {
 
     expect(sentKeyboard[0][0].text).toBe(
       '🎯 Pure Points (0)',
+    );
+  });
+
+  it('should show unavailable when remaining race count is missing', async () => {
+    const msg = { chat: { id: KILZI_CHAT_ID }, text: '/set_best_team_ranking' };
+
+    await handleSetBestTeamRanking(botMock, msg);
+
+    expect(botMock.sendMessage).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      'Choose best-team ranking preference:\nValue = points added for each 1M budget change per race left.\nRemaining races used now: unavailable.',
+      {
+        reply_markup: {
+          inline_keyboard: expect.any(Array),
+        },
+      },
     );
   });
 });

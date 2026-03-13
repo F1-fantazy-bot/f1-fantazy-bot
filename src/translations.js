@@ -189,6 +189,10 @@ const translations = {
       'בחר העדפת דירוג לקבוצות המיטביות:',
     'Value = points added for each 1M budget change per race left.':
       'ערך = כמה נקודות מתווספות על כל שינוי של 1M לכל מרוץ שנותר.',
+    'Remaining races used now: {COUNT}.':
+      'מספר המרוצים שמשמש כרגע בחישוב: {COUNT}.',
+    'Remaining races used now: unavailable.':
+      'מספר המרוצים שמשמש כרגע בחישוב: לא זמין.',
     'Pure Points': 'נקודות בלבד',
     'Points Lean': 'הטיה לנקודות',
     'Points Plus Budget': 'נקודות עם ערך לתקציב',

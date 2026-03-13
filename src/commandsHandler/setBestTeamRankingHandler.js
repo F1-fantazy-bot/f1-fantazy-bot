@@ -1,6 +1,6 @@
 const { t } = require('../i18n');
 const { BEST_TEAM_WEIGHTS_CALLBACK_TYPE } = require('../constants');
-const { resolveSelectedTeam } = require('../cache');
+const { resolveSelectedTeam, remainingRaceCountCache, sharedKey } = require('../cache');
 
 const BEST_TEAM_RANKING_PRESETS = [
   {
@@ -36,6 +36,11 @@ async function handleSetBestTeamRanking(bot, msg) {
     return;
   }
 
+  const cachedRemainingRaceCount = remainingRaceCountCache[sharedKey];
+  const effectiveRemainingRaceCount = Number.isFinite(cachedRemainingRaceCount)
+    ? Math.max(0, cachedRemainingRaceCount - 1)
+    : null;
+
   const inline_keyboard = BEST_TEAM_RANKING_PRESETS.map((preset) => [
     {
       text: t(
@@ -54,7 +59,14 @@ async function handleSetBestTeamRanking(bot, msg) {
   await bot.sendMessage(
     chatId,
     `${t('Choose best-team ranking preference:', chatId)}
-${t('Value = points added for each 1M budget change per race left.', chatId)}`,
+${t('Value = points added for each 1M budget change per race left.', chatId)}
+${
+  effectiveRemainingRaceCount === null
+    ? t('Remaining races used now: unavailable.', chatId)
+    : t('Remaining races used now: {COUNT}.', chatId, {
+      COUNT: effectiveRemainingRaceCount,
+    })
+}`,
     {
       reply_markup: { inline_keyboard },
     },
