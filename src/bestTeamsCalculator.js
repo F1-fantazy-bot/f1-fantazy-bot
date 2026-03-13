@@ -75,6 +75,15 @@ exports.calculateBestTeams = function (
   // Convert current team arrays to Sets for efficient membership tests
   const currentDriversSet = new Set(current_team.drivers);
   const currentConstructorsSet = new Set(current_team.constructors);
+  const currentTeamPriceChange =
+    current_team.drivers.reduce(
+      (sum, dr) => sum + drivers_dict[dr].expectedPriceChange,
+      0,
+    ) +
+    current_team.constructors.reduce(
+      (sum, cn) => sum + constructors_dict[cn].expectedPriceChange,
+      0,
+    );
 
   // Iterate over all combinations: 5 drivers and 2 constructors
   for (const driverCombo of driverCombos) {
@@ -150,9 +159,13 @@ exports.calculateBestTeams = function (
 
         // Sum expected price change for the entire team
         const total_price_change = driver_price_change + cons_price_change;
+        const rankingPriceChange =
+          selectedChip === LIMITLESS_CHIP
+            ? currentTeamPriceChange
+            : total_price_change;
         const ranking_score = calculateBudgetAdjustedPoints(
           projected_points,
-          total_price_change,
+          rankingPriceChange,
           budgetChangePointsPerMillion,
           remainingRaceCount,
         );
@@ -189,18 +202,6 @@ exports.calculateBestTeams = function (
 
   // If LIMITLESS_CHIP is selected, set expected_price_change to current team's expected price change
   if (selectedChip === LIMITLESS_CHIP) {
-    const currentDrivers = current_team.drivers;
-    const currentConstructors = current_team.constructors;
-    const currentDriversPriceChange = currentDrivers.reduce(
-      (sum, dr) => sum + drivers_dict[dr].expectedPriceChange,
-      0
-    );
-    const currentConstructorsPriceChange = currentConstructors.reduce(
-      (sum, cn) => sum + constructors_dict[cn].expectedPriceChange,
-      0
-    );
-    const currentTeamPriceChange =
-      currentDriversPriceChange + currentConstructorsPriceChange;
     top_teams.forEach((team) => {
       team.expected_price_change = currentTeamPriceChange;
     });
