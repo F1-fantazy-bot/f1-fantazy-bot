@@ -4,6 +4,7 @@ jest.mock('./i18n', () => ({
 
 jest.mock('./utils/utils', () => ({
   getChatName: jest.fn(() => 'Test User'),
+  getDisplayName: jest.fn(() => 'Test Nickname'),
   sendMessageToAdmins: jest.fn().mockResolvedValue(),
 }));
 
@@ -25,7 +26,7 @@ const {
   resolveCommand,
 } = require('./pendingReplyRegistry');
 const { t } = require('./i18n');
-const { getChatName, sendMessageToAdmins } = require('./utils/utils');
+const { getChatName, getDisplayName, sendMessageToAdmins } = require('./utils/utils');
 const { getUserById, listAllUsers } = require('./userRegistryService');
 const { registerPendingReply } = require('./pendingReplyManager');
 
@@ -74,10 +75,12 @@ describe('pendingReplyRegistry', () => {
         await resolved.handler(botMock, replyMsg);
 
         expect(getChatName).toHaveBeenCalledWith(replyMsg);
+        expect(getDisplayName).toHaveBeenCalledWith(456);
         expect(t).toHaveBeenCalledWith(
-          'Bug report from {NAME} ({ID}):\n\n{MESSAGE}',
+          'Bug report from {DISPLAY_NAME} ({NAME}, {ID}):\n\n{MESSAGE}',
           456,
           {
+            DISPLAY_NAME: 'Test Nickname',
             NAME: 'Test User',
             ID: 456,
             MESSAGE: 'Something is broken',
@@ -85,7 +88,7 @@ describe('pendingReplyRegistry', () => {
         );
         expect(sendMessageToAdmins).toHaveBeenCalledWith(
           botMock,
-          'Bug report from {NAME} ({ID}):\n\n{MESSAGE}',
+          'Bug report from {DISPLAY_NAME} ({NAME}, {ID}):\n\n{MESSAGE}',
         );
         expect(t).toHaveBeenCalledWith(
           'Your message has been sent to the admins. Thank you!',
@@ -111,7 +114,7 @@ describe('pendingReplyRegistry', () => {
 
         expect(botMock.sendMessage).toHaveBeenCalledWith(
           -5161566735,
-          'Bug report from {NAME} ({ID}):\n\n{MESSAGE}',
+          'Bug report from {DISPLAY_NAME} ({NAME}, {ID}):\n\n{MESSAGE}',
         );
       });
 

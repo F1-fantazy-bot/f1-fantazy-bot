@@ -5,7 +5,11 @@
 
 const { t } = require('./i18n');
 const { REPORTED_BUGS_GROUP_ID } = require('./constants');
-const { getChatName, sendMessageToAdmins } = require('./utils/utils');
+const {
+  getChatName,
+  getDisplayName,
+  sendMessageToAdmins,
+} = require('./utils/utils');
 const { getUserById, listAllUsers, updateUserAttributes } = require('./userRegistryService');
 const { userCache } = require('./cache');
 
@@ -21,11 +25,13 @@ const PENDING_REPLY_REGISTRY = {
   report_bug: {
     buildHandler: (chatId) => async (replyBot, replyMsg) => {
       const chatName = getChatName(replyMsg);
+      const displayName = getDisplayName(chatId);
 
       const adminMessage = t(
-        'Bug report from {NAME} ({ID}):\n\n{MESSAGE}',
+        'Bug report from {DISPLAY_NAME} ({NAME}, {ID}):\n\n{MESSAGE}',
         chatId,
         {
+          DISPLAY_NAME: displayName,
           NAME: chatName,
           ID: chatId,
           MESSAGE: replyMsg.text,
