@@ -11,6 +11,8 @@ const translations = {
       'התמונה סומנה כ{TYPE}. נא להמתין לחילוץ נתונים...',
     'An error occurred while extracting data from the photo.':
       'אירעה שגיאה בעת חילוץ הנתונים מהתמונה.',
+    'Please wait while data is extracted from the image.':
+      'נא המתן לחילוץ הנתונים מהתמונה',
     'Selected chip: {CHIP}.': "צ'יפ נבחר: {CHIP}.",
     'Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.':
       'לתשומת לבך: החישוב נמחק.\nהפעל את הפקודה {CMD} מחדש לחישוב.',
