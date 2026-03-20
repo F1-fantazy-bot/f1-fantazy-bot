@@ -247,7 +247,7 @@ describe('cache', () => {
       });
     });
 
-    it('returns empty arrays/objects when caches are missing and type is not passed', () => {
+    it('omits Drivers/Constructors when caches are missing and type is not passed', () => {
       delete driversCache[chatId];
       delete constructorsCache[chatId];
       delete currentTeamCache[chatId];
@@ -256,8 +256,8 @@ describe('cache', () => {
       const parsed = JSON.parse(
         result.replace(/```json\n/, '').replace(/\n```/, ''),
       );
-      expect(parsed.Drivers).toEqual([]);
-      expect(parsed.Constructors).toEqual([]);
+      expect(parsed.Drivers).toBeUndefined();
+      expect(parsed.Constructors).toBeUndefined();
       expect(parsed.Teams).toEqual({});
     });
 

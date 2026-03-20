@@ -91,10 +91,6 @@ function normalizeCacheSnapshot(jsonData) {
   }
 
   if (
-    !Object.prototype.hasOwnProperty.call(jsonData, 'Drivers') ||
-    !Array.isArray(jsonData.Drivers) ||
-    !Object.prototype.hasOwnProperty.call(jsonData, 'Constructors') ||
-    !Array.isArray(jsonData.Constructors) ||
     !Object.prototype.hasOwnProperty.call(jsonData, 'SelectedTeam') ||
     !Object.prototype.hasOwnProperty.call(jsonData, 'Teams') ||
     !isPlainObject(jsonData.Teams)
@@ -102,8 +98,17 @@ function normalizeCacheSnapshot(jsonData) {
     return null;
   }
 
+  if (
+    (Object.prototype.hasOwnProperty.call(jsonData, 'Drivers') &&
+      !Array.isArray(jsonData.Drivers)) ||
+    (Object.prototype.hasOwnProperty.call(jsonData, 'Constructors') &&
+      !Array.isArray(jsonData.Constructors))
+  ) {
+    return null;
+  }
+
   const driversMap = {};
-  for (const driver of jsonData.Drivers) {
+  for (const driver of jsonData.Drivers || []) {
     if (!isPlainObject(driver) || !isNonEmptyString(driver.DR)) {
       return null;
     }
@@ -111,7 +116,7 @@ function normalizeCacheSnapshot(jsonData) {
   }
 
   const constructorsMap = {};
-  for (const constructor of jsonData.Constructors) {
+  for (const constructor of jsonData.Constructors || []) {
     if (!isPlainObject(constructor) || !isNonEmptyString(constructor.CN)) {
       return null;
     }
