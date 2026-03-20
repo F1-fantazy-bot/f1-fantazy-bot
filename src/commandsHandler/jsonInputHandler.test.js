@@ -269,8 +269,6 @@ describe('handleJsonMessage', () => {
     };
 
     await handleJsonMessage(botMock, KILZI_CHAT_ID, {
-      Drivers: [],
-      Constructors: [],
       SelectedTeam: null,
       Teams: {},
     });
