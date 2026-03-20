@@ -61,6 +61,8 @@ exports.COMMAND_LIST_USERS = '/list_users';
 exports.COMMAND_SEND_MESSAGE_TO_USER = '/send_message_to_user';
 exports.COMMAND_BROADCAST = '/broadcast';
 exports.COMMAND_SET_NICKNAME = '/set_nickname';
+exports.COMMAND_UPLOAD_DRIVERS_PHOTO = '/upload_drivers_photo';
+exports.COMMAND_UPLOAD_CONSTRUCTORS_PHOTO = '/upload_constructors_photo';
 exports.COMMAND_SELECT_TEAM = '/select_team';
 exports.COMMAND_SET_BEST_TEAM_RANKING = '/set_best_team_ranking';
 
@@ -230,6 +232,16 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_SET_NICKNAME,
         title: '📛 Set Nickname',
         description: 'Set a nickname for a user to display in logs',
+      },
+      {
+        constant: exports.COMMAND_UPLOAD_DRIVERS_PHOTO,
+        title: '📤 Upload Drivers Photo',
+        description: 'Upload a drivers screenshot for cache extraction',
+      },
+      {
+        constant: exports.COMMAND_UPLOAD_CONSTRUCTORS_PHOTO,
+        title: '📤 Upload Constructors Photo',
+        description: 'Upload a constructors screenshot for cache extraction',
       },
     ],
   },

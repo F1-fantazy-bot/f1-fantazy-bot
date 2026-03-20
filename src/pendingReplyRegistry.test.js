@@ -10,6 +10,8 @@ jest.mock('./utils/utils', () => ({
 
 jest.mock('./constants', () => ({
   REPORTED_BUGS_GROUP_ID: -5161566735,
+  DRIVERS_PHOTO_TYPE: 'DRIVERS',
+  CONSTRUCTORS_PHOTO_TYPE: 'CONSTRUCTORS',
 }));
 
 jest.mock('./userRegistryService', () => ({
@@ -21,6 +23,10 @@ jest.mock('./pendingReplyManager', () => ({
   registerPendingReply: jest.fn().mockResolvedValue(),
 }));
 
+jest.mock('./photoProcessingService', () => ({
+  processPhotoByType: jest.fn().mockResolvedValue(),
+}));
+
 const {
   PENDING_REPLY_REGISTRY,
   resolveCommand,
@@ -29,6 +35,7 @@ const { t } = require('./i18n');
 const { getChatName, getDisplayName, sendMessageToAdmins } = require('./utils/utils');
 const { getUserById, listAllUsers } = require('./userRegistryService');
 const { registerPendingReply } = require('./pendingReplyManager');
+const { processPhotoByType } = require('./photoProcessingService');
 
 describe('pendingReplyRegistry', () => {
   beforeEach(() => {
@@ -239,6 +246,60 @@ describe('pendingReplyRegistry', () => {
       expect(
         typeof PENDING_REPLY_REGISTRY.send_message_to_user.buildResendPrompt,
       ).toBe('function');
+    });
+
+    it('should have upload_drivers_photo registered', () => {
+      expect(PENDING_REPLY_REGISTRY.upload_drivers_photo).toBeDefined();
+      expect(
+        typeof PENDING_REPLY_REGISTRY.upload_drivers_photo.buildHandler,
+      ).toBe('function');
+    });
+
+    it('should have upload_constructors_photo registered', () => {
+      expect(PENDING_REPLY_REGISTRY.upload_constructors_photo).toBeDefined();
+      expect(
+        typeof PENDING_REPLY_REGISTRY.upload_constructors_photo.buildHandler,
+      ).toBe('function');
+    });
+  });
+
+  describe('upload photo entries', () => {
+    it('should validate drivers upload as photo-only', () => {
+      const resolved = resolveCommand('upload_drivers_photo', 123);
+      expect(resolved.validate({ text: 'hello' })).toBe(false);
+      expect(resolved.validate({ photo: [{ file_id: 'f1' }] })).toBe(true);
+    });
+
+    it('should process drivers photo using drivers type', async () => {
+      const botMock = {};
+      const resolved = resolveCommand('upload_drivers_photo', 123);
+      await resolved.handler(botMock, {
+        photo: [{ file_id: 'small', file_unique_id: 'u1' }, { file_id: 'big', file_unique_id: 'u2' }],
+      });
+
+      expect(processPhotoByType).toHaveBeenCalledWith(
+        botMock,
+        123,
+        'DRIVERS',
+        'big',
+        'u2',
+      );
+    });
+
+    it('should process constructors photo using constructors type', async () => {
+      const botMock = {};
+      const resolved = resolveCommand('upload_constructors_photo', 456);
+      await resolved.handler(botMock, {
+        photo: [{ file_id: 'c1', file_unique_id: 'k1' }, { file_id: 'c2', file_unique_id: 'k2' }],
+      });
+
+      expect(processPhotoByType).toHaveBeenCalledWith(
+        botMock,
+        456,
+        'CONSTRUCTORS',
+        'c2',
+        'k2',
+      );
     });
   });
 

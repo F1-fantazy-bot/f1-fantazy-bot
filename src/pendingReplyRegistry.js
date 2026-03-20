@@ -4,7 +4,11 @@
 // Supports optional data parameter for multi-step commands that need intermediate state.
 
 const { t } = require('./i18n');
-const { REPORTED_BUGS_GROUP_ID } = require('./constants');
+const {
+  REPORTED_BUGS_GROUP_ID,
+  DRIVERS_PHOTO_TYPE,
+  CONSTRUCTORS_PHOTO_TYPE,
+} = require('./constants');
 const {
   getChatName,
   getDisplayName,
@@ -399,6 +403,48 @@ const PENDING_REPLY_REGISTRY = {
         chatId,
       );
     },
+  },
+  upload_drivers_photo: {
+    buildHandler: (chatId) => async (replyBot, replyMsg) => {
+      const { processPhotoByType } = require('./photoProcessingService');
+      const photoArray = replyMsg.photo;
+      const largestPhoto = photoArray[photoArray.length - 1];
+      await processPhotoByType(
+        replyBot,
+        chatId,
+        DRIVERS_PHOTO_TYPE,
+        largestPhoto.file_id,
+        largestPhoto.file_unique_id,
+      );
+    },
+    buildValidate: () => (replyMsg) =>
+      Array.isArray(replyMsg.photo) && replyMsg.photo.length > 0,
+    buildResendPrompt: (chatId) =>
+      t(
+        'We support only photo replies for this command. Please send a drivers screenshot.',
+        chatId,
+      ),
+  },
+  upload_constructors_photo: {
+    buildHandler: (chatId) => async (replyBot, replyMsg) => {
+      const { processPhotoByType } = require('./photoProcessingService');
+      const photoArray = replyMsg.photo;
+      const largestPhoto = photoArray[photoArray.length - 1];
+      await processPhotoByType(
+        replyBot,
+        chatId,
+        CONSTRUCTORS_PHOTO_TYPE,
+        largestPhoto.file_id,
+        largestPhoto.file_unique_id,
+      );
+    },
+    buildValidate: () => (replyMsg) =>
+      Array.isArray(replyMsg.photo) && replyMsg.photo.length > 0,
+    buildResendPrompt: (chatId) =>
+      t(
+        'We support only photo replies for this command. Please send a constructors screenshot.',
+        chatId,
+      ),
   },
 };
 

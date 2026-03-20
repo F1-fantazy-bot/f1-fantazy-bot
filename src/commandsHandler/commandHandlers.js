@@ -27,6 +27,8 @@ const {
   COMMAND_SEND_MESSAGE_TO_USER,
   COMMAND_BROADCAST,
   COMMAND_SET_NICKNAME,
+  COMMAND_UPLOAD_DRIVERS_PHOTO,
+  COMMAND_UPLOAD_CONSTRUCTORS_PHOTO,
   COMMAND_SELECT_TEAM,
   COMMAND_SET_BEST_TEAM_RANKING,
 } = require('../constants');
@@ -62,6 +64,10 @@ const {
 } = require('./sendMessageToUserHandler');
 const { handleBroadcastCommand } = require('./broadcastHandler');
 const { handleSetNicknameCommand } = require('./setNicknameHandler');
+const { handleUploadDriversPhotoCommand } = require('./uploadDriversPhotoHandler');
+const {
+  handleUploadConstructorsPhotoCommand,
+} = require('./uploadConstructorsPhotoHandler');
 const { handleSelectTeamCommand } = require('./selectTeamHandler');
 const { handleSetBestTeamRanking } = require('./setBestTeamRankingHandler');
 
@@ -95,6 +101,8 @@ const COMMAND_HANDLERS = {
   [COMMAND_SEND_MESSAGE_TO_USER]: handleSendMessageToUserCommand,
   [COMMAND_BROADCAST]: handleBroadcastCommand,
   [COMMAND_SET_NICKNAME]: handleSetNicknameCommand,
+  [COMMAND_UPLOAD_DRIVERS_PHOTO]: handleUploadDriversPhotoCommand,
+  [COMMAND_UPLOAD_CONSTRUCTORS_PHOTO]: handleUploadConstructorsPhotoCommand,
   [COMMAND_SELECT_TEAM]: handleSelectTeamCommand,
   [COMMAND_SET_BEST_TEAM_RANKING]: handleSetBestTeamRanking,
 };
