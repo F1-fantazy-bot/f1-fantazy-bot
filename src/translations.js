@@ -21,6 +21,12 @@ const translations = {
     'Without Chip': "ללא צ'יפ",
     'Sorry, only admins can use this command.':
       'מצטער, רק מנהלים יכולים להשתמש בפקודה זו.',
+    'Please send a drivers screenshot.': 'אנא שלח צילום מסך של נהגים.',
+    'Please send a constructors screenshot.': 'אנא שלח צילום מסך של קבוצות.',
+    'We support only photo replies for this command. Please send a drivers screenshot.':
+      'פקודה זו תומכת רק בתשובת תמונה. אנא שלח צילום מסך של נהגים.',
+    'We support only photo replies for this command. Please send a constructors screenshot.':
+      'פקודה זו תומכת רק בתשובת תמונה. אנא שלח צילום מסך של קבוצות.',
     'Sorry, only admins can get BotFather commands.':
       'מצטער, רק מנהלים יכולים לקבל פקודות BotFather.',
     'Simulation data fetched and cached successfully.':
@@ -343,6 +349,12 @@ const translations = {
     '📛 Set Nickname': '📛 הגדר כינוי',
     'Set a nickname for a user to display in logs':
       'הגדר כינוי למשתמש להצגה ביומנים',
+    '📤 Upload Drivers Photo': '📤 העלאת תמונת נהגים',
+    'Upload a drivers screenshot for cache extraction':
+      'העלה צילום מסך נהגים לחילוץ נתונים למטמון',
+    '📤 Upload Constructors Photo': '📤 העלאת תמונת קבוצות',
+    'Upload a constructors screenshot for cache extraction':
+      'העלה צילום מסך קבוצות לחילוץ נתונים למטמון',
     Nickname: 'כינוי',
     'Select Team': 'בחירת קבוצה',
     'Select your active team:': 'בחר קבוצה פעילה:',

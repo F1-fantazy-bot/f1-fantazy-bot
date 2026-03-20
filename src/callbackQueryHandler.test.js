@@ -255,15 +255,13 @@ describe('handleCallbackQuery', () => {
 
   it('should handle JSON parse error gracefully', async () => {
     extractJsonDataFromPhotos.mockResolvedValue('not a json');
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     await handleCallbackQuery(bot, query);
 
-    expect(spy).toHaveBeenCalledWith(
-      expect.stringContaining('[DEBUG] JSON.parse FAILED. Error:'),
-      expect.anything(),
+    expect(require('./utils').sendLogMessage).toHaveBeenCalledWith(
+      bot,
+      expect.stringContaining('Error extracting data from photo:'),
     );
-    spy.mockRestore();
   });
 
   it('should handle extractJsonDataFromPhotos error gracefully', async () => {
@@ -604,7 +602,6 @@ describe('handleCallbackQuery', () => {
     });
 
     it('should handle unknown photo type and log error', async () => {
-      const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
       query.data = `${PHOTO_CALLBACK_TYPE}:unknown_type:${fileId}`;
       extractJsonDataFromPhotos.mockResolvedValue(
         '```json\n{"someData": "test"}\n```',
@@ -612,8 +609,10 @@ describe('handleCallbackQuery', () => {
 
       await handleCallbackQuery(bot, query);
 
-      expect(spy).toHaveBeenCalledWith('Unknown photo type:', 'unknown_type');
-      spy.mockRestore();
+      expect(require('./utils').sendLogMessage).toHaveBeenCalledWith(
+        bot,
+        'Unknown photo type: unknown_type',
+      );
     });
 
     it('should handle drivers data with existing cache', async () => {
@@ -694,21 +693,16 @@ describe('handleCallbackQuery', () => {
     });
 
     it('should handle storeInCache with undefined jsonObject after parse error', async () => {
-      const consoleErrorSpy = jest
-        .spyOn(console, 'error')
-        .mockImplementation(() => {});
-
       extractJsonDataFromPhotos.mockResolvedValue(
         'invalid json that will fail parsing',
       );
 
       await handleCallbackQuery(bot, query);
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[DEBUG] JSON.parse FAILED. Error:',
-        expect.any(String),
+      expect(require('./utils').sendLogMessage).toHaveBeenCalledWith(
+        bot,
+        expect.stringContaining('Error extracting data from photo:'),
       );
-      consoleErrorSpy.mockRestore();
     });
   });
 });

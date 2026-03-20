@@ -6,10 +6,20 @@ const {
   PHOTO_CALLBACK_TYPE,
 } = require('./constants');
 const { photoCache } = require('./cache');
+const { isAdminMessage } = require('./utils/utils');
+const { processPhotoByType } = require('./photoProcessingService');
 
 jest.mock('./cache', () => ({
   photoCache: {},
   userCache: {},
+}));
+
+jest.mock('./utils/utils', () => ({
+  isAdminMessage: jest.fn(),
+}));
+
+jest.mock('./photoProcessingService', () => ({
+  processPhotoByType: jest.fn().mockResolvedValue(),
 }));
 
 describe('handlePhotoMessage', () => {
@@ -36,6 +46,7 @@ describe('handlePhotoMessage', () => {
   });
 
   it('should send inline buttons', async () => {
+    isAdminMessage.mockReturnValue(true);
     bot.getFile.mockResolvedValue({ file_size: 2048 });
 
     await handlePhotoMessage(bot, msg);
@@ -76,11 +87,32 @@ describe('handlePhotoMessage', () => {
   });
 
   it('should select the largest photo (last in array)', async () => {
+    isAdminMessage.mockReturnValue(true);
     bot.getFile.mockResolvedValue({ file_size: 1000 });
 
     await handlePhotoMessage(bot, msg);
 
     // The cached fileId should be 'large', not 'small'
     expect(photoCache['unique2'].fileId).toBe('large');
+  });
+
+  it('should auto-process non-admin photos as current team', async () => {
+    isAdminMessage.mockReturnValue(false);
+
+    await handlePhotoMessage(bot, msg);
+
+    expect(processPhotoByType).toHaveBeenCalledWith(
+      bot,
+      123,
+      CURRENT_TEAM_PHOTO_TYPE,
+      'large',
+      'unique2',
+    );
+    expect(bot.sendMessage).not.toHaveBeenCalledWith(
+      123,
+      'What type is this photo?',
+      expect.anything(),
+    );
+    expect(photoCache.unique2).toBeUndefined();
   });
 });

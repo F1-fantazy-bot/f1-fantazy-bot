@@ -19,6 +19,8 @@ const {
   COMMAND_REPORT_BUG,
   COMMAND_LIST_USERS,
   COMMAND_SEND_MESSAGE_TO_USER,
+  COMMAND_UPLOAD_DRIVERS_PHOTO,
+  COMMAND_UPLOAD_CONSTRUCTORS_PHOTO,
   COMMAND_SET_BEST_TEAM_RANKING,
 } = require('./constants');
 
@@ -73,6 +75,12 @@ const {
   handleSendMessageToUserCommand,
 } = require('./commandsHandler/sendMessageToUserHandler');
 const {
+  handleUploadDriversPhotoCommand,
+} = require('./commandsHandler/uploadDriversPhotoHandler');
+const {
+  handleUploadConstructorsPhotoCommand,
+} = require('./commandsHandler/uploadConstructorsPhotoHandler');
+const {
   handleSetBestTeamRanking,
 } = require('./commandsHandler/setBestTeamRankingHandler');
 
@@ -98,6 +106,8 @@ jest.mock('./commandsHandler/reportBugHandler');
 jest.mock('./commandsHandler/askHandler');
 jest.mock('./commandsHandler/listUsersHandler');
 jest.mock('./commandsHandler/sendMessageToUserHandler');
+jest.mock('./commandsHandler/uploadDriversPhotoHandler');
+jest.mock('./commandsHandler/uploadConstructorsPhotoHandler');
 jest.mock('./commandsHandler/setBestTeamRankingHandler');
 
 const { handleTextMessage } = require('./textMessageHandler');
@@ -379,6 +389,36 @@ describe('handleTextMessage', () => {
       await handleTextMessage(botMock, msgMock);
 
       expect(handleSendMessageToUserCommand).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleJsonMessage).not.toHaveBeenCalled();
+    });
+
+    it('should route /upload_drivers_photo command to handleUploadDriversPhotoCommand', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: COMMAND_UPLOAD_DRIVERS_PHOTO,
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(handleUploadDriversPhotoCommand).toHaveBeenCalledWith(
+        botMock,
+        msgMock,
+      );
+      expect(handleJsonMessage).not.toHaveBeenCalled();
+    });
+
+    it('should route /upload_constructors_photo command to handleUploadConstructorsPhotoCommand', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: COMMAND_UPLOAD_CONSTRUCTORS_PHOTO,
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(handleUploadConstructorsPhotoCommand).toHaveBeenCalledWith(
+        botMock,
+        msgMock,
+      );
       expect(handleJsonMessage).not.toHaveBeenCalled();
     });
 

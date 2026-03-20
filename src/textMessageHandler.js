@@ -30,6 +30,8 @@ const {
   handleSendMessageToUserCommand,
   handleBroadcastCommand,
   handleSetNicknameCommand,
+  handleUploadDriversPhotoCommand,
+  handleUploadConstructorsPhotoCommand,
   handleSelectTeamCommand,
   handleSetBestTeamRanking,
 } = require('./commandsHandler');
@@ -64,6 +66,8 @@ const {
   COMMAND_SEND_MESSAGE_TO_USER,
   COMMAND_BROADCAST,
   COMMAND_SET_NICKNAME,
+  COMMAND_UPLOAD_DRIVERS_PHOTO,
+  COMMAND_UPLOAD_CONSTRUCTORS_PHOTO,
   COMMAND_SELECT_TEAM,
   COMMAND_SET_BEST_TEAM_RANKING,
 } = require('./constants');
@@ -136,6 +140,10 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleBroadcastCommand(bot, msg);
     case msg.text === COMMAND_SET_NICKNAME:
       return await handleSetNicknameCommand(bot, msg);
+    case msg.text === COMMAND_UPLOAD_DRIVERS_PHOTO:
+      return await handleUploadDriversPhotoCommand(bot, msg);
+    case msg.text === COMMAND_UPLOAD_CONSTRUCTORS_PHOTO:
+      return await handleUploadConstructorsPhotoCommand(bot, msg);
     case msg.text === COMMAND_SELECT_TEAM:
       return await handleSelectTeamCommand(bot, msg);
     case msg.text === COMMAND_SET_BEST_TEAM_RANKING:

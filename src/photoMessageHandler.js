@@ -5,6 +5,8 @@ const {
   CURRENT_TEAM_PHOTO_TYPE,
   PHOTO_CALLBACK_TYPE,
 } = require('./constants');
+const { isAdminMessage } = require('./utils/utils');
+const { processPhotoByType } = require('./photoProcessingService');
 const { t } = require('./i18n');
 
 exports.handlePhotoMessage = async function (bot, msg) {
@@ -17,6 +19,18 @@ exports.handlePhotoMessage = async function (bot, msg) {
   const largestPhoto = photoArray[photoArray.length - 1];
   const fileId = largestPhoto.file_id;
   const fileUniqueId = largestPhoto.file_unique_id;
+
+  if (!isAdminMessage(msg)) {
+    await processPhotoByType(
+      bot,
+      chatId,
+      CURRENT_TEAM_PHOTO_TYPE,
+      fileId,
+      fileUniqueId,
+    );
+
+    return;
+  }
 
   photoCache[fileUniqueId] = {
     fileId,
