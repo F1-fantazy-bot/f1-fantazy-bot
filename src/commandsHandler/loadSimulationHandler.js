@@ -1,15 +1,8 @@
-const { isAdminMessage } = require('../utils');
 const { loadSimulationData } = require('../cacheInitializer');
 const { t } = require('../i18n');
 
 async function handleLoadSimulation(bot, msg) {
   const chatId = msg.chat.id;
-
-  if (!isAdminMessage(msg)) {
-    await bot.sendMessage(chatId, t('Sorry, only admins can use this command.', chatId));
-
-    return;
-  }
 
   try {
     await loadSimulationData(bot);

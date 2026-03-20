@@ -180,6 +180,11 @@ exports.MENU_CATEGORIES = {
         title: '🌐 Set Language',
         description: 'Change bot language for this session',
       },
+      {
+        constant: exports.COMMAND_LOAD_SIMULATION,
+        title: '📋 Load Simulation',
+        description: 'Load latest simulation data',
+      },
     ],
   },
   ADMIN_COMMANDS: {
@@ -188,11 +193,6 @@ exports.MENU_CATEGORIES = {
     description: 'Administrative tools and functions',
     adminOnly: true,
     commands: [
-      {
-        constant: exports.COMMAND_LOAD_SIMULATION,
-        title: '📋 Load Simulation',
-        description: 'Load latest simulation data',
-      },
       {
         constant: exports.COMMAND_TRIGGER_SCRAPING,
         title: '🔄 Trigger Scraping',

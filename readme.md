@@ -166,11 +166,11 @@ All users can access these commands:
 
 - **`/print_cache`** - Show the currently cached drivers, constructors, and current team
 - **`/reset_cache`** - Clear all cached data for this chat
+- **`/load_simulation`** - Load the latest simulation data
 ### Admin Commands
 
 Restricted to authorized administrators:
 
-- **`/load_simulation`** - Load the latest simulation data
 - **`/trigger_scraping`** - Trigger web scraping for latest F1 Fantasy data
 - **`/billing_stats`** - View current month Azure billing statistics with service breakdown
 - **`/get_botfather_commands`** - Get commands formatted for BotFather setup
