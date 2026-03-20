@@ -41,13 +41,6 @@ exports.weatherForecastCache = {};
 exports.remainingRaceCountCache = {};
 const DEFAULT_BEST_TEAM_BUDGET_CHANGE_POINTS_PER_MILLION = 0;
 
-const LEGACY_POINTS_WEIGHT_TO_BUDGET_CHANGE_POINTS_PER_MILLION = {
-  1: 0,
-  0.9: 1.3,
-  0.8: 1.65,
-  0.7: 2,
-};
-
 exports.DEFAULT_BEST_TEAM_BUDGET_CHANGE_POINTS_PER_MILLION =
   DEFAULT_BEST_TEAM_BUDGET_CHANGE_POINTS_PER_MILLION;
 
@@ -71,34 +64,9 @@ function parsePreferenceMap(rawPreferenceMap) {
     : {};
 }
 
-function mapLegacyBestTeamPointsWeights(rawLegacyBestTeamPointsWeights) {
-  const parsedLegacyWeights = parsePreferenceMap(rawLegacyBestTeamPointsWeights);
-
-  return Object.fromEntries(
-    Object.entries(parsedLegacyWeights).flatMap(([teamId, legacyWeight]) => {
-      const normalizedLegacyWeight = Number(legacyWeight);
-
-      if (!Number.isFinite(normalizedLegacyWeight)) {
-        return [];
-      }
-
-      const mappedValue =
-        LEGACY_POINTS_WEIGHT_TO_BUDGET_CHANGE_POINTS_PER_MILLION[
-          normalizedLegacyWeight
-        ];
-
-      return Number.isFinite(mappedValue) ? [[teamId, mappedValue]] : [];
-    }),
-  );
-}
-
 exports.normalizeBestTeamBudgetChangePointsPerMillion = function (
   rawBudgetChangePointsPerMillion,
-  rawLegacyBestTeamPointsWeights,
 ) {
-  const normalizedLegacyValues = mapLegacyBestTeamPointsWeights(
-    rawLegacyBestTeamPointsWeights,
-  );
   const parsedCurrentValues = parsePreferenceMap(rawBudgetChangePointsPerMillion);
   const normalizedCurrentValues = Object.fromEntries(
     Object.entries(parsedCurrentValues).flatMap(([teamId, currentValue]) => {
@@ -110,10 +78,7 @@ exports.normalizeBestTeamBudgetChangePointsPerMillion = function (
     }),
   );
 
-  return {
-    ...normalizedLegacyValues,
-    ...normalizedCurrentValues,
-  };
+  return normalizedCurrentValues;
 };
 
 const currentTeamCache = exports.currentTeamCache;
@@ -134,7 +99,6 @@ exports.getBestTeamBudgetChangePointsPerMillion = function (chatId, teamId) {
   const bestTeamBudgetChangePointsPerMillion =
     exports.normalizeBestTeamBudgetChangePointsPerMillion(
       userCache[key]?.bestTeamBudgetChangePointsPerMillion,
-      userCache[key]?.bestTeamPointsWeights,
     );
 
   const budgetChangePointsPerMillion = Number(

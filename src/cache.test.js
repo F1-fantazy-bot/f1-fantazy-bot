@@ -417,16 +417,6 @@ describe('cache', () => {
 
       expect(getBestTeamBudgetChangePointsPerMillion(chatId, 'T2')).toBe(1.65);
     });
-
-    it('maps legacy points weights when set', () => {
-      userCache[chatId] = {
-        bestTeamPointsWeights: {
-          T2: 0.8,
-        },
-      };
-
-      expect(getBestTeamBudgetChangePointsPerMillion(chatId, 'T2')).toBe(1.65);
-    });
   });
 
   describe('normalizeBestTeamBudgetChangePointsPerMillion', () => {
@@ -444,12 +434,6 @@ describe('cache', () => {
 
     it('returns empty object for invalid JSON string', () => {
       expect(normalizeBestTeamBudgetChangePointsPerMillion('{invalid-json')).toEqual({});
-    });
-
-    it('maps legacy values when provided', () => {
-      expect(
-        normalizeBestTeamBudgetChangePointsPerMillion(undefined, '{"T2":0.8}'),
-      ).toEqual({ T2: 1.65 });
     });
   });
 

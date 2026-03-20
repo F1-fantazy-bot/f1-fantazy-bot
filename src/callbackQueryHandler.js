@@ -110,14 +110,12 @@ async function handleBestTeamRankingCallback(bot, query) {
   const bestTeamBudgetChangePointsPerMillion =
     normalizeBestTeamBudgetChangePointsPerMillion(
       userCache[key].bestTeamBudgetChangePointsPerMillion,
-      userCache[key].bestTeamPointsWeights,
     );
 
   bestTeamBudgetChangePointsPerMillion[teamId] =
     preset.budgetChangePointsPerMillion;
   userCache[key].bestTeamBudgetChangePointsPerMillion =
     bestTeamBudgetChangePointsPerMillion;
-  delete userCache[key].bestTeamPointsWeights;
 
   await updateUserAttributes(chatId, {
     bestTeamBudgetChangePointsPerMillion: JSON.stringify(

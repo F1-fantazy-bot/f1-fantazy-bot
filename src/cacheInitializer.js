@@ -79,9 +79,7 @@ async function initializeCaches(bot) {
     userData.bestTeamBudgetChangePointsPerMillion =
       normalizeBestTeamBudgetChangePointsPerMillion(
         userData.bestTeamBudgetChangePointsPerMillion,
-        userData.bestTeamPointsWeights,
       );
-    delete userData.bestTeamPointsWeights;
 
     userCache[key] = userData;
   }

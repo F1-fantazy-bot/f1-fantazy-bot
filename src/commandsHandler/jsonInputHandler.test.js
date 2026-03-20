@@ -67,7 +67,7 @@ describe('handleJsonMessage', () => {
           freeTransfers: 2,
           costCapRemaining: 3.5,
           chip: EXTRA_DRS_CHIP,
-          bestTeamPointsWeight: 0.8,
+          bestTeamBudgetChangePointsPerMillion: 1.65,
         },
         T2: {
           drivers: ['HAM', 'VER'],
