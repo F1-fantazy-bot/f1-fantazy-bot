@@ -393,7 +393,7 @@ describe('Menu Handler', () => {
       const editCall = mockBot.editMessageText.mock.calls[0][1];
       const keyboard = editCall.reply_markup.inline_keyboard;
 
-      // Should not include Load Simulation button for regular users (it's now in admin commands)
+      // Team management category should not include utility commands like load simulation
       const hasLoadSimulation = keyboard.some((row) =>
         row.some((button) => button.text === '📋 Load Simulation')
       );
@@ -409,11 +409,11 @@ describe('Menu Handler', () => {
       const editCall = mockBot.editMessageText.mock.calls[0][1];
       const keyboard = editCall.reply_markup.inline_keyboard;
 
-      // Should include Load Simulation button for admin users in admin commands category
-      const hasLoadSimulation = keyboard.some((row) =>
-        row.some((button) => button.text === '📋 Load Simulation')
+      // Admin category should include admin-only commands such as Trigger Scraping
+      const hasTriggerScraping = keyboard.some((row) =>
+        row.some((button) => button.text === '🔄 Trigger Scraping')
       );
-      expect(hasLoadSimulation).toBe(true);
+      expect(hasTriggerScraping).toBe(true);
     });
   });
 });

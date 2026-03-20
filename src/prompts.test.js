@@ -48,7 +48,6 @@ describe('buildAskSystemPrompt', () => {
     const prompt = buildAskSystemPrompt(false);
 
     expect(prompt).not.toContain('/trigger_scraping');
-    expect(prompt).not.toContain('/load_simulation');
     expect(prompt).not.toContain('/get_botfather_commands');
     expect(prompt).not.toContain('/billing_stats');
     expect(prompt).not.toContain('/version');
