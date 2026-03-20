@@ -212,9 +212,11 @@ exports.getPrintableCache = function (chatId, type) {
       }
     }
 
+    const drivers = Object.values(driversData || {});
+    const constructors = Object.values(constructorsData || {});
     const jsonData = {
-      Drivers: Object.values(driversData || {}),
-      Constructors: Object.values(constructorsData || {}),
+      ...(drivers.length > 0 && { Drivers: drivers }),
+      ...(constructors.length > 0 && { Constructors: constructors }),
       ...(chatId !== exports.sharedKey && {
         SelectedTeam: exports.getSelectedTeam(chatId),
         Teams: teams,
