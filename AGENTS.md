@@ -330,7 +330,7 @@ driversCache[chatId]; // driver data shared across teams
 constructorsCache[chatId]; // constructor data shared across teams
 ```
 
-Best-team ranking preferences are stored per team in `userCache[chatId].bestTeamBudgetChangePointsPerMillion`. Legacy persisted `bestTeamPointsWeights` values and legacy imported snapshot fields named `bestTeamPointsWeight` are still accepted and mapped to the new ranking presets during load/import.
+Best-team ranking preferences are stored per team in `userCache[chatId].bestTeamBudgetChangePointsPerMillion`.
 
 ### Best-Team Ranking
 

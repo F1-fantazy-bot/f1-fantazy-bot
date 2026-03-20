@@ -65,7 +65,6 @@ async function handleJsonMessage(bot, chatId, jsonData) {
   userCache[key].selectedTeam = normalizedSnapshot.selectedTeam;
   userCache[key].bestTeamBudgetChangePointsPerMillion =
     normalizedSnapshot.bestTeamBudgetChangePointsPerMillion;
-  delete userCache[key].bestTeamPointsWeights;
 
   await azureStorageService.deleteAllUserTeams(bot, chatId);
 
@@ -125,7 +124,6 @@ function normalizeCacheSnapshot(jsonData) {
 
   const teamsMap = {};
   const bestTeamBudgetChangePointsPerMillion = {};
-  const legacyBestTeamPointsWeights = {};
   const selectedChips = {};
 
   for (const [teamId, teamSnapshot] of Object.entries(jsonData.Teams)) {
@@ -136,7 +134,6 @@ function normalizeCacheSnapshot(jsonData) {
     const {
       chip,
       bestTeamBudgetChangePointsPerMillion: currentBestTeamBudgetChangePointsPerMillion,
-      bestTeamPointsWeight,
       ...teamDataWithoutMetadata
     } = teamSnapshot;
 
@@ -144,9 +141,6 @@ function normalizeCacheSnapshot(jsonData) {
     if (Number.isFinite(currentBestTeamBudgetChangePointsPerMillion)) {
       bestTeamBudgetChangePointsPerMillion[teamId] =
         currentBestTeamBudgetChangePointsPerMillion;
-    }
-    if (Number.isFinite(bestTeamPointsWeight)) {
-      legacyBestTeamPointsWeights[teamId] = bestTeamPointsWeight;
     }
 
     if (chip !== undefined) {
@@ -173,7 +167,6 @@ function normalizeCacheSnapshot(jsonData) {
     bestTeamBudgetChangePointsPerMillion:
       normalizeBestTeamBudgetChangePointsPerMillion(
         bestTeamBudgetChangePointsPerMillion,
-        legacyBestTeamPointsWeights,
       ),
     selectedTeam: jsonData.SelectedTeam,
   };
@@ -199,9 +192,8 @@ function isValidTeamSnapshot(teamSnapshot) {
   const hasCurrentRankingField = Number.isFinite(
     teamSnapshot.bestTeamBudgetChangePointsPerMillion,
   );
-  const hasLegacyRankingField = Number.isFinite(teamSnapshot.bestTeamPointsWeight);
 
-  if (!hasCurrentRankingField && !hasLegacyRankingField) {
+  if (!hasCurrentRankingField) {
     return false;
   }
 

@@ -80,7 +80,7 @@ describe('cacheInitializer', () => {
       chatName: 'Alice',
       lang: 'en',
       nickname: 'Max',
-      bestTeamPointsWeights: JSON.stringify({ T1: 0.8 }),
+      bestTeamBudgetChangePointsPerMillion: JSON.stringify({ T1: 1.65 }),
     },
     { chatId: '456', chatName: 'Bob', lang: 'he', nickname: 'Lewis' },
   ];
