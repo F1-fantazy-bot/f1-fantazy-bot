@@ -33,6 +33,10 @@ const {
 } = require('./sendMessageToUserHandler');
 const { handleBroadcastCommand } = require('./broadcastHandler');
 const { handleSetNicknameCommand } = require('./setNicknameHandler');
+const { handleUploadDriversPhotoCommand } = require('./uploadDriversPhotoHandler');
+const {
+  handleUploadConstructorsPhotoCommand,
+} = require('./uploadConstructorsPhotoHandler');
 const { handleSelectTeamCommand } = require('./selectTeamHandler');
 const { handleSetBestTeamRanking } = require('./setBestTeamRankingHandler');
 
@@ -67,6 +71,8 @@ module.exports = {
   handleSendMessageToUserCommand,
   handleBroadcastCommand,
   handleSetNicknameCommand,
+  handleUploadDriversPhotoCommand,
+  handleUploadConstructorsPhotoCommand,
   handleSelectTeamCommand,
   handleSetBestTeamRanking,
 };
