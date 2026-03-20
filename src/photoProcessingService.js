@@ -26,6 +26,13 @@ async function processPhotoByType(
   fileId,
   fileUniqueId = null,
 ) {
+  await sendMessageToUser(
+    bot,
+    chatId,
+    t('Please wait while data is extracted from the image.', chatId),
+    { errorMessageToLog: 'Error sending extraction-in-progress message' },
+  );
+
   const fileLink = await bot.getFileLink(fileId);
   const extractedData = await extractJsonDataFromPhotos(bot, type, [fileLink]);
   const teamId = await storeInCache(
