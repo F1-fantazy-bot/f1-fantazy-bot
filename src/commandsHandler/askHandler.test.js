@@ -17,6 +17,7 @@ const { __createMock } = require('openai');
 
 jest.mock('../utils', () => ({
   sendLogMessage: jest.fn().mockResolvedValue(),
+  sendErrorMessage: jest.fn().mockResolvedValue(),
   isAdminMessage: jest.fn(),
 }));
 

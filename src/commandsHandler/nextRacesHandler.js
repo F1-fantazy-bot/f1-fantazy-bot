@@ -1,4 +1,4 @@
-const { sendLogMessage } = require('../utils');
+const { sendErrorMessage } = require('../utils');
 const { formatDateTime } = require('../utils/utils');
 const { t } = require('../i18n');
 const { MAX_TELEGRAM_MESSAGE_LENGTH } = require('../constants');
@@ -148,10 +148,10 @@ async function handleNextRacesCommand(bot, chatId) {
       await bot
         .sendMessage(
           chatId,
-          t('No upcoming races found for this season.', chatId)
+          t('No upcoming races found for this season.', chatId),
         )
         .catch((err) =>
-          console.error('Error sending no upcoming races message:', err)
+          console.error('Error sending no upcoming races message:', err),
         );
 
       return;
@@ -162,10 +162,12 @@ async function handleNextRacesCommand(bot, chatId) {
     const continuedHeader = `*${t('Upcoming Races (continued)', chatId)}*\n\n`;
 
     const raceBlocks = upcomingRaces.map(
-      (race) => buildRaceBlock(race, chatId).text
+      (race) => buildRaceBlock(race, chatId).text,
     );
     const totalUpcomingRaces = upcomingRaces.length;
-    const sprintRacesCount = upcomingRaces.filter((race) => Boolean(race.Sprint)).length;
+    const sprintRacesCount = upcomingRaces.filter((race) =>
+      Boolean(race.Sprint),
+    ).length;
 
     const buildSummaryLine = () => {
       const raceSummary =
@@ -203,7 +205,10 @@ async function handleNextRacesCommand(bot, chatId) {
     const summaryLine = buildSummaryLine();
     const summaryBlock = `\n\n\n${summaryLine}`;
 
-    if (currentMessage.length + summaryBlock.length > MAX_TELEGRAM_MESSAGE_LENGTH) {
+    if (
+      currentMessage.length + summaryBlock.length >
+      MAX_TELEGRAM_MESSAGE_LENGTH
+    ) {
       messages.push(currentMessage.trimEnd());
       currentMessage = `${continuedHeader}\n${summaryLine}\n`;
     } else {
@@ -218,22 +223,22 @@ async function handleNextRacesCommand(bot, chatId) {
       await bot
         .sendMessage(chatId, message, { parse_mode: 'Markdown' })
         .catch((err) =>
-          console.error('Error sending upcoming races message:', err)
+          console.error('Error sending upcoming races message:', err),
         );
     }
   } catch (error) {
     console.error('Error handling next races command:', error);
-    await sendLogMessage(
+    await sendErrorMessage(
       bot,
-      `Failed to fetch upcoming races: ${error.message}`
+      `Failed to fetch upcoming races: ${error.message}`,
     );
     await bot
       .sendMessage(
         chatId,
-        t('Unable to fetch upcoming races. Please try again later.', chatId)
+        t('Unable to fetch upcoming races. Please try again later.', chatId),
       )
       .catch((err) =>
-        console.error('Error sending upcoming races fallback message:', err)
+        console.error('Error sending upcoming races fallback message:', err),
       );
   }
 }

@@ -1,6 +1,7 @@
 const { KILZI_CHAT_ID } = require('../constants');
 
 const mockSendLogMessage = jest.fn();
+const mockSendErrorMessage = jest.fn();
 
 jest.mock('../utils', () => {
   const original = jest.requireActual('../utils');
@@ -8,6 +9,7 @@ jest.mock('../utils', () => {
   return {
     ...original,
     sendLogMessage: mockSendLogMessage,
+    sendErrorMessage: mockSendErrorMessage,
   };
 });
 
@@ -460,7 +462,7 @@ describe('handleNextRaceInfoCommand', () => {
 
     await handleNextRaceInfoCommand(botMock, KILZI_CHAT_ID);
 
-    expect(mockSendLogMessage).toHaveBeenCalledWith(
+    expect(mockSendErrorMessage).toHaveBeenCalledWith(
       botMock,
       expect.stringContaining(`Weather API error:`)
     );

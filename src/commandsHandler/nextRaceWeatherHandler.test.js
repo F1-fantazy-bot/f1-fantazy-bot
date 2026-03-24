@@ -1,9 +1,11 @@
 const { KILZI_CHAT_ID } = require('../constants');
 
 const mockSendLogMessage = jest.fn();
+const mockSendErrorMessage = jest.fn();
 
 jest.mock('../utils', () => ({
   sendLogMessage: mockSendLogMessage,
+  sendErrorMessage: mockSendErrorMessage,
 }));
 
 jest.mock('../utils/utils', () => {

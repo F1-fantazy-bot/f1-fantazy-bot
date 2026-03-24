@@ -1,5 +1,6 @@
 const {
   LOG_CHANNEL_ID,
+  ERRORS_CHANNEL_ID,
   DRIVERS_PHOTO_TYPE,
   CONSTRUCTORS_PHOTO_TYPE,
   CURRENT_TEAM_PHOTO_TYPE,
@@ -97,6 +98,35 @@ pid: ${process.pid}`;
   }
 };
 
+exports.sendErrorMessage = async function (bot, errorMessage) {
+  // Send to the log channel (reuse sendLogMessage)
+  await exports.sendLogMessage(bot, errorMessage);
+
+  let env = 'dev';
+  if (process.env.NODE_ENV === 'production') {
+    env = 'prod';
+  } else if (process.env.NODE_ENV === 'test') {
+    env = 'test';
+  }
+
+  let log = `BOT: ${errorMessage}
+env: ${env}`;
+
+  if (
+    process.env.NODE_ENV === 'production' ||
+    process.env.NODE_ENV === 'test'
+  ) {
+    log += `
+pid: ${process.pid}`;
+  }
+
+  try {
+    await sendMessage(bot, ERRORS_CHANNEL_ID, log);
+  } catch (error) {
+    console.error(error);
+  }
+};
+
 exports.sendMessageToAdmins = async function (bot, message) {
   const adminChatIds = [KILZI_CHAT_ID, DORSE_CHAT_ID];
   const msg = `BOT: ${message}`;
@@ -121,7 +151,7 @@ exports.sendMessageToUser = async function (
     await sendMessage(bot, chatId, message, options);
   } catch (error) {
     console.error(error);
-    await exports.sendLogMessage(
+    await exports.sendErrorMessage(
       bot,
       `${
         errorMessageToLog ? errorMessageToLog : 'Error sending message to user'
@@ -150,7 +180,7 @@ exports.sendPhotoToUser = async function (
     await sendPhoto(bot, chatId, photoUrl);
   } catch (error) {
     console.error(error);
-    await exports.sendLogMessage(
+    await exports.sendErrorMessage(
       bot,
       `${
         errorMessageToLog ? errorMessageToLog : 'Error sending photo to user'
@@ -286,7 +316,7 @@ exports.validateJsonData = async function (
 exports.calculateTeamInfo = function (team, drivers, constructors) {
   const totalPrice = normalizePrice(
     team.drivers.reduce((sum, dr) => sum + drivers[dr].price, 0) +
-      team.constructors.reduce((sum, cn) => sum + constructors[cn].price, 0)
+      team.constructors.reduce((sum, cn) => sum + constructors[cn].price, 0),
   );
 
   // Add cost remaining

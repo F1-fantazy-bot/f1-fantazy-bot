@@ -1,5 +1,5 @@
 const { getMonthlyBillingStats } = require('../azureBillingService');
-const { sendLogMessage, isAdminMessage } = require('../utils/utils');
+const { sendErrorMessage, isAdminMessage } = require('../utils/utils');
 const { t } = require('../i18n');
 
 /**
@@ -34,7 +34,7 @@ async function handleBillingStats(bot, msg) {
       );
   } catch (error) {
     console.error('Error in handleBillingStats:', error);
-    await sendLogMessage(bot, `Error fetching billing stats: ${error.message}`);
+    await sendErrorMessage(bot, `Error fetching billing stats: ${error.message}`);
 
     await bot
       .sendMessage(

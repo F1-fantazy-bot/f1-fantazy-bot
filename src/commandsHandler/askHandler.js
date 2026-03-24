@@ -1,7 +1,7 @@
 const { AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPEN_AI_MODEL } = process.env;
 const { AzureOpenAI } = require('openai');
 const { t } = require('../i18n');
-const { sendLogMessage, isAdminMessage } = require('../utils');
+const { sendLogMessage, sendErrorMessage, isAdminMessage } = require('../utils');
 const { handleNumberMessage } = require('./numberInputHandler');
 const { executeCommand } = require('./commandHandlers');
 
@@ -40,7 +40,7 @@ async function handleAskCommand(bot, msg) {
       messages: [systemMessage, userMessage],
     });
   } catch (error) {
-    await sendLogMessage(bot, `AzureOpenAI error: ${error.message}`);
+    await sendErrorMessage(bot, `AzureOpenAI error: ${error.message}`);
     await bot.sendMessage(chatId, t('Error executing command', chatId));
 
     return;
@@ -54,7 +54,7 @@ async function handleAskCommand(bot, msg) {
   try {
     commands = JSON.parse(completion.choices[0].message.content);
   } catch (err) {
-    await sendLogMessage(
+    await sendErrorMessage(
       bot,
       `Failed to parse AI response: ${completion.choices[0].message.content}`
     );

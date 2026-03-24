@@ -23,6 +23,7 @@ const utils = require('./utils');
 jest.mock('./utils', () => ({
   validateJsonData: jest.fn().mockResolvedValue(true),
   sendLogMessage: jest.fn().mockResolvedValue(undefined),
+  sendErrorMessage: jest.fn().mockResolvedValue(undefined),
   sendMessageToAdmins: jest.fn().mockResolvedValue(undefined),
   sendMessage: jest.fn().mockResolvedValue(undefined),
 }));
@@ -203,7 +204,7 @@ describe('cacheInitializer', () => {
     await initializeCaches(mockBot);
 
     expect(remainingRaceCountCache[sharedKey]).toBeUndefined();
-    expect(utils.sendLogMessage).toHaveBeenCalledWith(
+    expect(utils.sendErrorMessage).toHaveBeenCalledWith(
       mockBot,
       expect.stringContaining('Failed to load remaining race count: schedule unavailable'),
     );

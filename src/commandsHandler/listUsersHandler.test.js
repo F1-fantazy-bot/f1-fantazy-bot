@@ -1,6 +1,6 @@
 const { handleListUsersCommand } = require('./listUsersHandler');
 const { listAllUsers } = require('../userRegistryService');
-const { sendLogMessage, isAdminMessage, formatDateTime } = require('../utils/utils');
+const { sendLogMessage, sendErrorMessage, isAdminMessage, formatDateTime } = require('../utils/utils');
 
 // Mock the dependencies
 jest.mock('../userRegistryService');
@@ -23,6 +23,7 @@ describe('listUsersHandler', () => {
     };
 
     sendLogMessage.mockResolvedValue();
+    sendErrorMessage.mockResolvedValue();
     isAdminMessage.mockReturnValue(true);
     formatDateTime.mockReturnValue({
       dateStr: 'Monday, January 1, 2025',
@@ -143,7 +144,7 @@ describe('listUsersHandler', () => {
         mockChatId,
         '❌ Error fetching user list: Table storage unavailable',
       );
-      expect(sendLogMessage).toHaveBeenCalledWith(
+      expect(sendErrorMessage).toHaveBeenCalledWith(
         mockBot,
         'Error listing users: Table storage unavailable',
       );

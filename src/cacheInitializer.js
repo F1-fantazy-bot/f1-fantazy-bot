@@ -11,6 +11,7 @@ const {
 } = require('./cache');
 const {
   sendLogMessage,
+  sendErrorMessage,
   sendMessageToAdmins,
   validateJsonData,
 } = require('./utils');
@@ -42,7 +43,7 @@ async function initializeCaches(bot) {
     nextRaceInfoCache[sharedKey] = nextRaceInfo;
     await sendLogMessage(bot, `Next race info loaded successfully`);
   } catch (error) {
-    await sendLogMessage(
+    await sendErrorMessage(
       bot,
       `Failed to load next race info: ${error.message}`
     );
@@ -55,7 +56,7 @@ async function initializeCaches(bot) {
       `Remaining race count loaded successfully: ${remainingRaceCountCache[sharedKey]}`,
     );
   } catch (error) {
-    await sendLogMessage(
+    await sendErrorMessage(
       bot,
       `Failed to load remaining race count: ${error.message}`,
     );
@@ -171,7 +172,7 @@ async function loadSimulationData(bot) {
 Drivers not found in mapping: ${notFounds.drivers.join(', ')}
 🔴🔴🔴`;
 
-    await sendLogMessage(bot, message);
+    await sendErrorMessage(bot, message);
     await sendMessageToAdmins(bot, message);
   }
 
@@ -181,7 +182,7 @@ Drivers not found in mapping: ${notFounds.drivers.join(', ')}
 Constructors not found in mapping: ${notFounds.constructors.join(', ')}
 🔴🔴🔴`;
 
-    await sendLogMessage(bot, message);
+    await sendErrorMessage(bot, message);
     await sendMessageToAdmins(bot, message);
   }
 

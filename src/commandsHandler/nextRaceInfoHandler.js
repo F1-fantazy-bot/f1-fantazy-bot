@@ -1,4 +1,4 @@
-const { sendLogMessage, sendPhotoToUser } = require('../utils');
+const { sendLogMessage, sendErrorMessage, sendPhotoToUser } = require('../utils');
 const { formatDateTime } = require('../utils/utils');
 const { getWeatherForecast } = require('../utils/weatherApi');
 const { MAX_TELEGRAM_MESSAGE_LENGTH } = require('../constants');
@@ -100,7 +100,7 @@ async function handleNextRaceInfoCommand(bot, chatId) {
         `Weather forecast fetched for location: ${nextRaceInfo.location.locality}, ${nextRaceInfo.location.country}`
       );
     } catch (err) {
-      await sendLogMessage(bot, `Weather API error: ${err.message}`);
+      await sendErrorMessage(bot, `Weather API error: ${err.message}`);
     }
   }
 

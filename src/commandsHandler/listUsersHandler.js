@@ -1,5 +1,5 @@
 const { listAllUsers } = require('../userRegistryService');
-const { sendLogMessage, isAdminMessage, formatDateTime } = require('../utils/utils');
+const { sendErrorMessage, isAdminMessage, formatDateTime } = require('../utils/utils');
 const { t, getLanguageName } = require('../i18n');
 
 /**
@@ -42,7 +42,7 @@ async function handleListUsersCommand(bot, msg) {
       );
   } catch (error) {
     console.error('Error in handleListUsersCommand:', error);
-    await sendLogMessage(bot, `Error listing users: ${error.message}`);
+    await sendErrorMessage(bot, `Error listing users: ${error.message}`);
 
     await bot
       .sendMessage(
