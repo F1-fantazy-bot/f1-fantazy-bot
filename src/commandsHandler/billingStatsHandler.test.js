@@ -1,6 +1,6 @@
 const { handleBillingStats } = require('./billingStatsHandler');
 const { getMonthlyBillingStats } = require('../azureBillingService');
-const { sendLogMessage, isAdminMessage } = require('../utils/utils');
+const { sendLogMessage, sendErrorMessage, isAdminMessage } = require('../utils/utils');
 
 // Mock the dependencies
 jest.mock('../azureBillingService');
@@ -28,6 +28,7 @@ describe('billingStatsHandler', () => {
 
     // Mock sendLogMessage and isAdminMessage
     sendLogMessage.mockResolvedValue();
+    sendErrorMessage.mockResolvedValue();
     isAdminMessage.mockReturnValue(true); // Default to admin
   });
 
@@ -173,7 +174,7 @@ describe('billingStatsHandler', () => {
       );
 
       // Verify error logging
-      expect(sendLogMessage).toHaveBeenCalledWith(
+      expect(sendErrorMessage).toHaveBeenCalledWith(
         mockBot,
         'Error fetching billing stats: Azure authentication failed'
       );

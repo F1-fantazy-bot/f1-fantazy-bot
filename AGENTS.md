@@ -18,6 +18,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - **User Registry:** `src/userRegistryService.js` tracks all users who interact with the bot in an Azure Table Storage table (`UserRegistry`). On every allowed message, `messageHandler.js` calls `upsertUser(chatId, chatName)` in a fire-and-forget manner (no `await`) so that registry failures never block message handling. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) displays all registered users with their details, including nicknames when set.
 - **Utilities & Services:**
   - `src/utils` contains Telegram helpers, formatting (`formatDateTime`), display name resolution (`getDisplayName`), and logging utilities.
+  - **Logging:** `sendLogMessage(bot, message)` sends informational messages to `LOG_CHANNEL_ID`. `sendErrorMessage(bot, message)` sends error messages to **both** `LOG_CHANNEL_ID` and `ERRORS_CHANNEL_ID` — use it wherever an error, failure, or exception is being reported. Both constants are defined in `src/constants.js`.
   - `src/utils/weatherApi.js` interacts with external weather services.
   - `src/azureStorageService.js` and `src/azureBillingService.js` wrap Azure integrations.
 - **Internationalization:** `src/i18n.js` and `src/translations.js` provide language support (English/Hebrew) used throughout handlers.

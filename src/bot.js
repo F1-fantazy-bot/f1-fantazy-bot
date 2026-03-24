@@ -5,7 +5,7 @@ const { handleMessage } = require('./messageHandler');
 const { handleCallbackQuery } = require('./callbackQueryHandler');
 const { initializeCaches } = require('./cacheInitializer');
 const { TELEGRAM_BOT_TOKEN, NODE_ENV } = process.env;
-const { sendLogMessage } = require('./utils');
+const { sendLogMessage, sendErrorMessage } = require('./utils');
 if (!TELEGRAM_BOT_TOKEN) {
   console.error('Error: TELEGRAM_BOT_TOKEN is not set in the .env file.');
   process.exit(1);
@@ -25,7 +25,7 @@ if (NODE_ENV === 'production' || NODE_ENV === 'test') {
 sendLogMessage(bot, 'Bot started successfully.');
 
 const cacheReady = initializeCaches(bot).catch((error) => {
-  sendLogMessage(bot, `Error initializing caches from Azure Storage: ${error}`);
+  sendErrorMessage(bot, `Error initializing caches from Azure Storage: ${error}`);
 });
 
 // Listen for any kind of message.
@@ -40,26 +40,26 @@ bot.on('callback_query', async (query) => {
 // Log polling errors
 bot.on(
   'polling_error',
-  async (err) => await sendLogMessage(bot, `Polling error: ${err.message}`)
+  async (err) => await sendErrorMessage(bot, `Polling error: ${err.message}`)
 );
 
 bot.on(
   'webhook_error',
-  async (err) => await sendLogMessage(bot, `Webhook error: ${err.message}`)
+  async (err) => await sendErrorMessage(bot, `Webhook error: ${err.message}`)
 );
 
 // Log any errors that occur
 bot.on('error', async (err) => {
-  await sendLogMessage(bot, `Error occurred: ${err.message}`);
+  await sendErrorMessage(bot, `Error occurred: ${err.message}`);
 });
 
 process.on('uncaughtException', async (err) => {
-  await sendLogMessage(bot, `Uncaught exception: ${err.message}`);
+  await sendErrorMessage(bot, `Uncaught exception: ${err.message}`);
   console.error('Uncaught exception:', err);
 });
 
 process.on('unhandledRejection', async (reason) => {
-  await sendLogMessage(bot, `Unhandled rejection: ${reason}`);
+  await sendErrorMessage(bot, `Unhandled rejection: ${reason}`);
   console.error('Unhandled rejection:', reason);
 });
 

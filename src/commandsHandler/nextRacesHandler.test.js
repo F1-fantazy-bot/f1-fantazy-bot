@@ -1,6 +1,7 @@
 const { KILZI_CHAT_ID } = require('../constants');
 
 const mockSendLogMessage = jest.fn();
+const mockSendErrorMessage = jest.fn();
 const mockFetchCurrentSeasonRaces = jest.fn();
 const mockFilterUpcomingRaces = jest.fn();
 
@@ -10,6 +11,7 @@ jest.mock('../utils', () => {
   return {
     ...original,
     sendLogMessage: mockSendLogMessage,
+    sendErrorMessage: mockSendErrorMessage,
   };
 });
 
@@ -170,7 +172,7 @@ describe('handleNextRacesCommand', () => {
 
     await handleNextRacesCommand(botMock, KILZI_CHAT_ID);
 
-    expect(mockSendLogMessage).toHaveBeenCalledWith(
+    expect(mockSendErrorMessage).toHaveBeenCalledWith(
       botMock,
       'Failed to fetch upcoming races: Network failure'
     );

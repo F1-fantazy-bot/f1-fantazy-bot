@@ -2,6 +2,7 @@ const utils = require('./utils');
 const {
   getChatName,
   sendLogMessage,
+  sendErrorMessage,
   sendMessageToUser,
   sendPhotoToUser,
   calculateTeamInfo,
@@ -166,6 +167,50 @@ describe('utils', () => {
     });
   });
 
+  describe('sendErrorMessage', () => {
+    it('calls sendLogMessage and also sends to ERRORS_CHANNEL_ID', async () => {
+      const botMock = {
+        sendMessage: jest.fn().mockResolvedValue(),
+      };
+      const sendLogSpy = jest
+        .spyOn(utils, 'sendLogMessage')
+        .mockResolvedValue();
+
+      await sendErrorMessage(botMock, 'Some error happened');
+
+      // Should call sendLogMessage
+      expect(sendLogSpy).toHaveBeenCalledWith(botMock, 'Some error happened');
+
+      // Should also send to ERRORS_CHANNEL_ID
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number), // ERRORS_CHANNEL_ID
+        expect.stringContaining('Some error happened'),
+        undefined, // options
+      );
+
+      sendLogSpy.mockRestore();
+    });
+
+    it('logs error when sendMessage to errors channel fails', async () => {
+      const error = new Error('channel fail');
+      const botMock = {
+        sendMessage: jest
+          .fn()
+          .mockResolvedValueOnce() // sendLogMessage succeeds
+          .mockRejectedValueOnce(error), // errors channel fails
+      };
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      await sendErrorMessage(botMock, 'some error');
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(error);
+
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
   describe('sendMessageToUser', () => {
     it('sends message to the user chat ID', async () => {
       const botMock = { sendMessage: jest.fn().mockResolvedValue() };
@@ -179,26 +224,26 @@ describe('utils', () => {
       );
     });
 
-    it('logs error and calls sendLogMessage on failure', async () => {
+    it('logs error and calls sendErrorMessage on failure', async () => {
       const error = new Error('fail');
       const botMock = { sendMessage: jest.fn().mockRejectedValue(error) };
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
         .mockImplementation(() => {});
-      const sendLogSpy = jest
-        .spyOn(utils, 'sendLogMessage')
+      const sendErrorSpy = jest
+        .spyOn(utils, 'sendErrorMessage')
         .mockResolvedValue();
 
       await sendMessageToUser(botMock, KILZI_CHAT_ID, 'hi');
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(error);
-      expect(sendLogSpy).toHaveBeenCalledWith(
+      expect(sendErrorSpy).toHaveBeenCalledWith(
         botMock,
         `Error sending message to user. error: ${error.message}.`,
       );
 
       consoleErrorSpy.mockRestore();
-      sendLogSpy.mockRestore();
+      sendErrorSpy.mockRestore();
     });
   });
 
@@ -219,26 +264,26 @@ describe('utils', () => {
       );
     });
 
-    it('logs error and calls sendLogMessage on failure', async () => {
+    it('logs error and calls sendErrorMessage on failure', async () => {
       const error = new Error('fail');
       const botMock = { sendPhoto: jest.fn().mockRejectedValue(error) };
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
         .mockImplementation(() => {});
-      const sendLogSpy = jest
-        .spyOn(utils, 'sendLogMessage')
+      const sendErrorSpy = jest
+        .spyOn(utils, 'sendErrorMessage')
         .mockResolvedValue();
 
       await sendPhotoToUser(botMock, KILZI_CHAT_ID, 'url');
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(error);
-      expect(sendLogSpy).toHaveBeenCalledWith(
+      expect(sendErrorSpy).toHaveBeenCalledWith(
         botMock,
         `Error sending photo to user. error: ${error.message}.`,
       );
 
       consoleErrorSpy.mockRestore();
-      sendLogSpy.mockRestore();
+      sendErrorSpy.mockRestore();
     });
   });
 
@@ -652,7 +697,6 @@ describe('utils', () => {
       const msg = { chat: { id: HAIM_CHAT_ID } };
       expect(isMessageFromAllowedUser(msg)).toBe(true);
     });
-
 
     it('returns true for IDO_KLOTZ_CHAT_ID (regular user)', () => {
       const msg = { chat: { id: IDO_KLOTZ_CHAT_ID } };

@@ -1,4 +1,4 @@
-const { sendLogMessage } = require('../utils');
+const { sendLogMessage, sendErrorMessage } = require('../utils');
 const { formatDateTime } = require('../utils/utils');
 const { getWeatherForecast } = require('../utils/weatherApi');
 const {
@@ -82,7 +82,7 @@ async function handleNextRaceWeatherCommand(bot, chatId) {
         `Weather forecast fetched for location: ${nextRaceInfo.location.locality}, ${nextRaceInfo.location.country}`
       );
     } catch (err) {
-      await sendLogMessage(bot, `Weather API error: ${err.message}`);
+      await sendErrorMessage(bot, `Weather API error: ${err.message}`);
     }
   }
 
