@@ -34,6 +34,7 @@ const {
   handleUploadConstructorsPhotoCommand,
   handleSelectTeamCommand,
   handleSetBestTeamRanking,
+  handleLiveScoreCommand,
 } = require('./commandsHandler');
 
 // Import constants
@@ -70,6 +71,7 @@ const {
   COMMAND_UPLOAD_CONSTRUCTORS_PHOTO,
   COMMAND_SELECT_TEAM,
   COMMAND_SET_BEST_TEAM_RANKING,
+  COMMAND_LIVE_SCORE,
 } = require('./constants');
 
 exports.handleTextMessage = async function (bot, msg) {
@@ -148,6 +150,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleSelectTeamCommand(bot, msg);
     case msg.text === COMMAND_SET_BEST_TEAM_RANKING:
       return await handleSetBestTeamRanking(bot, msg);
+    case msg.text === COMMAND_LIVE_SCORE:
+      return await handleLiveScoreCommand(bot, msg);
     default:
       try {
         const jsonData = JSON.parse(textTrimmed);

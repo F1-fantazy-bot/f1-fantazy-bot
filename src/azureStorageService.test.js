@@ -98,6 +98,23 @@ describe('azureStorageService', () => {
     });
   });
 
+  describe('getLiveScoreData', () => {
+    it('should fetch and parse live score data from the live-score container', async () => {
+      const mockData = {
+        extractedAt: '2026-03-27T11:07:54.562Z',
+        drivers: { VER: { TotalPoints: 14, PriceChange: 0.1 } },
+      };
+
+      mockDownload.mockResolvedValueOnce({
+        readableStreamBody: createMockStream(mockData),
+      });
+
+      const result = await azureStorageService.getLiveScoreData();
+      expect(result).toEqual(mockData);
+      expect(mockDownload).toHaveBeenCalled();
+    });
+  });
+
   describe('getUserTeam', () => {
     const chatId = '123456';
     const teamId = 'T1';
