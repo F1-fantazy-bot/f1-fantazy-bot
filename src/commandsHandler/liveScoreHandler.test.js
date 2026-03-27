@@ -99,7 +99,13 @@ describe('liveScoreHandler', () => {
 
     expect(mockBot.sendMessage).toHaveBeenCalledWith(
       chatId,
-      expect.stringContaining('**HAM (DRS x2) — 40 pts | Δ +0.2**'),
+      expect.stringContaining('*HAM (DRS x2) — 40 pts | Δ +0.2*'),
+      { parse_mode: 'Markdown' },
+    );
+
+    expect(mockBot.sendMessage).toHaveBeenCalledWith(
+      chatId,
+      expect.stringContaining('*Total Price Change:* +0.80'),
       { parse_mode: 'Markdown' },
     );
   });

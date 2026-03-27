@@ -6,10 +6,14 @@ const { formatDateTime, isAdminMessage, sendErrorMessage } = require('../utils')
 const SESSION_METRICS = ['POS', 'PG', 'OV', 'FL', 'DD', 'TW', 'FP'];
 const SESSION_ORDER = ['Sprint', 'Qualifying', 'Race'];
 
-function formatSignedDelta(value) {
+function formatSignedDelta(value, decimals) {
   const numericValue = Number(value) || 0;
+  const absoluteValue =
+    typeof decimals === 'number'
+      ? Math.abs(numericValue).toFixed(decimals)
+      : String(Math.abs(numericValue));
 
-  return `${numericValue >= 0 ? '+' : ''}${numericValue}`;
+  return `${numericValue >= 0 ? '+' : '-'}${absoluteValue}`;
 }
 
 function formatSessionBreakdown(sessionName, sessionData = {}) {
@@ -46,9 +50,9 @@ function formatMemberLine(
   ).filter(Boolean);
 
   return [
-    `**${code}${drsLabel} — ${effectivePoints} pts | Δ ${formatSignedDelta(
+    `*${code}${drsLabel} — ${effectivePoints} pts | Δ ${formatSignedDelta(
       priceChange,
-    )}**`,
+    )}*`,
     ...sessionLines,
   ].join('\n');
 }
@@ -162,17 +166,24 @@ async function handleLiveScoreCommand(bot, msg) {
 
     const message = [
       `### 🏎️ Live Score Summary (${teamId})`,
-      `*${t('Updated At', chatId)}:* ${formattedUpdate}`,
+      `*${t('Updated', chatId)}:* ${formattedUpdate}`,
       `*${t('Total Live Points', chatId)}:* ${totalPoints.toFixed(2)}`,
-      `*${t('Total Live Price Change', chatId)}:* ${totalPriceChange.toFixed(2)}`,
+      `*${t('Total Price Change', chatId)}:* ${formatSignedDelta(
+        totalPriceChange,
+        2,
+      )}`,
       '',
       '### 👤 Drivers',
-      ...driverBreakdown.map((driver) => formatMemberLine(driver, chatId)),
+      ...driverBreakdown
+        .map((driver) => formatMemberLine(driver, chatId))
+        .join('\n\n')
+        .split('\n'),
       '',
       '### 🛠️ Constructors',
-      ...constructorBreakdown.map((constructor) =>
-        formatMemberLine(constructor, chatId),
-      ),
+      ...constructorBreakdown
+        .map((constructor) => formatMemberLine(constructor, chatId))
+        .join('\n\n')
+        .split('\n'),
       missingMembers.length > 0
         ? `\n⚠️ ${t('Missing live data for: {MEMBERS}', chatId, {
           MEMBERS: missingMembers.join(', '),

@@ -263,8 +263,10 @@ const translations = {
     'Show current live points and price change for your team':
       'הצג את הניקוד החי ושינוי המחיר הנוכחיים של הקבוצה שלך',
     'Live Score': 'ניקוד חי',
+    Updated: 'עודכן',
     'Updated At': 'עודכן ב',
     'Total Live Points': 'סה״כ נקודות חי',
+    'Total Price Change': 'סה״כ שינוי מחיר',
     'Total Live Price Change': 'סה״כ שינוי מחיר חי',
     'Drivers Breakdown': 'פירוט נהגים',
     'Constructors Breakdown': 'פירוט קבוצות',
