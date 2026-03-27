@@ -1,4 +1,8 @@
-const { handleLiveScoreCommand, calculateLiveScoreBreakdown } = require('./liveScoreHandler');
+const {
+  handleLiveScoreCommand,
+  calculateLiveScoreBreakdown,
+  formatSessionBreakdown,
+} = require('./liveScoreHandler');
 const { getLiveScoreData } = require('../azureStorageService');
 const { currentTeamCache, resolveSelectedTeam } = require('../cache');
 const { isAdminMessage, sendErrorMessage } = require('../utils');
@@ -83,21 +87,57 @@ describe('liveScoreHandler', () => {
 
     expect(mockBot.sendMessage).toHaveBeenCalledWith(
       chatId,
-      expect.stringContaining('*Live Score* (T1)'),
-      { parse_mode: 'Markdown' },
+      expect.stringContaining('<b>🏎️ Live Score Summary (T1)</b>'),
+      { parse_mode: 'HTML' },
     );
 
     expect(mockBot.sendMessage).toHaveBeenCalledWith(
       chatId,
-      expect.stringContaining('*Total Live Points:* 116.00'),
-      { parse_mode: 'Markdown' },
+      expect.stringContaining('<b>Total Live Points:</b> 116.00'),
+      { parse_mode: 'HTML' },
     );
 
     expect(mockBot.sendMessage).toHaveBeenCalledWith(
       chatId,
-      expect.stringContaining('HAM (DRS x2): 40 (20 base + 20 DRS) pts, Δ 0.2'),
-      { parse_mode: 'Markdown' },
+      expect.stringContaining('<b>HAM (DRS x2) — 40 pts | Δ +0.2</b>'),
+      { parse_mode: 'HTML' },
     );
+  });
+
+  it('filters zero-value session metrics and omits empty sessions', async () => {
+    getLiveScoreData.mockResolvedValue({
+      extractedAt: '2026-03-27T11:07:54.562Z',
+      drivers: {
+        VER: {
+          TotalPoints: 10,
+          PriceChange: 0.1,
+          Sprint: { POS: 0, PG: 0, OV: 0 },
+          Qualifying: { POS: 4, PG: 0, TW: 0 },
+          Race: { POS: 0, FP: 10 },
+        },
+        HAM: { TotalPoints: 20, PriceChange: 0.2 },
+        NOR: { TotalPoints: 5, PriceChange: -0.1 },
+        LEC: { TotalPoints: 15, PriceChange: 0.3 },
+        PIA: { TotalPoints: 3, PriceChange: -0.2 },
+      },
+      constructors: {
+        FER: { TotalPoints: 25, PriceChange: 0.3 },
+        MER: { TotalPoints: 18, PriceChange: 0.2 },
+      },
+    });
+
+    await handleLiveScoreCommand(mockBot, msg);
+
+    const markdownPayload = mockBot.sendMessage.mock.calls.find(
+      ([, , options]) => options && options.parse_mode === 'HTML',
+    )[1];
+
+    expect(markdownPayload).toContain('Qualifying: POS 4');
+    expect(markdownPayload).toContain('Race: FP 10');
+    expect(markdownPayload).not.toContain('Sprint:');
+    expect(markdownPayload).not.toContain('PG 0');
+    expect(markdownPayload).not.toContain('OV 0');
+    expect(markdownPayload).not.toContain('→');
   });
 
   it('handles errors', async () => {
@@ -135,5 +175,19 @@ describe('liveScoreHandler', () => {
     expect(result.totalPoints).toBe(50);
     expect(result.totalPriceChange).toBeCloseTo(0.6);
     expect(result.missingMembers).toEqual(['MIS']);
+  });
+
+  it('returns null for empty session after strict zero filtering', () => {
+    expect(
+      formatSessionBreakdown('Qualifying', {
+        POS: 0,
+        PG: 0,
+        OV: 0,
+        FL: 0,
+        DD: 0,
+        TW: 0,
+        FP: 0,
+      }),
+    ).toBeNull();
   });
 });
