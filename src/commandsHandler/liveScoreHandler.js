@@ -53,6 +53,10 @@ function formatMemberLine(
   ].join('\n');
 }
 
+function joinMembersWithEmptyLine(members, chatId) {
+  return members.map((member) => formatMemberLine(member, chatId)).join('\n\n');
+}
+
 function getLiveMemberData(bucket = {}, code) {
   const memberData = bucket[code];
 
@@ -160,27 +164,30 @@ async function handleLiveScoreCommand(bot, msg) {
       formattedUpdate = `${dateStr}, ${timeStr}`;
     }
 
-    const message = [
+    const messageParts = [
       `<b>🏎️ Live Score Summary (${teamId})</b>`,
       `<b>${t('Updated At', chatId)}:</b> ${formattedUpdate}`,
       `<b>${t('Total Live Points', chatId)}:</b> ${totalPoints.toFixed(2)}`,
       `<b>${t('Total Live Price Change', chatId)}:</b> ${totalPriceChange.toFixed(2)}`,
       '',
       '<b>👤 Drivers</b>',
-      ...driverBreakdown.map((driver) => formatMemberLine(driver, chatId)),
+      joinMembersWithEmptyLine(driverBreakdown, chatId),
+      '',
       '',
       '<b>🛠️ Constructors</b>',
-      ...constructorBreakdown.map((constructor) =>
-        formatMemberLine(constructor, chatId),
-      ),
-      missingMembers.length > 0
-        ? `\n⚠️ ${t('Missing live data for: {MEMBERS}', chatId, {
+      joinMembersWithEmptyLine(constructorBreakdown, chatId),
+    ];
+
+    if (missingMembers.length > 0) {
+      messageParts.push(
+        '',
+        `⚠️ ${t('Missing live data for: {MEMBERS}', chatId, {
           MEMBERS: missingMembers.join(', '),
-        })}`
-        : '',
-    ]
-      .filter(Boolean)
-      .join('\n');
+        })}`,
+      );
+    }
+
+    const message = messageParts.join('\n');
 
     await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
   } catch (error) {
