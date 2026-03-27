@@ -39,6 +39,7 @@ const {
 } = require('./uploadConstructorsPhotoHandler');
 const { handleSelectTeamCommand } = require('./selectTeamHandler');
 const { handleSetBestTeamRanking } = require('./setBestTeamRankingHandler');
+const { handleLiveScoreCommand } = require('./liveScoreHandler');
 
 module.exports = {
   handleBestTeamsMessage,
@@ -75,4 +76,5 @@ module.exports = {
   handleUploadConstructorsPhotoCommand,
   handleSelectTeamCommand,
   handleSetBestTeamRanking,
+  handleLiveScoreCommand,
 };

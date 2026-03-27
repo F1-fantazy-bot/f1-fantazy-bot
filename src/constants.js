@@ -62,6 +62,7 @@ exports.COMMAND_LIST_USERS = '/list_users';
 exports.COMMAND_SEND_MESSAGE_TO_USER = '/send_message_to_user';
 exports.COMMAND_BROADCAST = '/broadcast';
 exports.COMMAND_SET_NICKNAME = '/set_nickname';
+exports.COMMAND_LIVE_SCORE = '/live_score';
 exports.COMMAND_UPLOAD_DRIVERS_PHOTO = '/upload_drivers_photo';
 exports.COMMAND_UPLOAD_CONSTRUCTORS_PHOTO = '/upload_constructors_photo';
 exports.COMMAND_SELECT_TEAM = '/select_team';
@@ -233,6 +234,11 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_SET_NICKNAME,
         title: '📛 Set Nickname',
         description: 'Set a nickname for a user to display in logs',
+      },
+      {
+        constant: exports.COMMAND_LIVE_SCORE,
+        title: '🔴 Live Score',
+        description: 'Show current live points and price change for your team',
       },
       {
         constant: exports.COMMAND_UPLOAD_DRIVERS_PHOTO,

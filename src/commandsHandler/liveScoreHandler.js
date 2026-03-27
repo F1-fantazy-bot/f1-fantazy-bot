@@ -1,0 +1,179 @@
+const { getLiveScoreData } = require('../azureStorageService');
+const { currentTeamCache, resolveSelectedTeam } = require('../cache');
+const { t } = require('../i18n');
+const { formatDateTime, isAdminMessage, sendErrorMessage } = require('../utils');
+
+function formatBreakdown(segment = {}, chatId) {
+  const entries = Object.entries(segment);
+
+  if (entries.length === 0) {
+    return t('No data', chatId);
+  }
+
+  return entries.map(([key, value]) => `${key}: ${value}`).join(', ');
+}
+
+function formatMemberLine(
+  { code, points, priceChange, details, isDrsBoost },
+  chatId,
+) {
+  const scorePart = isDrsBoost
+    ? `${points * 2} (${points} ${t('base', chatId)} + ${points} DRS)`
+    : `${points}`;
+  const drsLabel = isDrsBoost ? ` (${t('DRS x2', chatId)})` : '';
+
+  return [
+    `• ${code}${drsLabel}: ${scorePart} ${t('pts', chatId)}, Δ ${priceChange.toFixed(1)}`,
+    `  ${t('Sprint', chatId)} → ${formatBreakdown(details.Sprint, chatId)}`,
+    `  ${t('Qualifying', chatId)} → ${formatBreakdown(details.Qualifying, chatId)}`,
+    `  ${t('Race', chatId)} → ${formatBreakdown(details.Race, chatId)}`,
+  ].join('\n');
+}
+
+function getLiveMemberData(bucket = {}, code) {
+  const memberData = bucket[code];
+
+  if (!memberData) {
+    return {
+      points: 0,
+      priceChange: 0,
+      details: {},
+      missing: true,
+    };
+  }
+
+  return {
+    points: Number(memberData.TotalPoints) || 0,
+    priceChange: Number(memberData.PriceChange) || 0,
+    details: memberData,
+    missing: false,
+  };
+}
+
+function calculateLiveScoreBreakdown(currentTeam, liveScoreData) {
+  const driversData = liveScoreData.drivers || {};
+  const constructorsData = liveScoreData.constructors || {};
+
+  const driverBreakdown = currentTeam.drivers.map((driverCode) => {
+    const member = getLiveMemberData(driversData, driverCode);
+
+    return {
+      code: driverCode,
+      ...member,
+      isDrsBoost: currentTeam.drsBoost === driverCode,
+    };
+  });
+
+  const constructorBreakdown = currentTeam.constructors.map((constructorCode) => ({
+    code: constructorCode,
+    ...getLiveMemberData(constructorsData, constructorCode),
+    isDrsBoost: false,
+  }));
+
+  const totalPoints =
+    driverBreakdown.reduce(
+      (sum, driver) => sum + driver.points + (driver.isDrsBoost ? driver.points : 0),
+      0,
+    ) + constructorBreakdown.reduce((sum, constructor) => sum + constructor.points, 0);
+
+  const totalPriceChange =
+    driverBreakdown.reduce((sum, driver) => sum + driver.priceChange, 0) +
+    constructorBreakdown.reduce((sum, constructor) => sum + constructor.priceChange, 0);
+
+  const missingMembers = [...driverBreakdown, ...constructorBreakdown]
+    .filter((member) => member.missing)
+    .map((member) => member.code);
+
+  return {
+    totalPoints,
+    totalPriceChange,
+    driverBreakdown,
+    constructorBreakdown,
+    missingMembers,
+  };
+}
+
+async function handleLiveScoreCommand(bot, msg) {
+  const chatId = msg.chat.id;
+
+  if (!isAdminMessage(msg)) {
+    await bot.sendMessage(chatId, t('Sorry, only admins can use this command.', chatId));
+
+    return;
+  }
+
+  const teamId = await resolveSelectedTeam(bot, chatId);
+  if (!teamId) {
+    return;
+  }
+
+  const currentTeam = currentTeamCache[chatId]?.[teamId];
+  if (!currentTeam) {
+    await bot.sendMessage(
+      chatId,
+      t(
+        'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.',
+        chatId,
+      ),
+    );
+
+    return;
+  }
+
+  try {
+    const liveScoreData = await getLiveScoreData();
+    const {
+      totalPoints,
+      totalPriceChange,
+      driverBreakdown,
+      constructorBreakdown,
+      missingMembers,
+    } = calculateLiveScoreBreakdown(currentTeam, liveScoreData);
+
+    const extractedAt = new Date(liveScoreData.extractedAt);
+    let formattedUpdate = String(liveScoreData.extractedAt || '-');
+    if (!Number.isNaN(extractedAt.getTime())) {
+      const { dateStr, timeStr } = formatDateTime(extractedAt, chatId);
+      formattedUpdate = `${dateStr}, ${timeStr}`;
+    }
+
+    const message = [
+      `*${t('Live Score', chatId)}* (${teamId})`,
+      `*${t('Updated At', chatId)}:* ${formattedUpdate}`,
+      `*${t('Total Live Points', chatId)}:* ${totalPoints.toFixed(2)}`,
+      `*${t('Total Live Price Change', chatId)}:* ${totalPriceChange.toFixed(2)}`,
+      '',
+      `*${t('Drivers Breakdown', chatId)}*`,
+      ...driverBreakdown.map((driver) => formatMemberLine(driver, chatId)),
+      '',
+      `*${t('Constructors Breakdown', chatId)}*`,
+      ...constructorBreakdown.map((constructor) =>
+        formatMemberLine(constructor, chatId),
+      ),
+      missingMembers.length > 0
+        ? `\n⚠️ ${t('Missing live data for: {MEMBERS}', chatId, {
+          MEMBERS: missingMembers.join(', '),
+        })}`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+  } catch (error) {
+    console.error('Error in handleLiveScoreCommand:', error);
+    await sendErrorMessage(bot, `Error fetching live score: ${error.message}`);
+
+    await bot.sendMessage(
+      chatId,
+      t('❌ Error fetching live score: {ERROR}', chatId, {
+        ERROR: error.message,
+      }),
+    );
+  }
+}
+
+module.exports = {
+  handleLiveScoreCommand,
+  calculateLiveScoreBreakdown,
+};
