@@ -12,7 +12,7 @@ function formatSignedDelta(value) {
   return `${numericValue >= 0 ? '+' : ''}${numericValue}`;
 }
 
-function formatSessionBreakdown(sessionName, sessionData = {}) {
+function formatSessionBreakdown(sessionName, sessionData = {}, chatId) {
   const metrics = SESSION_METRICS.reduce((acc, metricKey) => {
     if (!Object.prototype.hasOwnProperty.call(sessionData, metricKey)) {
       return acc;
@@ -32,7 +32,7 @@ function formatSessionBreakdown(sessionName, sessionData = {}) {
     return null;
   }
 
-  return `${sessionName}: ${metrics.join(', ')}`;
+  return `${t(sessionName, chatId)}: ${metrics.join(', ')}`;
 }
 
 function formatMemberLine(
@@ -42,11 +42,11 @@ function formatMemberLine(
   const effectivePoints = isDrsBoost ? points * 2 : points;
   const drsLabel = isDrsBoost ? ` (${t('DRS x2', chatId)})` : '';
   const sessionLines = SESSION_ORDER.map((sessionName) =>
-    formatSessionBreakdown(sessionName, details[sessionName]),
+    formatSessionBreakdown(sessionName, details[sessionName], chatId),
   ).filter(Boolean);
 
   return [
-    `<b>${code}${drsLabel} — ${effectivePoints} pts | Δ ${formatSignedDelta(
+    `<b>${code}${drsLabel} — ${effectivePoints} ${t('pts', chatId)} | Δ ${formatSignedDelta(
       priceChange,
     )}</b>`,
     ...sessionLines,
@@ -165,16 +165,16 @@ async function handleLiveScoreCommand(bot, msg) {
     }
 
     const messageParts = [
-      `<b>🏎️ Live Score Summary (${teamId})</b>`,
+      `<b>🏎️ ${t('Live Score Summary', chatId)} (${teamId})</b>`,
       `<b>${t('Updated At', chatId)}:</b> ${formattedUpdate}`,
       `<b>${t('Total Live Points', chatId)}:</b> ${totalPoints.toFixed(2)}`,
       `<b>${t('Total Live Price Change', chatId)}:</b> ${totalPriceChange.toFixed(2)}`,
       '',
-      '<b>👤 Drivers</b>',
+      `<b>👤 ${t('Live Drivers', chatId)}</b>`,
       joinMembersWithEmptyLine(driverBreakdown, chatId),
       '',
       '',
-      '<b>🛠️ Constructors</b>',
+      `<b>🛠️ ${t('Live Constructors', chatId)}</b>`,
       joinMembersWithEmptyLine(constructorBreakdown, chatId),
     ];
 

@@ -115,7 +115,7 @@ describe('liveScoreHandler', () => {
       '<b>VER — 10 pts | Δ +0.1</b>\nSprint: POS 1\n\n<b>HAM (DRS x2) — 40 pts | Δ +0.2</b>',
     );
     expect(htmlPayload).toContain(
-      '<b>PIA — 3 pts | Δ -0.2</b>\n\n\n<b>🛠️ Constructors</b>',
+      '<b>PIA — 3 pts | Δ -0.2</b>\n\n\n<b>🛠️ Live Constructors</b>',
     );
     expect(htmlPayload).toContain(
       '<b>FER — 25 pts | Δ +0.3</b>\nRace: FP 10\n\n<b>MER — 18 pts | Δ +0.2</b>',
