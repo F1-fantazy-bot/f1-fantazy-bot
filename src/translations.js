@@ -259,6 +259,18 @@ const translations = {
       'קבל סטטיסטיקת חיוב Azure לחודש הנוכחי',
     'ℹ️ Version': 'ℹ️ גרסה',
     'Show current deployed version': 'הצג את הגרסה המותקנת הנוכחית',
+    '🔴 Live Score': '🔴 ניקוד חי',
+    'Show current live points and price change for your team':
+      'הצג את הניקוד החי ושינוי המחיר הנוכחיים של הקבוצה שלך',
+    'Live Score': 'ניקוד חי',
+    'Updated At': 'עודכן ב',
+    'Total Live Points': 'סה״כ נקודות חי',
+    'Total Live Price Change': 'סה״כ שינוי מחיר חי',
+    'Drivers Breakdown': 'פירוט נהגים',
+    'Constructors Breakdown': 'פירוט קבוצות',
+    'Missing live data for: {MEMBERS}': 'חסרים נתוני לייב עבור: {MEMBERS}',
+    '❌ Error fetching live score: {ERROR}':
+      '❌ שגיאה בקבלת ניקוד חי: {ERROR}',
     'Invalid JSON data. Please ensure it contains 22 drivers under "Drivers" property.':
       'נתוני JSON אינם תקינים. ודא שהם מכילים 22 נהגים תחת "Drivers".',
     'Invalid JSON data. Please ensure it contains 11 constructors under "Constructors" property.':
