@@ -1,29 +1,155 @@
 const { getLiveScoreData } = require('../azureStorageService');
 const { currentTeamCache, resolveSelectedTeam } = require('../cache');
 const { t } = require('../i18n');
-const { formatDateTime, isAdminMessage, sendErrorMessage } = require('../utils');
+const { isAdminMessage, sendErrorMessage } = require('../utils');
 
-function formatBreakdown(segment = {}) {
-  const entries = Object.entries(segment);
+const STAT_LABELS_HE = {
+  POS: 'מיקום',
+  PG: 'שיפור מיקום',
+  OV: 'עקיפות',
+  FL: 'הקפה מהירה',
+  DD: 'נהג היום',
+  TW: 'ניצחונות פנימיים',
+  FP: 'עצירה מהירה',
+};
 
-  if (entries.length === 0) {
-    return '-';
-  }
+const SESSION_LABELS_HE = {
+  Sprint: 'ספרינט',
+  Qualifying: 'דירוג',
+  Race: 'מירוץ',
+};
 
-  return entries.map(([key, value]) => `${key}: ${value}`).join(', ');
+const DRIVER_NAMES_HE = {
+  ANT: 'אנטונלי',
+  LEC: 'לקלר',
+  HAM: 'המילטון',
+  RUS: 'ראסל',
+  LAW: 'לאוסון',
+  BEA: 'ברמן',
+  SAI: 'סיינז',
+  OCO: 'אוקון',
+  GAS: 'גאסלי',
+  PER: 'פרז',
+  HAD: 'הדג׳אר',
+  COL: 'קולאפינטו',
+  VER: 'ורסטאפן',
+  HUL: 'הולקנברג',
+  LIN: 'לינדבלאד',
+  BOT: 'בוטאס',
+  ALO: 'אלונסו',
+  PIA: 'פיאסטרי',
+  ALB: 'אלבון',
+  NOR: 'נוריס',
+  STR: 'סטרול',
+  BOR: 'בורטולטו',
+};
+
+const CONSTRUCTOR_NAMES_HE = {
+  FER: 'פרארי',
+  MER: 'מרצדס',
+  HAA: 'האס',
+  VRB: 'רייסינג בולס',
+  ALP: 'אלפין',
+  RED: 'רד בול',
+  CAD: 'קדילאק',
+  WIL: 'וויליאמס',
+  AUD: 'אאודי',
+  MCL: 'מקלארן',
+  AST: 'אסטון מרטין',
+};
+
+function formatNumber(value, maximumFractionDigits = 2) {
+  return Number(value).toLocaleString('he-IL', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits,
+  });
 }
 
-function formatMemberLine({ code, points, priceChange, details, isDrsBoost }) {
-  const scorePart = isDrsBoost
-    ? `${points * 2} (${points} base + ${points} DRS)`
-    : `${points}`;
+function formatSignedPrice(value) {
+  const numeric = Number(value) || 0;
+  const sign = numeric > 0 ? '+' : '';
+
+  return `${sign}${formatNumber(numeric, 1)}`;
+}
+
+function getDisplayName(code, type, { isDrsBoost = false } = {}) {
+  const sourceMap = type === 'driver' ? DRIVER_NAMES_HE : CONSTRUCTOR_NAMES_HE;
+  const displayName = sourceMap[code] || code;
+
+  if (type === 'driver' && isDrsBoost) {
+    return `${displayName} (${code}) 👑 קפטן (DRS)`;
+  }
+
+  return `${displayName} (${code})`;
+}
+
+function formatSessionBreakdown(sessionStats = {}) {
+  const positiveOrNeutralStats = [];
+  const deductionStats = [];
+
+  for (const [key, rawValue] of Object.entries(sessionStats)) {
+    const value = Number(rawValue) || 0;
+    if (value === 0) {
+      continue;
+    }
+
+    const label = STAT_LABELS_HE[key] || key;
+    const formattedStat = `${label} (${value})`;
+    if (value < 0) {
+      deductionStats.push(formattedStat);
+    } else {
+      positiveOrNeutralStats.push(formattedStat);
+    }
+  }
+
+  const sections = [];
+  if (positiveOrNeutralStats.length > 0) {
+    sections.push(positiveOrNeutralStats.join(', '));
+  }
+  if (deductionStats.length > 0) {
+    sections.push(`*הופחתו:* ${deductionStats.join(', ')}`);
+  }
+
+  if (sections.length === 0) {
+    return null;
+  }
+
+  return sections.join(' | ');
+}
+
+function formatMemberLine({ type, code, points, priceChange, details, isDrsBoost }) {
+  const effectivePoints = isDrsBoost ? points * 2 : points;
+  const sessions = Object.entries(SESSION_LABELS_HE)
+    .map(([sessionKey, sessionLabel]) => {
+      const formatted = formatSessionBreakdown(details[sessionKey] || {});
+      if (!formatted) {
+        return null;
+      }
+
+      return `    * **${sessionLabel}:** ${formatted}`;
+    })
+    .filter(Boolean);
 
   return [
-    `• ${code}${isDrsBoost ? ' (DRS x2)' : ''}: ${scorePart} pts, Δ ${priceChange.toFixed(1)}`,
-    `  Sprint → ${formatBreakdown(details.Sprint)}`,
-    `  Qualifying → ${formatBreakdown(details.Qualifying)}`,
-    `  Race → ${formatBreakdown(details.Race)}`,
+    `* **${getDisplayName(code, type, { isDrsBoost })}** | ${formatNumber(effectivePoints)} נק' | 📈 ${formatSignedPrice(priceChange)}`,
+    ...sessions,
   ].join('\n');
+}
+
+function formatUpdatedAt(rawTimestamp) {
+  const extractedAt = new Date(rawTimestamp);
+  if (Number.isNaN(extractedAt.getTime())) {
+    return String(rawTimestamp || '-');
+  }
+
+  return extractedAt.toLocaleString('he-IL', {
+    timeZone: 'Asia/Jerusalem',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function getLiveMemberData(bucket = {}, code) {
@@ -54,6 +180,7 @@ function calculateLiveScoreBreakdown(currentTeam, liveScoreData) {
     const member = getLiveMemberData(driversData, driverCode);
 
     return {
+      type: 'driver',
       code: driverCode,
       ...member,
       isDrsBoost: currentTeam.drsBoost === driverCode,
@@ -61,6 +188,7 @@ function calculateLiveScoreBreakdown(currentTeam, liveScoreData) {
   });
 
   const constructorBreakdown = currentTeam.constructors.map((constructorCode) => ({
+    type: 'constructor',
     code: constructorCode,
     ...getLiveMemberData(constructorsData, constructorCode),
     isDrsBoost: false,
@@ -126,28 +254,21 @@ async function handleLiveScoreCommand(bot, msg) {
       missingMembers,
     } = calculateLiveScoreBreakdown(currentTeam, liveScoreData);
 
-    const extractedAt = new Date(liveScoreData.extractedAt);
-    let formattedUpdate = String(liveScoreData.extractedAt || '-');
-    if (!Number.isNaN(extractedAt.getTime())) {
-      const { dateStr, timeStr } = formatDateTime(extractedAt, chatId);
-      formattedUpdate = `${dateStr}, ${timeStr}`;
-    }
+    const formattedUpdate = formatUpdatedAt(liveScoreData.extractedAt);
 
     const message = [
-      `*${t('Live Score', chatId)}* (${teamId})`,
-      `*${t('Updated At', chatId)}:* ${formattedUpdate}`,
-      `*${t('Total Live Points', chatId)}:* ${totalPoints.toFixed(2)}`,
-      `*${t('Total Live Price Change', chatId)}:* ${totalPriceChange.toFixed(2)}`,
+      `⏱️ *עודכן לאחרונה: ${formattedUpdate}*`,
       '',
-      `*${t('Drivers Breakdown', chatId)}*`,
+      `📊 **סה״כ נקודות:** ${formatNumber(totalPoints)}`,
+      `📈 **שינוי שווי הקבוצה:** ${formatSignedPrice(totalPriceChange)}M`,
+      '',
+      '🏎️ **פירוט נהגים**',
       ...driverBreakdown.map((driver) => formatMemberLine(driver)),
       '',
-      `*${t('Constructors Breakdown', chatId)}*`,
+      '🛡️ **פירוט קבוצות**',
       ...constructorBreakdown.map((constructor) => formatMemberLine(constructor)),
       missingMembers.length > 0
-        ? `\n⚠️ ${t('Missing live data for: {MEMBERS}', chatId, {
-          MEMBERS: missingMembers.join(', '),
-        })}`
+        ? `\n⚠️ חסרים נתוני לייב עבור: ${missingMembers.join(', ')}`
         : '',
     ]
       .filter(Boolean)

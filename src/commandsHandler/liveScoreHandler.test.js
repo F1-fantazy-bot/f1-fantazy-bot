@@ -39,8 +39,8 @@ describe('liveScoreHandler', () => {
   const liveScorePayload = {
     extractedAt: '2026-03-27T11:07:54.562Z',
     drivers: {
-      VER: { TotalPoints: 10, PriceChange: 0.1, Sprint: { POS: 1 } },
-      HAM: { TotalPoints: 20, PriceChange: 0.2, Race: { POS: 10 } },
+      VER: { TotalPoints: 10, PriceChange: 0.1, Sprint: { POS: 1, OV: 0 } },
+      HAM: { TotalPoints: 20, PriceChange: 0.2, Race: { POS: 10, PG: -3, OV: 0 } },
       NOR: { TotalPoints: 5, PriceChange: -0.1 },
       LEC: { TotalPoints: 15, PriceChange: 0.3 },
       PIA: { TotalPoints: 3, PriceChange: -0.2 },
@@ -80,24 +80,32 @@ describe('liveScoreHandler', () => {
 
   it('sends live score breakdown', async () => {
     await handleLiveScoreCommand(mockBot, msg);
+    const sentMessage = mockBot.sendMessage.mock.calls[0][1];
 
     expect(mockBot.sendMessage).toHaveBeenCalledWith(
       chatId,
-      expect.stringContaining('*Live Score* (T1)'),
+      expect.stringContaining('📊 **סה״כ נקודות:** 116'),
       { parse_mode: 'Markdown' },
     );
 
     expect(mockBot.sendMessage).toHaveBeenCalledWith(
       chatId,
-      expect.stringContaining('*Total Live Points:* 116.00'),
+      expect.stringContaining('📈 **שינוי שווי הקבוצה:** +0.8M'),
       { parse_mode: 'Markdown' },
     );
 
     expect(mockBot.sendMessage).toHaveBeenCalledWith(
       chatId,
-      expect.stringContaining('HAM (DRS x2): 40 (20 base + 20 DRS) pts, Δ 0.2'),
+      expect.stringContaining('המילטון (HAM) 👑 קפטן (DRS)'),
       { parse_mode: 'Markdown' },
     );
+
+    expect(mockBot.sendMessage).toHaveBeenCalledWith(
+      chatId,
+      expect.stringContaining('*הופחתו:* שיפור מיקום (-3)'),
+      { parse_mode: 'Markdown' },
+    );
+    expect(sentMessage).not.toContain('עקיפות (0)');
   });
 
   it('handles errors', async () => {
