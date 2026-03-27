@@ -104,6 +104,24 @@ describe('liveScoreHandler', () => {
     );
   });
 
+  it('adds required spacing between members and sections', async () => {
+    await handleLiveScoreCommand(mockBot, msg);
+
+    const htmlPayload = mockBot.sendMessage.mock.calls.find(
+      ([, , options]) => options && options.parse_mode === 'HTML',
+    )[1];
+
+    expect(htmlPayload).toContain(
+      '<b>VER — 10 pts | Δ +0.1</b>\nSprint: POS 1\n\n<b>HAM (DRS x2) — 40 pts | Δ +0.2</b>',
+    );
+    expect(htmlPayload).toContain(
+      '<b>PIA — 3 pts | Δ -0.2</b>\n\n\n<b>🛠️ Constructors</b>',
+    );
+    expect(htmlPayload).toContain(
+      '<b>FER — 25 pts | Δ +0.3</b>\nRace: FP 10\n\n<b>MER — 18 pts | Δ +0.2</b>',
+    );
+  });
+
   it('filters zero-value session metrics and omits empty sessions', async () => {
     getLiveScoreData.mockResolvedValue({
       extractedAt: '2026-03-27T11:07:54.562Z',
