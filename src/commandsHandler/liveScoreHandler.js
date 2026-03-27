@@ -3,31 +3,58 @@ const { currentTeamCache, resolveSelectedTeam } = require('../cache');
 const { t } = require('../i18n');
 const { formatDateTime, isAdminMessage, sendErrorMessage } = require('../utils');
 
-function formatBreakdown(segment = {}, chatId) {
-  const entries = Object.entries(segment);
+const SESSION_METRICS = ['POS', 'PG', 'OV', 'FL', 'DD', 'TW', 'FP'];
+const SESSION_ORDER = ['Sprint', 'Qualifying', 'Race'];
 
-  if (entries.length === 0) {
-    return t('No data', chatId);
+function formatSignedDelta(value) {
+  const numericValue = Number(value) || 0;
+
+  return `${numericValue >= 0 ? '+' : ''}${numericValue}`;
+}
+
+function formatSessionBreakdown(sessionName, sessionData = {}) {
+  const metrics = SESSION_METRICS.reduce((acc, metricKey) => {
+    if (!Object.prototype.hasOwnProperty.call(sessionData, metricKey)) {
+      return acc;
+    }
+
+    const metricValue = sessionData[metricKey];
+    if (metricValue === 0) {
+      return acc;
+    }
+
+    acc.push(`${metricKey} ${metricValue}`);
+
+    return acc;
+  }, []);
+
+  if (metrics.length === 0) {
+    return null;
   }
 
-  return entries.map(([key, value]) => `${key}: ${value}`).join(', ');
+  return `${sessionName}: ${metrics.join(', ')}`;
 }
 
 function formatMemberLine(
   { code, points, priceChange, details, isDrsBoost },
   chatId,
 ) {
-  const scorePart = isDrsBoost
-    ? `${points * 2} (${points} ${t('base', chatId)} + ${points} DRS)`
-    : `${points}`;
+  const effectivePoints = isDrsBoost ? points * 2 : points;
   const drsLabel = isDrsBoost ? ` (${t('DRS x2', chatId)})` : '';
+  const sessionLines = SESSION_ORDER.map((sessionName) =>
+    formatSessionBreakdown(sessionName, details[sessionName]),
+  ).filter(Boolean);
 
   return [
-    `• ${code}${drsLabel}: ${scorePart} ${t('pts', chatId)}, Δ ${priceChange.toFixed(1)}`,
-    `  ${t('Sprint', chatId)} → ${formatBreakdown(details.Sprint, chatId)}`,
-    `  ${t('Qualifying', chatId)} → ${formatBreakdown(details.Qualifying, chatId)}`,
-    `  ${t('Race', chatId)} → ${formatBreakdown(details.Race, chatId)}`,
+    `<b>${code}${drsLabel} — ${effectivePoints} pts | Δ ${formatSignedDelta(
+      priceChange,
+    )}</b>`,
+    ...sessionLines,
   ].join('\n');
+}
+
+function formatSectionMembers(members, chatId) {
+  return members.map((member) => formatMemberLine(member, chatId)).join('\n\n');
 }
 
 function getLiveMemberData(bucket = {}, code) {
@@ -137,29 +164,33 @@ async function handleLiveScoreCommand(bot, msg) {
       formattedUpdate = `${dateStr}, ${timeStr}`;
     }
 
-    const message = [
-      `*${t('Live Score', chatId)}* (${teamId})`,
-      `*${t('Updated At', chatId)}:* ${formattedUpdate}`,
-      `*${t('Total Live Points', chatId)}:* ${totalPoints.toFixed(2)}`,
-      `*${t('Total Live Price Change', chatId)}:* ${totalPriceChange.toFixed(2)}`,
+    const messageLines = [
+      `<b>🏎️ Live Score Summary (${teamId})</b>`,
+      `<b>${t('Updated At', chatId)}:</b> ${formattedUpdate}`,
+      `<b>${t('Total Live Points', chatId)}:</b> ${totalPoints.toFixed(2)}`,
+      `<b>${t('Total Live Price Change', chatId)}:</b> ${totalPriceChange.toFixed(2)}`,
       '',
-      `*${t('Drivers Breakdown', chatId)}*`,
-      ...driverBreakdown.map((driver) => formatMemberLine(driver, chatId)),
+      '<b>👤 Drivers</b>',
+      formatSectionMembers(driverBreakdown, chatId),
       '',
-      `*${t('Constructors Breakdown', chatId)}*`,
-      ...constructorBreakdown.map((constructor) =>
-        formatMemberLine(constructor, chatId),
-      ),
-      missingMembers.length > 0
-        ? `\n⚠️ ${t('Missing live data for: {MEMBERS}', chatId, {
-          MEMBERS: missingMembers.join(', '),
-        })}`
-        : '',
-    ]
-      .filter(Boolean)
-      .join('\n');
+      '',
+      '',
+      '<b>🛠️ Constructors</b>',
+      formatSectionMembers(constructorBreakdown, chatId),
+    ];
 
-    await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    if (missingMembers.length > 0) {
+      messageLines.push(
+        '',
+        `⚠️ ${t('Missing live data for: {MEMBERS}', chatId, {
+          MEMBERS: missingMembers.join(', '),
+        })}`,
+      );
+    }
+
+    const message = messageLines.join('\n');
+
+    await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
   } catch (error) {
     console.error('Error in handleLiveScoreCommand:', error);
     await sendErrorMessage(bot, `Error fetching live score: ${error.message}`);
@@ -176,4 +207,7 @@ async function handleLiveScoreCommand(bot, msg) {
 module.exports = {
   handleLiveScoreCommand,
   calculateLiveScoreBreakdown,
+  formatMemberLine,
+  formatSessionBreakdown,
+  formatSectionMembers,
 };
