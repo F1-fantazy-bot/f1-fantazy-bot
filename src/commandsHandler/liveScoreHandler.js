@@ -3,31 +3,54 @@ const { currentTeamCache, resolveSelectedTeam } = require('../cache');
 const { t } = require('../i18n');
 const { formatDateTime, isAdminMessage, sendErrorMessage } = require('../utils');
 
-function formatBreakdown(segment = {}, chatId) {
-  const entries = Object.entries(segment);
+const SESSION_NAMES = ['Sprint', 'Qualifying', 'Race'];
+const SESSION_METRICS = ['POS', 'PG', 'OV', 'FL', 'DD', 'TW', 'FP'];
 
-  if (entries.length === 0) {
-    return t('No data', chatId);
-  }
-
-  return entries.map(([key, value]) => `${key}: ${value}`).join(', ');
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
-function formatMemberLine(
-  { code, points, priceChange, details, isDrsBoost },
-  chatId,
-) {
-  const scorePart = isDrsBoost
-    ? `${points * 2} (${points} ${t('base', chatId)} + ${points} DRS)`
-    : `${points}`;
-  const drsLabel = isDrsBoost ? ` (${t('DRS x2', chatId)})` : '';
+function formatSignedDelta(value, decimals = 2) {
+  const numeric = Number(value) || 0;
 
-  return [
-    `• ${code}${drsLabel}: ${scorePart} ${t('pts', chatId)}, Δ ${priceChange.toFixed(1)}`,
-    `  ${t('Sprint', chatId)} → ${formatBreakdown(details.Sprint, chatId)}`,
-    `  ${t('Qualifying', chatId)} → ${formatBreakdown(details.Qualifying, chatId)}`,
-    `  ${t('Race', chatId)} → ${formatBreakdown(details.Race, chatId)}`,
-  ].join('\n');
+  return `${numeric >= 0 ? '+' : ''}${numeric.toFixed(decimals)}`;
+}
+
+function formatSessionLine(sessionName, sessionData = {}) {
+  const nonZeroMetrics = SESSION_METRICS.reduce((acc, metric) => {
+    const value = Number(sessionData?.[metric]);
+    if (Number.isFinite(value) && value !== 0) {
+      acc.push(`${metric} ${value}`);
+    }
+
+    return acc;
+  }, []);
+
+  if (nonZeroMetrics.length === 0) {
+    return '';
+  }
+
+  return `${sessionName}: ${nonZeroMetrics.join(', ')}`;
+}
+
+function formatMemberBlock(
+  { code, points, priceChange, details, isDrsBoost },
+) {
+  const displayCode = escapeHtml(code);
+  const scorePart = isDrsBoost
+    ? `${points * 2} pts (${points} base + ${points} DRS)`
+    : `${points}`;
+  const drsLabel = isDrsBoost ? ' (DRS x2)' : '';
+  const header = `<b>${displayCode}${drsLabel} — ${scorePart} | Δ ${formatSignedDelta(priceChange)}</b>`;
+
+  const sessionLines = SESSION_NAMES.map((sessionName) =>
+    formatSessionLine(sessionName, details?.[sessionName]),
+  ).filter(Boolean);
+
+  return [header, ...sessionLines].join('\n');
 }
 
 function getLiveMemberData(bucket = {}, code) {
@@ -137,29 +160,33 @@ async function handleLiveScoreCommand(bot, msg) {
       formattedUpdate = `${dateStr}, ${timeStr}`;
     }
 
-    const message = [
-      `*${t('Live Score', chatId)}* (${teamId})`,
-      `*${t('Updated At', chatId)}:* ${formattedUpdate}`,
-      `*${t('Total Live Points', chatId)}:* ${totalPoints.toFixed(2)}`,
-      `*${t('Total Live Price Change', chatId)}:* ${totalPriceChange.toFixed(2)}`,
-      '',
-      `*${t('Drivers Breakdown', chatId)}*`,
-      ...driverBreakdown.map((driver) => formatMemberLine(driver, chatId)),
-      '',
-      `*${t('Constructors Breakdown', chatId)}*`,
-      ...constructorBreakdown.map((constructor) =>
-        formatMemberLine(constructor, chatId),
-      ),
+    const driverBlocks = driverBreakdown.map((driver) => formatMemberBlock(driver));
+    const constructorBlocks = constructorBreakdown.map((constructor) =>
+      formatMemberBlock(constructor),
+    );
+    const missingLine =
       missingMembers.length > 0
-        ? `\n⚠️ ${t('Missing live data for: {MEMBERS}', chatId, {
+        ? `⚠️ ${t('Missing live data for: {MEMBERS}', chatId, {
           MEMBERS: missingMembers.join(', '),
         })}`
-        : '',
-    ]
-      .filter(Boolean)
-      .join('\n');
+        : '';
 
-    await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    const message = [
+      `<b>🏎️ LIVE SCORE SUMMARY (${escapeHtml(teamId)})</b>`,
+      `Updated At: ${formattedUpdate}`,
+      `Total Live Points: ${totalPoints.toFixed(2)}`,
+      `Total Live Price Change: ${formatSignedDelta(totalPriceChange)}`,
+      '',
+      `<b>👤 DRIVERS</b>`,
+      driverBlocks.join('\n\n'),
+      '',
+      '',
+      `<b>🛠️ CONSTRUCTORS</b>`,
+      constructorBlocks.join('\n\n'),
+      missingLine ? `\n${missingLine}` : '',
+    ].join('\n');
+
+    await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
   } catch (error) {
     console.error('Error in handleLiveScoreCommand:', error);
     await sendErrorMessage(bot, `Error fetching live score: ${error.message}`);
@@ -176,4 +203,7 @@ async function handleLiveScoreCommand(bot, msg) {
 module.exports = {
   handleLiveScoreCommand,
   calculateLiveScoreBreakdown,
+  formatMemberBlock,
+  formatSessionLine,
+  formatSignedDelta,
 };

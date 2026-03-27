@@ -1,4 +1,9 @@
-const { handleLiveScoreCommand, calculateLiveScoreBreakdown } = require('./liveScoreHandler');
+const {
+  handleLiveScoreCommand,
+  calculateLiveScoreBreakdown,
+  formatMemberBlock,
+  formatSignedDelta,
+} = require('./liveScoreHandler');
 const { getLiveScoreData } = require('../azureStorageService');
 const { currentTeamCache, resolveSelectedTeam } = require('../cache');
 const { isAdminMessage, sendErrorMessage } = require('../utils');
@@ -78,26 +83,51 @@ describe('liveScoreHandler', () => {
     expect(getLiveScoreData).not.toHaveBeenCalled();
   });
 
-  it('sends live score breakdown', async () => {
+  it('sends live score breakdown in Telegram HTML format', async () => {
     await handleLiveScoreCommand(mockBot, msg);
 
     expect(mockBot.sendMessage).toHaveBeenCalledWith(
       chatId,
-      expect.stringContaining('*Live Score* (T1)'),
-      { parse_mode: 'Markdown' },
+      expect.stringContaining('<b>🏎️ LIVE SCORE SUMMARY (T1)</b>'),
+      { parse_mode: 'HTML' },
     );
 
     expect(mockBot.sendMessage).toHaveBeenCalledWith(
       chatId,
-      expect.stringContaining('*Total Live Points:* 116.00'),
-      { parse_mode: 'Markdown' },
+      expect.stringContaining('Total Live Points: 116.00'),
+      { parse_mode: 'HTML' },
     );
 
     expect(mockBot.sendMessage).toHaveBeenCalledWith(
       chatId,
-      expect.stringContaining('HAM (DRS x2): 40 (20 base + 20 DRS) pts, Δ 0.2'),
-      { parse_mode: 'Markdown' },
+      expect.stringContaining('<b>HAM (DRS x2) — 40 pts (20 base + 20 DRS) | Δ +0.20</b>'),
+      { parse_mode: 'HTML' },
     );
+  });
+
+  it('formats member blocks with zero-value filtering and flattened sessions', () => {
+    const block = formatMemberBlock({
+      code: 'VER',
+      points: 11,
+      priceChange: 0.3,
+      isDrsBoost: false,
+      details: {
+        Sprint: { POS: 4, PG: 0, OV: 10 },
+        Qualifying: { POS: 0, PG: 0, OV: 0, FL: 0, DD: 0, TW: 0, FP: 0 },
+        Race: { PG: -3, TW: 0, FP: 5 },
+      },
+    });
+
+    expect(block).toContain('Sprint: POS 4, OV 10');
+    expect(block).toContain('Race: PG -3, FP 5');
+    expect(block).not.toContain('Qualifying:');
+    expect(block).not.toContain('PG 0');
+    expect(block).not.toContain('→');
+  });
+
+  it('formats delta with explicit sign', () => {
+    expect(formatSignedDelta(3.3)).toBe('+3.30');
+    expect(formatSignedDelta(-1.5)).toBe('-1.50');
   });
 
   it('handles errors', async () => {
