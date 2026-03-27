@@ -87,6 +87,39 @@ async function getNextRaceInfoData() {
 }
 
 /**
+ * Get the latest live-score data from Azure Storage.
+ * @returns {Promise<Object>} Parsed live-score payload
+ * @throws {Error} If the data cannot be retrieved or parsed
+ */
+async function getLiveScoreData() {
+  try {
+    const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+    const liveScoreContainerName = 'f1-fantasy-scraper-json';
+
+    if (!connectionString) {
+      throw new Error('Missing required Azure storage configuration');
+    }
+
+    if (!blobServiceClient) {
+      blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
+    }
+
+    const liveScoreContainerClient =
+      blobServiceClient.getContainerClient(liveScoreContainerName);
+    const blobName = 'f1-live-score-latest.json';
+    const blockBlobClient = liveScoreContainerClient.getBlockBlobClient(blobName);
+    const downloadResponse = await blockBlobClient.download();
+    const jsonString = await streamToString(
+      downloadResponse.readableStreamBody,
+    );
+
+    return JSON.parse(jsonString);
+  } catch (error) {
+    throw new Error(`Failed to get live score data: ${error.message}`);
+  }
+}
+
+/**
  * Get a user's team data from Azure Storage
  * @param {string} chatId - The chat ID of the user
  * @param {string} teamId - The team identifier (e.g., 'T1', 'T2', 'T3')
@@ -346,6 +379,7 @@ module.exports = {
   deleteAllUserTeams,
   listAllUserTeamData,
   getNextRaceInfoData,
+  getLiveScoreData,
   savePendingTeamAssignment,
   getPendingTeamAssignment,
   deletePendingTeamAssignment,
