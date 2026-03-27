@@ -22,6 +22,7 @@ const {
   COMMAND_UPLOAD_DRIVERS_PHOTO,
   COMMAND_UPLOAD_CONSTRUCTORS_PHOTO,
   COMMAND_SET_BEST_TEAM_RANKING,
+  COMMAND_LIVE_SCORE,
 } = require('./constants');
 
 jest.mock('openai', () => ({
@@ -83,6 +84,9 @@ const {
 const {
   handleSetBestTeamRanking,
 } = require('./commandsHandler/setBestTeamRankingHandler');
+const {
+  handleLiveScoreCommand,
+} = require('./commandsHandler/liveScoreHandler');
 
 jest.mock('./commandsHandler/numberInputHandler');
 jest.mock('./commandsHandler/jsonInputHandler');
@@ -109,6 +113,7 @@ jest.mock('./commandsHandler/sendMessageToUserHandler');
 jest.mock('./commandsHandler/uploadDriversPhotoHandler');
 jest.mock('./commandsHandler/uploadConstructorsPhotoHandler');
 jest.mock('./commandsHandler/setBestTeamRankingHandler');
+jest.mock('./commandsHandler/liveScoreHandler');
 
 const { handleTextMessage } = require('./textMessageHandler');
 const { handleAskCommand } = require('./commandsHandler/askHandler');
@@ -188,6 +193,18 @@ describe('handleTextMessage', () => {
       await handleTextMessage(botMock, msgMock);
 
       expect(handleSetBestTeamRanking).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleJsonMessage).not.toHaveBeenCalled();
+    });
+
+    it('should route /live_score command to handleLiveScoreCommand', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: COMMAND_LIVE_SCORE,
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(handleLiveScoreCommand).toHaveBeenCalledWith(botMock, msgMock);
       expect(handleJsonMessage).not.toHaveBeenCalled();
     });
 
