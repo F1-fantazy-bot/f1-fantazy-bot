@@ -3,6 +3,7 @@ const {
   handleNumberMessage,
   handleJsonMessage,
   handleBestTeamsMessage,
+  handleBestTeamScenariosMessage,
   calcCurrentTeamInfo,
   handleChipsMessage,
   sendPrintableCache,
@@ -40,6 +41,7 @@ const {
 // Import constants
 const {
   COMMAND_BEST_TEAMS,
+  COMMAND_BEST_TEAM_SCENARIOS,
   COMMAND_CURRENT_TEAM_INFO,
   COMMAND_CHIPS,
   COMMAND_PRINT_CACHE,
@@ -86,6 +88,10 @@ exports.handleTextMessage = async function (bot, msg) {
       return;
     case msg.text === COMMAND_BEST_TEAMS:
       await handleBestTeamsMessage(bot, chatId);
+
+      return;
+    case msg.text === COMMAND_BEST_TEAM_SCENARIOS:
+      await handleBestTeamScenariosMessage(bot, chatId);
 
       return;
     case msg.text === COMMAND_CURRENT_TEAM_INFO:

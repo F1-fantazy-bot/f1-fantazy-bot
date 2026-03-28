@@ -54,7 +54,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 
 ## Key Commands (User-Facing)
 
-- `/best_teams`, `/current_team_info`, `/chips`, `/extra_drs`, `/limitless`, `/wildcard`, `/reset_chip`
+- `/best_teams`, `/best_team_scenarios`, `/current_team_info`, `/chips`, `/extra_drs`, `/limitless`, `/wildcard`, `/reset_chip`
 - `/set_best_team_ranking`
 - `/select_team`, `/print_cache`, `/reset_cache`
 - `/next_race_info`, `/next_races`, `/next_race_weather`

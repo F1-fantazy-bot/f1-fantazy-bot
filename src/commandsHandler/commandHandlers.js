@@ -1,5 +1,6 @@
 const {
   COMMAND_BEST_TEAMS,
+  COMMAND_BEST_TEAM_SCENARIOS,
   COMMAND_CURRENT_TEAM_INFO,
   COMMAND_CHIPS,
   COMMAND_PRINT_CACHE,
@@ -35,6 +36,7 @@ const {
 } = require('../constants');
 
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
+const { handleBestTeamScenariosMessage } = require('./bestTeamScenariosHandler');
 const { handleChipsMessage } = require('./chipsHandler');
 const { calcCurrentTeamInfo } = require('./currentTeamInfoHandler');
 const { handleGetBotfatherCommands } = require('./getBotfatherCommandsHandler');
@@ -76,6 +78,7 @@ const { handleLiveScoreCommand } = require('./liveScoreHandler');
 // Mapping of command constants to their handler functions
 const COMMAND_HANDLERS = {
   [COMMAND_BEST_TEAMS]: handleBestTeamsMessage,
+  [COMMAND_BEST_TEAM_SCENARIOS]: handleBestTeamScenariosMessage,
   [COMMAND_CURRENT_TEAM_INFO]: calcCurrentTeamInfo,
   [COMMAND_CHIPS]: handleChipsMessage,
   [COMMAND_PRINT_CACHE]: sendPrintableCache,
@@ -121,6 +124,7 @@ async function executeCommand(bot, msg, command) {
     await handler(chatId, bot);
   } else if (
     command === COMMAND_BEST_TEAMS ||
+    command === COMMAND_BEST_TEAM_SCENARIOS ||
     command === COMMAND_CURRENT_TEAM_INFO ||
     command === COMMAND_NEXT_RACE_INFO ||
     command === COMMAND_NEXT_RACES ||
