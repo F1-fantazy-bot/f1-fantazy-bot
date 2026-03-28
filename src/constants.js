@@ -159,6 +159,11 @@ exports.MENU_CATEGORIES = {
         title: '📈 Current Simulation',
         description: 'Show the current simulation data and name',
       },
+      {
+        constant: exports.COMMAND_LIVE_SCORE,
+        title: '🔴 Live Score',
+        description: 'Show current live points and price change for your team',
+      },
     ],
   },
   UTILITIES: {
@@ -234,11 +239,6 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_SET_NICKNAME,
         title: '📛 Set Nickname',
         description: 'Set a nickname for a user to display in logs',
-      },
-      {
-        constant: exports.COMMAND_LIVE_SCORE,
-        title: '🔴 Live Score',
-        description: 'Show current live points and price change for your team',
       },
       {
         constant: exports.COMMAND_UPLOAD_DRIVERS_PHOTO,
