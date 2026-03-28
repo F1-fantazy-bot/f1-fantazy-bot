@@ -6,6 +6,8 @@ const {
   bestTeamsCache,
   userCache,
   normalizeBestTeamBudgetChangePointsPerMillion,
+  clearSelectedBestTeam,
+  serializeSelectedBestTeamByTeam,
 } = require('./cache');
 const { selectChip } = require('./commandsHandler/selectChipHandlers');
 const {
@@ -116,10 +118,14 @@ async function handleBestTeamRankingCallback(bot, query) {
     preset.budgetChangePointsPerMillion;
   userCache[key].bestTeamBudgetChangePointsPerMillion =
     bestTeamBudgetChangePointsPerMillion;
+  const selectedBestTeamByTeam = clearSelectedBestTeam(chatId, teamId);
 
   await updateUserAttributes(chatId, {
     bestTeamBudgetChangePointsPerMillion: JSON.stringify(
       bestTeamBudgetChangePointsPerMillion,
+    ),
+    selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
+      selectedBestTeamByTeam,
     ),
   });
 
@@ -211,7 +217,13 @@ async function handleTeamAssignCallback(bot, query) {
     userCache[key] = {};
   }
   userCache[key].selectedTeam = teamId;
-  await updateUserAttributes(chatId, { selectedTeam: teamId });
+  const selectedBestTeamByTeam = clearSelectedBestTeam(chatId, teamId);
+  await updateUserAttributes(chatId, {
+    selectedTeam: teamId,
+    selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
+      selectedBestTeamByTeam,
+    ),
+  });
 
   // Invalidate best teams for this team
   if (bestTeamsCache[chatId]) {

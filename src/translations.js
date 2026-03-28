@@ -52,6 +52,8 @@ const translations = {
     '{COUNT} of them are sprint format': '{COUNT} מהם בפורמט ספרינט',
     'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.':
       'נתוני מטמון חסרים. אנא שלח תמונות או קבצי JSON של נהגים, קבוצות וקבוצה נוכחית קודם.',
+    'No selected best team found for {TEAM}. Please run /best_teams and send a number first.':
+      'לא נמצאה קבוצה מומלצת שנבחרה עבור {TEAM}. הפעל /best_teams ושלח מספר קודם.',
     'Please send a number to get the required changes to that team.':
       'אנא שלח מספר לקבלת השינויים הדרושים לקבוצה הזו.',
     'You currently have data in your cache. To use data from a simulation, please run {CMD} first.':

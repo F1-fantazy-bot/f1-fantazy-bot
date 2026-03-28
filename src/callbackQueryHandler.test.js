@@ -45,6 +45,8 @@ jest.mock('./cache', () => ({
   selectedChipCache: {},
   getPrintableCache: jest.fn(() => 'printable cache'),
   normalizeBestTeamBudgetChangePointsPerMillion: jest.fn(() => ({})),
+  clearSelectedBestTeam: jest.fn(() => ({})),
+  serializeSelectedBestTeamByTeam: jest.fn(() => null),
 }));
 
 describe('handleCallbackQuery', () => {
@@ -120,6 +122,15 @@ describe('handleCallbackQuery', () => {
   });
 
   it('should handle team assignment callback', async () => {
+    cache.userCache['123'] = {
+      selectedBestTeamByTeam: {
+        T1: {
+          drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+          constructors: ['RBR', 'FER'],
+          drsDriver: 'VER',
+        },
+      },
+    };
     azureStorageService.getPendingTeamAssignment.mockResolvedValueOnce({
       drivers: ['HAM'],
       constructors: ['MER'],
@@ -138,7 +149,10 @@ describe('handleCallbackQuery', () => {
 
     expect(cache.currentTeamCache[123].T1).toBeDefined();
     expect(azureStorageService.saveUserTeam).toHaveBeenCalled();
-    expect(updateUserAttributes).toHaveBeenCalledWith(123, { selectedTeam: 'T1' });
+    expect(updateUserAttributes).toHaveBeenCalledWith(123, {
+      selectedTeam: 'T1',
+      selectedBestTeamByTeam: null,
+    });
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q5');
   });
 

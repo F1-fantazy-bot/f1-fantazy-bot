@@ -75,6 +75,12 @@ describe('handleJsonMessage', () => {
           drsBoost: 'HAM',
           freeTransfers: 1,
           costCapRemaining: 1.1,
+          selectedBestTeam: {
+            drivers: ['HAM', 'VER', 'NOR', 'LEC', 'PIA'],
+            constructors: ['MER', 'RBR'],
+            drsDriver: 'HAM',
+            extraDrsDriver: 'VER',
+          },
           bestTeamBudgetChangePointsPerMillion: 2,
         },
       },
@@ -116,6 +122,14 @@ describe('handleJsonMessage', () => {
         T1: 1.65,
         T2: 2,
       },
+      selectedBestTeamByTeam: {
+        T2: {
+          drivers: ['HAM', 'VER', 'NOR', 'LEC', 'PIA'],
+          constructors: ['MER', 'RBR'],
+          drsDriver: 'HAM',
+          extraDrsDriver: 'VER',
+        },
+      },
     });
 
     expect(azureStorageService.deleteAllUserTeams).toHaveBeenCalledWith(
@@ -147,6 +161,14 @@ describe('handleJsonMessage', () => {
       bestTeamBudgetChangePointsPerMillion: JSON.stringify({
         T1: 1.65,
         T2: 2,
+      }),
+      selectedBestTeamByTeam: JSON.stringify({
+        T2: {
+          drivers: ['HAM', 'VER', 'NOR', 'LEC', 'PIA'],
+          constructors: ['MER', 'RBR'],
+          drsDriver: 'HAM',
+          extraDrsDriver: 'VER',
+        },
       }),
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
@@ -189,6 +211,13 @@ describe('handleJsonMessage', () => {
       lang: 'en',
       selectedTeam: 'T9',
       bestTeamBudgetChangePointsPerMillion: { T1: 1.3, T9: 2 },
+      selectedBestTeamByTeam: {
+        T9: {
+          drivers: ['OLD', 'STALE', 'NOR', 'LEC', 'PIA'],
+          constructors: ['OLD', 'MCL'],
+          drsDriver: 'OLD',
+        },
+      },
     };
 
     const jsonData = {
@@ -230,6 +259,7 @@ describe('handleJsonMessage', () => {
       lang: 'en',
       selectedTeam: 'T1',
       bestTeamBudgetChangePointsPerMillion: { T1: 2 },
+      selectedBestTeamByTeam: {},
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -266,6 +296,13 @@ describe('handleJsonMessage', () => {
       lang: 'en',
       selectedTeam: 'T1',
       bestTeamBudgetChangePointsPerMillion: { T1: 1.65 },
+      selectedBestTeamByTeam: {
+        T1: {
+          drivers: ['HAM', 'NOR', 'LEC', 'PIA', 'RUS'],
+          constructors: ['MER', 'FER'],
+          drsDriver: 'HAM',
+        },
+      },
     };
 
     await handleJsonMessage(botMock, KILZI_CHAT_ID, {
@@ -287,6 +324,7 @@ describe('handleJsonMessage', () => {
       lang: 'en',
       selectedTeam: null,
       bestTeamBudgetChangePointsPerMillion: {},
+      selectedBestTeamByTeam: {},
     });
     expect(azureStorageService.deleteAllUserTeams).toHaveBeenCalledWith(
       botMock,
@@ -296,6 +334,7 @@ describe('handleJsonMessage', () => {
     expect(updateUserAttributes).toHaveBeenCalledWith(KILZI_CHAT_ID, {
       selectedTeam: null,
       bestTeamBudgetChangePointsPerMillion: JSON.stringify({}),
+      selectedBestTeamByTeam: null,
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,

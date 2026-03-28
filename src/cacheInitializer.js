@@ -8,6 +8,7 @@ const {
   userCache,
   remainingRaceCountCache,
   normalizeBestTeamBudgetChangePointsPerMillion,
+  normalizeSelectedBestTeamByTeam,
 } = require('./cache');
 const {
   sendLogMessage,
@@ -81,6 +82,9 @@ async function initializeCaches(bot) {
       normalizeBestTeamBudgetChangePointsPerMillion(
         userData.bestTeamBudgetChangePointsPerMillion,
       );
+    userData.selectedBestTeamByTeam = normalizeSelectedBestTeamByTeam(
+      userData.selectedBestTeamByTeam,
+    );
 
     userCache[key] = userData;
   }

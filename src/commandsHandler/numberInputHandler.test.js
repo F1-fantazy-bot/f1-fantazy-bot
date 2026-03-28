@@ -5,6 +5,11 @@ jest.mock('../bestTeamsCalculator', () => ({
   calculateChangesToTeam: jest.fn(),
 }));
 
+const { updateUserAttributes } = require('../userRegistryService');
+jest.mock('../userRegistryService', () => ({
+  updateUserAttributes: jest.fn().mockResolvedValue(undefined),
+}));
+
 const {
   bestTeamsCache,
   driversCache,
@@ -33,6 +38,7 @@ describe('handleNumberMessage', () => {
     delete currentTeamCache[KILZI_CHAT_ID];
     delete remainingRaceCountCache[sharedKey];
     delete userCache[String(KILZI_CHAT_ID)];
+    updateUserAttributes.mockClear();
     // Set up single team so resolveSelectedTeam auto-resolves to T1
     currentTeamCache[KILZI_CHAT_ID] = { [TEAM_ID]: { drivers: ['VER'] } };
   });
@@ -88,6 +94,9 @@ describe('handleNumberMessage', () => {
             row: 1,
             transfers_needed: 0,
             extra_drs_driver: null, // no extra DRS
+            drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+            constructors: ['RBR', 'FER'],
+            drs_driver: 'VER',
           },
         ],
       },
@@ -98,6 +107,16 @@ describe('handleNumberMessage', () => {
       KILZI_CHAT_ID,
       teamRowRequested.toString(),
     );
+
+    expect(updateUserAttributes).toHaveBeenCalledWith(KILZI_CHAT_ID, {
+      selectedBestTeamByTeam: JSON.stringify({
+        [TEAM_ID]: {
+          drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+          constructors: ['RBR', 'FER'],
+          drsDriver: 'VER',
+        },
+      }),
+    });
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -110,6 +129,9 @@ describe('handleNumberMessage', () => {
     const mockCurrentTeam = { drivers: ['VER'], constructors: ['RBR'] };
     const mockSelectedTeam = {
       row: 2,
+      drivers: ['HAM', 'NOR', 'LEC', 'PIA', 'RUS'],
+      constructors: ['MER', 'FER'],
+      drs_driver: 'HAM',
       transfers_needed: 2,
       extra_drs_driver: null,
       projected_points: 0,
@@ -178,6 +200,16 @@ describe('handleNumberMessage', () => {
       KILZI_CHAT_ID,
       teamRowRequested.toString(),
     );
+
+    expect(updateUserAttributes).toHaveBeenCalledWith(KILZI_CHAT_ID, {
+      selectedBestTeamByTeam: JSON.stringify({
+        [TEAM_ID]: {
+          drivers: mockSelectedTeam.drivers,
+          constructors: mockSelectedTeam.constructors,
+          drsDriver: mockSelectedTeam.drs_driver,
+        },
+      }),
+    });
 
     expect(calculateChangesToTeam).toHaveBeenCalledWith(
       {

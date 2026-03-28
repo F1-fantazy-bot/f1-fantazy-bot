@@ -29,7 +29,7 @@ exports.simulationInfoCache = {};
 exports.selectedChipCache = {};
 
 // In-memory cache for user data by chat id
-// Each entry: { lang, nickname, chatName, selectedTeam, ... }
+// Each entry: { lang, nickname, chatName, selectedTeam, selectedBestTeamByTeam, ... }
 exports.userCache = {};
 
 // In-memory cache for next race info
@@ -64,6 +64,47 @@ function parsePreferenceMap(rawPreferenceMap) {
     : {};
 }
 
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.length > 0;
+}
+
+exports.normalizeSelectedBestTeam = function (rawSelectedBestTeam) {
+  if (!isPlainObject(rawSelectedBestTeam)) {
+    return null;
+  }
+
+  if (
+    !Array.isArray(rawSelectedBestTeam.drivers) ||
+    !rawSelectedBestTeam.drivers.every(isNonEmptyString) ||
+    !Array.isArray(rawSelectedBestTeam.constructors) ||
+    !rawSelectedBestTeam.constructors.every(isNonEmptyString) ||
+    !isNonEmptyString(rawSelectedBestTeam.drsDriver)
+  ) {
+    return null;
+  }
+
+  if (
+    rawSelectedBestTeam.extraDrsDriver !== undefined &&
+    rawSelectedBestTeam.extraDrsDriver !== null &&
+    !isNonEmptyString(rawSelectedBestTeam.extraDrsDriver)
+  ) {
+    return null;
+  }
+
+  return {
+    drivers: [...rawSelectedBestTeam.drivers],
+    constructors: [...rawSelectedBestTeam.constructors],
+    drsDriver: rawSelectedBestTeam.drsDriver,
+    ...(rawSelectedBestTeam.extraDrsDriver
+      ? { extraDrsDriver: rawSelectedBestTeam.extraDrsDriver }
+      : {}),
+  };
+};
+
 exports.normalizeBestTeamBudgetChangePointsPerMillion = function (
   rawBudgetChangePointsPerMillion,
 ) {
@@ -79,6 +120,30 @@ exports.normalizeBestTeamBudgetChangePointsPerMillion = function (
   );
 
   return normalizedCurrentValues;
+};
+
+exports.normalizeSelectedBestTeamByTeam = function (rawSelectedBestTeamByTeam) {
+  const parsedSelections = parsePreferenceMap(rawSelectedBestTeamByTeam);
+
+  return Object.fromEntries(
+    Object.entries(parsedSelections).flatMap(([teamId, selectedBestTeam]) => {
+      const normalizedSelectedBestTeam =
+        exports.normalizeSelectedBestTeam(selectedBestTeam);
+
+      return normalizedSelectedBestTeam
+        ? [[teamId, normalizedSelectedBestTeam]]
+        : [];
+    }),
+  );
+};
+
+exports.serializeSelectedBestTeamByTeam = function (selectedBestTeamByTeam) {
+  const normalizedSelectedBestTeamByTeam =
+    exports.normalizeSelectedBestTeamByTeam(selectedBestTeamByTeam);
+
+  return Object.keys(normalizedSelectedBestTeamByTeam).length > 0
+    ? JSON.stringify(normalizedSelectedBestTeamByTeam)
+    : null;
 };
 
 const currentTeamCache = exports.currentTeamCache;
@@ -110,6 +175,66 @@ exports.getBestTeamBudgetChangePointsPerMillion = function (chatId, teamId) {
   }
 
   return Math.max(0, budgetChangePointsPerMillion);
+};
+
+exports.getSelectedBestTeam = function (chatId, teamId) {
+  const key = String(chatId);
+  const selectedBestTeamByTeam = exports.normalizeSelectedBestTeamByTeam(
+    userCache[key]?.selectedBestTeamByTeam,
+  );
+
+  return selectedBestTeamByTeam[teamId] || null;
+};
+
+exports.setSelectedBestTeam = function (chatId, teamId, selectedBestTeam) {
+  const key = String(chatId);
+
+  if (!userCache[key]) {
+    userCache[key] = {};
+  }
+
+  const selectedBestTeamByTeam = exports.normalizeSelectedBestTeamByTeam(
+    userCache[key].selectedBestTeamByTeam,
+  );
+  const normalizedSelectedBestTeam = exports.normalizeSelectedBestTeam(
+    selectedBestTeam,
+  );
+
+  if (normalizedSelectedBestTeam) {
+    selectedBestTeamByTeam[teamId] = normalizedSelectedBestTeam;
+  }
+
+  userCache[key].selectedBestTeamByTeam = selectedBestTeamByTeam;
+
+  return selectedBestTeamByTeam;
+};
+
+exports.clearSelectedBestTeam = function (chatId, teamId) {
+  const key = String(chatId);
+
+  if (!userCache[key]) {
+    userCache[key] = {};
+  }
+
+  const selectedBestTeamByTeam = exports.normalizeSelectedBestTeamByTeam(
+    userCache[key].selectedBestTeamByTeam,
+  );
+  delete selectedBestTeamByTeam[teamId];
+  userCache[key].selectedBestTeamByTeam = selectedBestTeamByTeam;
+
+  return selectedBestTeamByTeam;
+};
+
+exports.clearAllSelectedBestTeams = function (chatId) {
+  const key = String(chatId);
+
+  if (!userCache[key]) {
+    userCache[key] = {};
+  }
+
+  userCache[key].selectedBestTeamByTeam = {};
+
+  return userCache[key].selectedBestTeamByTeam;
 };
 
 /**
@@ -166,11 +291,13 @@ exports.getPrintableCache = function (chatId, type) {
       for (const teamId of sortedTeamIds) {
         const teamData = teamsData[teamId];
         const chip = exports.selectedChipCache[chatId]?.[teamId];
+        const selectedBestTeam = exports.getSelectedBestTeam(chatId, teamId);
         const bestTeamBudgetChangePointsPerMillion =
           exports.getBestTeamBudgetChangePointsPerMillion(chatId, teamId);
         teams[teamId] = {
           ...teamData,
           ...(chip ? { chip } : {}),
+          ...(selectedBestTeam ? { selectedBestTeam } : {}),
           bestTeamBudgetChangePointsPerMillion,
         };
       }

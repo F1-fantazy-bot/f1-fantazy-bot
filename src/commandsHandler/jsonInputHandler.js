@@ -12,6 +12,9 @@ const {
   selectedChipCache,
   userCache,
   normalizeBestTeamBudgetChangePointsPerMillion,
+  normalizeSelectedBestTeam,
+  normalizeSelectedBestTeamByTeam,
+  serializeSelectedBestTeamByTeam,
 } = require('../cache');
 const { updateUserAttributes } = require('../userRegistryService');
 const { t } = require('../i18n');
@@ -65,6 +68,8 @@ async function handleJsonMessage(bot, chatId, jsonData) {
   userCache[key].selectedTeam = normalizedSnapshot.selectedTeam;
   userCache[key].bestTeamBudgetChangePointsPerMillion =
     normalizedSnapshot.bestTeamBudgetChangePointsPerMillion;
+  userCache[key].selectedBestTeamByTeam =
+    normalizedSnapshot.selectedBestTeamByTeam;
 
   await azureStorageService.deleteAllUserTeams(bot, chatId);
 
@@ -78,6 +83,9 @@ async function handleJsonMessage(bot, chatId, jsonData) {
     selectedTeam: normalizedSnapshot.selectedTeam,
     bestTeamBudgetChangePointsPerMillion: JSON.stringify(
       normalizedSnapshot.bestTeamBudgetChangePointsPerMillion,
+    ),
+    selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
+      normalizedSnapshot.selectedBestTeamByTeam,
     ),
   });
 
@@ -125,6 +133,7 @@ function normalizeCacheSnapshot(jsonData) {
   const teamsMap = {};
   const bestTeamBudgetChangePointsPerMillion = {};
   const selectedChips = {};
+  const selectedBestTeamByTeam = {};
 
   for (const [teamId, teamSnapshot] of Object.entries(jsonData.Teams)) {
     if (!isNonEmptyString(teamId) || !isValidTeamSnapshot(teamSnapshot)) {
@@ -133,6 +142,7 @@ function normalizeCacheSnapshot(jsonData) {
 
     const {
       chip,
+      selectedBestTeam,
       bestTeamBudgetChangePointsPerMillion: currentBestTeamBudgetChangePointsPerMillion,
       ...teamDataWithoutMetadata
     } = teamSnapshot;
@@ -145,6 +155,10 @@ function normalizeCacheSnapshot(jsonData) {
 
     if (chip !== undefined) {
       selectedChips[teamId] = chip;
+    }
+
+    if (selectedBestTeam !== undefined) {
+      selectedBestTeamByTeam[teamId] = selectedBestTeam;
     }
   }
 
@@ -168,6 +182,8 @@ function normalizeCacheSnapshot(jsonData) {
       normalizeBestTeamBudgetChangePointsPerMillion(
         bestTeamBudgetChangePointsPerMillion,
       ),
+    selectedBestTeamByTeam:
+      normalizeSelectedBestTeamByTeam(selectedBestTeamByTeam),
     selectedTeam: jsonData.SelectedTeam,
   };
 }
@@ -200,6 +216,13 @@ function isValidTeamSnapshot(teamSnapshot) {
   if (
     teamSnapshot.chip !== undefined &&
     !VALID_CHIPS.has(teamSnapshot.chip)
+  ) {
+    return false;
+  }
+
+  if (
+    teamSnapshot.selectedBestTeam !== undefined &&
+    !normalizeSelectedBestTeam(teamSnapshot.selectedBestTeam)
   ) {
     return false;
   }

@@ -7,6 +7,8 @@ const {
   bestTeamsCache,
   selectedChipCache,
   userCache,
+  clearAllSelectedBestTeams,
+  serializeSelectedBestTeamByTeam,
 } = require('../cache');
 const { t } = require('../i18n');
 
@@ -22,8 +24,16 @@ async function resetCacheForChat(chatId, bot) {
   const key = String(chatId);
   if (userCache[key]) {
     userCache[key].selectedTeam = null;
+    userCache[key].bestTeamBudgetChangePointsPerMillion = {};
   }
-  await updateUserAttributes(chatId, { selectedTeam: null });
+  const selectedBestTeamByTeam = clearAllSelectedBestTeams(chatId);
+  await updateUserAttributes(chatId, {
+    selectedTeam: null,
+    bestTeamBudgetChangePointsPerMillion: null,
+    selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
+      selectedBestTeamByTeam,
+    ),
+  });
 
   await bot
     .sendMessage(chatId, t('Cache has been reset for your chat.', chatId))

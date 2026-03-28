@@ -8,6 +8,8 @@ const {
   getPrintableCache,
   bestTeamsCache,
   userCache,
+  clearSelectedBestTeam,
+  serializeSelectedBestTeamByTeam,
 } = require('./cache');
 const {
   DRIVERS_PHOTO_TYPE,
@@ -142,7 +144,13 @@ async function storeInCache(bot, chatId, type, extractedData, fileUniqueId) {
       userCache[key] = {};
     }
     userCache[key].selectedTeam = teamId;
-    await updateUserAttributes(chatId, { selectedTeam: teamId });
+    const selectedBestTeamByTeam = clearSelectedBestTeam(chatId, teamId);
+    await updateUserAttributes(chatId, {
+      selectedTeam: teamId,
+      selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
+        selectedBestTeamByTeam,
+      ),
+    });
 
     await sendMessageToUser(
       bot,

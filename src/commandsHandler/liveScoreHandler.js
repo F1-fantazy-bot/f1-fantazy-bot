@@ -1,5 +1,5 @@
 const { getLiveScoreData } = require('../azureStorageService');
-const { currentTeamCache, resolveSelectedTeam } = require('../cache');
+const { getSelectedBestTeam, resolveSelectedTeam } = require('../cache');
 const { t } = require('../i18n');
 const { formatDateTime, isAdminMessage, sendErrorMessage } = require('../utils');
 
@@ -36,11 +36,15 @@ function formatSessionBreakdown(sessionName, sessionData = {}, chatId) {
 }
 
 function formatMemberLine(
-  { code, points, priceChange, details, isDrsBoost },
+  { code, points, priceChange, details, isDrsBoost, isExtraDrsBoost },
   chatId,
 ) {
-  const effectivePoints = isDrsBoost ? points * 2 : points;
-  const drsLabel = isDrsBoost ? ` (${t('DRS x2', chatId)})` : '';
+  const effectivePoints = isExtraDrsBoost ? points * 3 : isDrsBoost ? points * 2 : points;
+  const drsLabel = isExtraDrsBoost
+    ? ` (${t('Extra DRS', chatId)} x3)`
+    : isDrsBoost
+      ? ` (${t('DRS x2', chatId)})`
+      : '';
   const sessionLines = SESSION_ORDER.map((sessionName) =>
     formatSessionBreakdown(sessionName, details[sessionName], chatId),
   ).filter(Boolean);
@@ -77,29 +81,40 @@ function getLiveMemberData(bucket = {}, code) {
   };
 }
 
-function calculateLiveScoreBreakdown(currentTeam, liveScoreData) {
+function calculateLiveScoreBreakdown(selectedBestTeam, liveScoreData) {
   const driversData = liveScoreData.drivers || {};
   const constructorsData = liveScoreData.constructors || {};
+  const drsDriver = selectedBestTeam.drsDriver || selectedBestTeam.drsBoost;
+  const extraDrsDriver = selectedBestTeam.extraDrsDriver;
 
-  const driverBreakdown = currentTeam.drivers.map((driverCode) => {
+  const driverBreakdown = selectedBestTeam.drivers.map((driverCode) => {
     const member = getLiveMemberData(driversData, driverCode);
 
     return {
       code: driverCode,
       ...member,
-      isDrsBoost: currentTeam.drsBoost === driverCode,
+      isDrsBoost: drsDriver === driverCode,
+      isExtraDrsBoost: extraDrsDriver === driverCode,
     };
   });
 
-  const constructorBreakdown = currentTeam.constructors.map((constructorCode) => ({
+  const constructorBreakdown = selectedBestTeam.constructors.map((constructorCode) => ({
     code: constructorCode,
     ...getLiveMemberData(constructorsData, constructorCode),
     isDrsBoost: false,
+    isExtraDrsBoost: false,
   }));
 
   const totalPoints =
     driverBreakdown.reduce(
-      (sum, driver) => sum + driver.points + (driver.isDrsBoost ? driver.points : 0),
+      (sum, driver) =>
+        sum +
+        driver.points +
+        (driver.isExtraDrsBoost
+          ? driver.points * 2
+          : driver.isDrsBoost
+            ? driver.points
+            : 0),
       0,
     ) + constructorBreakdown.reduce((sum, constructor) => sum + constructor.points, 0);
 
@@ -134,13 +149,14 @@ async function handleLiveScoreCommand(bot, msg) {
     return;
   }
 
-  const currentTeam = currentTeamCache[chatId]?.[teamId];
-  if (!currentTeam) {
+  const selectedBestTeam = getSelectedBestTeam(chatId, teamId);
+  if (!selectedBestTeam) {
     await bot.sendMessage(
       chatId,
       t(
-        'Missing cached data. Please send images or JSON data for drivers, constructors, and current team first.',
+        'No selected best team found for {TEAM}. Please run /best_teams and send a number first.',
         chatId,
+        { TEAM: teamId },
       ),
     );
 
@@ -155,7 +171,7 @@ async function handleLiveScoreCommand(bot, msg) {
       driverBreakdown,
       constructorBreakdown,
       missingMembers,
-    } = calculateLiveScoreBreakdown(currentTeam, liveScoreData);
+    } = calculateLiveScoreBreakdown(selectedBestTeam, liveScoreData);
 
     const extractedAt = new Date(liveScoreData.extractedAt);
     let formattedUpdate = String(liveScoreData.extractedAt || '-');

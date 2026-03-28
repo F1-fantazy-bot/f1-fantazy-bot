@@ -1,4 +1,5 @@
 const { calculateChangesToTeam } = require('../bestTeamsCalculator');
+const { updateUserAttributes } = require('../userRegistryService');
 const {
   bestTeamsCache,
   driversCache,
@@ -8,6 +9,8 @@ const {
   resolveSelectedTeam,
   getBestTeamBudgetChangePointsPerMillion,
   remainingRaceCountCache,
+  setSelectedBestTeam,
+  serializeSelectedBestTeamByTeam,
 } = require('../cache');
 const { COMMAND_BEST_TEAMS } = require('../constants');
 const { t } = require('../i18n');
@@ -28,6 +31,17 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
     );
 
     if (selectedTeam) {
+      const selectedBestTeamByTeam = setSelectedBestTeam(
+        chatId,
+        teamId,
+        getSelectedBestTeamSelection(selectedTeam),
+      );
+      await updateUserAttributes(chatId, {
+        selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
+          selectedBestTeamByTeam,
+        ),
+      });
+
       if (
         selectedTeam.transfers_needed === 0 &&
         !selectedTeam.extra_drs_driver // if the user uses the extra drs chip we need to show the changes
@@ -114,6 +128,17 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
 }
 
 module.exports = { handleNumberMessage };
+
+function getSelectedBestTeamSelection(selectedTeam) {
+  return {
+    drivers: selectedTeam.drivers,
+    constructors: selectedTeam.constructors,
+    drsDriver: selectedTeam.drs_driver,
+    ...(selectedTeam.extra_drs_driver
+      ? { extraDrsDriver: selectedTeam.extra_drs_driver }
+      : {}),
+  };
+}
 
 function getRequiredChangesMessage(
   teamRowRequested,

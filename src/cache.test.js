@@ -10,6 +10,11 @@ const {
   resolveSelectedTeam,
   getBestTeamBudgetChangePointsPerMillion,
   normalizeBestTeamBudgetChangePointsPerMillion,
+  getSelectedBestTeam,
+  setSelectedBestTeam,
+  clearSelectedBestTeam,
+  clearAllSelectedBestTeams,
+  normalizeSelectedBestTeamByTeam,
 } = require('./cache');
 
 const {
@@ -115,6 +120,14 @@ describe('cache', () => {
           T1: 1.65,
           T2: 0,
         },
+        selectedBestTeamByTeam: {
+          T1: {
+            drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+            constructors: ['RBR', 'FER'],
+            drsDriver: 'VER',
+            extraDrsDriver: 'HAM',
+          },
+        },
       };
 
       const result = getPrintableCache(chatId, CURRENT_TEAM_PHOTO_TYPE);
@@ -214,6 +227,14 @@ describe('cache', () => {
           T1: 1.65,
           T2: 0,
         },
+        selectedBestTeamByTeam: {
+          T1: {
+            drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+            constructors: ['RBR', 'FER'],
+            drsDriver: 'VER',
+            extraDrsDriver: 'HAM',
+          },
+        },
       };
 
       const result = getPrintableCache(chatId);
@@ -224,6 +245,12 @@ describe('cache', () => {
       expect(parsed.Teams['T1']).toEqual({
         drivers: ['VER'],
         bestTeamBudgetChangePointsPerMillion: 1.65,
+        selectedBestTeam: {
+          drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+          constructors: ['RBR', 'FER'],
+          drsDriver: 'VER',
+          extraDrsDriver: 'HAM',
+        },
       });
       expect(parsed.Teams['T2']).toEqual({
         drivers: ['HAM'],
@@ -282,6 +309,64 @@ describe('cache', () => {
       delete currentTeamCache[chatId];
       const result = getPrintableCache(chatId, CURRENT_TEAM_PHOTO_TYPE);
       expect(result).toBeNull();
+    });
+  });
+
+  describe('selected best team helpers', () => {
+    const chatId = '55555';
+
+    afterEach(() => {
+      delete userCache[chatId];
+    });
+
+    it('normalizes selected best teams from JSON string storage', () => {
+      expect(
+        normalizeSelectedBestTeamByTeam(
+          JSON.stringify({
+            T1: {
+              drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+              constructors: ['RBR', 'FER'],
+              drsDriver: 'VER',
+              extraDrsDriver: 'HAM',
+            },
+          }),
+        ),
+      ).toEqual({
+        T1: {
+          drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+          constructors: ['RBR', 'FER'],
+          drsDriver: 'VER',
+          extraDrsDriver: 'HAM',
+        },
+      });
+    });
+
+    it('sets, gets, and clears selected best teams per team', () => {
+      setSelectedBestTeam(chatId, 'T1', {
+        drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+        constructors: ['RBR', 'FER'],
+        drsDriver: 'VER',
+        extraDrsDriver: 'HAM',
+      });
+
+      expect(getSelectedBestTeam(chatId, 'T1')).toEqual({
+        drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+        constructors: ['RBR', 'FER'],
+        drsDriver: 'VER',
+        extraDrsDriver: 'HAM',
+      });
+
+      clearSelectedBestTeam(chatId, 'T1');
+      expect(getSelectedBestTeam(chatId, 'T1')).toBeNull();
+
+      setSelectedBestTeam(chatId, 'T2', {
+        drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+        constructors: ['RBR', 'FER'],
+        drsDriver: 'VER',
+      });
+      clearAllSelectedBestTeams(chatId);
+
+      expect(userCache[chatId].selectedBestTeamByTeam).toEqual({});
     });
   });
 

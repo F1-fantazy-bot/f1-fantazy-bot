@@ -82,6 +82,14 @@ describe('cacheInitializer', () => {
       lang: 'en',
       nickname: 'Max',
       bestTeamBudgetChangePointsPerMillion: JSON.stringify({ T1: 1.65 }),
+      selectedBestTeamByTeam: JSON.stringify({
+        T1: {
+          drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+          constructors: ['RBR', 'FER'],
+          drsDriver: 'VER',
+          extraDrsDriver: 'HAM',
+        },
+      }),
     },
     { chatId: '456', chatName: 'Bob', lang: 'he', nickname: 'Lewis' },
   ];
@@ -174,12 +182,21 @@ describe('cacheInitializer', () => {
         lang: 'en',
         nickname: 'Max',
         bestTeamBudgetChangePointsPerMillion: { T1: 1.65 },
+        selectedBestTeamByTeam: {
+          T1: {
+            drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+            constructors: ['RBR', 'FER'],
+            drsDriver: 'VER',
+            extraDrsDriver: 'HAM',
+          },
+        },
       },
       456: {
         chatName: 'Bob',
         lang: 'he',
         nickname: 'Lewis',
         bestTeamBudgetChangePointsPerMillion: {},
+        selectedBestTeamByTeam: {},
       },
     });
 

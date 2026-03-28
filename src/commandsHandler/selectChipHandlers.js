@@ -1,7 +1,10 @@
+const { updateUserAttributes } = require('../userRegistryService');
 const {
   selectedChipCache,
   bestTeamsCache,
   resolveSelectedTeam,
+  clearSelectedBestTeam,
+  serializeSelectedBestTeamByTeam,
 } = require('../cache');
 const {
   EXTRA_DRS_CHIP,
@@ -36,6 +39,13 @@ async function selectChip(bot, chatId, chip) {
   if (bestTeamsCache[chatId]) {
     delete bestTeamsCache[chatId][teamId];
   }
+
+  const selectedBestTeamByTeam = clearSelectedBestTeam(chatId, teamId);
+  await updateUserAttributes(chatId, {
+    selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
+      selectedBestTeamByTeam,
+    ),
+  });
 
   let message = t('Selected chip: {CHIP}.', chatId, {
     CHIP: chip.toUpperCase(),

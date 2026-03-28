@@ -4,12 +4,12 @@ const {
   formatSessionBreakdown,
 } = require('./liveScoreHandler');
 const { getLiveScoreData } = require('../azureStorageService');
-const { currentTeamCache, resolveSelectedTeam } = require('../cache');
+const { getSelectedBestTeam, resolveSelectedTeam } = require('../cache');
 const { isAdminMessage, sendErrorMessage } = require('../utils');
 
 jest.mock('../azureStorageService');
 jest.mock('../cache', () => ({
-  currentTeamCache: {},
+  getSelectedBestTeam: jest.fn(),
   resolveSelectedTeam: jest.fn(),
 }));
 jest.mock('../utils', () => ({
@@ -57,15 +57,13 @@ describe('liveScoreHandler', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    currentTeamCache[chatId] = {
-      [teamId]: {
-        drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
-        constructors: ['FER', 'MER'],
-        drsBoost: 'HAM',
-      },
-    };
     isAdminMessage.mockReturnValue(true);
     resolveSelectedTeam.mockResolvedValue(teamId);
+    getSelectedBestTeam.mockReturnValue({
+      drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+      constructors: ['FER', 'MER'],
+      drsDriver: 'HAM',
+    });
     getLiveScoreData.mockResolvedValue(liveScorePayload);
     sendErrorMessage.mockResolvedValue();
   });
@@ -102,6 +100,18 @@ describe('liveScoreHandler', () => {
       expect.stringContaining('<b>HAM (DRS x2) — 40 pts | Δ +0.2</b>'),
       { parse_mode: 'HTML' },
     );
+  });
+
+  it('requires a persisted selected best team', async () => {
+    getSelectedBestTeam.mockReturnValue(null);
+
+    await handleLiveScoreCommand(mockBot, msg);
+
+    expect(mockBot.sendMessage).toHaveBeenCalledWith(
+      chatId,
+      'No selected best team found for T1. Please run /best_teams and send a number first.',
+    );
+    expect(getLiveScoreData).not.toHaveBeenCalled();
   });
 
   it('adds required spacing between members and sections', async () => {
@@ -178,7 +188,7 @@ describe('liveScoreHandler', () => {
       {
         drivers: ['VER', 'MIS'],
         constructors: ['FER'],
-        drsBoost: 'VER',
+        drsDriver: 'VER',
       },
       {
         drivers: {
@@ -193,6 +203,28 @@ describe('liveScoreHandler', () => {
     expect(result.totalPoints).toBe(50);
     expect(result.totalPriceChange).toBeCloseTo(0.6);
     expect(result.missingMembers).toEqual(['MIS']);
+  });
+
+  it('applies extra DRS as x3 total', async () => {
+    getSelectedBestTeam.mockReturnValue({
+      drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+      constructors: ['FER', 'MER'],
+      drsDriver: 'HAM',
+      extraDrsDriver: 'VER',
+    });
+
+    await handleLiveScoreCommand(mockBot, msg);
+
+    expect(mockBot.sendMessage).toHaveBeenCalledWith(
+      chatId,
+      expect.stringContaining('<b>Total Live Points:</b> 136.00'),
+      { parse_mode: 'HTML' },
+    );
+    expect(mockBot.sendMessage).toHaveBeenCalledWith(
+      chatId,
+      expect.stringContaining('<b>VER (Extra DRS x3) — 30 pts | Δ +0.1</b>'),
+      { parse_mode: 'HTML' },
+    );
   });
 
   it('returns null for empty session after strict zero filtering', () => {

@@ -236,6 +236,52 @@ describe('userRegistryService', () => {
         'Merge',
       );
     });
+
+    it('should delete null-valued attributes using Replace mode', async () => {
+      mockGetEntity.mockResolvedValueOnce({
+        partitionKey: 'User',
+        rowKey: '12345',
+        chatName: 'Alice',
+        lang: 'he',
+        selectedTeam: 'T1',
+        selectedBestTeamByTeam: '{"T1":{"drivers":["VER"]}}',
+      });
+      mockUpsertEntity.mockResolvedValueOnce();
+
+      await userRegistryService.updateUserAttributes(12345, {
+        selectedTeam: null,
+        selectedBestTeamByTeam: null,
+        lang: 'en',
+      });
+
+      expect(mockGetEntity).toHaveBeenCalledWith('User', '12345');
+      expect(mockUpsertEntity).toHaveBeenCalledWith(
+        {
+          partitionKey: 'User',
+          rowKey: '12345',
+          chatName: 'Alice',
+          lang: 'en',
+        },
+        'Replace',
+      );
+    });
+
+    it('should still replace correctly when deleting attributes for a missing user', async () => {
+      mockGetEntity.mockRejectedValueOnce(createNotFoundError());
+      mockUpsertEntity.mockResolvedValueOnce();
+
+      await userRegistryService.updateUserAttributes(12345, {
+        selectedTeam: null,
+      });
+
+      expect(mockUpsertEntity).toHaveBeenCalledWith(
+        {
+          partitionKey: 'User',
+          rowKey: '12345',
+        },
+        'Replace',
+      );
+    });
   });
 
   describe('getUserById', () => {

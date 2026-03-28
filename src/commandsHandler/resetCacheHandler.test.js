@@ -17,6 +17,7 @@ const {
   selectedChipCache,
   userCache,
 } = require('../cache');
+const { updateUserAttributes } = require('../userRegistryService');
 
 const { resetCacheForChat } = require('./resetCacheHandler');
 
@@ -42,7 +43,17 @@ describe('resetCacheForChat', () => {
     };
     bestTeamsCache[KILZI_CHAT_ID] = { T1: { bestTeams: [] } };
     selectedChipCache[KILZI_CHAT_ID] = { T1: 'LIMITLESS_CHIP' };
-    userCache[String(KILZI_CHAT_ID)] = { selectedTeam: 'T1' };
+    userCache[String(KILZI_CHAT_ID)] = {
+      selectedTeam: 'T1',
+      bestTeamBudgetChangePointsPerMillion: { T1: 1.65 },
+      selectedBestTeamByTeam: {
+        T1: {
+          drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+          constructors: ['RBR', 'FER'],
+          drsDriver: 'VER',
+        },
+      },
+    };
 
     await resetCacheForChat(KILZI_CHAT_ID, botMock);
 
@@ -66,6 +77,15 @@ describe('resetCacheForChat', () => {
 
     // Verify selectedTeam was cleared
     expect(userCache[String(KILZI_CHAT_ID)].selectedTeam).toBeNull();
+    expect(
+      userCache[String(KILZI_CHAT_ID)].bestTeamBudgetChangePointsPerMillion,
+    ).toEqual({});
+    expect(userCache[String(KILZI_CHAT_ID)].selectedBestTeamByTeam).toEqual({});
+    expect(updateUserAttributes).toHaveBeenCalledWith(KILZI_CHAT_ID, {
+      selectedTeam: null,
+      bestTeamBudgetChangePointsPerMillion: null,
+      selectedBestTeamByTeam: null,
+    });
   });
 
   it('should reset cache even when some cache entries are already undefined', async () => {

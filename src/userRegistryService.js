@@ -114,14 +114,47 @@ async function updateUserAttributes(chatId, attributes) {
   await ensureTable();
 
   const rowKey = String(chatId);
+  const entries = Object.entries(attributes);
+  const entriesToDelete = entries.filter(([, value]) => value === null);
+  const entriesToUpsert = entries.filter(([, value]) => value !== null);
 
-  const entity = {
+  if (entriesToDelete.length === 0) {
+    const entity = {
+      partitionKey: PARTITION_KEY,
+      rowKey,
+      ...Object.fromEntries(entriesToUpsert),
+    };
+
+    await tableClient.upsertEntity(entity, 'Merge');
+
+    return;
+  }
+
+  let existingEntity = {
     partitionKey: PARTITION_KEY,
     rowKey,
-    ...attributes,
   };
 
-  await tableClient.upsertEntity(entity, 'Merge');
+  try {
+    existingEntity = await tableClient.getEntity(PARTITION_KEY, rowKey);
+  } catch (err) {
+    if (err.statusCode !== 404) {
+      throw err;
+    }
+  }
+
+  const entity = {
+    ...existingEntity,
+    partitionKey: PARTITION_KEY,
+    rowKey,
+    ...Object.fromEntries(entriesToUpsert),
+  };
+
+  for (const [key] of entriesToDelete) {
+    delete entity[key];
+  }
+
+  await tableClient.upsertEntity(entity, 'Replace');
 }
 
 /**
