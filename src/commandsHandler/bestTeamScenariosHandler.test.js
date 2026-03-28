@@ -18,7 +18,6 @@ const {
   selectedChipCache,
   sharedKey,
   remainingRaceCountCache,
-  userCache,
 } = require('../cache');
 
 const {
@@ -40,7 +39,6 @@ describe('handleBestTeamScenariosMessage', () => {
     delete currentTeamCache[KILZI_CHAT_ID];
     delete selectedChipCache[KILZI_CHAT_ID];
     delete remainingRaceCountCache[sharedKey];
-    delete userCache[String(KILZI_CHAT_ID)];
   });
 
   it('should send no teams message if no current team cache exists', async () => {
@@ -65,7 +63,7 @@ describe('handleBestTeamScenariosMessage', () => {
     expect(calculateBestTeams).not.toHaveBeenCalled();
   });
 
-  it('should run 7 scenarios and render summary message', async () => {
+  it('should run all ppm x chip scenarios and render compact summary message', async () => {
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 }, NOR: { price: 25.1 } };
     constructorsCache[KILZI_CHAT_ID] = { MCL: { price: 25 }, FER: { price: 20 } };
     currentTeamCache[KILZI_CHAT_ID] = {
@@ -73,69 +71,65 @@ describe('handleBestTeamScenariosMessage', () => {
     };
     selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: 'WITHOUT_CHIP' };
     remainingRaceCountCache[sharedKey] = 10;
-    userCache[String(KILZI_CHAT_ID)] = {
-      bestTeamBudgetChangePointsPerMillion: { [TEAM_ID]: 1.65 },
-    };
 
-    let idx = 0;
-    const results = [
-      { projected_points: 312.4, expected_price_change: 0.7, budget_adjusted_points: 312.4 },
-      { projected_points: 308.1, expected_price_change: 1.6, budget_adjusted_points: 328.9 },
-      { projected_points: 305.7, expected_price_change: 1.9, budget_adjusted_points: 337.05 },
-      { projected_points: 301.9, expected_price_change: 2.3, budget_adjusted_points: 347.9 },
-      { projected_points: 326.8, expected_price_change: 0.8, budget_adjusted_points: 340 },
-      { projected_points: 354.2, expected_price_change: 0.4, budget_adjusted_points: 360 },
-      { projected_points: 309.7, expected_price_change: 2.6, budget_adjusted_points: 352.6 },
-    ];
-    calculateBestTeams.mockImplementation(() => [results[idx++]]);
+    calculateBestTeams.mockImplementation((_, chip, ppm) => [
+      {
+        projected_points: 300 + ppm,
+        expected_price_change: chip === LIMITLESS_CHIP ? 0.4 : 0.8,
+      },
+    ]);
 
     await handleBestTeamScenariosMessage(botMock, KILZI_CHAT_ID);
 
-    expect(calculateBestTeams).toHaveBeenCalledTimes(7);
+    expect(calculateBestTeams).toHaveBeenCalledTimes(16);
 
-    const rankingPpmValues = calculateBestTeams.mock.calls
-      .slice(0, 4)
-      .map(([, , budgetChangePointsPerMillion]) => budgetChangePointsPerMillion);
-    expect(rankingPpmValues).toEqual([0, 1.3, 1.65, 2]);
+    const ppmValues = [...new Set(calculateBestTeams.mock.calls.map(([, , ppm]) => ppm))];
+    expect(ppmValues).toEqual([0, 1.3, 1.65, 2]);
 
-    const chipValues = calculateBestTeams.mock.calls
-      .slice(4)
-      .map(([, selectedChip]) => selectedChip);
-    expect(chipValues).toEqual([EXTRA_DRS_CHIP, LIMITLESS_CHIP, WILDCARD_CHIP]);
+    const chipsForZeroPpm = calculateBestTeams.mock.calls
+      .filter(([, , ppm]) => ppm === 0)
+      .map(([, chip]) => chip);
+    expect(chipsForZeroPpm).toEqual([
+      'WITHOUT_CHIP',
+      LIMITLESS_CHIP,
+      EXTRA_DRS_CHIP,
+      WILDCARD_CHIP,
+    ]);
 
     const [sentChatId, sentMessage, options] = botMock.sendMessage.mock.calls[0];
     expect(sentChatId).toBe(KILZI_CHAT_ID);
     expect(options).toEqual({ parse_mode: 'Markdown' });
     expect(sentMessage).toContain('*Best Team Scenarios*');
-    expect(sentMessage).toContain('*Ranking Modes*');
-    expect(sentMessage).toContain('*0.00 ppm* — 312.40 pts | Δ 0.70 | Adj 312.40');
-    expect(sentMessage).toContain('*2.00 ppm* — 301.90 pts | Δ 2.30 | Adj 347.90');
-    expect(sentMessage).toContain('*Chips*');
-    expect(sentMessage).toContain('*Extra DRS* — 326.80 pts | Δ 0.80');
-    expect(sentMessage).toContain('*Limitless* — 354.20 pts | Δ 0.40');
-    expect(sentMessage).toContain('*Wildcard* — 309.70 pts | Δ 2.60');
+    expect(sentMessage).toContain('*0.00 points per million*');
+    expect(sentMessage).toContain('*1.30 points per million*');
+    expect(sentMessage).toContain('*1.65 points per million*');
+    expect(sentMessage).toContain('*2.00 points per million*');
+    expect(sentMessage).toContain('• *Current Selection* — 300.00 pts | Δ 0.80');
+    expect(sentMessage).toContain('• *Limitless* — 300.00 pts | Δ 0.40');
+    expect(sentMessage).toContain('• *Extra DRS* — 300.00 pts | Δ 0.80');
+    expect(sentMessage).toContain('• *Wildcard* — 300.00 pts | Δ 0.80');
   });
 
-  it('should fail when remaining race count is missing and ranking preference is non-zero', async () => {
+  it('should continue when remaining race count is unavailable', async () => {
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
     constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.0 } };
     currentTeamCache[KILZI_CHAT_ID] = {
-      [TEAM_ID]: { drivers: ['VER'], constructors: ['RBR'] },
+      [TEAM_ID]: { drivers: ['VER'], constructors: ['RBR'], freeTransfers: 2 },
     };
-    userCache[String(KILZI_CHAT_ID)] = {
-      bestTeamBudgetChangePointsPerMillion: { [TEAM_ID]: 2 },
-    };
+
+    calculateBestTeams.mockReturnValue([{ projected_points: 1, expected_price_change: 1 }]);
 
     await handleBestTeamScenariosMessage(botMock, KILZI_CHAT_ID);
 
-    expect(calculateBestTeams).not.toHaveBeenCalled();
+    expect(calculateBestTeams).toHaveBeenCalled();
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'Remaining race count is unavailable right now. Switch to Pure Points or try again later.',
+      expect.stringContaining('*Best Team Scenarios*'),
+      { parse_mode: 'Markdown' },
     );
   });
 
-  it('should preserve /best_teams semantics for ranking scenarios by using selected chip', async () => {
+  it('should use selected chip for the first line of each ppm section', async () => {
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
     constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.0 } };
     currentTeamCache[KILZI_CHAT_ID] = {
@@ -144,14 +138,15 @@ describe('handleBestTeamScenariosMessage', () => {
     selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: LIMITLESS_CHIP };
     remainingRaceCountCache[sharedKey] = 5;
 
-    calculateBestTeams.mockReturnValue([{ projected_points: 1, expected_price_change: 1, budget_adjusted_points: 1 }]);
+    calculateBestTeams.mockReturnValue([{ projected_points: 1, expected_price_change: 1 }]);
 
     await handleBestTeamScenariosMessage(botMock, KILZI_CHAT_ID);
 
-    const rankingScenarioChips = calculateBestTeams.mock.calls
-      .slice(0, 4)
+    const chipsForEachPpmFirstLine = calculateBestTeams.mock.calls
+      .filter((_, index) => index % 4 === 0)
       .map(([, chip]) => chip);
-    expect(rankingScenarioChips).toEqual([
+
+    expect(chipsForEachPpmFirstLine).toEqual([
       LIMITLESS_CHIP,
       LIMITLESS_CHIP,
       LIMITLESS_CHIP,

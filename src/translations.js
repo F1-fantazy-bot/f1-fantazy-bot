@@ -118,6 +118,8 @@ const translations = {
     'Budget-Adjusted Points': 'נקודות מותאמות תקציב',
     'Best Team Scenarios': 'תרחישי קבוצה מיטבית',
     'Ranking Modes': 'מצבי דירוג',
+    'Current Selection': 'הבחירה הנוכחית',
+    'points per million': 'נקודות למיליון',
     Unavailable: 'לא זמין',
     'Δ Budget-Adjusted Points': 'Δ נקודות מותאמות תקציב',
     'Δ Points': 'Δ נקודות',
