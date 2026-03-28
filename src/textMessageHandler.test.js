@@ -1,6 +1,7 @@
 const {
   KILZI_CHAT_ID,
   COMMAND_BEST_TEAMS,
+  COMMAND_BEST_TEAM_SCENARIOS,
   COMMAND_CURRENT_TEAM_INFO,
   COMMAND_PRINT_CACHE,
   COMMAND_RESET_CACHE,
@@ -37,6 +38,9 @@ const { handleJsonMessage } = require('./commandsHandler/jsonInputHandler');
 const {
   handleBestTeamsMessage,
 } = require('./commandsHandler/bestTeamsHandler');
+const {
+  handleBestTeamScenariosMessage,
+} = require('./commandsHandler/bestTeamScenariosHandler');
 const {
   calcCurrentTeamInfo,
 } = require('./commandsHandler/currentTeamInfoHandler');
@@ -91,6 +95,7 @@ const {
 jest.mock('./commandsHandler/numberInputHandler');
 jest.mock('./commandsHandler/jsonInputHandler');
 jest.mock('./commandsHandler/bestTeamsHandler');
+jest.mock('./commandsHandler/bestTeamScenariosHandler');
 jest.mock('./commandsHandler/currentTeamInfoHandler');
 jest.mock('./commandsHandler/chipsHandler');
 jest.mock('./commandsHandler/printCacheHandler');
@@ -153,6 +158,22 @@ describe('handleTextMessage', () => {
       await handleTextMessage(botMock, msgMock);
 
       expect(handleBestTeamsMessage).toHaveBeenCalledWith(
+        botMock,
+        KILZI_CHAT_ID
+      );
+      expect(handleJsonMessage).not.toHaveBeenCalled();
+    });
+
+
+    it('should route /best_team_scenarios command to handleBestTeamScenariosMessage', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: COMMAND_BEST_TEAM_SCENARIOS,
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(handleBestTeamScenariosMessage).toHaveBeenCalledWith(
         botMock,
         KILZI_CHAT_ID
       );

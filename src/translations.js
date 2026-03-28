@@ -17,7 +17,7 @@ const translations = {
     'Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.':
       'לתשומת לבך: החישוב נמחק.\nהפעל את הפקודה {CMD} מחדש לחישוב.',
     'which chip do you want to use?': "איזה צ'יפ תרצה להשתמש?",
-    'Extra DRS': 'DRS נוסף',
+    'Extra DRS': 'אקסטרה DRS',
     Limitless: 'ללא הגבלה',
     Wildcard: 'ווילדקארד',
     'Without Chip': "ללא צ'יפ",
@@ -116,6 +116,11 @@ const translations = {
     'Total Budget': 'תקציב כולל',
     'Expected Points': 'נקודות צפויות',
     'Budget-Adjusted Points': 'נקודות מותאמות תקציב',
+    'Best Team Scenarios': 'תרחישי קבוצה מיטבית',
+    'Ranking Modes': 'מצבי דירוג',
+    'Current Selection': 'הבחירה הנוכחית',
+    'points per million': 'נקודות למיליון',
+    Unavailable: 'לא זמין',
     'Δ Budget-Adjusted Points': 'Δ נקודות מותאמות תקציב',
     'Δ Points': 'Δ נקודות',
     'Δ Price': 'Δ מחיר',
@@ -190,8 +195,11 @@ const translations = {
     '🌐 Set Language': '🌐 הגדר שפה',
     'Change bot language for this session': 'שנה את שפת הבוט',
     '⚖️ Set Best Team Ranking': '⚖️ הגדרת דירוג קבוצה מיטבית',
+    '🧪 Best Team Scenarios': '🧪 תרחישי קבוצה מיטבית',
     'Set how budget changes affect best-team ranking suggestions':
       'הגדר כיצד שינויי תקציב משפיעים על דירוג הצעות לקבוצות מיטביות',
+    'Compare the top best-team outcome across ranking and chip scenarios':
+      "השווה את תוצאת הקבוצה המיטבית בתרחישי דירוג וצ'יפים שונים",
     '{ICON} {LABEL} ({VALUE})': '{ICON} {LABEL} ({VALUE})',
     'Best-team ranking set: {LABEL} ({VALUE} pts per 1M per remaining race).':
       'דירוג הקבוצות המיטביות עודכן: {LABEL} ({VALUE} נק׳ לכל 1M לכל מרוץ שנותר).',
@@ -277,6 +285,7 @@ const translations = {
     'No data': 'אין נתונים',
     base: 'בסיס',
     pts: 'נק׳',
+    Adj: 'מותאם',
     'DRS x2': 'DRS כפול',
     '❌ Error fetching live score: {ERROR}':
       '❌ שגיאה בקבלת ניקוד חי: {ERROR}',

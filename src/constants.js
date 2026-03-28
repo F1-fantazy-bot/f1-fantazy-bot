@@ -67,6 +67,7 @@ exports.COMMAND_UPLOAD_DRIVERS_PHOTO = '/upload_drivers_photo';
 exports.COMMAND_UPLOAD_CONSTRUCTORS_PHOTO = '/upload_constructors_photo';
 exports.COMMAND_SELECT_TEAM = '/select_team';
 exports.COMMAND_SET_BEST_TEAM_RANKING = '/set_best_team_ranking';
+exports.COMMAND_BEST_TEAM_SCENARIOS = '/best_team_scenarios';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -130,6 +131,12 @@ exports.MENU_CATEGORIES = {
         title: '⚖️ Set Best Team Ranking',
         description:
           'Set how budget changes affect best-team ranking suggestions',
+      },
+      {
+        constant: exports.COMMAND_BEST_TEAM_SCENARIOS,
+        title: '🧪 Best Team Scenarios',
+        description:
+          'Compare the top best-team outcome across ranking and chip scenarios',
       },
     ],
   },

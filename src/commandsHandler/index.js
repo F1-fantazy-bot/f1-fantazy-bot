@@ -1,5 +1,6 @@
 // Export all command handler functions from a central index file
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
+const { handleBestTeamScenariosMessage } = require('./bestTeamScenariosHandler');
 const { handleChipsMessage } = require('./chipsHandler');
 const { calcCurrentTeamInfo } = require('./currentTeamInfoHandler');
 const { handleGetBotfatherCommands } = require('./getBotfatherCommandsHandler');
@@ -43,6 +44,7 @@ const { handleLiveScoreCommand } = require('./liveScoreHandler');
 
 module.exports = {
   handleBestTeamsMessage,
+  handleBestTeamScenariosMessage,
   handleChipsMessage,
   calcCurrentTeamInfo,
   handleGetBotfatherCommands,
