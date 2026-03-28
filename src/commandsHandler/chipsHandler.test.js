@@ -1,7 +1,7 @@
 const {
   KILZI_CHAT_ID,
   CHIP_CALLBACK_TYPE,
-  EXTRA_DRS_CHIP,
+  EXTRA_BOOST_CHIP,
   LIMITLESS_CHIP,
   WILDCARD_CHIP,
   WITHOUT_CHIP,
@@ -36,8 +36,8 @@ describe('handleChipsMessage', () => {
           inline_keyboard: [
             [
               {
-                text: 'Extra DRS',
-                callback_data: `${CHIP_CALLBACK_TYPE}:${EXTRA_DRS_CHIP}`,
+                text: 'Extra Boost',
+                callback_data: `${CHIP_CALLBACK_TYPE}:${EXTRA_BOOST_CHIP}`,
               },
               {
                 text: 'Limitless',
@@ -74,7 +74,7 @@ describe('handleChipsMessage', () => {
     expect(inlineKeyboard).toHaveLength(4);
 
     const chipTexts = inlineKeyboard.map((button) => button.text);
-    expect(chipTexts).toContain('Extra DRS');
+    expect(chipTexts).toContain('Extra Boost');
     expect(chipTexts).toContain('Limitless');
     expect(chipTexts).toContain('Wildcard');
     expect(chipTexts).toContain('Without Chip');
@@ -93,11 +93,11 @@ describe('handleChipsMessage', () => {
     const inlineKeyboard = sentMessage[2].reply_markup.inline_keyboard[0];
 
     // Check callback data for each button
-    const extraDrsButton = inlineKeyboard.find(
-      (btn) => btn.text === 'Extra DRS'
+    const extraBoostButton = inlineKeyboard.find(
+      (btn) => btn.text === 'Extra Boost'
     );
-    expect(extraDrsButton.callback_data).toBe(
-      `${CHIP_CALLBACK_TYPE}:${EXTRA_DRS_CHIP}`
+    expect(extraBoostButton.callback_data).toBe(
+      `${CHIP_CALLBACK_TYPE}:${EXTRA_BOOST_CHIP}`
     );
 
     const limitlessButton = inlineKeyboard.find(

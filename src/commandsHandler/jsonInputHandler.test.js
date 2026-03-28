@@ -1,6 +1,6 @@
 const {
   KILZI_CHAT_ID,
-  EXTRA_DRS_CHIP,
+  EXTRA_BOOST_CHIP,
   LIMITLESS_CHIP,
 } = require('../constants');
 
@@ -63,23 +63,23 @@ describe('handleJsonMessage', () => {
         T1: {
           drivers: ['VER', 'HAM'],
           constructors: ['RBR', 'MER'],
-          drsBoost: 'VER',
+          boost: 'VER',
           freeTransfers: 2,
           costCapRemaining: 3.5,
-          chip: EXTRA_DRS_CHIP,
+          chip: EXTRA_BOOST_CHIP,
           bestTeamBudgetChangePointsPerMillion: 1.65,
         },
         T2: {
           drivers: ['HAM', 'VER'],
           constructors: ['MER', 'RBR'],
-          drsBoost: 'HAM',
+          boost: 'HAM',
           freeTransfers: 1,
           costCapRemaining: 1.1,
           selectedBestTeam: {
             drivers: ['HAM', 'VER', 'NOR', 'LEC', 'PIA'],
             constructors: ['MER', 'RBR'],
-            drsDriver: 'HAM',
-            extraDrsDriver: 'VER',
+            boostDriver: 'HAM',
+            extraBoostDriver: 'VER',
           },
           bestTeamBudgetChangePointsPerMillion: 2,
         },
@@ -100,20 +100,20 @@ describe('handleJsonMessage', () => {
       T1: {
         drivers: ['VER', 'HAM'],
         constructors: ['RBR', 'MER'],
-        drsBoost: 'VER',
+        boost: 'VER',
         freeTransfers: 2,
         costCapRemaining: 3.5,
       },
       T2: {
         drivers: ['HAM', 'VER'],
         constructors: ['MER', 'RBR'],
-        drsBoost: 'HAM',
+        boost: 'HAM',
         freeTransfers: 1,
         costCapRemaining: 1.1,
       },
     });
     expect(selectedChipCache[KILZI_CHAT_ID]).toEqual({
-      T1: EXTRA_DRS_CHIP,
+      T1: EXTRA_BOOST_CHIP,
     });
     expect(bestTeamsCache[KILZI_CHAT_ID]).toBeUndefined();
     expect(userCache[String(KILZI_CHAT_ID)]).toEqual({
@@ -126,8 +126,8 @@ describe('handleJsonMessage', () => {
         T2: {
           drivers: ['HAM', 'VER', 'NOR', 'LEC', 'PIA'],
           constructors: ['MER', 'RBR'],
-          drsDriver: 'HAM',
-          extraDrsDriver: 'VER',
+          boostDriver: 'HAM',
+          extraBoostDriver: 'VER',
         },
       },
     });
@@ -166,8 +166,8 @@ describe('handleJsonMessage', () => {
         T2: {
           drivers: ['HAM', 'VER', 'NOR', 'LEC', 'PIA'],
           constructors: ['MER', 'RBR'],
-          drsDriver: 'HAM',
-          extraDrsDriver: 'VER',
+          boostDriver: 'HAM',
+          extraBoostDriver: 'VER',
         },
       }),
     });
@@ -188,20 +188,20 @@ describe('handleJsonMessage', () => {
       T1: {
         drivers: ['OLD'],
         constructors: ['OLD'],
-        drsBoost: 'OLD',
+        boost: 'OLD',
         freeTransfers: 5,
         costCapRemaining: 20,
       },
       T9: {
         drivers: ['STALE'],
         constructors: ['STALE'],
-        drsBoost: 'STALE',
+        boost: 'STALE',
         freeTransfers: 3,
         costCapRemaining: 9,
       },
     };
     selectedChipCache[KILZI_CHAT_ID] = {
-      T1: EXTRA_DRS_CHIP,
+      T1: EXTRA_BOOST_CHIP,
       T9: LIMITLESS_CHIP,
     };
     bestTeamsCache[KILZI_CHAT_ID] = {
@@ -215,7 +215,7 @@ describe('handleJsonMessage', () => {
         T9: {
           drivers: ['OLD', 'STALE', 'NOR', 'LEC', 'PIA'],
           constructors: ['OLD', 'MCL'],
-          drsDriver: 'OLD',
+          boostDriver: 'OLD',
         },
       },
     };
@@ -228,7 +228,7 @@ describe('handleJsonMessage', () => {
         T1: {
           drivers: ['NOR'],
           constructors: ['MCL'],
-          drsBoost: 'NOR',
+          boost: 'NOR',
           freeTransfers: 2,
           costCapRemaining: 4,
           bestTeamBudgetChangePointsPerMillion: 2,
@@ -248,7 +248,7 @@ describe('handleJsonMessage', () => {
       T1: {
         drivers: ['NOR'],
         constructors: ['MCL'],
-        drsBoost: 'NOR',
+        boost: 'NOR',
         freeTransfers: 2,
         costCapRemaining: 4,
       },
@@ -284,13 +284,13 @@ describe('handleJsonMessage', () => {
       T1: {
         drivers: ['HAM'],
         constructors: ['MER'],
-        drsBoost: 'HAM',
+        boost: 'HAM',
         freeTransfers: 2,
         costCapRemaining: 4,
       },
     };
     selectedChipCache[KILZI_CHAT_ID] = {
-      T1: EXTRA_DRS_CHIP,
+      T1: EXTRA_BOOST_CHIP,
     };
     userCache[String(KILZI_CHAT_ID)] = {
       lang: 'en',
@@ -300,7 +300,7 @@ describe('handleJsonMessage', () => {
         T1: {
           drivers: ['HAM', 'NOR', 'LEC', 'PIA', 'RUS'],
           constructors: ['MER', 'FER'],
-          drsDriver: 'HAM',
+          boostDriver: 'HAM',
         },
       },
     };
@@ -374,7 +374,7 @@ describe('handleJsonMessage', () => {
           T1: {
             drivers: ['VER'],
             constructors: ['RBR'],
-            drsBoost: 'VER',
+            boost: 'VER',
             freeTransfers: 2,
             costCapRemaining: 1,
             bestTeamBudgetChangePointsPerMillion: 1.65,
@@ -392,7 +392,7 @@ describe('handleJsonMessage', () => {
           T1: {
             drivers: ['VER'],
             constructors: ['RBR'],
-            drsBoost: 'VER',
+            boost: 'VER',
             freeTransfers: 2,
             costCapRemaining: 1,
           },
@@ -410,13 +410,13 @@ describe('handleJsonMessage', () => {
       T1: {
         drivers: ['VER'],
         constructors: ['RBR'],
-        drsBoost: 'VER',
+        boost: 'VER',
         freeTransfers: 2,
         costCapRemaining: 4,
       },
     };
     selectedChipCache[KILZI_CHAT_ID] = {
-      T1: EXTRA_DRS_CHIP,
+      T1: EXTRA_BOOST_CHIP,
     };
     bestTeamsCache[KILZI_CHAT_ID] = {
       T1: { stale: true },

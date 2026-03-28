@@ -60,7 +60,7 @@ describe('liveScoreHandler', () => {
     getSelectedBestTeam.mockReturnValue({
       drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
       constructors: ['FER', 'MER'],
-      drsDriver: 'HAM',
+      boostDriver: 'HAM',
     });
     getLiveScoreData.mockResolvedValue(liveScorePayload);
     sendErrorMessage.mockResolvedValue();
@@ -83,7 +83,7 @@ describe('liveScoreHandler', () => {
 
     expect(mockBot.sendMessage).toHaveBeenCalledWith(
       chatId,
-      expect.stringContaining('<b>HAM (DRS x2) — 40 pts | Δ +0.2</b>'),
+      expect.stringContaining('<b>HAM (Boost x2) — 40 pts | Δ +0.2</b>'),
       { parse_mode: 'HTML' },
     );
   });
@@ -108,7 +108,7 @@ describe('liveScoreHandler', () => {
     )[1];
 
     expect(htmlPayload).toContain(
-      '<b>VER — 10 pts | Δ +0.1</b>\nSprint: POS 1\n\n<b>HAM (DRS x2) — 40 pts | Δ +0.2</b>',
+      '<b>VER — 10 pts | Δ +0.1</b>\nSprint: POS 1\n\n<b>HAM (Boost x2) — 40 pts | Δ +0.2</b>',
     );
     expect(htmlPayload).toContain(
       '<b>PIA — 3 pts | Δ -0.2</b>\n\n\n<b>🛠️ Live Constructors</b>',
@@ -174,7 +174,7 @@ describe('liveScoreHandler', () => {
       {
         drivers: ['VER', 'MIS'],
         constructors: ['FER'],
-        drsDriver: 'VER',
+        boostDriver: 'VER',
       },
       {
         drivers: {
@@ -191,12 +191,12 @@ describe('liveScoreHandler', () => {
     expect(result.missingMembers).toEqual(['MIS']);
   });
 
-  it('applies extra DRS as x3 total', async () => {
+  it('applies extra Boost as x3 total', async () => {
     getSelectedBestTeam.mockReturnValue({
       drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
       constructors: ['FER', 'MER'],
-      drsDriver: 'HAM',
-      extraDrsDriver: 'VER',
+      boostDriver: 'HAM',
+      extraBoostDriver: 'VER',
     });
 
     await handleLiveScoreCommand(mockBot, msg);
@@ -208,7 +208,7 @@ describe('liveScoreHandler', () => {
     );
     expect(mockBot.sendMessage).toHaveBeenCalledWith(
       chatId,
-      expect.stringContaining('<b>VER (Extra DRS x3) — 30 pts | Δ +0.1</b>'),
+      expect.stringContaining('<b>VER (Extra Boost x3) — 30 pts | Δ +0.1</b>'),
       { parse_mode: 'HTML' },
     );
   });

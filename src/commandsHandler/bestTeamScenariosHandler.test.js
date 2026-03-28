@@ -1,4 +1,4 @@
-const { KILZI_CHAT_ID, EXTRA_DRS_CHIP, LIMITLESS_CHIP, WILDCARD_CHIP } = require('../constants');
+const { KILZI_CHAT_ID, EXTRA_BOOST_CHIP, LIMITLESS_CHIP, WILDCARD_CHIP } = require('../constants');
 
 const mockValidateJsonData = jest.fn().mockReturnValue(true);
 
@@ -92,7 +92,7 @@ describe('handleBestTeamScenariosMessage', () => {
     expect(chipsForZeroPpm).toEqual([
       'WITHOUT_CHIP',
       LIMITLESS_CHIP,
-      EXTRA_DRS_CHIP,
+      EXTRA_BOOST_CHIP,
       WILDCARD_CHIP,
     ]);
 
@@ -106,7 +106,7 @@ describe('handleBestTeamScenariosMessage', () => {
     expect(sentMessage).toContain('*2.00 points per million*');
     expect(sentMessage).toContain('• *Without Chip* — 300.00 pts | Δ 0.80');
     expect(sentMessage).toContain('• *Limitless* — 300.00 pts | Δ 0.40');
-    expect(sentMessage).toContain('• *Extra DRS* — 300.00 pts | Δ 0.80');
+    expect(sentMessage).toContain('• *Extra Boost* — 300.00 pts | Δ 0.80');
     expect(sentMessage).toContain('• *Wildcard* — 300.00 pts | Δ 0.80');
   });
 

@@ -25,7 +25,7 @@ exports.currentTeamCache = {};
 // In-memory cache for simulation info (name and last update)
 exports.simulationInfoCache = {};
 
-// Structure: selectedChipCache[chatId] = { T1: 'EXTRA_DRS', T2: 'WILDCARD' }
+// Structure: selectedChipCache[chatId] = { T1: 'EXTRA_BOOST', T2: 'WILDCARD' }
 exports.selectedChipCache = {};
 
 // In-memory cache for user data by chat id
@@ -82,15 +82,15 @@ exports.normalizeSelectedBestTeam = function (rawSelectedBestTeam) {
     !rawSelectedBestTeam.drivers.every(isNonEmptyString) ||
     !Array.isArray(rawSelectedBestTeam.constructors) ||
     !rawSelectedBestTeam.constructors.every(isNonEmptyString) ||
-    !isNonEmptyString(rawSelectedBestTeam.drsDriver)
+    !isNonEmptyString(rawSelectedBestTeam.boostDriver)
   ) {
     return null;
   }
 
   if (
-    rawSelectedBestTeam.extraDrsDriver !== undefined &&
-    rawSelectedBestTeam.extraDrsDriver !== null &&
-    !isNonEmptyString(rawSelectedBestTeam.extraDrsDriver)
+    rawSelectedBestTeam.extraBoostDriver !== undefined &&
+    rawSelectedBestTeam.extraBoostDriver !== null &&
+    !isNonEmptyString(rawSelectedBestTeam.extraBoostDriver)
   ) {
     return null;
   }
@@ -98,9 +98,9 @@ exports.normalizeSelectedBestTeam = function (rawSelectedBestTeam) {
   return {
     drivers: [...rawSelectedBestTeam.drivers],
     constructors: [...rawSelectedBestTeam.constructors],
-    drsDriver: rawSelectedBestTeam.drsDriver,
-    ...(rawSelectedBestTeam.extraDrsDriver
-      ? { extraDrsDriver: rawSelectedBestTeam.extraDrsDriver }
+    boostDriver: rawSelectedBestTeam.boostDriver,
+    ...(rawSelectedBestTeam.extraBoostDriver
+      ? { extraBoostDriver: rawSelectedBestTeam.extraBoostDriver }
       : {}),
   };
 };

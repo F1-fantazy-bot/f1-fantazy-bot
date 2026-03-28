@@ -39,7 +39,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 3. **Exports:** `src/commandsHandler/index.js` re-exports all handler functions for convenient imports elsewhere.
 4. **Command Router:** `src/commandsHandler/commandHandlers.js` maps constants to handler functions and implements `executeCommand` used by the ASK agent and menu callbacks.
 5. **Text Routing:** `src/textMessageHandler.js` checks incoming text and dispatches to the appropriate handler; non-command text is parsed as JSON or delegated to the ASK agent.
-6. **Natural Language Prompt:** `src/prompts.js` exports `buildAskSystemPrompt(isAdmin)`, which dynamically builds the command allowlist for the ASK agent. The allowed commands are derived from `MENU_CATEGORIES` in `src/constants.js` (single source of truth) — user commands come from non-admin categories, admin commands from `adminOnly` categories. A small `EXTRA_ASK_COMMANDS` array covers chip sub-commands (`/extra_drs`, `/limitless`, `/wildcard`, `/reset_chip`) that aren't in any menu category but should be discoverable via free text. The `askHandler.js` checks `isAdminMessage(msg)` before building the prompt, so admin commands are only included for admin users. When adding a new command, simply adding it to `MENU_CATEGORIES` in `constants.js` is sufficient — it will automatically appear in the ASK prompt.
+6. **Natural Language Prompt:** `src/prompts.js` exports `buildAskSystemPrompt(isAdmin)`, which dynamically builds the command allowlist for the ASK agent. The allowed commands are derived from `MENU_CATEGORIES` in `src/constants.js` (single source of truth) — user commands come from non-admin categories, admin commands from `adminOnly` categories. A small `EXTRA_ASK_COMMANDS` array covers chip sub-commands (`/extra_boost`, `/limitless`, `/wildcard`, `/reset_chip`) that aren't in any menu category but should be discoverable via free text. The `askHandler.js` checks `isAdminMessage(msg)` before building the prompt, so admin commands are only included for admin users. When adding a new command, simply adding it to `MENU_CATEGORIES` in `constants.js` is sufficient — it will automatically appear in the ASK prompt.
 7. **Menu/Help:** `src/commandsHandler/menuHandler.js` and `helpHandler.js` build structured menus using the definitions in `constants.js`.
 
 ---
@@ -54,7 +54,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 
 ## Key Commands (User-Facing)
 
-- `/best_teams`, `/best_team_scenarios`, `/current_team_info`, `/chips`, `/extra_drs`, `/limitless`, `/wildcard`, `/reset_chip`
+- `/best_teams`, `/best_team_scenarios`, `/current_team_info`, `/chips`, `/extra_boost`, `/limitless`, `/wildcard`, `/reset_chip`
 - `/set_best_team_ranking`
 - `/select_team`, `/print_cache`, `/reset_cache`
 - `/next_race_info`, `/next_races`, `/next_race_weather`
@@ -324,7 +324,7 @@ Team-related caches are **nested by team ID** under each `chatId`:
 // Per-user, per-team caches
 currentTeamCache[chatId][teamId]; // e.g., { T1: { drivers, constructors, ... }, T2: { ... } }
 bestTeamsCache[chatId][teamId]; // e.g., { T1: { currentTeam, bestTeams }, T2: { ... } }
-selectedChipCache[chatId][teamId]; // e.g., { T1: 'EXTRA_DRS', T2: 'WILDCARD' }
+selectedChipCache[chatId][teamId]; // e.g., { T1: 'EXTRA_BOOST', T2: 'WILDCARD' }
 
 // Per-user caches (shared across all teams — NOT nested by team ID)
 driversCache[chatId]; // driver data shared across teams
@@ -353,7 +353,7 @@ The adjusted score drives sorting. When a non-default ranking mode is active, `/
 
 ### Team Selection Guard
 
-All team-related commands (`/best_teams`, `/current_team_info`, `/chips`, `/extra_drs`, `/limitless`, `/wildcard`, `/reset_chip`) must call `resolveSelectedTeam(bot, chatId)` at the start and return early if it returns `null`. The guard logic:
+All team-related commands (`/best_teams`, `/current_team_info`, `/chips`, `/extra_boost`, `/limitless`, `/wildcard`, `/reset_chip`) must call `resolveSelectedTeam(bot, chatId)` at the start and return early if it returns `null`. The guard logic:
 
 1. **0 teams** → sends "upload a screenshot" message → returns `null`.
 2. **1 team** → auto-resolves to that team ID (no prompt needed) → returns `teamId`.

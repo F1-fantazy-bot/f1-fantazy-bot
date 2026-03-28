@@ -50,7 +50,7 @@ describe('resetCacheForChat', () => {
         T1: {
           drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
           constructors: ['RBR', 'FER'],
-          drsDriver: 'VER',
+          boostDriver: 'VER',
         },
       },
     };

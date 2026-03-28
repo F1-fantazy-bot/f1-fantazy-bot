@@ -31,7 +31,7 @@ describe('calculateBestTeams', () => {
   const mockCurrentTeam = {
     drivers: ['VER', 'HAM', 'PER', 'SAI', 'LEC'],
     constructors: ['RED', 'MER'],
-    drsBoost: 'VER',
+    boost: 'VER',
     freeTransfers: 2,
     costCapRemaining: 10,
   };
@@ -58,8 +58,8 @@ describe('calculateBestTeams', () => {
     expect(result).toHaveLength(BEST_TEAMS_RESULT_COUNT);
   });
 
-  it('should cap EXTRA_DRS results to the configured team count', () => {
-    const result = calculateBestTeams(mockJsonData, 'EXTRA_DRS', 0, 0);
+  it('should cap EXTRA_BOOST results to the configured team count', () => {
+    const result = calculateBestTeams(mockJsonData, 'EXTRA_BOOST', 0, 0);
 
     expect(result).toHaveLength(BEST_TEAMS_RESULT_COUNT);
   });
@@ -71,7 +71,7 @@ describe('calculateBestTeams', () => {
     expect(team).toHaveProperty('row');
     expect(team).toHaveProperty('drivers');
     expect(team).toHaveProperty('constructors');
-    expect(team).toHaveProperty('drs_driver');
+    expect(team).toHaveProperty('boost_driver');
     expect(team).toHaveProperty('total_price');
     expect(team).toHaveProperty('transfers_needed');
     expect(team).toHaveProperty('penalty');
@@ -80,15 +80,15 @@ describe('calculateBestTeams', () => {
     expect(team).toHaveProperty('expected_price_change');
   });
 
-  it('should select driver with highest points as DRS driver', () => {
+  it('should select driver with highest points as Boost driver', () => {
     const result = calculateBestTeams(mockJsonData);
     const team = result[0];
-    const drsDriver = team.drs_driver;
+    const boostDriver = team.boost_driver;
 
-    const drsDriverPoints = mockDrivers[drsDriver].expectedPoints;
+    const boostDriverPoints = mockDrivers[boostDriver].expectedPoints;
     const teamDrivers = team.drivers.map((d) => mockDrivers[d].expectedPoints);
 
-    expect(drsDriverPoints).toBe(Math.max(...teamDrivers));
+    expect(boostDriverPoints).toBe(Math.max(...teamDrivers));
   });
 
   it('should calculate correct penalties based on transfers', () => {
@@ -157,7 +157,7 @@ describe('calculateBestTeams', () => {
       CurrentTeam: {
         drivers: [],
         constructors: [],
-        drsBoost: '',
+        boost: '',
         freeTransfers: 2,
         costCapRemaining: 100,
       },
@@ -287,9 +287,9 @@ describe('calculateBestTeams', () => {
     });
   });
 
-  it('should contain the extra_drs_driver property when EXTRA_DRS_CHIP is active', () => {
-    const EXTRA_DRS_CHIP = 'EXTRA_DRS';
-    const mockJsonDataWithExtraDRS = {
+  it('should contain the extra_boost_driver property when EXTRA_BOOST_CHIP is active', () => {
+    const EXTRA_BOOST_CHIP = 'EXTRA_BOOST';
+    const mockJsonDataWithExtraBoost = {
       ...mockJsonData,
       CurrentTeam: {
         ...mockCurrentTeam,
@@ -297,9 +297,9 @@ describe('calculateBestTeams', () => {
         costCapRemaining: 10,
       },
     };
-    const result = calculateBestTeams(mockJsonDataWithExtraDRS, EXTRA_DRS_CHIP);
+    const result = calculateBestTeams(mockJsonDataWithExtraBoost, EXTRA_BOOST_CHIP);
     result.forEach((team) => {
-      expect(team).toHaveProperty('extra_drs_driver');
+      expect(team).toHaveProperty('extra_boost_driver');
     });
   });
 
@@ -336,7 +336,7 @@ describe('calculateBestTeams', () => {
       CurrentTeam: {
         drivers: ['A', 'B', 'C', 'D', 'E'],
         constructors: ['X', 'Y'],
-        drsBoost: 'A',
+        boost: 'A',
         freeTransfers: 7,
         costCapRemaining: 50,
       },
@@ -377,7 +377,7 @@ describe('calculateBestTeams', () => {
       CurrentTeam: {
         drivers: ['A', 'B', 'C', 'D', 'E'],
         constructors: ['X', 'Y'],
-        drsBoost: 'A',
+        boost: 'A',
         freeTransfers: 2,
         costCapRemaining: 2.3,
       },
@@ -393,7 +393,7 @@ describe('calculateBestTeams', () => {
       const targetTeam = {
         drivers: ['VER', 'HAM', 'PER', 'SAI', 'NOR'],
         constructors: ['RED', 'FER'],
-        drs_driver: 'HAM',
+        boost_driver: 'HAM',
       };
 
       const result = calculateChangesToTeam(mockJsonData, targetTeam);
@@ -402,14 +402,14 @@ describe('calculateBestTeams', () => {
       expect(result.driversToRemove).toEqual(['LEC']);
       expect(result.constructorsToAdd).toEqual(['FER']);
       expect(result.constructorsToRemove).toEqual(['MER']);
-      expect(result.newDRS).toBe('HAM');
+      expect(result.newBoost).toBe('HAM');
     });
 
     it('should return empty arrays when no changes needed', () => {
       const targetTeam = {
         drivers: ['VER', 'HAM', 'PER', 'SAI', 'LEC'],
         constructors: ['RED', 'MER'],
-        drs_driver: 'VER',
+        boost_driver: 'VER',
       };
 
       const result = calculateChangesToTeam(mockJsonData, targetTeam);
@@ -418,7 +418,7 @@ describe('calculateBestTeams', () => {
       expect(result.driversToRemove).toEqual([]);
       expect(result.constructorsToAdd).toEqual([]);
       expect(result.constructorsToRemove).toEqual([]);
-      expect(result.newDRS).toBeUndefined();
+      expect(result.newBoost).toBeUndefined();
     });
 
     it('calculateChangesToTeam should not activate chip if transfers_needed <= freeTransfers', () => {
@@ -433,7 +433,7 @@ describe('calculateBestTeams', () => {
       const targetTeam = {
         drivers: ['VER', 'HAM', 'PER', 'SAI', 'NOR'],
         constructors: ['RED', 'FER'],
-        drs_driver: 'HAM',
+        boost_driver: 'HAM',
         transfers_needed: 2, // less than freeTransfers
       };
       const result = calculateChangesToTeam(
@@ -449,7 +449,7 @@ describe('calculateBestTeams', () => {
       const targetTeam = {
         drivers: ['VER', 'HAM', 'PER', 'SAI', 'NOR'],
         constructors: ['RED', 'FER'],
-        drs_driver: 'HAM',
+        boost_driver: 'HAM',
         transfers_needed: 3, // more than freeTransfers
       };
       const result = calculateChangesToTeam(
@@ -473,7 +473,7 @@ describe('calculateBestTeams', () => {
       const targetTeam = {
         drivers: ['VER', 'HAM', 'PER', 'SAI', 'LEC'],
         constructors: ['RED', 'MER'],
-        drs_driver: 'VER',
+        boost_driver: 'VER',
         total_price: 200, // much higher than possible
       };
       const result = calculateChangesToTeam(
@@ -497,7 +497,7 @@ describe('calculateBestTeams', () => {
       const targetTeam = {
         drivers: ['VER', 'HAM', 'PER', 'SAI', 'LEC'],
         constructors: ['RED', 'MER'],
-        drs_driver: 'VER',
+        boost_driver: 'VER',
         total_price: 100,
       };
       const result = calculateChangesToTeam(
@@ -525,7 +525,7 @@ describe('calculateBestTeams', () => {
         CurrentTeam: {
           drivers: ['A', 'B', 'C', 'D', 'E'],
           constructors: ['X', 'Y'],
-          drsBoost: 'A',
+          boost: 'A',
           freeTransfers: 2,
           costCapRemaining: 2.3,
         },
@@ -533,7 +533,7 @@ describe('calculateBestTeams', () => {
       const targetTeam = {
         drivers: ['A', 'B', 'C', 'D', 'E'],
         constructors: ['X', 'Y'],
-        drs_driver: 'A',
+        boost_driver: 'A',
         total_price: 102.5,
       };
 
@@ -546,27 +546,27 @@ describe('calculateBestTeams', () => {
       expect(result.chipToActivate).toBeUndefined();
     });
 
-    it('calculateChangesToTeam should activate EXTRA_DRS_CHIP if chip is selected', () => {
-      const EXTRA_DRS_CHIP = 'EXTRA_DRS';
+    it('calculateChangesToTeam should activate EXTRA_BOOST_CHIP if chip is selected', () => {
+      const EXTRA_BOOST_CHIP = 'EXTRA_BOOST';
       const targetTeam = {
         drivers: ['VER', 'HAM', 'PER', 'SAI', 'NOR'],
         constructors: ['RED', 'FER'],
-        drs_driver: 'HAM',
-        extra_drs_driver: 'NOR',
+        boost_driver: 'HAM',
+        extra_boost_driver: 'NOR',
       };
       const result = calculateChangesToTeam(
         mockJsonData,
         targetTeam,
-        EXTRA_DRS_CHIP
+        EXTRA_BOOST_CHIP
       );
-      expect(result.chipToActivate).toBe(EXTRA_DRS_CHIP);
+      expect(result.chipToActivate).toBe(EXTRA_BOOST_CHIP);
     });
 
     it('should correctly calculate deltaPoints and deltaPrice', () => {
       const targetTeam = {
         drivers: ['VER', 'HAM', 'PER', 'SAI', 'NOR'], // NOR replaces LEC
         constructors: ['RED', 'FER'], // FER replaces MER
-        drs_driver: 'HAM', // VER was DRS
+        boost_driver: 'HAM', // VER was Boost
         projected_points: 160, // Arbitrary, chosen to give a specific delta
         expected_price_change: 0.7, // Arbitrary, chosen to give a specific delta
       };
@@ -580,7 +580,7 @@ describe('calculateBestTeams', () => {
           (sum, cn) => sum + mockConstructors[cn].expectedPoints,
           0
         ) +
-        mockDrivers[mockCurrentTeam.drsBoost].expectedPoints; // DRS bonus
+        mockDrivers[mockCurrentTeam.boost].expectedPoints; // Boost bonus
 
       const actualCurrentTeamPriceChange =
         mockCurrentTeam.drivers.reduce(

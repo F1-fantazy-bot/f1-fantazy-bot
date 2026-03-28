@@ -17,7 +17,7 @@ const {
   COMMAND_VERSION,
   COMMAND_MENU,
   COMMAND_SET_LANGUAGE,
-  COMMAND_EXTRA_DRS,
+  COMMAND_EXTRA_BOOST,
   COMMAND_LIMITLESS,
   COMMAND_WILDCARD,
   COMMAND_RESET_CHIP,
@@ -54,7 +54,7 @@ const { handleVersionCommand } = require('./versionHandler');
 const { displayMenuMessage } = require('./menuHandler');
 const { handleSetLanguage } = require('./setLanguageHandler');
 const {
-  handleSelectExtraDrs,
+  handleSelectExtraBoost,
   handleSelectLimitless,
   handleSelectWildcard,
   handleResetChip,
@@ -95,7 +95,7 @@ const COMMAND_HANDLERS = {
   [COMMAND_VERSION]: handleVersionCommand,
   [COMMAND_MENU]: displayMenuMessage,
   [COMMAND_SET_LANGUAGE]: handleSetLanguage,
-  [COMMAND_EXTRA_DRS]: handleSelectExtraDrs,
+  [COMMAND_EXTRA_BOOST]: handleSelectExtraBoost,
   [COMMAND_LIMITLESS]: handleSelectLimitless,
   [COMMAND_WILDCARD]: handleSelectWildcard,
   [COMMAND_RESET_CHIP]: handleResetChip,

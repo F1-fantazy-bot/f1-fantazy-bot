@@ -44,7 +44,7 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
 
       if (
         selectedTeam.transfers_needed === 0 &&
-        !selectedTeam.extra_drs_driver // if the user uses the extra drs chip we need to show the changes
+        !selectedTeam.extra_boost_driver // if the user uses the extra boost chip we need to show the changes
       ) {
         await bot
           .sendMessage(
@@ -133,9 +133,9 @@ function getSelectedBestTeamSelection(selectedTeam) {
   return {
     drivers: selectedTeam.drivers,
     constructors: selectedTeam.constructors,
-    drsDriver: selectedTeam.drs_driver,
-    ...(selectedTeam.extra_drs_driver
-      ? { extraDrsDriver: selectedTeam.extra_drs_driver }
+    boostDriver: selectedTeam.boost_driver,
+    ...(selectedTeam.extra_boost_driver
+      ? { extraBoostDriver: selectedTeam.extra_boost_driver }
       : {}),
   };
 }
@@ -168,14 +168,14 @@ function getRequiredChangesMessage(
     )}\n`;
   }
 
-  if (changesToTeam.extraDrsDriver) {
-    message += `*${t('Extra DRS Driver', chatId)}:* ${changesToTeam.extraDrsDriver}\n`;
+  if (changesToTeam.extraBoostDriver) {
+    message += `*${t('Extra Boost Driver', chatId)}:* ${changesToTeam.extraBoostDriver}\n`;
   }
 
-  if (changesToTeam.newDRS !== undefined) {
+  if (changesToTeam.newBoost !== undefined) {
     message += `*${
-      changesToTeam.extraDrsDriver ? '' : t('New ', chatId)
-    }${t('DRS Driver', chatId)}:* ${changesToTeam.newDRS}\n`;
+      changesToTeam.extraBoostDriver ? '' : t('New ', chatId)
+    }${t('Boost Driver', chatId)}:* ${changesToTeam.newBoost}\n`;
   }
 
   if (changesToTeam.chipToActivate !== undefined) {
@@ -256,18 +256,18 @@ function getDriverAndConstructorsDetailsMessage(
     let points = parseFloat(driverData.expectedPoints);
     let isNew = changesToTeam.driversToAdd.includes(driverName);
 
-    if (driverName === changesToTeam.extraDrsDriver) {
-      displayName += ` (${t('Extra DRS', chatId)})`;
+    if (driverName === changesToTeam.extraBoostDriver) {
+      displayName += ` (${t('Extra Boost', chatId)})`;
       points *= 3;
-    } else if (driverName === changesToTeam.newDRS) {
-      displayName += ` (${t('DRS', chatId)})`;
+    } else if (driverName === changesToTeam.newBoost) {
+      displayName += ` (${t('Boost', chatId)})`;
       isNew = true;
       points *= 2;
     } else if (
-      driverName === cachedJsonData.CurrentTeam.drsBoost &&
-      !changesToTeam.newDRS
+      driverName === cachedJsonData.CurrentTeam.boost &&
+      !changesToTeam.newBoost
     ) {
-      displayName += ` (${t('DRS', chatId)})`;
+      displayName += ` (${t('Boost', chatId)})`;
       points *= 2;
     }
 

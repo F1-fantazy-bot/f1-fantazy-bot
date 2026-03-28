@@ -83,7 +83,7 @@ describe('handleNumberMessage', () => {
     );
   });
 
-  it('should send "no changes needed" message when team is current and no extra DRS', async () => {
+  it('should send "no changes needed" message when team is current and no extra Boost', async () => {
     const teamRowRequested = 1;
 
     bestTeamsCache[KILZI_CHAT_ID] = {
@@ -93,10 +93,10 @@ describe('handleNumberMessage', () => {
           {
             row: 1,
             transfers_needed: 0,
-            extra_drs_driver: null, // no extra DRS
+            extra_boost_driver: null, // no extra Boost
             drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
             constructors: ['RBR', 'FER'],
-            drs_driver: 'VER',
+            boost_driver: 'VER',
           },
         ],
       },
@@ -113,7 +113,7 @@ describe('handleNumberMessage', () => {
         [TEAM_ID]: {
           drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
           constructors: ['RBR', 'FER'],
-          drsDriver: 'VER',
+          boostDriver: 'VER',
         },
       }),
     });
@@ -131,9 +131,9 @@ describe('handleNumberMessage', () => {
       row: 2,
       drivers: ['HAM', 'NOR', 'LEC', 'PIA', 'RUS'],
       constructors: ['MER', 'FER'],
-      drs_driver: 'HAM',
+      boost_driver: 'HAM',
       transfers_needed: 2,
-      extra_drs_driver: null,
+      extra_boost_driver: null,
       projected_points: 0,
       budget_adjusted_points: 30.2,
       expected_price_change: 0,
@@ -185,8 +185,8 @@ describe('handleNumberMessage', () => {
       driversToRemove: ['VER'],
       constructorsToAdd: ['MER'],
       constructorsToRemove: ['RBR'],
-      extraDrsDriver: null,
-      newDRS: 'HAM',
+      extraBoostDriver: null,
+      newBoost: 'HAM',
       chipToActivate: 'LIMITLESS_CHIP',
       deltaPoints: 10.5,
       deltaBudgetAdjustedPoints: 30.2,
@@ -206,7 +206,7 @@ describe('handleNumberMessage', () => {
         [TEAM_ID]: {
           drivers: mockSelectedTeam.drivers,
           constructors: mockSelectedTeam.constructors,
-          drsDriver: mockSelectedTeam.drs_driver,
+          boostDriver: mockSelectedTeam.boost_driver,
         },
       }),
     });
@@ -229,7 +229,7 @@ describe('handleNumberMessage', () => {
       `*Drivers To Remove:* VER\n` +
       `*Constructors To Add:* MER\n` +
       `*Constructors To Remove:* RBR\n` +
-      `*New DRS Driver:* HAM\n` +
+      `*New Boost Driver:* HAM\n` +
       `*Chip To Activate:* LIMITLESS CHIP\n` +
       `\n*Team ${teamRowRequested} Info:*\n` +
       `*Projected Points:* 0.00\n` +
@@ -239,7 +239,7 @@ describe('handleNumberMessage', () => {
       `*Δ Budget-Adjusted Points:* +30.20\n` +
       `*Δ Price:* -2.30M\n` +
       `\n*Drivers:*\n` +
-      `HAM (DRS): 60.00 (0.10M) 🆕\n` +
+      `HAM (Boost): 60.00 (0.10M) 🆕\n` +
       `\n*Constructors:*\n` +
       `MER: 32.00 (0.20M) 🆕\n`;
 
@@ -250,13 +250,13 @@ describe('handleNumberMessage', () => {
     );
   });
 
-  it('should show extra DRS driver when present', async () => {
+  it('should show extra Boost driver when present', async () => {
     const teamRowRequested = 1;
     const mockCurrentTeam = { drivers: ['VER'], constructors: ['RBR'] };
     const mockSelectedTeam = {
       row: 1,
       transfers_needed: 0,
-      extra_drs_driver: 'HAM', // has extra DRS
+      extra_boost_driver: 'HAM', // has extra Boost
       projected_points: 0,
       budget_adjusted_points: 12.4,
       expected_price_change: 0,
@@ -301,8 +301,8 @@ describe('handleNumberMessage', () => {
       driversToRemove: [],
       constructorsToAdd: [],
       constructorsToRemove: [],
-      extraDrsDriver: 'HAM',
-      newDRS: 'VER',
+      extraBoostDriver: 'HAM',
+      newBoost: 'VER',
       deltaPoints: 5.0,
       deltaBudgetAdjustedPoints: 12.4,
       deltaPrice: 0,
@@ -318,8 +318,8 @@ describe('handleNumberMessage', () => {
 
     const expectedMessage =
       `*Team ${teamRowRequested} Required Changes:*\n` +
-      `*Extra DRS Driver:* HAM\n` +
-      `*DRS Driver:* VER\n` +
+      `*Extra Boost Driver:* HAM\n` +
+      `*Boost Driver:* VER\n` +
       `\n*Team ${teamRowRequested} Info:*\n` +
       `*Projected Points:* 0.00\n` +
       `*Budget-Adjusted Points:* 12.40\n` +
@@ -328,7 +328,7 @@ describe('handleNumberMessage', () => {
       `*Δ Budget-Adjusted Points:* +12.40\n` +
       `*Δ Price:* 0.00M\n` +
       `\n*Drivers:*\n` +
-      `VER (DRS): 50.00 (0.20M) 🆕\n` +
+      `VER (Boost): 50.00 (0.20M) 🆕\n` +
       `\n*Constructors:*\n` +
       `RBR: 35.00 (0.30M)\n`;
 

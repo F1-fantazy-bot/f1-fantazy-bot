@@ -118,12 +118,12 @@ async function handleBestTeamsMessage(bot, chatId) {
         `*${t('Drivers', chatId)}:* ${drivers}\n` +
         `*${t('Constructors', chatId)}:* ${constructors}\n`;
 
-      if (team.extra_drs_driver) {
-        teamMarkdown += `*${t('Extra DRS Driver', chatId)}:* ${team.extra_drs_driver}\n`;
+      if (team.extra_boost_driver) {
+        teamMarkdown += `*${t('Extra Boost Driver', chatId)}:* ${team.extra_boost_driver}\n`;
       }
 
       teamMarkdown +=
-        `*${t('DRS Driver', chatId)}:* ${team.drs_driver}\n` +
+        `*${t('Boost Driver', chatId)}:* ${team.boost_driver}\n` +
         `*${t('Total Price', chatId)}:* ${Number(team.total_price.toFixed(2))}\n` +
         `*${t('Transfers Needed', chatId)}:* ${team.transfers_needed}\n` +
         `*${t('Penalty', chatId)}:* ${team.penalty}\n` +

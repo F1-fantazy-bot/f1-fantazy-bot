@@ -36,21 +36,21 @@ function formatSessionBreakdown(sessionName, sessionData = {}, chatId) {
 }
 
 function formatMemberLine(
-  { code, points, priceChange, details, isDrsBoost, isExtraDrsBoost },
+  { code, points, priceChange, details, isBoost, isExtraBoost },
   chatId,
 ) {
-  const effectivePoints = isExtraDrsBoost ? points * 3 : isDrsBoost ? points * 2 : points;
-  const drsLabel = isExtraDrsBoost
-    ? ` (${t('Extra DRS', chatId)} x3)`
-    : isDrsBoost
-      ? ` (${t('DRS x2', chatId)})`
+  const effectivePoints = isExtraBoost ? points * 3 : isBoost ? points * 2 : points;
+  const boostLabel = isExtraBoost
+    ? ` (${t('Extra Boost', chatId)} x3)`
+    : isBoost
+      ? ` (${t('Boost x2', chatId)})`
       : '';
   const sessionLines = SESSION_ORDER.map((sessionName) =>
     formatSessionBreakdown(sessionName, details[sessionName], chatId),
   ).filter(Boolean);
 
   return [
-    `<b>${code}${drsLabel} — ${effectivePoints} ${t('pts', chatId)} | Δ ${formatSignedDelta(
+    `<b>${code}${boostLabel} — ${effectivePoints} ${t('pts', chatId)} | Δ ${formatSignedDelta(
       priceChange,
     )}</b>`,
     ...sessionLines,
@@ -84,8 +84,8 @@ function getLiveMemberData(bucket = {}, code) {
 function calculateLiveScoreBreakdown(selectedBestTeam, liveScoreData) {
   const driversData = liveScoreData.drivers || {};
   const constructorsData = liveScoreData.constructors || {};
-  const drsDriver = selectedBestTeam.drsDriver || selectedBestTeam.drsBoost;
-  const extraDrsDriver = selectedBestTeam.extraDrsDriver;
+  const boostDriver = selectedBestTeam.boostDriver;
+  const extraBoostDriver = selectedBestTeam.extraBoostDriver;
 
   const driverBreakdown = selectedBestTeam.drivers.map((driverCode) => {
     const member = getLiveMemberData(driversData, driverCode);
@@ -93,16 +93,16 @@ function calculateLiveScoreBreakdown(selectedBestTeam, liveScoreData) {
     return {
       code: driverCode,
       ...member,
-      isDrsBoost: drsDriver === driverCode,
-      isExtraDrsBoost: extraDrsDriver === driverCode,
+      isBoost: boostDriver === driverCode,
+      isExtraBoost: extraBoostDriver === driverCode,
     };
   });
 
   const constructorBreakdown = selectedBestTeam.constructors.map((constructorCode) => ({
     code: constructorCode,
     ...getLiveMemberData(constructorsData, constructorCode),
-    isDrsBoost: false,
-    isExtraDrsBoost: false,
+    isBoost: false,
+    isExtraBoost: false,
   }));
 
   const totalPoints =
@@ -110,9 +110,9 @@ function calculateLiveScoreBreakdown(selectedBestTeam, liveScoreData) {
       (sum, driver) =>
         sum +
         driver.points +
-        (driver.isExtraDrsBoost
+        (driver.isExtraBoost
           ? driver.points * 2
-          : driver.isDrsBoost
+          : driver.isBoost
             ? driver.points
             : 0),
       0,

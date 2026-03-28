@@ -17,7 +17,7 @@ const translations = {
     'Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.':
       'לתשומת לבך: החישוב נמחק.\nהפעל את הפקודה {CMD} מחדש לחישוב.',
     'which chip do you want to use?': "איזה צ'יפ תרצה להשתמש?",
-    'Extra DRS': 'אקסטרה DRS',
+    'Extra Boost': 'אקסטרה בוסט',
     Limitless: 'ללא הגבלה',
     Wildcard: 'ווילדקארד',
     'Without Chip': "ללא צ'יפ",
@@ -99,9 +99,9 @@ const translations = {
     'Drivers To Remove': 'נהגים להסרה',
     'Constructors To Add': 'קבוצות להוספה',
     'Constructors To Remove': 'קבוצות להסרה',
-    'Extra DRS Driver': 'נהג DRS נוסף',
+    'Extra Boost Driver': 'נהג אקסטרה בוסט',
     'New ': 'חדש ',
-    'DRS Driver': 'נהג DRS',
+    'Boost Driver': 'נהג בוסט',
     'Chip To Activate': "צ'יפ להפעלה",
     'Team {NUM} Info:': 'מידע לקבוצה {NUM}:',
     'Projected Points': 'נקודות צפויות',
@@ -286,7 +286,7 @@ const translations = {
     base: 'בסיס',
     pts: 'נק׳',
     Adj: 'מותאם',
-    'DRS x2': 'DRS כפול',
+    'Boost x2': 'בוסט כפול',
     '❌ Error fetching live score: {ERROR}':
       '❌ שגיאה בקבלת ניקוד חי: {ERROR}',
     'Invalid JSON data. Please ensure it contains 22 drivers under "Drivers" property.':
@@ -335,7 +335,7 @@ const translations = {
     'No team found for number {NUM}.': 'לא נמצאה קבוצה עבור מספר {NUM}.',
     'No cached teams available. Please send full JSON data or images first and then run the {CMD} command.':
       'אין קבוצות שמורות במטמון. אנא שלח נתוני JSON מלאים או תמונות קודם ולאחר מכן הפעל את הפקודה {CMD}.',
-    DRS: 'DRS',
+    Boost: 'בוסט',
     '🌦️ Next Race Weather': '🌦️ מזג אוויר למרוץ הבא',
     'Get detailed weather forecast for the next race':
       'קבל תחזית מזג אוויר מפורטת למרוץ הבא',

@@ -1,6 +1,6 @@
 const azureStorageService = require('../azureStorageService');
 const {
-  EXTRA_DRS_CHIP,
+  EXTRA_BOOST_CHIP,
   WILDCARD_CHIP,
   LIMITLESS_CHIP,
 } = require('../constants');
@@ -20,7 +20,7 @@ const { updateUserAttributes } = require('../userRegistryService');
 const { t } = require('../i18n');
 
 const VALID_CHIPS = new Set([
-  EXTRA_DRS_CHIP,
+  EXTRA_BOOST_CHIP,
   WILDCARD_CHIP,
   LIMITLESS_CHIP,
 ]);
@@ -198,7 +198,7 @@ function isValidTeamSnapshot(teamSnapshot) {
     !teamSnapshot.drivers.every(isNonEmptyString) ||
     !Array.isArray(teamSnapshot.constructors) ||
     !teamSnapshot.constructors.every(isNonEmptyString) ||
-    !isNonEmptyString(teamSnapshot.drsBoost) ||
+    !isNonEmptyString(teamSnapshot.boost) ||
     !Number.isFinite(teamSnapshot.freeTransfers) ||
     !Number.isFinite(teamSnapshot.costCapRemaining)
   ) {
