@@ -104,7 +104,7 @@ describe('handleBestTeamScenariosMessage', () => {
     expect(sentMessage).toContain('*1.30 points per million*');
     expect(sentMessage).toContain('*1.65 points per million*');
     expect(sentMessage).toContain('*2.00 points per million*');
-    expect(sentMessage).toContain('• *Current Selection* — 300.00 pts | Δ 0.80');
+    expect(sentMessage).toContain('• *Without Chip* — 300.00 pts | Δ 0.80');
     expect(sentMessage).toContain('• *Limitless* — 300.00 pts | Δ 0.40');
     expect(sentMessage).toContain('• *Extra DRS* — 300.00 pts | Δ 0.80');
     expect(sentMessage).toContain('• *Wildcard* — 300.00 pts | Δ 0.80');

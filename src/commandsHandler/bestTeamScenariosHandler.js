@@ -91,7 +91,7 @@ async function handleBestTeamScenariosMessage(bot, chatId) {
   const ppmScenarios = [0, 1.3, 1.65, 2];
   const chipScenarios = [
     {
-      label: t('Current Selection', chatId),
+      label: t('Without Chip', chatId),
       chip: selectedChip,
     },
     {

@@ -17,7 +17,7 @@ const translations = {
     'Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.':
       'לתשומת לבך: החישוב נמחק.\nהפעל את הפקודה {CMD} מחדש לחישוב.',
     'which chip do you want to use?': "איזה צ'יפ תרצה להשתמש?",
-    'Extra DRS': 'DRS נוסף',
+    'Extra DRS': 'אקסטרה DRS',
     Limitless: 'ללא הגבלה',
     Wildcard: 'ווילדקארד',
     'Without Chip': "ללא צ'יפ",
