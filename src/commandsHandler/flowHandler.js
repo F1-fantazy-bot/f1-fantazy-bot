@@ -21,7 +21,10 @@ function buildFlowMessage(chatId) {
 4️⃣ פרטי קבוצה
    לאחר /best\\_teams, שלחו מספר קבוצה (לדוגמה: 1, 2, 3) כדי לראות את ההעברות הנדרשות מהקבוצה הנוכחית.
 
-5️⃣ מידע על מרוצים
+5️⃣ ניקוד חי
+   השתמשו ב-/live\\_score כדי לראות את הניקוד החי ושינויי המחיר של הקבוצה שבחרתם.
+
+6️⃣ מידע על מרוצים
    • /next\\_race\\_info - פרטים על המרוץ הבא
    • /next\\_races - לוח זמנים למרוצים הקרובים
    • /next\\_race\\_weather - תחזית מזג אוויר למרוץ הבא
@@ -50,7 +53,10 @@ Here's how to get the most out of this bot:
 4️⃣ Get Team Details
    After /best\\_teams, send a team number (e.g., 1, 2, 3) to see the required transfers from your current team.
 
-5️⃣ Explore Race Info
+5️⃣ Check Live Score
+   Use /live\\_score to see the current live points and price changes for your selected team.
+
+6️⃣ Explore Race Info
    • /next\\_race\\_info - Details about the next race
    • /next\\_races - Upcoming race schedule
    • /next\\_race\\_weather - Weather forecast for the next race

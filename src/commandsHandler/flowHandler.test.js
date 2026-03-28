@@ -34,10 +34,12 @@ describe('handleFlowCommand', () => {
     expect(sentMessage).toContain('Choose a Chip (Optional)');
     expect(sentMessage).toContain('Calculate Best Teams');
     expect(sentMessage).toContain('Get Team Details');
+    expect(sentMessage).toContain('Check Live Score');
     expect(sentMessage).toContain('Explore Race Info');
     expect(sentMessage).toContain('Tips:');
     expect(sentMessage).toContain('/menu');
     expect(sentMessage).toContain('/best\\_teams');
+    expect(sentMessage).toContain('/live\\_score');
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -65,8 +67,10 @@ describe('handleFlowCommand', () => {
     expect(sentMessage).toContain('בחירת צ\'יפ (אופציונלי)');
     expect(sentMessage).toContain('חישוב הקבוצות הטובות ביותר');
     expect(sentMessage).toContain('פרטי קבוצה');
+    expect(sentMessage).toContain('ניקוד חי');
     expect(sentMessage).toContain('מידע על מרוצים');
     expect(sentMessage).toContain('טיפים:');
+    expect(sentMessage).toContain('/live\\_score');
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
