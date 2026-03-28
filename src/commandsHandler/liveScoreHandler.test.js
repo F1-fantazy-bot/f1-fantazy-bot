@@ -5,7 +5,7 @@ const {
 } = require('./liveScoreHandler');
 const { getLiveScoreData } = require('../azureStorageService');
 const { getSelectedBestTeam, resolveSelectedTeam } = require('../cache');
-const { isAdminMessage, sendErrorMessage } = require('../utils');
+const { sendErrorMessage } = require('../utils');
 
 jest.mock('../azureStorageService');
 jest.mock('../cache', () => ({
@@ -17,7 +17,6 @@ jest.mock('../utils', () => ({
     dateStr: 'Friday, 27 March 2026',
     timeStr: '13:07 GMT+2',
   }),
-  isAdminMessage: jest.fn(),
   sendErrorMessage: jest.fn(),
 }));
 jest.mock('../i18n', () => ({
@@ -57,7 +56,6 @@ describe('liveScoreHandler', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    isAdminMessage.mockReturnValue(true);
     resolveSelectedTeam.mockResolvedValue(teamId);
     getSelectedBestTeam.mockReturnValue({
       drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
@@ -66,18 +64,6 @@ describe('liveScoreHandler', () => {
     });
     getLiveScoreData.mockResolvedValue(liveScorePayload);
     sendErrorMessage.mockResolvedValue();
-  });
-
-  it('denies non-admin users', async () => {
-    isAdminMessage.mockReturnValue(false);
-
-    await handleLiveScoreCommand(mockBot, msg);
-
-    expect(mockBot.sendMessage).toHaveBeenCalledWith(
-      chatId,
-      'Sorry, only admins can use this command.',
-    );
-    expect(getLiveScoreData).not.toHaveBeenCalled();
   });
 
   it('sends live score breakdown', async () => {

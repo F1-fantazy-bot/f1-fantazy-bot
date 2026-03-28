@@ -1,7 +1,7 @@
 const { getLiveScoreData } = require('../azureStorageService');
 const { getSelectedBestTeam, resolveSelectedTeam } = require('../cache');
 const { t } = require('../i18n');
-const { formatDateTime, isAdminMessage, sendErrorMessage } = require('../utils');
+const { formatDateTime, sendErrorMessage } = require('../utils');
 
 const SESSION_METRICS = ['POS', 'PG', 'OV', 'FL', 'DD', 'TW', 'FP'];
 const SESSION_ORDER = ['Sprint', 'Qualifying', 'Race'];
@@ -137,12 +137,6 @@ function calculateLiveScoreBreakdown(selectedBestTeam, liveScoreData) {
 
 async function handleLiveScoreCommand(bot, msg) {
   const chatId = msg.chat.id;
-
-  if (!isAdminMessage(msg)) {
-    await bot.sendMessage(chatId, t('Sorry, only admins can use this command.', chatId));
-
-    return;
-  }
 
   const teamId = await resolveSelectedTeam(bot, chatId);
   if (!teamId) {

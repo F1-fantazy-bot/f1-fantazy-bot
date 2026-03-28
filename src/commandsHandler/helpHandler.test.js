@@ -2,6 +2,7 @@ const {
   KILZI_CHAT_ID,
   MENU_CATEGORIES,
   COMMAND_BEST_TEAMS,
+  COMMAND_LIVE_SCORE,
   USER_COMMANDS_CONFIG,
 } = require('../constants');
 
@@ -67,6 +68,9 @@ describe('displayHelpMessage', () => {
     const menuCommand = USER_COMMANDS_CONFIG.find(
       (cmd) => cmd.constant === '/menu'
     );
+    const liveScoreCommand = USER_COMMANDS_CONFIG.find(
+      (cmd) => cmd.constant === COMMAND_LIVE_SCORE
+    );
     expect(sentMessage).toContain(
       `${helpCommand.constant.replace(/_/g, '\\_')} - ${
         helpCommand.description
@@ -75,6 +79,11 @@ describe('displayHelpMessage', () => {
     expect(sentMessage).toContain(
       `${menuCommand.constant.replace(/_/g, '\\_')} - ${
         menuCommand.description
+      }`
+    );
+    expect(sentMessage).toContain(
+      `${liveScoreCommand.constant.replace(/_/g, '\\_')} - ${
+        liveScoreCommand.description
       }`
     );
 

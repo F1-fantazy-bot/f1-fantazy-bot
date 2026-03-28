@@ -15,13 +15,19 @@ function buildFlowMessage(chatId) {
    השתמשו ב-/chips כדי לבחור צ'יפ (Extra DRS, Wildcard, או Limitless) לפני חישוב הקבוצות הטובות ביותר.
    השתמשו ב-/reset\\_chip כדי לחשב ללא צ'יפ.
 
-3️⃣ חישוב הקבוצות הטובות ביותר
+3️⃣ דירוג שינויי תקציב (אופציונלי)
+   השתמשו ב-/set\\_best\\_team\\_ranking כדי לכלול שינויי מחיר צפויים בדירוג של /best\\_teams.
+
+4️⃣ חישוב הקבוצות הטובות ביותר
    הריצו /best\\_teams כדי למצוא את שילובי הקבוצה האופטימליים על סמך הנתונים שהעלאתם.
 
-4️⃣ פרטי קבוצה
+5️⃣ פרטי קבוצה
    לאחר /best\\_teams, שלחו מספר קבוצה (לדוגמה: 1, 2, 3) כדי לראות את ההעברות הנדרשות מהקבוצה הנוכחית.
 
-5️⃣ מידע על מרוצים
+6️⃣ ניקוד חי
+   השתמשו ב-/live\\_score כדי לראות את הניקוד החי ושינויי המחיר של הקבוצה שבחרתם.
+
+7️⃣ מידע על מרוצים
    • /next\\_race\\_info - פרטים על המרוץ הבא
    • /next\\_races - לוח זמנים למרוצים הקרובים
    • /next\\_race\\_weather - תחזית מזג אוויר למרוץ הבא
@@ -44,13 +50,19 @@ Here's how to get the most out of this bot:
    Use /chips to select a chip (Extra DRS, Wildcard, or Limitless) before calculating best teams.
    Use /reset\\_chip to calculate without any chip.
 
-3️⃣ Calculate Best Teams
+3️⃣ Adjust Budget Change Ranking (Optional)
+   Use /set\\_best\\_team\\_ranking to include expected price changes in the /best\\_teams ranking.
+
+4️⃣ Calculate Best Teams
    Run /best\\_teams to find the optimal team combinations based on your uploaded data.
 
-4️⃣ Get Team Details
+5️⃣ Get Team Details
    After /best\\_teams, send a team number (e.g., 1, 2, 3) to see the required transfers from your current team.
 
-5️⃣ Explore Race Info
+6️⃣ Check Live Score
+   Use /live\\_score to see the current live points and price changes for your selected team.
+
+7️⃣ Explore Race Info
    • /next\\_race\\_info - Details about the next race
    • /next\\_races - Upcoming race schedule
    • /next\\_race\\_weather - Weather forecast for the next race

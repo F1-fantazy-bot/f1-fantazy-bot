@@ -222,6 +222,21 @@ describe('Menu Handler', () => {
       );
     });
 
+    it('should show live score in analysis category for regular users', async () => {
+      isAdminMessage.mockReturnValue(false);
+      mockQuery.data = `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.CATEGORY}:analysis_stats`;
+
+      await handleMenuCallback(mockBot, mockQuery);
+
+      const editCall = mockBot.editMessageText.mock.calls[0][1];
+      const keyboard = editCall.reply_markup.inline_keyboard;
+      const hasLiveScore = keyboard.some((row) =>
+        row.some((button) => button.text === '🔴 Live Score')
+      );
+
+      expect(hasLiveScore).toBe(true);
+    });
+
     it('should handle help callback', async () => {
       mockQuery.data = `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.HELP}`;
 
