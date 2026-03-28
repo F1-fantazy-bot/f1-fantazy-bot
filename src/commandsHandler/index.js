@@ -21,7 +21,7 @@ const { handleVersionCommand } = require('./versionHandler');
 const { handleSetLanguage } = require('./setLanguageHandler');
 const { handleAskCommand } = require('./askHandler');
 const {
-  handleSelectExtraDrs,
+  handleSelectExtraBoost,
   handleSelectLimitless,
   handleSelectWildcard,
   handleResetChip,
@@ -64,7 +64,7 @@ module.exports = {
   handleVersionCommand,
   handleSetLanguage,
   handleAskCommand,
-  handleSelectExtraDrs,
+  handleSelectExtraBoost,
   handleSelectLimitless,
   handleSelectWildcard,
   handleResetChip,

@@ -95,8 +95,8 @@ async function storeInCache(bot, chatId, type, extractedData, fileUniqueId) {
       jsonObject.CurrentTeam.drivers.map(mapToCodeName);
     jsonObject.CurrentTeam.constructors =
       jsonObject.CurrentTeam.constructors.map(mapToCodeName);
-    jsonObject.CurrentTeam.drsBoost = mapToCodeName(
-      jsonObject.CurrentTeam.drsBoost,
+    jsonObject.CurrentTeam.boost = mapToCodeName(
+      jsonObject.CurrentTeam.boost,
     );
 
     const teamId = jsonObject.CurrentTeam.teamId || null;

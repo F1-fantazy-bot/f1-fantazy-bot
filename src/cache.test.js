@@ -109,7 +109,7 @@ describe('cache', () => {
         T1: {
           drivers: ['L. Hamilton'],
           constructors: ['Mercedes'],
-          drsBoost: 'L. Hamilton',
+          boost: 'L. Hamilton',
           freeTransfers: 2,
           costCapRemaining: 10,
         },
@@ -124,8 +124,8 @@ describe('cache', () => {
           T1: {
             drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
             constructors: ['RBR', 'FER'],
-            drsDriver: 'VER',
-            extraDrsDriver: 'HAM',
+            boostDriver: 'VER',
+            extraBoostDriver: 'HAM',
           },
         },
       };
@@ -139,7 +139,7 @@ describe('cache', () => {
   \"constructors\": [
     \"Mercedes\"
   ],
-  \"drsBoost\": \"L. Hamilton\",
+  \"boost\": \"L. Hamilton\",
   \"freeTransfers\": 2,
   \"costCapRemaining\": 10
 }
@@ -189,7 +189,7 @@ describe('cache', () => {
         T1: {
           drivers: ['M. Verstappen'],
           constructors: ['Red Bull'],
-          drsBoost: 'M. Verstappen',
+          boost: 'M. Verstappen',
           freeTransfers: 1,
           costCapRemaining: 5,
         },
@@ -209,7 +209,7 @@ describe('cache', () => {
       expect(parsed.Teams['T1']).toEqual({
         drivers: ['M. Verstappen'],
         constructors: ['Red Bull'],
-        drsBoost: 'M. Verstappen',
+        boost: 'M. Verstappen',
         freeTransfers: 1,
         costCapRemaining: 5,
         bestTeamBudgetChangePointsPerMillion: 0,
@@ -231,8 +231,8 @@ describe('cache', () => {
           T1: {
             drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
             constructors: ['RBR', 'FER'],
-            drsDriver: 'VER',
-            extraDrsDriver: 'HAM',
+            boostDriver: 'VER',
+            extraBoostDriver: 'HAM',
           },
         },
       };
@@ -248,8 +248,8 @@ describe('cache', () => {
         selectedBestTeam: {
           drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
           constructors: ['RBR', 'FER'],
-          drsDriver: 'VER',
-          extraDrsDriver: 'HAM',
+          boostDriver: 'VER',
+          extraBoostDriver: 'HAM',
         },
       });
       expect(parsed.Teams['T2']).toEqual({
@@ -326,8 +326,8 @@ describe('cache', () => {
             T1: {
               drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
               constructors: ['RBR', 'FER'],
-              drsDriver: 'VER',
-              extraDrsDriver: 'HAM',
+              boostDriver: 'VER',
+              extraBoostDriver: 'HAM',
             },
           }),
         ),
@@ -335,8 +335,8 @@ describe('cache', () => {
         T1: {
           drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
           constructors: ['RBR', 'FER'],
-          drsDriver: 'VER',
-          extraDrsDriver: 'HAM',
+          boostDriver: 'VER',
+          extraBoostDriver: 'HAM',
         },
       });
     });
@@ -345,15 +345,15 @@ describe('cache', () => {
       setSelectedBestTeam(chatId, 'T1', {
         drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
         constructors: ['RBR', 'FER'],
-        drsDriver: 'VER',
-        extraDrsDriver: 'HAM',
+        boostDriver: 'VER',
+        extraBoostDriver: 'HAM',
       });
 
       expect(getSelectedBestTeam(chatId, 'T1')).toEqual({
         drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
         constructors: ['RBR', 'FER'],
-        drsDriver: 'VER',
-        extraDrsDriver: 'HAM',
+        boostDriver: 'VER',
+        extraBoostDriver: 'HAM',
       });
 
       clearSelectedBestTeam(chatId, 'T1');
@@ -362,7 +362,7 @@ describe('cache', () => {
       setSelectedBestTeam(chatId, 'T2', {
         drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
         constructors: ['RBR', 'FER'],
-        drsDriver: 'VER',
+        boostDriver: 'VER',
       });
       clearAllSelectedBestTeams(chatId);
 

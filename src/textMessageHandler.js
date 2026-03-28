@@ -21,7 +21,7 @@ const {
   handleVersionCommand,
   handleSetLanguage,
   handleAskCommand,
-  handleSelectExtraDrs,
+  handleSelectExtraBoost,
   handleSelectLimitless,
   handleSelectWildcard,
   handleResetChip,
@@ -58,7 +58,7 @@ const {
   COMMAND_VERSION,
   COMMAND_MENU,
   COMMAND_SET_LANGUAGE,
-  COMMAND_EXTRA_DRS,
+  COMMAND_EXTRA_BOOST,
   COMMAND_LIMITLESS,
   COMMAND_WILDCARD,
   COMMAND_RESET_CHIP,
@@ -98,8 +98,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await calcCurrentTeamInfo(bot, chatId);
     case msg.text === COMMAND_CHIPS:
       return await handleChipsMessage(bot, msg);
-    case msg.text === COMMAND_EXTRA_DRS:
-      return await handleSelectExtraDrs(bot, msg);
+    case msg.text === COMMAND_EXTRA_BOOST:
+      return await handleSelectExtraBoost(bot, msg);
     case msg.text === COMMAND_LIMITLESS:
       return await handleSelectLimitless(bot, msg);
     case msg.text === COMMAND_WILDCARD:

@@ -19,7 +19,7 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
 
 ### Chip Management
 
-- **Interactive Chip Selection**: Choose and apply F1 Fantasy chips (Extra DRS, Wildcard, Limitless)
+- **Interactive Chip Selection**: Choose and apply F1 Fantasy chips (Extra Boost, Wildcard, Limitless)
 - **Chip Strategy Support**: Get guidance on optimal chip usage timing
 
 ### Data Management
@@ -154,7 +154,7 @@ All users can access these commands:
 - **`/best_teams`** - Calculate and display the best possible teams based on your cached data
 - **`/set_best_team_ranking`** - Set how expected budget changes affect best-team ranking suggestions
 - **`/current_team_info`** - Calculate current team info and budget based on your cached data
-- **`/chips`** - Choose a chip to use for the current race (Extra DRS, Wildcard, Limitless)
+- **`/chips`** - Choose a chip to use for the current race (Extra Boost, Wildcard, Limitless)
 
 #### Analysis & Stats
 

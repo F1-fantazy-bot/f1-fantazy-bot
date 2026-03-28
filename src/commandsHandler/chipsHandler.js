@@ -1,6 +1,6 @@
 const {
   CHIP_CALLBACK_TYPE,
-  EXTRA_DRS_CHIP,
+  EXTRA_BOOST_CHIP,
   WILDCARD_CHIP,
   LIMITLESS_CHIP,
   WITHOUT_CHIP,
@@ -18,8 +18,8 @@ async function handleChipsMessage(bot, msg) {
       inline_keyboard: [
         [
           {
-            text: t('Extra DRS', chatId),
-            callback_data: `${CHIP_CALLBACK_TYPE}:${EXTRA_DRS_CHIP}`,
+            text: t('Extra Boost', chatId),
+            callback_data: `${CHIP_CALLBACK_TYPE}:${EXTRA_BOOST_CHIP}`,
           },
           {
             text: t('Limitless', chatId),

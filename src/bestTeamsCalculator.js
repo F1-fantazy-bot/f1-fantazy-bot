@@ -1,5 +1,5 @@
 const {
-  EXTRA_DRS_CHIP,
+  EXTRA_BOOST_CHIP,
   WILDCARD_CHIP,
   LIMITLESS_CHIP,
   BEST_TEAMS_RESULT_COUNT,
@@ -102,26 +102,26 @@ exports.calculateBestTeams = function (
       0
     );
 
-    let drs_driver;
-    let extra_drs_driver;
+    let boost_driver;
+    let extra_boost_driver;
     driverCombo.sort(
       (a, b) => drivers_dict[b].expectedPoints - drivers_dict[a].expectedPoints
     );
-    drs_driver = driverCombo[0];
-    if (selectedChip === EXTRA_DRS_CHIP) {
-      // the driver with the highest expected points is selected for extra DRS (x3 points)
-      // the driver with the second highest expected points is selected for DRS (x2 points)
-      extra_drs_driver = driverCombo[0];
-      drs_driver = driverCombo[1];
+    boost_driver = driverCombo[0];
+    if (selectedChip === EXTRA_BOOST_CHIP) {
+      // the driver with the highest expected points is selected for extra boost (x3 points)
+      // the driver with the second highest expected points is selected for boost (x2 points)
+      extra_boost_driver = driverCombo[0];
+      boost_driver = driverCombo[1];
     }
 
-    const bonus_drs_points = drivers_dict[drs_driver].expectedPoints;
-    let extra_drs_points = 0;
-    if (selectedChip === EXTRA_DRS_CHIP) {
-      extra_drs_points = drivers_dict[extra_drs_driver].expectedPoints * 2;
+    const bonus_boost_points = drivers_dict[boost_driver].expectedPoints;
+    let extra_boost_points = 0;
+    if (selectedChip === EXTRA_BOOST_CHIP) {
+      extra_boost_points = drivers_dict[extra_boost_driver].expectedPoints * 2;
     }
     const total_driver_points =
-      driver_points_sum + bonus_drs_points + extra_drs_points;
+      driver_points_sum + bonus_boost_points + extra_boost_points;
 
     for (const consCombo of consCombos) {
       // Calculate total price and points for constructors
@@ -155,7 +155,7 @@ exports.calculateBestTeams = function (
         const penalty = Math.max(0, transfers_needed - freeTransfers) * 10;
 
         // Calculate projected points:
-        // (total driver points with DRS bonus) + (total constructors points) - penalty.
+        // (total driver points with boost bonus) + (total constructors points) - penalty.
         const projected_points = total_driver_points + cons_points - penalty;
 
         // Sum expected price change for the entire team
@@ -174,7 +174,7 @@ exports.calculateBestTeams = function (
         const team = {
           drivers: driverCombo,
           constructors: consCombo,
-          drs_driver: drs_driver,
+          boost_driver: boost_driver,
           total_price: total_price,
           transfers_needed: transfers_needed,
           penalty: penalty,
@@ -183,8 +183,8 @@ exports.calculateBestTeams = function (
           ranking_score,
         };
 
-        if (selectedChip === EXTRA_DRS_CHIP) {
-          team.extra_drs_driver = extra_drs_driver;
+        if (selectedChip === EXTRA_BOOST_CHIP) {
+          team.extra_boost_driver = extra_boost_driver;
         }
         teams.push(team);
       }
@@ -253,9 +253,9 @@ exports.calculateChangesToTeam = function (
     (cons) => !targetTeam.constructors.includes(cons)
   );
 
-  // Calculate DRS driver change:
-  const drs_driver_change = currentTeam.drsBoost !== targetTeam.drs_driver;
-  let newDRS = drs_driver_change ? targetTeam.drs_driver : undefined;
+  // Calculate boost driver change:
+  const boostDriverChange = currentTeam.boost !== targetTeam.boost_driver;
+  let newBoost = boostDriverChange ? targetTeam.boost_driver : undefined;
 
   // Handle special chips
   let chipToActivate;
@@ -271,11 +271,11 @@ exports.calculateChangesToTeam = function (
     }
   }
 
-  let extraDrsDriver;
-  if (selectedChip === EXTRA_DRS_CHIP) {
-    chipToActivate = EXTRA_DRS_CHIP;
-    extraDrsDriver = targetTeam.extra_drs_driver;
-    newDRS = targetTeam.drs_driver;
+  let extraBoostDriver;
+  if (selectedChip === EXTRA_BOOST_CHIP) {
+    chipToActivate = EXTRA_BOOST_CHIP;
+    extraBoostDriver = targetTeam.extra_boost_driver;
+    newBoost = targetTeam.boost_driver;
   }
 
   const deltaPoints =
@@ -304,8 +304,8 @@ exports.calculateChangesToTeam = function (
     driversToRemove,
     constructorsToAdd,
     constructorsToRemove,
-    newDRS,
-    extraDrsDriver,
+    newBoost,
+    extraBoostDriver,
     chipToActivate,
     deltaPoints,
     deltaPrice,

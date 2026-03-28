@@ -5,7 +5,7 @@ const {
   TEAM_CALLBACK_TYPE,
   TEAM_ASSIGN_CALLBACK_TYPE,
   BEST_TEAM_WEIGHTS_CALLBACK_TYPE,
-  EXTRA_DRS_CHIP,
+  EXTRA_BOOST_CHIP,
 } = require('./constants');
 const cache = require('./cache');
 const azureStorageService = require('./azureStorageService');
@@ -79,13 +79,13 @@ describe('handleCallbackQuery', () => {
   it('should handle chip callback', async () => {
     const query = {
       id: 'q2',
-      data: `${CHIP_CALLBACK_TYPE}:${EXTRA_DRS_CHIP}`,
+      data: `${CHIP_CALLBACK_TYPE}:${EXTRA_BOOST_CHIP}`,
       message: { chat: { id: 123 }, message_id: 456 },
     };
 
     await handleCallbackQuery(bot, query);
 
-    expect(selectChip).toHaveBeenCalledWith(bot, 123, EXTRA_DRS_CHIP);
+    expect(selectChip).toHaveBeenCalledWith(bot, 123, EXTRA_BOOST_CHIP);
     expect(bot.editMessageText).toHaveBeenCalledWith('chip selected', {
       chat_id: 123,
       message_id: 456,
@@ -127,14 +127,14 @@ describe('handleCallbackQuery', () => {
         T1: {
           drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
           constructors: ['RBR', 'FER'],
-          drsDriver: 'VER',
+          boostDriver: 'VER',
         },
       },
     };
     azureStorageService.getPendingTeamAssignment.mockResolvedValueOnce({
       drivers: ['HAM'],
       constructors: ['MER'],
-      drsBoost: 'HAM',
+      boost: 'HAM',
       freeTransfers: 2,
       costCapRemaining: 10,
     });

@@ -352,7 +352,7 @@ describe('utils', () => {
       const mockCurrentTeam = {
         drivers: ['VER', 'HAM', 'PER', 'SAI', 'LEC'],
         constructors: ['RED', 'MER'],
-        drsBoost: 'VER',
+        boost: 'VER',
         freeTransfers: 2,
         costCapRemaining: 10,
       };
@@ -470,7 +470,7 @@ describe('utils', () => {
         CurrentTeam: {
           drivers: Array(5).fill('DRIVER'),
           constructors: Array(2).fill('CONSTRUCTOR'),
-          drsBoost: 'DRIVER',
+          boost: 'DRIVER',
           freeTransfers: 2,
           costCapRemaining: 10,
         },
@@ -595,8 +595,8 @@ describe('utils', () => {
       );
     });
 
-    it('returns false and sends message if CurrentTeam.drsBoost is missing', async () => {
-      delete validJsonData.CurrentTeam.drsBoost;
+    it('returns false and sends message if CurrentTeam.boost is missing', async () => {
+      delete validJsonData.CurrentTeam.boost;
       const result = await validateJsonData(botMock, validJsonData, 123);
       expect(result).toBe(false);
       expect(botMock.sendMessage).toHaveBeenCalledWith(

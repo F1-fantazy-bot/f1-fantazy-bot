@@ -11,7 +11,7 @@ const {
 } = require('../cache');
 const { t } = require('../i18n');
 const {
-  EXTRA_DRS_CHIP,
+  EXTRA_BOOST_CHIP,
   LIMITLESS_CHIP,
   WILDCARD_CHIP,
 } = require('../constants');
@@ -99,8 +99,8 @@ async function handleBestTeamScenariosMessage(bot, chatId) {
       chip: LIMITLESS_CHIP,
     },
     {
-      label: t('Extra DRS', chatId),
-      chip: EXTRA_DRS_CHIP,
+      label: t('Extra Boost', chatId),
+      chip: EXTRA_BOOST_CHIP,
     },
     {
       label: t('Wildcard', chatId),

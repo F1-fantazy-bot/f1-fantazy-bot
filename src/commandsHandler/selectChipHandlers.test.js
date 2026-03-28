@@ -1,4 +1,4 @@
-const { KILZI_CHAT_ID, EXTRA_DRS_CHIP, WILDCARD_CHIP, WITHOUT_CHIP } = require('../constants');
+const { KILZI_CHAT_ID, EXTRA_BOOST_CHIP, WILDCARD_CHIP, WITHOUT_CHIP } = require('../constants');
 const { updateUserAttributes } = require('../userRegistryService');
 jest.mock('../userRegistryService', () => ({
   updateUserAttributes: jest.fn().mockResolvedValue(undefined),
@@ -9,7 +9,7 @@ const {
   currentTeamCache,
   userCache,
 } = require('../cache');
-const { handleSelectExtraDrs, handleResetChip } = require('./selectChipHandlers');
+const { handleSelectExtraBoost, handleResetChip } = require('./selectChipHandlers');
 
 describe('select chip handlers', () => {
   const botMock = { sendMessage: jest.fn().mockResolvedValue() };
@@ -25,28 +25,28 @@ describe('select chip handlers', () => {
     currentTeamCache[KILZI_CHAT_ID] = { [TEAM_ID]: { drivers: ['VER'] } };
   });
 
-  it('should select EXTRA_DRS chip and clear bestTeamsCache for team', async () => {
+  it('should select EXTRA_BOOST chip and clear bestTeamsCache for team', async () => {
     bestTeamsCache[KILZI_CHAT_ID] = { [TEAM_ID]: { some: 'data' } };
     userCache[String(KILZI_CHAT_ID)] = {
       selectedBestTeamByTeam: {
         [TEAM_ID]: {
           drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
           constructors: ['RBR', 'FER'],
-          drsDriver: 'VER',
+          boostDriver: 'VER',
         },
       },
     };
 
-    await handleSelectExtraDrs(botMock, { chat: { id: KILZI_CHAT_ID } });
+    await handleSelectExtraBoost(botMock, { chat: { id: KILZI_CHAT_ID } });
 
-    expect(selectedChipCache[KILZI_CHAT_ID][TEAM_ID]).toBe(EXTRA_DRS_CHIP);
+    expect(selectedChipCache[KILZI_CHAT_ID][TEAM_ID]).toBe(EXTRA_BOOST_CHIP);
     expect(bestTeamsCache[KILZI_CHAT_ID][TEAM_ID]).toBeUndefined();
     expect(updateUserAttributes).toHaveBeenCalledWith(KILZI_CHAT_ID, {
       selectedBestTeamByTeam: null,
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      expect.stringContaining(`Selected chip: ${EXTRA_DRS_CHIP}.`)
+      expect.stringContaining(`Selected chip: ${EXTRA_BOOST_CHIP}.`)
     );
   });
 

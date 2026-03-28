@@ -151,7 +151,7 @@ describe('handleBestTeamsMessage', () => {
         row: 1,
         drivers: ['VER', 'HAM'],
         constructors: ['RBR', 'MER'],
-        drs_driver: 'VER',
+        boost_driver: 'VER',
         total_price: 96.5,
         transfers_needed: 0,
         penalty: 0,
@@ -163,7 +163,7 @@ describe('handleBestTeamsMessage', () => {
         row: 2,
         drivers: ['HAM', 'VER'],
         constructors: ['MER', 'RBR'],
-        drs_driver: 'HAM',
+        boost_driver: 'HAM',
         total_price: 96.5,
         transfers_needed: 2,
         penalty: 0,
@@ -197,7 +197,7 @@ describe('handleBestTeamsMessage', () => {
       `*Team 1 (Current Team)*\n` +
       `*Drivers:* VER, HAM\n` +
       `*Constructors:* RBR, MER\n` +
-      `*DRS Driver:* VER\n` +
+      `*Boost Driver:* VER\n` +
       `*Total Price:* 96.5\n` +
       `*Transfers Needed:* 0\n` +
       `*Penalty:* 0\n` +
@@ -207,7 +207,7 @@ describe('handleBestTeamsMessage', () => {
       `*Team 2*\n` +
       `*Drivers:* HAM, VER\n` +
       `*Constructors:* MER, RBR\n` +
-      `*DRS Driver:* HAM\n` +
+      `*Boost Driver:* HAM\n` +
       `*Total Price:* 96.5\n` +
       `*Transfers Needed:* 2\n` +
       `*Penalty:* 0\n` +
@@ -242,7 +242,7 @@ describe('handleBestTeamsMessage', () => {
         row: 1,
         drivers: 'VER',
         constructors: 'RBR',
-        drs_driver: 'VER',
+        boost_driver: 'VER',
         total_price: 50.5,
         transfers_needed: 0,
         penalty: 0,
@@ -336,7 +336,7 @@ describe('handleBestTeamsMessage', () => {
         row: 1,
         drivers: ['VER'],
         constructors: ['RBR'],
-        drs_driver: 'VER',
+        boost_driver: 'VER',
         total_price: 50.5,
         transfers_needed: 0,
         penalty: 0,
@@ -352,7 +352,7 @@ describe('handleBestTeamsMessage', () => {
     expect(sentMessage).toContain('*Budget-Adjusted Points:* 81');
   });
 
-  it('should handle teams with extra DRS driver', async () => {
+  it('should handle teams with extra Boost driver', async () => {
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
     constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.0 } };
     currentTeamCache[KILZI_CHAT_ID] = {
@@ -367,8 +367,8 @@ describe('handleBestTeamsMessage', () => {
         row: 1,
         drivers: ['VER'],
         constructors: ['RBR'],
-        extra_drs_driver: 'HAM',
-        drs_driver: 'VER',
+        extra_boost_driver: 'HAM',
+        boost_driver: 'VER',
         total_price: 50.5,
         transfers_needed: 0,
         penalty: 0,
@@ -384,7 +384,7 @@ describe('handleBestTeamsMessage', () => {
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      expect.stringContaining('*Extra DRS Driver:* HAM'),
+      expect.stringContaining('*Extra Boost Driver:* HAM'),
       { parse_mode: 'Markdown' },
     );
   });

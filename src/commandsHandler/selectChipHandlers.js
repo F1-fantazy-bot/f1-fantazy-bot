@@ -7,7 +7,7 @@ const {
   serializeSelectedBestTeamByTeam,
 } = require('../cache');
 const {
-  EXTRA_DRS_CHIP,
+  EXTRA_BOOST_CHIP,
   LIMITLESS_CHIP,
   WILDCARD_CHIP,
   WITHOUT_CHIP,
@@ -71,8 +71,8 @@ async function sendChipSelection(bot, chatId, chip) {
   }
 }
 
-async function handleSelectExtraDrs(bot, msg) {
-  await sendChipSelection(bot, msg.chat.id, EXTRA_DRS_CHIP);
+async function handleSelectExtraBoost(bot, msg) {
+  await sendChipSelection(bot, msg.chat.id, EXTRA_BOOST_CHIP);
 }
 
 async function handleSelectLimitless(bot, msg) {
@@ -88,7 +88,7 @@ async function handleResetChip(bot, msg) {
 }
 
 module.exports = {
-  handleSelectExtraDrs,
+  handleSelectExtraBoost,
   handleSelectLimitless,
   handleSelectWildcard,
   handleResetChip,

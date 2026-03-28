@@ -12,7 +12,7 @@ function buildFlowMessage(chatId) {
    שלחו צילום מסך של הקבוצה הנוכחית מאפליקציית F1 Fantasy
 
 2️⃣ בחירת צ'יפ (אופציונלי)
-   השתמשו ב-/chips כדי לבחור צ'יפ (Extra DRS, Wildcard, או Limitless) לפני חישוב הקבוצות הטובות ביותר.
+   השתמשו ב-/chips כדי לבחור צ'יפ (אקסטרה בוסט, Wildcard, או Limitless) לפני חישוב הקבוצות הטובות ביותר.
    השתמשו ב-/reset\\_chip כדי לחשב ללא צ'יפ.
 
 3️⃣ דירוג שינויי תקציב (אופציונלי)
@@ -47,7 +47,7 @@ Here's how to get the most out of this bot:
    Send Current team screenshot from the F1 Fantasy app
 
 2️⃣ Choose a Chip (Optional)
-   Use /chips to select a chip (Extra DRS, Wildcard, or Limitless) before calculating best teams.
+   Use /chips to select a chip (Extra Boost, Wildcard, or Limitless) before calculating best teams.
    Use /reset\\_chip to calculate without any chip.
 
 3️⃣ Adjust Budget Change Ranking (Optional)

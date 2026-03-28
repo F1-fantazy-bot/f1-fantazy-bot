@@ -286,7 +286,7 @@ exports.validateJsonData = async function (
       jsonData.CurrentTeam.drivers.length !== 5 ||
       !jsonData.CurrentTeam.constructors ||
       jsonData.CurrentTeam.constructors.length !== 2 ||
-      !jsonData.CurrentTeam.drsBoost ||
+      !jsonData.CurrentTeam.boost ||
       jsonData.CurrentTeam.freeTransfers === null ||
       jsonData.CurrentTeam.freeTransfers === undefined ||
       jsonData.CurrentTeam.costCapRemaining === null ||
@@ -294,7 +294,7 @@ exports.validateJsonData = async function (
   ) {
     await exports.sendLogMessage(
       bot,
-      `Invalid JSON data. Expected 5 drivers, 2 constructors, drsBoost, freeTransfers, and costCapRemaining properties under "CurrentTeam" property'.`,
+      `Invalid JSON data. Expected 5 drivers, 2 constructors, boost, freeTransfers, and costCapRemaining properties under "CurrentTeam" property'.`,
     );
     await bot
       .sendMessage(
@@ -331,9 +331,9 @@ exports.calculateTeamInfo = function (team, drivers, constructors) {
       0,
     );
 
-  // Only add drsBoost points if it exists
-  if (team.drsBoost && drivers[team.drsBoost]) {
-    teamExpectedPoints += drivers[team.drsBoost].expectedPoints;
+  // Only add boost points if it exists
+  if (team.boost && drivers[team.boost]) {
+    teamExpectedPoints += drivers[team.boost].expectedPoints;
   }
 
   const teamPriceChange =

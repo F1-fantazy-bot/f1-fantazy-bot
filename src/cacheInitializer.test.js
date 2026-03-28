@@ -86,8 +86,8 @@ describe('cacheInitializer', () => {
         T1: {
           drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
           constructors: ['RBR', 'FER'],
-          drsDriver: 'VER',
-          extraDrsDriver: 'HAM',
+          boostDriver: 'VER',
+          extraBoostDriver: 'HAM',
         },
       }),
     },
@@ -186,8 +186,8 @@ describe('cacheInitializer', () => {
           T1: {
             drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
             constructors: ['RBR', 'FER'],
-            drsDriver: 'VER',
-            extraDrsDriver: 'HAM',
+            boostDriver: 'VER',
+            extraBoostDriver: 'HAM',
           },
         },
       },
