@@ -113,6 +113,44 @@ describe('listUsersHandler', () => {
       expect(isAdminMessage).toHaveBeenCalledWith(mockMsg);
     });
 
+
+    it('should sort users by last seen in descending order', async () => {
+      const mockUsers = [
+        {
+          chatId: '111',
+          chatName: 'Old User',
+          firstSeen: '2025-01-01T10:00:00.000Z',
+          lastSeen: '2025-01-10T14:30:00.000Z',
+          lang: 'en',
+        },
+        {
+          chatId: '222',
+          chatName: 'Newest User',
+          firstSeen: '2025-01-05T08:00:00.000Z',
+          lastSeen: '2025-01-20T16:45:00.000Z',
+          lang: 'en',
+        },
+        {
+          chatId: '333',
+          chatName: 'Middle User',
+          firstSeen: '2025-01-03T08:00:00.000Z',
+          lastSeen: '2025-01-15T16:45:00.000Z',
+          lang: 'en',
+        },
+      ];
+      listAllUsers.mockResolvedValue(mockUsers);
+
+      await handleListUsersCommand(mockBot, mockMsg);
+
+      const sentMessage = mockBot.sendMessage.mock.calls[0][1];
+      expect(sentMessage.indexOf('1. Newest User')).toBeLessThan(
+        sentMessage.indexOf('2. Middle User'),
+      );
+      expect(sentMessage.indexOf('2. Middle User')).toBeLessThan(
+        sentMessage.indexOf('3. Old User'),
+      );
+    });
+
     it('should show default language (English) when user has no lang set', async () => {
       const mockUsers = [
         {

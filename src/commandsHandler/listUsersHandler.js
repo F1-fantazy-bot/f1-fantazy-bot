@@ -33,7 +33,8 @@ async function handleListUsersCommand(bot, msg) {
       return;
     }
 
-    const message = formatUsersMessage(users, chatId);
+    const sortedUsers = sortUsersByLastSeenDesc(users);
+    const message = formatUsersMessage(sortedUsers, chatId);
 
     await bot
       .sendMessage(chatId, message, { parse_mode: 'Markdown' })
@@ -86,6 +87,33 @@ function formatUsersMessage(users, chatId) {
   });
 
   return message;
+}
+
+/**
+ * Sort users by last seen time in descending order (most recent first).
+ * Users with invalid/missing lastSeen are pushed to the end.
+ * @param {Array} users - Array of user objects from listAllUsers
+ * @returns {Array} Sorted users array
+ */
+function sortUsersByLastSeenDesc(users) {
+  return [...users].sort((a, b) => {
+    const lastSeenA = Date.parse(a.lastSeen);
+    const lastSeenB = Date.parse(b.lastSeen);
+
+    if (Number.isNaN(lastSeenA) && Number.isNaN(lastSeenB)) {
+      return 0;
+    }
+
+    if (Number.isNaN(lastSeenA)) {
+      return 1;
+    }
+
+    if (Number.isNaN(lastSeenB)) {
+      return -1;
+    }
+
+    return lastSeenB - lastSeenA;
+  });
 }
 
 module.exports = { handleListUsersCommand };
