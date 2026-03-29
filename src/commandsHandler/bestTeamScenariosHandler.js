@@ -20,6 +20,50 @@ function formatNumber(value) {
   return Number(Number(value || 0).toFixed(2)).toFixed(2);
 }
 
+function getChipRecommendationDot(chip, diff) {
+  if (!Number.isFinite(diff)) {
+    return '';
+  }
+
+  if (chip === WILDCARD_CHIP) {
+    if (diff >= 30) {
+      return ' 🟢';
+    }
+
+    if (diff >= 20) {
+      return ' 🟡';
+    }
+
+    return '';
+  }
+
+  if (chip === LIMITLESS_CHIP) {
+    if (diff >= 120) {
+      return ' 🟢';
+    }
+
+    if (diff >= 100) {
+      return ' 🟡';
+    }
+
+    return '';
+  }
+
+  if (chip === EXTRA_BOOST_CHIP) {
+    if (diff >= 70) {
+      return ' 🟢';
+    }
+
+    if (diff >= 50) {
+      return ' 🟡';
+    }
+
+    return '';
+  }
+
+  return '';
+}
+
 function getTopBestTeamForScenario(
   cachedJsonData,
   selectedChip,
@@ -110,7 +154,7 @@ async function handleBestTeamScenariosMessage(bot, chatId) {
 
   const sections = ppmScenarios.map((ppm) => {
     const sectionTitle = `*${formatNumber(ppm)} ${t('points per million', chatId)}*`;
-    const lines = chipScenarios.map((scenario) => {
+    const scenarioResults = chipScenarios.map((scenario) => {
       const topTeam = getTopBestTeamForScenario(
         cachedJsonData,
         scenario.chip,
@@ -118,14 +162,26 @@ async function handleBestTeamScenariosMessage(bot, chatId) {
         safeRemainingRaceCount,
       );
 
+      return { scenario, topTeam };
+    });
+
+    const baselineScore = scenarioResults[0]?.topTeam?.projected_points;
+
+    const lines = scenarioResults.map(({ scenario, topTeam }) => {
       if (!topTeam) {
         return `• *${scenario.label}* — ${t('Unavailable', chatId)}`;
       }
 
+      const recommendationDot = getChipRecommendationDot(
+        scenario.chip,
+        topTeam.projected_points - baselineScore,
+      );
+
       return (
         `• *${scenario.label}* — ` +
         `${formatNumber(topTeam.projected_points)} ${t('pts', chatId)} | ` +
-        `Δ ${formatNumber(topTeam.expected_price_change)}`
+        `Δ ${formatNumber(topTeam.expected_price_change)}` +
+        recommendationDot
       );
     });
 
@@ -144,4 +200,5 @@ async function handleBestTeamScenariosMessage(bot, chatId) {
 module.exports = {
   handleBestTeamScenariosMessage,
   getTopBestTeamForScenario,
+  getChipRecommendationDot,
 };
