@@ -72,12 +72,22 @@ describe('handleBestTeamScenariosMessage', () => {
     selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: 'WITHOUT_CHIP' };
     remainingRaceCountCache[sharedKey] = 10;
 
-    calculateBestTeams.mockImplementation((_, chip, ppm) => [
-      {
-        projected_points: 300 + ppm,
-        expected_price_change: chip === LIMITLESS_CHIP ? 0.4 : 0.8,
-      },
-    ]);
+    calculateBestTeams.mockImplementation((_, chip, ppm) => {
+      const baseline = 300 + ppm;
+      const scoreByChip = {
+        WITHOUT_CHIP: baseline,
+        [LIMITLESS_CHIP]: baseline + 120,
+        [EXTRA_BOOST_CHIP]: baseline + 50,
+        [WILDCARD_CHIP]: baseline + 20,
+      };
+
+      return [
+        {
+          projected_points: scoreByChip[chip],
+          expected_price_change: chip === LIMITLESS_CHIP ? 0.4 : 0.8,
+        },
+      ];
+    });
 
     await handleBestTeamScenariosMessage(botMock, KILZI_CHAT_ID);
 
@@ -105,9 +115,9 @@ describe('handleBestTeamScenariosMessage', () => {
     expect(sentMessage).toContain('*1.65 points per million*');
     expect(sentMessage).toContain('*2.00 points per million*');
     expect(sentMessage).toContain('• *Without Chip* — 300.00 pts | Δ 0.80');
-    expect(sentMessage).toContain('• *Limitless* — 300.00 pts | Δ 0.40');
-    expect(sentMessage).toContain('• *Extra Boost* — 300.00 pts | Δ 0.80');
-    expect(sentMessage).toContain('• *Wildcard* — 300.00 pts | Δ 0.80');
+    expect(sentMessage).toContain('• *Limitless* — 420.00 pts | Δ 0.40 🟢');
+    expect(sentMessage).toContain('• *Extra Boost* — 350.00 pts | Δ 0.80 🟡');
+    expect(sentMessage).toContain('• *Wildcard* — 320.00 pts | Δ 0.80 🟡');
   });
 
   it('should continue when remaining race count is unavailable', async () => {
