@@ -1,0 +1,19 @@
+{
+  "folders": [
+    {
+      "path": "..",
+    },
+    {
+      "path": "../../f1-fantasy-scraper",
+    },
+    {
+      "path": "../../f1-fantasy-next-race-info",
+    },
+    {
+      "path": "../../f1-fantasy-live-score",
+    },
+  ],
+  "settings": {
+    "debug.internalConsoleOptions": "neverOpen",
+  },
+}
