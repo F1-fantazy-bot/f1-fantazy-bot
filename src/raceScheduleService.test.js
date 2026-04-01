@@ -1,6 +1,9 @@
 const {
+  NEXT_RACES_ENDPOINT,
+  NEXT_RACE_ENDPOINT,
   buildDate,
   fetchCurrentSeasonRaces,
+  fetchNextRace,
   filterUpcomingRaces,
   fetchRemainingRaceCount,
 } = require('./raceScheduleService');
@@ -26,9 +29,7 @@ describe('raceScheduleService', () => {
     });
 
     await expect(fetchCurrentSeasonRaces()).resolves.toEqual(apiResponse);
-    expect(global.fetch).toHaveBeenCalledWith(
-      'https://api.jolpi.ca/ergast/f1/current.json'
-    );
+    expect(global.fetch).toHaveBeenCalledWith(NEXT_RACES_ENDPOINT);
   });
 
   it('should throw when the season fetch fails', async () => {
@@ -38,6 +39,32 @@ describe('raceScheduleService', () => {
     });
 
     await expect(fetchCurrentSeasonRaces()).rejects.toThrow('HTTP 503');
+  });
+
+  it('should fetch next race data', async () => {
+    const apiResponse = {
+      MRData: {
+        RaceTable: {
+          Races: [{ raceName: 'Miami Grand Prix' }],
+        },
+      },
+    };
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(apiResponse),
+    });
+
+    await expect(fetchNextRace()).resolves.toEqual({ raceName: 'Miami Grand Prix' });
+    expect(global.fetch).toHaveBeenCalledWith(NEXT_RACE_ENDPOINT);
+  });
+
+  it('should throw when next race fetch fails', async () => {
+    global.fetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+    });
+
+    await expect(fetchNextRace()).rejects.toThrow('HTTP 500');
   });
 
   it('should filter only upcoming races', () => {

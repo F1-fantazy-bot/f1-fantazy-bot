@@ -18,6 +18,7 @@ const {
   TEAM_CALLBACK_TYPE,
   TEAM_ASSIGN_CALLBACK_TYPE,
   BEST_TEAM_WEIGHTS_CALLBACK_TYPE,
+  DEADLINE_CALLBACK_TYPE,
 } = require('./constants');
 
 const {
@@ -29,6 +30,7 @@ const { t, setLanguage, getLanguageName } = require('./i18n');
 const {
   BEST_TEAM_RANKING_PRESETS,
 } = require('./commandsHandler/setBestTeamRankingHandler');
+const { getDeadlinePayload } = require('./commandsHandler/deadlineHandler');
 
 exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
@@ -46,10 +48,37 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handleTeamAssignCallback(bot, query);
     case BEST_TEAM_WEIGHTS_CALLBACK_TYPE:
       return await handleBestTeamRankingCallback(bot, query);
+    case DEADLINE_CALLBACK_TYPE:
+      return await handleDeadlineRefreshCallback(bot, query);
     default:
       await sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
   }
 };
+
+
+async function handleDeadlineRefreshCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const messageId = query.message.message_id;
+
+  try {
+    const payload = await getDeadlinePayload(chatId);
+    await bot.editMessageText(payload.text, {
+      chat_id: chatId,
+      message_id: messageId,
+      ...payload.options,
+    });
+  } catch (error) {
+    await bot.editMessageText(
+      t('Failed to fetch deadline data. Please try again later.', chatId),
+      {
+        chat_id: chatId,
+        message_id: messageId,
+      },
+    );
+  }
+
+  await bot.answerCallbackQuery(query.id);
+}
 
 async function handleChipCallback(bot, query) {
   const chatId = query.message.chat.id;

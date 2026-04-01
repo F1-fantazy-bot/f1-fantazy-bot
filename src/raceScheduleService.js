@@ -1,4 +1,5 @@
 const NEXT_RACES_ENDPOINT = 'https://api.jolpi.ca/ergast/f1/current.json';
+const NEXT_RACE_ENDPOINT = 'https://api.jolpi.ca/ergast/f1/current/next.json';
 
 function buildDate(dateStr, timeStr) {
   if (!dateStr) {
@@ -30,6 +31,18 @@ async function fetchCurrentSeasonRaces() {
   return response.json();
 }
 
+async function fetchNextRace() {
+  const response = await fetch(NEXT_RACE_ENDPOINT);
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  return data?.MRData?.RaceTable?.Races?.[0] || null;
+}
+
 function filterUpcomingRaces(races) {
   const now = new Date();
 
@@ -48,8 +61,11 @@ async function fetchRemainingRaceCount() {
 }
 
 module.exports = {
+  NEXT_RACES_ENDPOINT,
+  NEXT_RACE_ENDPOINT,
   buildDate,
   fetchCurrentSeasonRaces,
+  fetchNextRace,
   filterUpcomingRaces,
   fetchRemainingRaceCount,
 };
