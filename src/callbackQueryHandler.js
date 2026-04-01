@@ -19,6 +19,12 @@ const {
   TEAM_ASSIGN_CALLBACK_TYPE,
   BEST_TEAM_WEIGHTS_CALLBACK_TYPE,
 } = require('./constants');
+const {
+  REFRESH_F1_COUNTDOWN_CALLBACK,
+  buildDeadlineMessage,
+  buildRefreshKeyboard,
+  getNextRaceForCountdown,
+} = require('./commandsHandler/deadlineHandler');
 
 const {
   sendLogMessage,
@@ -46,10 +52,51 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handleTeamAssignCallback(bot, query);
     case BEST_TEAM_WEIGHTS_CALLBACK_TYPE:
       return await handleBestTeamRankingCallback(bot, query);
+    case REFRESH_F1_COUNTDOWN_CALLBACK:
+      return await handleDeadlineRefreshCallback(bot, query);
     default:
       await sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
   }
 };
+
+async function handleDeadlineRefreshCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const messageId = query.message.message_id;
+
+  await bot.answerCallbackQuery(query.id);
+
+  try {
+    const nextRace = await getNextRaceForCountdown();
+    if (!nextRace) {
+      console.error('No upcoming race found while refreshing deadline countdown.');
+
+      return;
+    }
+
+    const messageText = buildDeadlineMessage(
+      nextRace.raceName,
+      nextRace.raceDate,
+      chatId,
+    );
+
+    try {
+      await bot.editMessageText(messageText, {
+        chat_id: chatId,
+        message_id: messageId,
+        parse_mode: 'Markdown',
+        ...buildRefreshKeyboard(),
+      });
+    } catch (error) {
+      if (error?.message?.includes('message is not modified')) {
+        return;
+      }
+
+      console.error('Error editing deadline countdown message:', error.message);
+    }
+  } catch (error) {
+    console.error('Error refreshing deadline countdown:', error.message);
+  }
+}
 
 async function handleChipCallback(bot, query) {
   const chatId = query.message.chat.id;

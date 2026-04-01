@@ -10,6 +10,7 @@ const { handleJsonMessage } = require('./jsonInputHandler');
 const { handleLoadSimulation } = require('./loadSimulationHandler');
 const { handleNextRaceInfoCommand } = require('./nextRaceInfoHandler');
 const { handleNextRaceWeatherCommand } = require('./nextRaceWeatherHandler');
+const { handleDeadlineCommand } = require('./deadlineHandler');
 const { handleNextRacesCommand } = require('./nextRacesHandler');
 const { handleNumberMessage } = require('./numberInputHandler');
 const { sendPrintableCache } = require('./printCacheHandler');
@@ -54,6 +55,7 @@ module.exports = {
   handleLoadSimulation,
   handleNextRaceInfoCommand,
   handleNextRaceWeatherCommand,
+  handleDeadlineCommand,
   handleNextRacesCommand,
   handleNumberMessage,
   sendPrintableCache,

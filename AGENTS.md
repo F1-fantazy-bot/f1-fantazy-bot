@@ -58,6 +58,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/set_best_team_ranking`
 - `/select_team`, `/print_cache`, `/reset_cache`
 - `/next_race_info`, `/next_races`, `/next_race_weather`
+- `/deadline` _(countdown to next race with inline refresh button)_
 - `/get_current_simulation`
 - `/load_simulation`
 - `/menu`, `/help`, `/lang`
@@ -411,6 +412,14 @@ Blob naming includes the team ID:
 | `COMMAND_SELECT_TEAM`       | `'/select_team'` | Command string for team selection.                                |
 | `TEAM_CALLBACK_TYPE`        | `'TEAM'`         | Callback type for `/select_team` inline keyboard.                 |
 | `TEAM_ASSIGN_CALLBACK_TYPE` | `'TEAM_ASSIGN'`  | Callback type for asking user which team a screenshot belongs to. |
+
+### Deadline Countdown
+
+- `/deadline` sends a next-race countdown using Jolpi schedule data and includes a single inline button:
+  - text: `🔄 Refresh`
+  - callback data: `refresh_f1_countdown`
+- Refresh is handled in `src/callbackQueryHandler.js`: it always answers the callback query first, recalculates countdown from current time, and then attempts `editMessageText`.
+- `editMessageText` errors with Telegram `"message is not modified"` are intentionally swallowed; other edit failures are logged concisely without crashing.
 
 ### Key Files
 
