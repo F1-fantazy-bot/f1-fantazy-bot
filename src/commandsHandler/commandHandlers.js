@@ -13,6 +13,7 @@ const {
   COMMAND_NEXT_RACE_INFO,
   COMMAND_NEXT_RACES,
   COMMAND_NEXT_RACE_WEATHER,
+  COMMAND_DEADLINE,
   COMMAND_BILLING_STATS,
   COMMAND_VERSION,
   COMMAND_MENU,
@@ -46,6 +47,7 @@ const { handleLoadSimulation } = require('./loadSimulationHandler');
 const { handleNextRaceInfoCommand } = require('./nextRaceInfoHandler');
 const { handleNextRaceWeatherCommand } = require('./nextRaceWeatherHandler');
 const { handleNextRacesCommand } = require('./nextRacesHandler');
+const { handleDeadlineCommand } = require('./deadlineHandler');
 const { sendPrintableCache } = require('./printCacheHandler');
 const { resetCacheForChat } = require('./resetCacheHandler');
 const { handleScrapingTrigger } = require('./scrapingTriggerHandler');
@@ -91,6 +93,7 @@ const COMMAND_HANDLERS = {
   [COMMAND_NEXT_RACE_INFO]: handleNextRaceInfoCommand,
   [COMMAND_NEXT_RACES]: handleNextRacesCommand,
   [COMMAND_NEXT_RACE_WEATHER]: handleNextRaceWeatherCommand,
+  [COMMAND_DEADLINE]: handleDeadlineCommand,
   [COMMAND_BILLING_STATS]: handleBillingStats,
   [COMMAND_VERSION]: handleVersionCommand,
   [COMMAND_MENU]: displayMenuMessage,
@@ -128,7 +131,8 @@ async function executeCommand(bot, msg, command) {
     command === COMMAND_CURRENT_TEAM_INFO ||
     command === COMMAND_NEXT_RACE_INFO ||
     command === COMMAND_NEXT_RACES ||
-    command === COMMAND_NEXT_RACE_WEATHER
+    command === COMMAND_NEXT_RACE_WEATHER ||
+    command === COMMAND_DEADLINE
   ) {
     await handler(bot, chatId);
   } else {

@@ -12,6 +12,12 @@ const azureStorageService = require('./azureStorageService');
 const { updateUserAttributes } = require('./userRegistryService');
 const { setLanguage } = require('./i18n');
 const { selectChip } = require('./commandsHandler/selectChipHandlers');
+const {
+  REFRESH_F1_COUNTDOWN_CALLBACK,
+  getNextRaceForCountdown,
+  buildDeadlineMessage,
+  buildRefreshKeyboard,
+} = require('./commandsHandler/deadlineHandler');
 
 jest.mock('./utils', () => ({
   sendLogMessage: jest.fn().mockResolvedValue(undefined),
@@ -47,6 +53,15 @@ jest.mock('./cache', () => ({
   normalizeBestTeamBudgetChangePointsPerMillion: jest.fn(() => ({})),
   clearSelectedBestTeam: jest.fn(() => ({})),
   serializeSelectedBestTeamByTeam: jest.fn(() => null),
+}));
+
+jest.mock('./commandsHandler/deadlineHandler', () => ({
+  REFRESH_F1_COUNTDOWN_CALLBACK: 'refresh_f1_countdown',
+  getNextRaceForCountdown: jest.fn(),
+  buildDeadlineMessage: jest.fn(() => 'deadline text'),
+  buildRefreshKeyboard: jest.fn(() => ({
+    reply_markup: { inline_keyboard: [[{ text: '🔄 Refresh', callback_data: 'refresh_f1_countdown' }]] },
+  })),
 }));
 
 describe('handleCallbackQuery', () => {
@@ -167,5 +182,36 @@ describe('handleCallbackQuery', () => {
 
     expect(updateUserAttributes).toHaveBeenCalled();
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q6');
+  });
+
+  it('should handle deadline refresh callback and swallow not modified error', async () => {
+    getNextRaceForCountdown.mockResolvedValueOnce({
+      raceName: 'Monaco Grand Prix',
+      raceDate: new Date('2026-05-25T13:00:00Z'),
+    });
+    bot.editMessageText.mockRejectedValueOnce(
+      new Error('400: Bad Request: message is not modified'),
+    );
+
+    const query = {
+      id: 'q7',
+      data: REFRESH_F1_COUNTDOWN_CALLBACK,
+      message: { chat: { id: 123 }, message_id: 456 },
+    };
+
+    await handleCallbackQuery(bot, query);
+
+    expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q7');
+    expect(buildDeadlineMessage).toHaveBeenCalledWith(
+      'Monaco Grand Prix',
+      new Date('2026-05-25T13:00:00Z'),
+      123,
+    );
+    expect(bot.editMessageText).toHaveBeenCalledWith('deadline text', {
+      chat_id: 123,
+      message_id: 456,
+      parse_mode: 'Markdown',
+      ...buildRefreshKeyboard(),
+    });
   });
 });

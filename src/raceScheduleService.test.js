@@ -2,6 +2,7 @@ const {
   buildDate,
   fetchCurrentSeasonRaces,
   filterUpcomingRaces,
+  findNextRace,
   fetchRemainingRaceCount,
 } = require('./raceScheduleService');
 
@@ -96,6 +97,18 @@ describe('raceScheduleService', () => {
     });
 
     await expect(fetchRemainingRaceCount()).resolves.toBe(3);
+  });
+
+  it('should return the nearest upcoming race', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2025-05-01T12:00:00Z'));
+
+    const races = [
+      { raceName: 'British Grand Prix', date: '2025-07-06', time: '14:00:00Z' },
+      { raceName: 'Monaco Grand Prix', date: '2025-05-25', time: '13:00:00Z' },
+      { raceName: 'Canadian Grand Prix', date: '2025-06-15', time: '18:00:00Z' },
+    ];
+
+    expect(findNextRace(races)).toEqual(races[1]);
   });
 
   it('should parse dates with and without a trailing Z', () => {

@@ -47,6 +47,7 @@ exports.COMMAND_GET_BOTFATHER_COMMANDS = '/get_botfather_commands';
 exports.COMMAND_NEXT_RACE_INFO = '/next_race_info';
 exports.COMMAND_NEXT_RACES = '/next_races';
 exports.COMMAND_NEXT_RACE_WEATHER = '/next_race_weather';
+exports.COMMAND_DEADLINE = '/deadline';
 exports.COMMAND_BILLING_STATS = '/billing_stats';
 exports.COMMAND_VERSION = '/version';
 exports.COMMAND_MENU = '/menu';
@@ -160,6 +161,11 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_NEXT_RACE_WEATHER,
         title: '🌦️ Next Race Weather',
         description: 'Get detailed weather forecast for the next race',
+      },
+      {
+        constant: exports.COMMAND_DEADLINE,
+        title: '⏳ Deadline Countdown',
+        description: 'Show countdown to the next race with a refresh button',
       },
       {
         constant: exports.COMMAND_GET_CURRENT_SIMULATION,

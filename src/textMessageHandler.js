@@ -16,6 +16,7 @@ const {
   handleNextRaceInfoCommand,
   handleNextRacesCommand,
   handleNextRaceWeatherCommand,
+  handleDeadlineCommand,
   handleBillingStats,
   displayMenuMessage,
   handleVersionCommand,
@@ -54,6 +55,7 @@ const {
   COMMAND_NEXT_RACE_INFO,
   COMMAND_NEXT_RACES,
   COMMAND_NEXT_RACE_WEATHER,
+  COMMAND_DEADLINE,
   COMMAND_BILLING_STATS,
   COMMAND_VERSION,
   COMMAND_MENU,
@@ -126,6 +128,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleNextRacesCommand(bot, chatId);
     case msg.text === COMMAND_NEXT_RACE_WEATHER:
       return await handleNextRaceWeatherCommand(bot, chatId);
+    case msg.text === COMMAND_DEADLINE:
+      return await handleDeadlineCommand(bot, msg);
     case msg.text === COMMAND_BILLING_STATS:
       return await handleBillingStats(bot, msg);
     case msg.text === COMMAND_VERSION:

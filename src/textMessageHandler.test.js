@@ -13,6 +13,7 @@ const {
   COMMAND_NEXT_RACE_INFO,
   COMMAND_NEXT_RACES,
   COMMAND_NEXT_RACE_WEATHER,
+  COMMAND_DEADLINE,
   COMMAND_CHIPS,
   COMMAND_SET_LANGUAGE,
   COMMAND_FLOW,
@@ -67,6 +68,7 @@ const {
   handleNextRacesCommand,
 } = require('./commandsHandler/nextRacesHandler');
 const { handleNextRaceWeatherCommand } = require('./commandsHandler/nextRaceWeatherHandler');
+const { handleDeadlineCommand } = require('./commandsHandler/deadlineHandler');
 const { displayMenuMessage } = require('./commandsHandler/menuHandler');
 const { handleSetLanguage } = require('./commandsHandler/setLanguageHandler');
 const { handleFlowCommand } = require('./commandsHandler/flowHandler');
@@ -108,6 +110,7 @@ jest.mock('./commandsHandler/getBotfatherCommandsHandler');
 jest.mock('./commandsHandler/nextRaceInfoHandler');
 jest.mock('./commandsHandler/nextRacesHandler');
 jest.mock('./commandsHandler/nextRaceWeatherHandler');
+jest.mock('./commandsHandler/deadlineHandler');
 jest.mock('./commandsHandler/menuHandler');
 jest.mock('./commandsHandler/setLanguageHandler');
 jest.mock('./commandsHandler/flowHandler');
@@ -238,6 +241,18 @@ describe('handleTextMessage', () => {
       await handleTextMessage(botMock, msgMock);
 
       expect(sendPrintableCache).toHaveBeenCalledWith(KILZI_CHAT_ID, botMock);
+      expect(handleJsonMessage).not.toHaveBeenCalled();
+    });
+
+    it('should route /deadline command to handleDeadlineCommand', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: COMMAND_DEADLINE,
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(handleDeadlineCommand).toHaveBeenCalledWith(botMock, msgMock);
       expect(handleJsonMessage).not.toHaveBeenCalled();
     });
 

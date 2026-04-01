@@ -42,6 +42,13 @@ const translations = {
       'לא נמצאו מרוצים קרובים לעונה זו.',
     'Unable to fetch upcoming races. Please try again later.':
       'לא ניתן להביא את המרוצים הקרובים. נסה שוב מאוחר יותר.',
+    '🏎️ **{RACE_NAME}** starts in:': '🏎️ **{RACE_NAME}** מתחיל בעוד:',
+    '⏳ {DAYS} days, {HOURS} hours, {MINUTES} minutes, {SECONDS} seconds.':
+      '⏳ {DAYS} ימים, {HOURS} שעות, {MINUTES} דקות, {SECONDS} שניות.',
+    'No upcoming race found.': 'לא נמצא מרוץ קרוב.',
+    'Failed to fetch race schedule. Please try again later.':
+      'לא ניתן להביא את לוח הזמנים של המרוצים. נסה שוב מאוחר יותר.',
+    '🔄 Refresh': '🔄 רענון',
     'Upcoming Races': 'מרוצים קרובים',
     'Upcoming Races (continued)': 'מרוצים קרובים (המשך)',
     'Summary: {RACES_SUMMARY}, {SPRINT_SUMMARY}':
@@ -248,6 +255,9 @@ const translations = {
     '🗓️ Upcoming Races': '🗓️ מרוצים קרובים',
     'View schedule details for the remaining races this season':
       'צפה בפרטי לוח הזמנים של המרוצים שנותרו בעונה',
+    '⏳ Deadline Countdown': '⏳ ספירה לאחור לדדליין',
+    'Show countdown to the next race with a refresh button':
+      'הצג ספירה לאחור למרוץ הבא עם כפתור רענון',
     '📈 Current Simulation': '📈 סימולציה נוכחית',
     'Show the current simulation data and name':
       'הצג את נתוני הסימולציה הנוכחית ואת שמה',

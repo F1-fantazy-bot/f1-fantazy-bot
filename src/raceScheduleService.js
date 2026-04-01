@@ -40,6 +40,25 @@ function filterUpcomingRaces(races) {
   });
 }
 
+function findNextRace(races) {
+  const upcomingRaces = filterUpcomingRaces(races);
+
+  if (upcomingRaces.length === 0) {
+    return null;
+  }
+
+  return [...upcomingRaces].sort((a, b) => {
+    const raceDateA = buildDate(a.date, a.time);
+    const raceDateB = buildDate(b.date, b.time);
+
+    if (!raceDateA || !raceDateB) {
+      return 0;
+    }
+
+    return raceDateA - raceDateB;
+  })[0];
+}
+
 async function fetchRemainingRaceCount() {
   const data = await fetchCurrentSeasonRaces();
   const races = data?.MRData?.RaceTable?.Races || [];
@@ -51,5 +70,6 @@ module.exports = {
   buildDate,
   fetchCurrentSeasonRaces,
   filterUpcomingRaces,
+  findNextRace,
   fetchRemainingRaceCount,
 };
