@@ -131,8 +131,7 @@ async function executeCommand(bot, msg, command) {
     command === COMMAND_CURRENT_TEAM_INFO ||
     command === COMMAND_NEXT_RACE_INFO ||
     command === COMMAND_NEXT_RACES ||
-    command === COMMAND_NEXT_RACE_WEATHER ||
-    command === COMMAND_DEADLINE
+    command === COMMAND_NEXT_RACE_WEATHER
   ) {
     await handler(bot, chatId);
   } else {
