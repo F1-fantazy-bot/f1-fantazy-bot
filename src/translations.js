@@ -280,6 +280,7 @@ const translations = {
     'Dont forget to lock the team before that time':
       'אל תשכח לנעול את הקבוצה לפני הזמן הזה',
     'This session already started.': 'הסשן הזה כבר התחיל.',
+    '🔄 Refresh': '🔄 רענון',
     sprint: 'ספרינט',
     quali: 'דירוג',
     day: 'יום',
