@@ -30,6 +30,7 @@ exports.LANG_CALLBACK_TYPE = 'LANG';
 exports.TEAM_CALLBACK_TYPE = 'TEAM';
 exports.TEAM_ASSIGN_CALLBACK_TYPE = 'TEAM_ASSIGN';
 exports.BEST_TEAM_WEIGHTS_CALLBACK_TYPE = 'BEST_TEAM_WEIGHTS';
+exports.DEADLINE_CALLBACK_TYPE = 'DEADLINE';
 
 exports.MAX_TELEGRAM_MESSAGE_LENGTH = 4096;
 exports.BEST_TEAMS_RESULT_COUNT = 15;
@@ -68,6 +69,7 @@ exports.COMMAND_UPLOAD_CONSTRUCTORS_PHOTO = '/upload_constructors_photo';
 exports.COMMAND_SELECT_TEAM = '/select_team';
 exports.COMMAND_SET_BEST_TEAM_RANKING = '/set_best_team_ranking';
 exports.COMMAND_BEST_TEAM_SCENARIOS = '/best_team_scenarios';
+exports.COMMAND_DEADLINE = '/deadline';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -160,6 +162,11 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_NEXT_RACE_WEATHER,
         title: '🌦️ Next Race Weather',
         description: 'Get detailed weather forecast for the next race',
+      },
+      {
+        constant: exports.COMMAND_DEADLINE,
+        title: '⏳ Deadline',
+        description: 'Show time left until your next fantasy team lock deadline',
       },
       {
         constant: exports.COMMAND_GET_CURRENT_SIMULATION,

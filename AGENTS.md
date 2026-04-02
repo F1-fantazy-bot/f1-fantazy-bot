@@ -33,6 +33,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
    - `nextRaceInfoHandler.js` – detailed next race info.
    - `nextRaceWeatherHandler.js` – weather forecasts.
    - `nextRacesHandler.js` – upcoming race schedule (new `/next_races`).
+   - `deadlineHandler.js` – next fantasy lock deadline countdown with refresh callback (`/deadline`).
    - `selectTeamHandler.js` – switch between multiple teams.
    - `setBestTeamRankingHandler.js` – choose how expected budget changes influence best-team ranking.
    - `setNicknameHandler.js` – admin command to set user nicknames.
@@ -57,7 +58,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/best_teams`, `/best_team_scenarios`, `/current_team_info`, `/chips`, `/extra_boost`, `/limitless`, `/wildcard`, `/reset_chip`
 - `/set_best_team_ranking`
 - `/select_team`, `/print_cache`, `/reset_cache`
-- `/next_race_info`, `/next_races`, `/next_race_weather`
+- `/next_race_info`, `/next_races`, `/next_race_weather`, `/deadline`
 - `/get_current_simulation`
 - `/load_simulation`
 - `/menu`, `/help`, `/lang`
