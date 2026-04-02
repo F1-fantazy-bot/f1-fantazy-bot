@@ -42,14 +42,17 @@ function getDeadlineSession(race) {
   };
 }
 
-function buildDeadlineMessage(chatId, deadlineSession, now = new Date()) {
+function buildDeadlineMessage(chatId, raceName, deadlineSession, now = new Date()) {
   const title = `*${t('Teams Lock Deadline', chatId)}*`;
+  const raceLabel = t('Race', chatId);
+  const raceValue = raceName || t('Unavailable', chatId);
   const sessionLabel = t('Session type', chatId);
   const reminder = t('Dont forget to lock the team before that time', chatId);
 
   if (!deadlineSession?.startsAt) {
     return [
       title,
+      `${raceLabel}: ${raceValue}`,
       `${sessionLabel}: ${t('Unavailable', chatId)}`,
       t('Unable to determine deadline for the next race.', chatId),
       reminder,
@@ -61,6 +64,7 @@ function buildDeadlineMessage(chatId, deadlineSession, now = new Date()) {
   if (millisecondsToDeadline <= 0) {
     return [
       title,
+      `${raceLabel}: ${raceValue}`,
       `${sessionLabel}: ${t(deadlineSession.label, chatId)}`,
       t('This session already started.', chatId),
       reminder,
@@ -71,6 +75,7 @@ function buildDeadlineMessage(chatId, deadlineSession, now = new Date()) {
 
   return [
     title,
+    `${raceLabel}: ${raceValue}`,
     `${sessionLabel}: ${t(deadlineSession.label, chatId)}`,
     duration,
     reminder,
@@ -102,7 +107,7 @@ async function getDeadlinePayload(chatId, now = new Date()) {
   }
 
   const deadlineSession = getDeadlineSession(race);
-  const text = buildDeadlineMessage(chatId, deadlineSession, now);
+  const text = buildDeadlineMessage(chatId, race.raceName, deadlineSession, now);
 
   return {
     text,
