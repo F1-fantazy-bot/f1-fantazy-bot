@@ -61,7 +61,7 @@ function buildDeadlineMessage(chatId, deadlineSession, now = new Date()) {
   if (millisecondsToDeadline <= 0) {
     return [
       title,
-      `${sessionLabel}: ${deadlineSession.label}`,
+      `${sessionLabel}: ${t(deadlineSession.label, chatId)}`,
       t('This session already started.', chatId),
       reminder,
     ].join('\n\n');
@@ -71,7 +71,7 @@ function buildDeadlineMessage(chatId, deadlineSession, now = new Date()) {
 
   return [
     title,
-    `${sessionLabel}: ${deadlineSession.label}`,
+    `${sessionLabel}: ${t(deadlineSession.label, chatId)}`,
     duration,
     reminder,
   ].join('\n\n');
