@@ -60,6 +60,7 @@ describe('deadlineHandler', () => {
   it('builds active countdown message in the requested format', () => {
     const message = buildDeadlineMessage(
       123,
+      'Miami Grand Prix',
       {
         label: 'quali',
         startsAt: new Date('2026-05-03T15:30:00Z'),
@@ -68,13 +69,14 @@ describe('deadlineHandler', () => {
     );
 
     expect(message).toBe(
-      '*Teams Lock Deadline*\n\nSession type: quali\n\n2 days, 0 hours, 0 minutes and 0 seconds\n\nDont forget to lock the team before that time',
+      '*Teams Lock Deadline*\n\nRace: Miami Grand Prix\n\nSession type: quali\n\n2 days, 0 hours, 0 minutes and 0 seconds\n\nDont forget to lock the team before that time',
     );
   });
 
   it('builds started message when deadline already passed', () => {
     const message = buildDeadlineMessage(
       123,
+      'Miami Grand Prix',
       {
         label: 'sprint',
         startsAt: new Date('2026-05-01T15:30:00Z'),
@@ -83,7 +85,7 @@ describe('deadlineHandler', () => {
     );
 
     expect(message).toBe(
-      '*Teams Lock Deadline*\n\nSession type: sprint\n\nThis session already started.\n\nDont forget to lock the team before that time',
+      '*Teams Lock Deadline*\n\nRace: Miami Grand Prix\n\nSession type: sprint\n\nThis session already started.\n\nDont forget to lock the team before that time',
     );
   });
 
@@ -99,6 +101,7 @@ describe('deadlineHandler', () => {
     const payload = await getDeadlinePayload(123, new Date('2026-05-01T15:30:00Z'));
 
     expect(fetchNextRace).toHaveBeenCalledTimes(1);
+    expect(payload.text).toContain('Race: Miami Grand Prix');
     expect(payload.text).toContain('Session type: quali');
     expect(payload.options.parse_mode).toBe('Markdown');
     expect(payload.options.reply_markup.inline_keyboard[0][0].callback_data).toBe('DEADLINE:refresh');

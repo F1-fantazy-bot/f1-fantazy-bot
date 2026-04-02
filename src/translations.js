@@ -276,6 +276,7 @@ const translations = {
     'Show time left until your next fantasy team lock deadline':
       'הצג את הזמן שנותר עד דדליין נעילת הקבוצה הבאה שלך',
     'Teams Lock Deadline': 'דדליין נעילת הקבוצה',
+    Race: 'מרוץ',
     'Session type': 'סוג סשן',
     'Dont forget to lock the team before that time':
       'אל תשכח לנעול את הקבוצה לפני הזמן הזה',
