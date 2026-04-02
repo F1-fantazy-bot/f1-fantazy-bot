@@ -24,6 +24,7 @@ const {
   COMMAND_UPLOAD_CONSTRUCTORS_PHOTO,
   COMMAND_SET_BEST_TEAM_RANKING,
   COMMAND_LIVE_SCORE,
+  COMMAND_DEADLINE,
 } = require('./constants');
 
 jest.mock('openai', () => ({
@@ -91,6 +92,9 @@ const {
 const {
   handleLiveScoreCommand,
 } = require('./commandsHandler/liveScoreHandler');
+const {
+  handleDeadlineCommand,
+} = require('./commandsHandler/deadlineHandler');
 
 jest.mock('./commandsHandler/numberInputHandler');
 jest.mock('./commandsHandler/jsonInputHandler');
@@ -119,6 +123,7 @@ jest.mock('./commandsHandler/uploadDriversPhotoHandler');
 jest.mock('./commandsHandler/uploadConstructorsPhotoHandler');
 jest.mock('./commandsHandler/setBestTeamRankingHandler');
 jest.mock('./commandsHandler/liveScoreHandler');
+jest.mock('./commandsHandler/deadlineHandler');
 
 const { handleTextMessage } = require('./textMessageHandler');
 const { handleAskCommand } = require('./commandsHandler/askHandler');
@@ -226,6 +231,18 @@ describe('handleTextMessage', () => {
       await handleTextMessage(botMock, msgMock);
 
       expect(handleLiveScoreCommand).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleJsonMessage).not.toHaveBeenCalled();
+    });
+
+    it('should route /deadline command to handleDeadlineCommand', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: COMMAND_DEADLINE,
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(handleDeadlineCommand).toHaveBeenCalledWith(botMock, msgMock);
       expect(handleJsonMessage).not.toHaveBeenCalled();
     });
 

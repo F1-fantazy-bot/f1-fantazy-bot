@@ -18,6 +18,7 @@ const {
   TEAM_CALLBACK_TYPE,
   TEAM_ASSIGN_CALLBACK_TYPE,
   BEST_TEAM_WEIGHTS_CALLBACK_TYPE,
+  DEADLINE_CALLBACK_TYPE,
 } = require('./constants');
 
 const {
@@ -29,6 +30,10 @@ const { t, setLanguage, getLanguageName } = require('./i18n');
 const {
   BEST_TEAM_RANKING_PRESETS,
 } = require('./commandsHandler/setBestTeamRankingHandler');
+const {
+  getDeadlinePayload,
+  getRefreshMarkup,
+} = require('./commandsHandler/deadlineHandler');
 
 exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
@@ -46,10 +51,63 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handleTeamAssignCallback(bot, query);
     case BEST_TEAM_WEIGHTS_CALLBACK_TYPE:
       return await handleBestTeamRankingCallback(bot, query);
+    case DEADLINE_CALLBACK_TYPE:
+      return await handleDeadlineRefreshCallback(bot, query);
     default:
       await sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
   }
 };
+
+
+
+function isTelegramMessageNotModifiedError(error) {
+  const description =
+    error?.response?.body?.description ||
+    error?.message ||
+    '';
+
+  return description.toLowerCase().includes('message is not modified');
+}
+
+async function handleDeadlineRefreshCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const messageId = query.message.message_id;
+
+  try {
+    const payload = await getDeadlinePayload(chatId);
+
+    try {
+      await bot.editMessageText(payload.text, {
+        chat_id: chatId,
+        message_id: messageId,
+        ...payload.options,
+      });
+    } catch (error) {
+      if (!isTelegramMessageNotModifiedError(error)) {
+        throw error;
+      }
+    }
+  } catch (error) {
+    const fallbackText = t(
+      'Failed to fetch deadline data. Please try again later.',
+      chatId,
+    );
+
+    try {
+      await bot.editMessageText(fallbackText, {
+        chat_id: chatId,
+        message_id: messageId,
+        ...getRefreshMarkup(chatId),
+      });
+    } catch (editError) {
+      if (!isTelegramMessageNotModifiedError(editError)) {
+        throw editError;
+      }
+    }
+  }
+
+  await bot.answerCallbackQuery(query.id);
+}
 
 async function handleChipCallback(bot, query) {
   const chatId = query.message.chat.id;

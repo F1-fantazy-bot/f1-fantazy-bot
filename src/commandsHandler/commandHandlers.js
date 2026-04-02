@@ -33,6 +33,7 @@ const {
   COMMAND_SELECT_TEAM,
   COMMAND_SET_BEST_TEAM_RANKING,
   COMMAND_LIVE_SCORE,
+  COMMAND_DEADLINE,
 } = require('../constants');
 
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
@@ -74,6 +75,7 @@ const {
 const { handleSelectTeamCommand } = require('./selectTeamHandler');
 const { handleSetBestTeamRanking } = require('./setBestTeamRankingHandler');
 const { handleLiveScoreCommand } = require('./liveScoreHandler');
+const { handleDeadlineCommand } = require('./deadlineHandler');
 
 // Mapping of command constants to their handler functions
 const COMMAND_HANDLERS = {
@@ -111,6 +113,7 @@ const COMMAND_HANDLERS = {
   [COMMAND_SELECT_TEAM]: handleSelectTeamCommand,
   [COMMAND_SET_BEST_TEAM_RANKING]: handleSetBestTeamRanking,
   [COMMAND_LIVE_SCORE]: handleLiveScoreCommand,
+  [COMMAND_DEADLINE]: handleDeadlineCommand,
 };
 
 async function executeCommand(bot, msg, command) {

@@ -5,6 +5,7 @@ const {
   TEAM_CALLBACK_TYPE,
   TEAM_ASSIGN_CALLBACK_TYPE,
   BEST_TEAM_WEIGHTS_CALLBACK_TYPE,
+  DEADLINE_CALLBACK_TYPE,
   EXTRA_BOOST_CHIP,
 } = require('./constants');
 const cache = require('./cache');
@@ -12,6 +13,10 @@ const azureStorageService = require('./azureStorageService');
 const { updateUserAttributes } = require('./userRegistryService');
 const { setLanguage } = require('./i18n');
 const { selectChip } = require('./commandsHandler/selectChipHandlers');
+const {
+  getDeadlinePayload,
+  getRefreshMarkup,
+} = require('./commandsHandler/deadlineHandler');
 
 jest.mock('./utils', () => ({
   sendLogMessage: jest.fn().mockResolvedValue(undefined),
@@ -30,6 +35,24 @@ jest.mock('./userRegistryService', () => ({
 
 jest.mock('./commandsHandler/selectChipHandlers', () => ({
   selectChip: jest.fn().mockResolvedValue('chip selected'),
+}));
+
+jest.mock('./commandsHandler/deadlineHandler', () => ({
+  getDeadlinePayload: jest.fn().mockResolvedValue({
+    text: 'updated deadline',
+    options: {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [[{ text: 'Refresh', callback_data: 'DEADLINE:refresh' }]],
+      },
+    },
+  }),
+  getRefreshMarkup: jest.fn(() => ({
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: [[{ text: 'Refresh', callback_data: 'DEADLINE:refresh' }]],
+    },
+  })),
 }));
 
 jest.mock('./i18n', () => ({
@@ -167,5 +190,67 @@ describe('handleCallbackQuery', () => {
 
     expect(updateUserAttributes).toHaveBeenCalled();
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q6');
+  });
+
+  it('should handle deadline refresh callback', async () => {
+    const query = {
+      id: 'q7',
+      data: `${DEADLINE_CALLBACK_TYPE}:refresh`,
+      message: { chat: { id: 123 }, message_id: 456 },
+    };
+
+    await handleCallbackQuery(bot, query);
+
+    expect(getDeadlinePayload).toHaveBeenCalledWith(123);
+    expect(bot.editMessageText).toHaveBeenCalledWith('updated deadline', {
+      chat_id: 123,
+      message_id: 456,
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [[{ text: 'Refresh', callback_data: 'DEADLINE:refresh' }]],
+      },
+    });
+    expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q7');
+  });
+
+  it('should swallow Telegram message is not modified errors', async () => {
+    const query = {
+      id: 'q8',
+      data: `${DEADLINE_CALLBACK_TYPE}:refresh`,
+      message: { chat: { id: 123 }, message_id: 456 },
+    };
+
+    bot.editMessageText.mockRejectedValue({
+      response: { body: { description: 'Bad Request: message is not modified' } },
+    });
+
+    await expect(handleCallbackQuery(bot, query)).resolves.toBeUndefined();
+    expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q8');
+  });
+
+  it('should keep refresh button on fallback error message', async () => {
+    const query = {
+      id: 'q9',
+      data: `${DEADLINE_CALLBACK_TYPE}:refresh`,
+      message: { chat: { id: 123 }, message_id: 456 },
+    };
+
+    getDeadlinePayload.mockRejectedValueOnce(new Error('boom'));
+
+    await handleCallbackQuery(bot, query);
+
+    expect(getRefreshMarkup).toHaveBeenCalledWith(123);
+    expect(bot.editMessageText).toHaveBeenCalledWith(
+      'Failed to fetch deadline data. Please try again later.',
+      {
+        chat_id: 123,
+        message_id: 456,
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [[{ text: 'Refresh', callback_data: 'DEADLINE:refresh' }]],
+        },
+      },
+    );
+    expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q9');
   });
 });
