@@ -12,10 +12,15 @@ function getDurationParts(totalMilliseconds) {
   return { days, hours, minutes, seconds };
 }
 
-function formatDuration(totalMilliseconds) {
+function formatDuration(totalMilliseconds, chatId) {
   const { days, hours, minutes, seconds } = getDurationParts(totalMilliseconds);
 
-  return `${days} days, ${hours} hours, ${minutes} minutes and ${seconds} seconds`;
+  const dayLabel = t(days === 1 ? 'day' : 'days', chatId);
+  const hourLabel = t(hours === 1 ? 'hour' : 'hours', chatId);
+  const minuteLabel = t(minutes === 1 ? 'minute' : 'minutes', chatId);
+  const secondLabel = t(seconds === 1 ? 'second' : 'seconds', chatId);
+
+  return `${days} ${dayLabel}, ${hours} ${hourLabel}, ${minutes} ${minuteLabel} ${t('and', chatId)} ${seconds} ${secondLabel}`;
 }
 
 function getDeadlineSession(race) {
@@ -62,7 +67,7 @@ function buildDeadlineMessage(chatId, deadlineSession, now = new Date()) {
     ].join('\n\n');
   }
 
-  const duration = formatDuration(millisecondsToDeadline);
+  const duration = formatDuration(millisecondsToDeadline, chatId);
 
   return [
     title,
