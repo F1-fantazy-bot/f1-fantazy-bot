@@ -13,7 +13,10 @@ const azureStorageService = require('./azureStorageService');
 const { updateUserAttributes } = require('./userRegistryService');
 const { setLanguage } = require('./i18n');
 const { selectChip } = require('./commandsHandler/selectChipHandlers');
-const { getDeadlinePayload } = require('./commandsHandler/deadlineHandler');
+const {
+  getDeadlinePayload,
+  getRefreshMarkup,
+} = require('./commandsHandler/deadlineHandler');
 
 jest.mock('./utils', () => ({
   sendLogMessage: jest.fn().mockResolvedValue(undefined),
@@ -43,6 +46,11 @@ jest.mock('./commandsHandler/deadlineHandler', () => ({
       },
     },
   }),
+  getRefreshMarkup: jest.fn(() => ({
+    reply_markup: {
+      inline_keyboard: [[{ text: 'Refresh', callback_data: 'DEADLINE:refresh' }]],
+    },
+  })),
 }));
 
 jest.mock('./i18n', () => ({
@@ -200,5 +208,45 @@ describe('handleCallbackQuery', () => {
       },
     });
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q7');
+  });
+
+  it('should swallow Telegram message is not modified errors', async () => {
+    const query = {
+      id: 'q8',
+      data: `${DEADLINE_CALLBACK_TYPE}:refresh`,
+      message: { chat: { id: 123 }, message_id: 456 },
+    };
+
+    bot.editMessageText.mockRejectedValue({
+      response: { body: { description: 'Bad Request: message is not modified' } },
+    });
+
+    await expect(handleCallbackQuery(bot, query)).resolves.toBeUndefined();
+    expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q8');
+  });
+
+  it('should keep refresh button on fallback error message', async () => {
+    const query = {
+      id: 'q9',
+      data: `${DEADLINE_CALLBACK_TYPE}:refresh`,
+      message: { chat: { id: 123 }, message_id: 456 },
+    };
+
+    getDeadlinePayload.mockRejectedValueOnce(new Error('boom'));
+
+    await handleCallbackQuery(bot, query);
+
+    expect(getRefreshMarkup).toHaveBeenCalledWith(123);
+    expect(bot.editMessageText).toHaveBeenCalledWith(
+      'Failed to fetch deadline data. Please try again later.',
+      {
+        chat_id: 123,
+        message_id: 456,
+        reply_markup: {
+          inline_keyboard: [[{ text: 'Refresh', callback_data: 'DEADLINE:refresh' }]],
+        },
+      },
+    );
+    expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q9');
   });
 });

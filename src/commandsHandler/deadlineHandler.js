@@ -110,6 +110,7 @@ async function handleDeadlineCommand(bot, msg) {
     await bot.sendMessage(
       chatId,
       t('Failed to fetch deadline data. Please try again later.', chatId),
+      getRefreshMarkup(chatId),
     );
   }
 }

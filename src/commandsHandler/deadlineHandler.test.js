@@ -116,6 +116,11 @@ describe('deadlineHandler', () => {
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       123,
       'Failed to fetch deadline data. Please try again later.',
+      {
+        reply_markup: {
+          inline_keyboard: [[{ text: '🔄 Refresh', callback_data: 'DEADLINE:refresh' }]],
+        },
+      },
     );
   });
 });

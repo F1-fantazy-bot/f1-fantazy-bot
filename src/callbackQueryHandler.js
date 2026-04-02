@@ -30,7 +30,10 @@ const { t, setLanguage, getLanguageName } = require('./i18n');
 const {
   BEST_TEAM_RANKING_PRESETS,
 } = require('./commandsHandler/setBestTeamRankingHandler');
-const { getDeadlinePayload } = require('./commandsHandler/deadlineHandler');
+const {
+  getDeadlinePayload,
+  getRefreshMarkup,
+} = require('./commandsHandler/deadlineHandler');
 
 exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
@@ -56,25 +59,51 @@ exports.handleCallbackQuery = async function (bot, query) {
 };
 
 
+
+function isTelegramMessageNotModifiedError(error) {
+  const description =
+    error?.response?.body?.description ||
+    error?.message ||
+    '';
+
+  return description.toLowerCase().includes('message is not modified');
+}
+
 async function handleDeadlineRefreshCallback(bot, query) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
 
   try {
     const payload = await getDeadlinePayload(chatId);
-    await bot.editMessageText(payload.text, {
-      chat_id: chatId,
-      message_id: messageId,
-      ...payload.options,
-    });
-  } catch (error) {
-    await bot.editMessageText(
-      t('Failed to fetch deadline data. Please try again later.', chatId),
-      {
+
+    try {
+      await bot.editMessageText(payload.text, {
         chat_id: chatId,
         message_id: messageId,
-      },
+        ...payload.options,
+      });
+    } catch (error) {
+      if (!isTelegramMessageNotModifiedError(error)) {
+        throw error;
+      }
+    }
+  } catch (error) {
+    const fallbackText = t(
+      'Failed to fetch deadline data. Please try again later.',
+      chatId,
     );
+
+    try {
+      await bot.editMessageText(fallbackText, {
+        chat_id: chatId,
+        message_id: messageId,
+        ...getRefreshMarkup(chatId),
+      });
+    } catch (editError) {
+      if (!isTelegramMessageNotModifiedError(editError)) {
+        throw editError;
+      }
+    }
   }
 
   await bot.answerCallbackQuery(query.id);
