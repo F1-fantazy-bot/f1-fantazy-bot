@@ -23,7 +23,7 @@ function getDeadlineSession(race) {
   if (sprintDate) {
     return {
       type: 'sprint',
-      label: 'sprint',
+      labelKey: 'sprint',
       startsAt: sprintDate,
     };
   }
@@ -32,7 +32,7 @@ function getDeadlineSession(race) {
 
   return {
     type: 'qualifying',
-    label: 'quali',
+    labelKey: 'quali',
     startsAt: qualifyingDate,
   };
 }
@@ -44,13 +44,15 @@ function buildDeadlineMessage(chatId, raceName, deadlineSession, now = new Date(
 
   const millisecondsToDeadline = deadlineSession.startsAt.getTime() - now.getTime();
 
+  const sessionLabel = t(deadlineSession.labelKey, chatId);
+
   if (millisecondsToDeadline <= 0) {
     return t(
       '{RACE} {SESSION} has already started. Team lock deadline has passed.',
       chatId,
       {
         RACE: raceName,
-        SESSION: deadlineSession.label,
+        SESSION: sessionLabel,
       },
     );
   }
@@ -62,7 +64,7 @@ function buildDeadlineMessage(chatId, raceName, deadlineSession, now = new Date(
     chatId,
     {
       RACE: raceName,
-      SESSION: deadlineSession.label,
+      SESSION: sessionLabel,
       DURATION: duration,
     },
   );

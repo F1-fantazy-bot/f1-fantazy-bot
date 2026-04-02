@@ -40,7 +40,7 @@ describe('deadlineHandler', () => {
     });
 
     expect(session.type).toBe('sprint');
-    expect(session.label).toBe('sprint');
+    expect(session.labelKey).toBe('sprint');
     expect(session.startsAt).toEqual(new Date('2026-05-02T15:30:00Z'));
   });
 
@@ -53,7 +53,7 @@ describe('deadlineHandler', () => {
     });
 
     expect(session.type).toBe('qualifying');
-    expect(session.label).toBe('quali');
+    expect(session.labelKey).toBe('quali');
     expect(session.startsAt).toEqual(new Date('2026-05-03T15:30:00Z'));
   });
 
@@ -62,7 +62,7 @@ describe('deadlineHandler', () => {
       123,
       'Miami Grand Prix',
       {
-        label: 'quali',
+        labelKey: 'quali',
         startsAt: new Date('2026-05-03T15:30:00Z'),
       },
       new Date('2026-05-01T15:30:00Z'),
@@ -78,7 +78,7 @@ describe('deadlineHandler', () => {
       123,
       'Miami Grand Prix',
       {
-        label: 'sprint',
+        labelKey: 'sprint',
         startsAt: new Date('2026-05-01T15:30:00Z'),
       },
       new Date('2026-05-01T15:30:01Z'),

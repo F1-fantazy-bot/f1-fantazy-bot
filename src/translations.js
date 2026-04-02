@@ -401,6 +401,20 @@ const translations = {
     'Selected Team: {TEAM}': 'קבוצה נבחרת: {TEAM}',
     '🔀 Select Team': '🔀 בחירת קבוצה',
     'Switch between your fantasy teams': 'מעבר בין הקבוצות שלך',
+    '⏳ Deadline': '⏳ דדליין',
+    'Show time left until your next fantasy team lock deadline':
+      'הצג את הזמן שנותר עד לנעילת הקבוצה הבאה שלך',
+    '🔄 Refresh': '🔄 רענון',
+    'Unable to determine deadline for the next race.':
+      'לא ניתן לקבוע את מועד הנעילה למרוץ הבא.',
+    '{RACE} {SESSION} has already started. Team lock deadline has passed.':
+      '{RACE} {SESSION} כבר התחיל. מועד נעילת הקבוצה עבר.',
+    '{RACE} {SESSION} should start in {DURATION}. lock your team before that.':
+      '{RACE} {SESSION} אמור להתחיל בעוד {DURATION}. נעל את הקבוצה שלך לפני כן.',
+    'Failed to fetch deadline data. Please try again later.':
+      'לא הצלחתי להביא את נתוני הדדליין. נסה שוב מאוחר יותר.',
+    sprint: 'ספרינט',
+    quali: 'דירוג',
   },
 };
 
