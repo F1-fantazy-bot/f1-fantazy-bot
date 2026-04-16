@@ -12,6 +12,9 @@
     {
       "path": "../../f1-fantasy-live-score",
     },
+    {
+      "path": "../../f1-fantasy-api-data",
+    },
   ],
   "settings": {
     "debug.internalConsoleOptions": "neverOpen",
