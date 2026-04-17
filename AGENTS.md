@@ -64,7 +64,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/menu`, `/help`, `/lang`
 - `/report_bug` _(reply-based — uses pending reply manager)_
 
-**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/register_league`, `/unregister_league`, `/leaderboard`
+**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/follow_league`, `/unfollow_league`, `/leaderboard`
 
 ---
 
@@ -286,38 +286,38 @@ The table is **extensible** — new attributes can be added at any time without 
 
 ## League Registry
 
-`src/leagueRegistryService.js` tracks league subscriptions in an Azure Table Storage table (`UserLeagues`). Data is produced by the sibling repo `f1-fantasy-api-data`, which writes league blobs to Azure Blob Storage at `leagues/{leagueCode}/f1-fantasy-api-data.json` in the same container (`AZURE_STORAGE_CONTAINER_NAME`) used by the bot.
+`src/leagueRegistryService.js` tracks league follows in an Azure Table Storage table (`UserLeagues`). Data is produced by the sibling repo `f1-fantasy-api-data`, which writes league blobs to Azure Blob Storage at `leagues/{leagueCode}/f1-fantasy-api-data.json` in the same container (`AZURE_STORAGE_CONTAINER_NAME`) used by the bot.
 
 ### How It Works
 
-1. Admin runs `/register_league` → pending-reply flow prompts for the league code.
-2. The `register_league` registry entry calls `getLeagueData(code)` from `src/azureStorageService.js`. If the blob is missing, the flow re-registers itself and re-prompts so the admin can retry without typing the command again.
-3. On success, `addUserLeague(chatId, leagueCode, leagueName)` stores a row in `UserLeagues` (partitionKey=chatId, rowKey=leagueCode) with the league name captured at registration time.
+1. Admin runs `/follow_league` → pending-reply flow prompts for the league code.
+2. The `follow_league` registry entry calls `getLeagueData(code)` from `src/azureStorageService.js`. If the blob is missing, the flow re-registers itself and re-prompts so the admin can retry without typing the command again.
+3. On success, `addUserLeague(chatId, leagueCode, leagueName)` stores a row in `UserLeagues` (partitionKey=chatId, rowKey=leagueCode) with the league name captured at follow time.
 4. `/leaderboard` calls `listUserLeagues(chatId)`:
-   - 0 leagues → prompt to run `/register_league`.
+   - 0 leagues → prompt to run `/follow_league`.
    - 1 league → auto-fetch blob and render leaderboard.
    - 2+ leagues → inline keyboard (`LEAGUE_CALLBACK_TYPE`) showing each league by name; on selection, callback handler fetches the blob and renders.
-5. `/unregister_league` shows an inline keyboard (`LEAGUE_UNREGISTER_CALLBACK_TYPE`) with all registered leagues; selection calls `removeUserLeague(chatId, leagueCode)`.
+5. `/unfollow_league` shows an inline keyboard (`LEAGUE_UNFOLLOW_CALLBACK_TYPE`) with all followed leagues; selection calls `removeUserLeague(chatId, leagueCode)`.
 
 The leaderboard is rendered compactly (position, team name, total score) with a header showing league name, member count, and fetch time. Teams from the blob are already sorted by `position`.
 
 ### Table Schema
 
-| Field          | Type     | Description                                   |
-| -------------- | -------- | --------------------------------------------- |
-| `partitionKey` | `string` | The `chatId` (stringified)                    |
-| `rowKey`       | `string` | The league code (e.g., `C8EFGOXCB04`)         |
-| `leagueName`   | `string` | League display name captured at registration  |
-| `registeredAt` | `string` | ISO timestamp — set when the league was added |
+| Field          | Type     | Description                                          |
+| -------------- | -------- | ---------------------------------------------------- |
+| `partitionKey` | `string` | The `chatId` (stringified)                           |
+| `rowKey`       | `string` | The league code (e.g., `C8EFGOXCB04`)                |
+| `leagueName`   | `string` | League display name captured when the user followed  |
+| `registeredAt` | `string` | ISO timestamp — set when the league was followed     |
 
 ### API Reference
 
 | Method             | Signature                                                          | Purpose                                                                                            |
 | ------------------ | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| `addUserLeague`    | `addUserLeague(chatId, leagueCode, leagueName) → Promise`          | Upsert a league subscription (Merge mode).                                                         |
-| `removeUserLeague` | `removeUserLeague(chatId, leagueCode) → Promise`                   | Delete a league subscription. 404 is ignored (idempotent).                                         |
-| `listUserLeagues`  | `listUserLeagues(chatId) → Promise<Array<{leagueCode, leagueName, registeredAt}>>` | Partition-scoped query returning all leagues for a user.                                           |
-| `getUserLeague`    | `getUserLeague(chatId, leagueCode) → Promise<Object\|null>`        | Point lookup for a specific subscription.                                                          |
+| `addUserLeague`    | `addUserLeague(chatId, leagueCode, leagueName) → Promise`          | Upsert a league follow (Merge mode).                                                               |
+| `removeUserLeague` | `removeUserLeague(chatId, leagueCode) → Promise`                   | Delete a league follow. 404 is ignored (idempotent).                                               |
+| `listUserLeagues`  | `listUserLeagues(chatId) → Promise<Array<{leagueCode, leagueName, registeredAt}>>` | Partition-scoped query returning all leagues a user follows.                       |
+| `getUserLeague`    | `getUserLeague(chatId, leagueCode) → Promise<Object\|null>`        | Point lookup for a specific league follow.                                                         |
 | `getLeagueData`    | `getLeagueData(leagueCode) → Promise<Object\|null>`                | (in `azureStorageService.js`) Fetches the league blob. Returns `null` when the blob does not exist. |
 
 ---

@@ -34,8 +34,8 @@ const {
   COMMAND_SET_BEST_TEAM_RANKING,
   COMMAND_LIVE_SCORE,
   COMMAND_DEADLINE,
-  COMMAND_REGISTER_LEAGUE,
-  COMMAND_UNREGISTER_LEAGUE,
+  COMMAND_FOLLOW_LEAGUE,
+  COMMAND_UNFOLLOW_LEAGUE,
   COMMAND_LEADERBOARD,
 } = require('../constants');
 
@@ -79,10 +79,10 @@ const { handleSelectTeamCommand } = require('./selectTeamHandler');
 const { handleSetBestTeamRanking } = require('./setBestTeamRankingHandler');
 const { handleLiveScoreCommand } = require('./liveScoreHandler');
 const { handleDeadlineCommand } = require('./deadlineHandler');
-const { handleRegisterLeagueCommand } = require('./registerLeagueHandler');
+const { handleFollowLeagueCommand } = require('./followLeagueHandler');
 const {
-  handleUnregisterLeagueCommand,
-} = require('./unregisterLeagueHandler');
+  handleUnfollowLeagueCommand,
+} = require('./unfollowLeagueHandler');
 const { handleLeaderboardCommand } = require('./leaderboardHandler');
 
 // Mapping of command constants to their handler functions
@@ -122,8 +122,8 @@ const COMMAND_HANDLERS = {
   [COMMAND_SET_BEST_TEAM_RANKING]: handleSetBestTeamRanking,
   [COMMAND_LIVE_SCORE]: handleLiveScoreCommand,
   [COMMAND_DEADLINE]: handleDeadlineCommand,
-  [COMMAND_REGISTER_LEAGUE]: handleRegisterLeagueCommand,
-  [COMMAND_UNREGISTER_LEAGUE]: handleUnregisterLeagueCommand,
+  [COMMAND_FOLLOW_LEAGUE]: handleFollowLeagueCommand,
+  [COMMAND_UNFOLLOW_LEAGUE]: handleUnfollowLeagueCommand,
   [COMMAND_LEADERBOARD]: handleLeaderboardCommand,
 };
 

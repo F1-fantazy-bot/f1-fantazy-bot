@@ -2,11 +2,11 @@ const { t } = require('../i18n');
 const { isAdminMessage } = require('../utils/utils');
 const { listUserLeagues } = require('../leagueRegistryService');
 const {
-  LEAGUE_UNREGISTER_CALLBACK_TYPE,
-  COMMAND_REGISTER_LEAGUE,
+  LEAGUE_UNFOLLOW_CALLBACK_TYPE,
+  COMMAND_FOLLOW_LEAGUE,
 } = require('../constants');
 
-async function handleUnregisterLeagueCommand(bot, msg) {
+async function handleUnfollowLeagueCommand(bot, msg) {
   const chatId = msg.chat.id;
 
   if (!isAdminMessage(msg)) {
@@ -22,7 +22,7 @@ async function handleUnregisterLeagueCommand(bot, msg) {
   try {
     leagues = await listUserLeagues(chatId);
   } catch (err) {
-    console.error('Error listing user leagues for unregister:', err);
+    console.error('Error listing user leagues for unfollow:', err);
     await bot.sendMessage(
       chatId,
       t('❌ Failed to load your leagues: {ERROR}', chatId, {
@@ -37,9 +37,9 @@ async function handleUnregisterLeagueCommand(bot, msg) {
     await bot.sendMessage(
       chatId,
       t(
-        'You are not registered to any league. Run {CMD} to register to one first.',
+        'You are not following any league. Run {CMD} to follow one first.',
         chatId,
-        { CMD: COMMAND_REGISTER_LEAGUE },
+        { CMD: COMMAND_FOLLOW_LEAGUE },
       ),
     );
 
@@ -49,13 +49,13 @@ async function handleUnregisterLeagueCommand(bot, msg) {
   const keyboard = leagues.map((league) => [
     {
       text: league.leagueName || league.leagueCode,
-      callback_data: `${LEAGUE_UNREGISTER_CALLBACK_TYPE}:${league.leagueCode}`,
+      callback_data: `${LEAGUE_UNFOLLOW_CALLBACK_TYPE}:${league.leagueCode}`,
     },
   ]);
 
   await bot.sendMessage(
     chatId,
-    t('Which league do you want to unregister from?', chatId),
+    t('Which league do you want to unfollow?', chatId),
     {
       reply_to_message_id: msg.message_id,
       reply_markup: { inline_keyboard: keyboard },
@@ -63,4 +63,4 @@ async function handleUnregisterLeagueCommand(bot, msg) {
   );
 }
 
-module.exports = { handleUnregisterLeagueCommand };
+module.exports = { handleUnfollowLeagueCommand };

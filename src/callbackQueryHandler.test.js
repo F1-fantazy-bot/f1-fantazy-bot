@@ -7,7 +7,7 @@ const {
   BEST_TEAM_WEIGHTS_CALLBACK_TYPE,
   DEADLINE_CALLBACK_TYPE,
   LEAGUE_CALLBACK_TYPE,
-  LEAGUE_UNREGISTER_CALLBACK_TYPE,
+  LEAGUE_UNFOLLOW_CALLBACK_TYPE,
   EXTRA_BOOST_CHIP,
 } = require('./constants');
 const cache = require('./cache');
@@ -281,12 +281,12 @@ describe('handleCallbackQuery', () => {
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q-league');
   });
 
-  it('should handle LEAGUE_UNREGISTER callback by removing the league', async () => {
+  it('should handle LEAGUE_UNFOLLOW callback by removing the league', async () => {
     const { removeUserLeague } = require('./leagueRegistryService');
 
     const query = {
       id: 'q-unreg',
-      data: `${LEAGUE_UNREGISTER_CALLBACK_TYPE}:ABC`,
+      data: `${LEAGUE_UNFOLLOW_CALLBACK_TYPE}:ABC`,
       message: { chat: { id: 123 }, message_id: 456 },
     };
 
@@ -294,7 +294,7 @@ describe('handleCallbackQuery', () => {
 
     expect(removeUserLeague).toHaveBeenCalledWith(123, 'ABC');
     expect(bot.editMessageText).toHaveBeenCalledWith(
-      'Unregistered from league {CODE}.',
+      'Unfollowed league {CODE}.',
       { chat_id: 123, message_id: 456 },
     );
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q-unreg');

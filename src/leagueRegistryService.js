@@ -1,5 +1,5 @@
 // League Registry Service
-// Tracks the F1 Fantasy leagues each user is registered to in Azure Table Storage.
+// Tracks the F1 Fantasy leagues each user follows, stored in Azure Table Storage.
 // One row per (chatId, leagueCode). Uses Azure Table Storage "Merge" mode so that
 // adding attributes in the future does not require migrations.
 
@@ -82,7 +82,7 @@ async function addUserLeague(chatId, leagueCode, leagueName) {
 }
 
 /**
- * Remove a league registration for a user.
+ * Remove a league follow for a user.
  * @param {number|string} chatId
  * @param {string} leagueCode
  */
@@ -99,7 +99,7 @@ async function removeUserLeague(chatId, leagueCode) {
 }
 
 /**
- * List all leagues a user is registered to.
+ * List all leagues a user follows.
  * @param {number|string} chatId
  * @returns {Promise<Array<{chatId, leagueCode, leagueName, registeredAt}>>}
  */
@@ -119,7 +119,7 @@ async function listUserLeagues(chatId) {
 }
 
 /**
- * Point lookup for a single registration.
+ * Point lookup for a single league follow.
  * @param {number|string} chatId
  * @param {string} leagueCode
  * @returns {Promise<Object|null>}

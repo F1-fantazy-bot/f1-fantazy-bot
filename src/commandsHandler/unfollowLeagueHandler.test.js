@@ -1,6 +1,6 @@
 const {
-  handleUnregisterLeagueCommand,
-} = require('./unregisterLeagueHandler');
+  handleUnfollowLeagueCommand,
+} = require('./unfollowLeagueHandler');
 
 jest.mock('../i18n', () => ({
   t: jest.fn((key, _chatId, vars) =>
@@ -24,7 +24,7 @@ jest.mock('../leagueRegistryService', () => ({
 const { isAdminMessage } = require('../utils/utils');
 const { listUserLeagues } = require('../leagueRegistryService');
 
-describe('unregisterLeagueHandler', () => {
+describe('unfollowLeagueHandler', () => {
   let botMock;
 
   beforeEach(() => {
@@ -35,7 +35,7 @@ describe('unregisterLeagueHandler', () => {
   it('rejects non-admin users', async () => {
     isAdminMessage.mockReturnValue(false);
 
-    await handleUnregisterLeagueCommand(botMock, { chat: { id: 999 } });
+    await handleUnfollowLeagueCommand(botMock, { chat: { id: 999 } });
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       999,
@@ -44,18 +44,18 @@ describe('unregisterLeagueHandler', () => {
     expect(listUserLeagues).not.toHaveBeenCalled();
   });
 
-  it('tells the admin when no leagues are registered', async () => {
+  it('tells the admin when no leagues are followed', async () => {
     isAdminMessage.mockReturnValue(true);
     listUserLeagues.mockResolvedValueOnce([]);
 
-    await handleUnregisterLeagueCommand(botMock, {
+    await handleUnfollowLeagueCommand(botMock, {
       chat: { id: 1 },
       message_id: 10,
     });
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       1,
-      'You are not registered to any league. Run /register_league to register to one first.',
+      'You are not following any league. Run /follow_league to follow one first.',
     );
   });
 
@@ -66,20 +66,20 @@ describe('unregisterLeagueHandler', () => {
       { leagueCode: 'XYZ', leagueName: 'Other' },
     ]);
 
-    await handleUnregisterLeagueCommand(botMock, {
+    await handleUnfollowLeagueCommand(botMock, {
       chat: { id: 1 },
       message_id: 10,
     });
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       1,
-      'Which league do you want to unregister from?',
+      'Which league do you want to unfollow?',
       expect.objectContaining({
         reply_to_message_id: 10,
         reply_markup: {
           inline_keyboard: [
-            [{ text: 'Amba', callback_data: 'LEAGUE_UNREGISTER:ABC' }],
-            [{ text: 'Other', callback_data: 'LEAGUE_UNREGISTER:XYZ' }],
+            [{ text: 'Amba', callback_data: 'LEAGUE_UNFOLLOW:ABC' }],
+            [{ text: 'Other', callback_data: 'LEAGUE_UNFOLLOW:XYZ' }],
           ],
         },
       }),
@@ -93,7 +93,7 @@ describe('unregisterLeagueHandler', () => {
       .mockImplementation(() => {});
     listUserLeagues.mockRejectedValueOnce(new Error('boom'));
 
-    await handleUnregisterLeagueCommand(botMock, { chat: { id: 1 } });
+    await handleUnfollowLeagueCommand(botMock, { chat: { id: 1 } });
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       1,

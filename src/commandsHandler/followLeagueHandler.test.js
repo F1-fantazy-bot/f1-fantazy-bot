@@ -1,4 +1,4 @@
-const { handleRegisterLeagueCommand } = require('./registerLeagueHandler');
+const { handleFollowLeagueCommand } = require('./followLeagueHandler');
 
 jest.mock('../i18n', () => ({
   t: jest.fn((key) => key),
@@ -15,7 +15,7 @@ jest.mock('../pendingReplyManager', () => ({
 const { isAdminMessage } = require('../utils/utils');
 const { registerPendingReply } = require('../pendingReplyManager');
 
-describe('registerLeagueHandler', () => {
+describe('followLeagueHandler', () => {
   let botMock;
 
   beforeEach(() => {
@@ -26,7 +26,7 @@ describe('registerLeagueHandler', () => {
   it('rejects non-admin users', async () => {
     isAdminMessage.mockReturnValue(false);
 
-    await handleRegisterLeagueCommand(botMock, { chat: { id: 999 } });
+    await handleFollowLeagueCommand(botMock, { chat: { id: 999 } });
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       999,
@@ -38,20 +38,20 @@ describe('registerLeagueHandler', () => {
   it('registers a pending reply for admins', async () => {
     isAdminMessage.mockReturnValue(true);
 
-    await handleRegisterLeagueCommand(botMock, { chat: { id: 1 } });
+    await handleFollowLeagueCommand(botMock, { chat: { id: 1 } });
 
-    expect(registerPendingReply).toHaveBeenCalledWith(1, 'register_league');
+    expect(registerPendingReply).toHaveBeenCalledWith(1, 'follow_league');
   });
 
   it('sends a prompt with force_reply', async () => {
     isAdminMessage.mockReturnValue(true);
 
-    await handleRegisterLeagueCommand(botMock, { chat: { id: 1 } });
+    await handleFollowLeagueCommand(botMock, { chat: { id: 1 } });
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       1,
       expect.stringContaining(
-        'Please enter the league code you want to register to:',
+        'Please enter the league code you want to follow:',
       ),
       { reply_markup: { force_reply: true } },
     );

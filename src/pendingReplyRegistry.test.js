@@ -763,7 +763,7 @@ describe('pendingReplyRegistry', () => {
     });
   });
 
-  describe('register_league', () => {
+  describe('follow_league', () => {
     const { getLeagueData } = require('./azureStorageService');
     const { addUserLeague } = require('./leagueRegistryService');
 
@@ -779,7 +779,7 @@ describe('pendingReplyRegistry', () => {
         leagueCode: 'ABC',
       });
 
-      const resolved = resolveCommand('register_league', 42);
+      const resolved = resolveCommand('follow_league', 42);
       const botMock = { sendMessage: jest.fn().mockResolvedValue() };
 
       await resolved.handler(botMock, { text: '  ABC  ' });
@@ -796,13 +796,13 @@ describe('pendingReplyRegistry', () => {
     it('re-registers the pending reply when the league blob is missing', async () => {
       getLeagueData.mockResolvedValueOnce(null);
 
-      const resolved = resolveCommand('register_league', 42);
+      const resolved = resolveCommand('follow_league', 42);
       const botMock = { sendMessage: jest.fn().mockResolvedValue() };
 
       await resolved.handler(botMock, { text: 'BADCODE' });
 
       expect(addUserLeague).not.toHaveBeenCalled();
-      expect(registerPendingReply).toHaveBeenCalledWith(42, 'register_league');
+      expect(registerPendingReply).toHaveBeenCalledWith(42, 'follow_league');
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         42,
         expect.any(String),
@@ -816,7 +816,7 @@ describe('pendingReplyRegistry', () => {
         .mockImplementation(() => {});
       getLeagueData.mockRejectedValueOnce(new Error('boom'));
 
-      const resolved = resolveCommand('register_league', 42);
+      const resolved = resolveCommand('follow_league', 42);
       const botMock = { sendMessage: jest.fn().mockResolvedValue() };
 
       await resolved.handler(botMock, { text: 'ABC' });
@@ -829,17 +829,17 @@ describe('pendingReplyRegistry', () => {
 
     describe('buildValidate', () => {
       it('accepts non-empty text', () => {
-        const resolved = resolveCommand('register_league', 1);
+        const resolved = resolveCommand('follow_league', 1);
         expect(resolved.validate({ text: 'ABC' })).toBe(true);
       });
 
       it('rejects empty text', () => {
-        const resolved = resolveCommand('register_league', 1);
+        const resolved = resolveCommand('follow_league', 1);
         expect(resolved.validate({ text: '  ' })).toBe(false);
       });
 
       it('rejects missing text', () => {
-        const resolved = resolveCommand('register_league', 1);
+        const resolved = resolveCommand('follow_league', 1);
         expect(resolved.validate({})).toBe(false);
       });
     });

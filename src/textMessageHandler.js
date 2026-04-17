@@ -37,8 +37,8 @@ const {
   handleSetBestTeamRanking,
   handleLiveScoreCommand,
   handleDeadlineCommand,
-  handleRegisterLeagueCommand,
-  handleUnregisterLeagueCommand,
+  handleFollowLeagueCommand,
+  handleUnfollowLeagueCommand,
   handleLeaderboardCommand,
 } = require('./commandsHandler');
 
@@ -79,8 +79,8 @@ const {
   COMMAND_SET_BEST_TEAM_RANKING,
   COMMAND_LIVE_SCORE,
   COMMAND_DEADLINE,
-  COMMAND_REGISTER_LEAGUE,
-  COMMAND_UNREGISTER_LEAGUE,
+  COMMAND_FOLLOW_LEAGUE,
+  COMMAND_UNFOLLOW_LEAGUE,
   COMMAND_LEADERBOARD,
 } = require('./constants');
 
@@ -168,10 +168,10 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleLiveScoreCommand(bot, msg);
     case msg.text === COMMAND_DEADLINE:
       return await handleDeadlineCommand(bot, msg);
-    case msg.text === COMMAND_REGISTER_LEAGUE:
-      return await handleRegisterLeagueCommand(bot, msg);
-    case msg.text === COMMAND_UNREGISTER_LEAGUE:
-      return await handleUnregisterLeagueCommand(bot, msg);
+    case msg.text === COMMAND_FOLLOW_LEAGUE:
+      return await handleFollowLeagueCommand(bot, msg);
+    case msg.text === COMMAND_UNFOLLOW_LEAGUE:
+      return await handleUnfollowLeagueCommand(bot, msg);
     case msg.text === COMMAND_LEADERBOARD:
       return await handleLeaderboardCommand(bot, msg);
     default:

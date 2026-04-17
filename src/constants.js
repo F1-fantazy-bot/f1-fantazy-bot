@@ -32,7 +32,7 @@ exports.TEAM_ASSIGN_CALLBACK_TYPE = 'TEAM_ASSIGN';
 exports.BEST_TEAM_WEIGHTS_CALLBACK_TYPE = 'BEST_TEAM_WEIGHTS';
 exports.DEADLINE_CALLBACK_TYPE = 'DEADLINE';
 exports.LEAGUE_CALLBACK_TYPE = 'LEAGUE';
-exports.LEAGUE_UNREGISTER_CALLBACK_TYPE = 'LEAGUE_UNREGISTER';
+exports.LEAGUE_UNFOLLOW_CALLBACK_TYPE = 'LEAGUE_UNFOLLOW';
 
 exports.MAX_TELEGRAM_MESSAGE_LENGTH = 4096;
 exports.BEST_TEAMS_RESULT_COUNT = 15;
@@ -72,8 +72,8 @@ exports.COMMAND_SELECT_TEAM = '/select_team';
 exports.COMMAND_SET_BEST_TEAM_RANKING = '/set_best_team_ranking';
 exports.COMMAND_BEST_TEAM_SCENARIOS = '/best_team_scenarios';
 exports.COMMAND_DEADLINE = '/deadline';
-exports.COMMAND_REGISTER_LEAGUE = '/register_league';
-exports.COMMAND_UNREGISTER_LEAGUE = '/unregister_league';
+exports.COMMAND_FOLLOW_LEAGUE = '/follow_league';
+exports.COMMAND_UNFOLLOW_LEAGUE = '/unfollow_league';
 exports.COMMAND_LEADERBOARD = '/leaderboard';
 
 // Menu configuration for interactive menu command
@@ -274,23 +274,23 @@ exports.MENU_CATEGORIES = {
   LEAGUE_MANAGEMENT: {
     id: 'league_management',
     title: '🏁 League Management',
-    description: 'Register and view F1 Fantasy leagues',
+    description: 'Follow and view F1 Fantasy leagues',
     adminOnly: true,
     commands: [
       {
-        constant: exports.COMMAND_REGISTER_LEAGUE,
-        title: '➕ Register League',
-        description: 'Register to an F1 Fantasy league by its code',
+        constant: exports.COMMAND_FOLLOW_LEAGUE,
+        title: '➕ Follow League',
+        description: 'Follow an F1 Fantasy league by its code',
       },
       {
-        constant: exports.COMMAND_UNREGISTER_LEAGUE,
-        title: '➖ Unregister League',
-        description: 'Remove a registered F1 Fantasy league',
+        constant: exports.COMMAND_UNFOLLOW_LEAGUE,
+        title: '➖ Unfollow League',
+        description: 'Unfollow an F1 Fantasy league',
       },
       {
         constant: exports.COMMAND_LEADERBOARD,
         title: '🏆 Leaderboard',
-        description: 'View the leaderboard of a registered league',
+        description: 'View the leaderboard of a followed league',
       },
     ],
   },

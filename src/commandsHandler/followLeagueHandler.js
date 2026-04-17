@@ -3,12 +3,12 @@ const { isAdminMessage } = require('../utils/utils');
 const { registerPendingReply } = require('../pendingReplyManager');
 
 /**
- * Handle the /register_league admin command.
+ * Handle the /follow_league admin command.
  * Initiates a pending-reply flow that asks the admin for the league code.
- * The actual registration (blob validation + persistence) happens in the
- * pendingReplyRegistry entry for 'register_league'.
+ * The actual follow (blob validation + persistence) happens in the
+ * pendingReplyRegistry entry for 'follow_league'.
  */
-async function handleRegisterLeagueCommand(bot, msg) {
+async function handleFollowLeagueCommand(bot, msg) {
   const chatId = msg.chat.id;
 
   if (!isAdminMessage(msg)) {
@@ -21,17 +21,17 @@ async function handleRegisterLeagueCommand(bot, msg) {
   }
 
   const prompt = [
-    t('Please enter the league code you want to register to:', chatId),
+    t('Please enter the league code you want to follow:', chatId),
     '',
     t(
-      'To find your league code: go to the F1 Fantasy website, open the league you want to register to, click the share button, and copy the league code from there.',
+      'To find your league code: go to the F1 Fantasy website, open the league you want to follow, click the share button, and copy the league code from there.',
       chatId,
     ),
     '',
-    t('💡 Send /cancel at any time to abort the registration.', chatId),
+    t('💡 Send /cancel at any time to abort.', chatId),
   ].join('\n');
 
-  await registerPendingReply(chatId, 'register_league');
+  await registerPendingReply(chatId, 'follow_league');
 
   await bot
     .sendMessage(chatId, prompt, {
@@ -42,4 +42,4 @@ async function handleRegisterLeagueCommand(bot, msg) {
     );
 }
 
-module.exports = { handleRegisterLeagueCommand };
+module.exports = { handleFollowLeagueCommand };
