@@ -42,6 +42,11 @@ const { handleSelectTeamCommand } = require('./selectTeamHandler');
 const { handleSetBestTeamRanking } = require('./setBestTeamRankingHandler');
 const { handleLiveScoreCommand } = require('./liveScoreHandler');
 const { handleDeadlineCommand } = require('./deadlineHandler');
+const { handleRegisterLeagueCommand } = require('./registerLeagueHandler');
+const {
+  handleUnregisterLeagueCommand,
+} = require('./unregisterLeagueHandler');
+const { handleLeaderboardCommand } = require('./leaderboardHandler');
 
 module.exports = {
   handleBestTeamsMessage,
@@ -81,4 +86,7 @@ module.exports = {
   handleSetBestTeamRanking,
   handleLiveScoreCommand,
   handleDeadlineCommand,
+  handleRegisterLeagueCommand,
+  handleUnregisterLeagueCommand,
+  handleLeaderboardCommand,
 };

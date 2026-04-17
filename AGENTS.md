@@ -11,7 +11,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
   - `src/messageHandler.js` distinguishes between text, photo, and other message types. It also checks for pending replies (see Pending Reply Manager below) before routing to type-specific handlers.
   - `src/textMessageHandler.js` routes command strings to handler functions defined in `src/commandsHandler`.
   - Generic command execution is centralized in `src/commandsHandler/commandHandlers.js`, which maps command constants to handler implementations.
-- **Pending Reply Manager:** `src/pendingReplyManager.js` provides a centralized mechanism for commands that need a follow-up reply from the user (text or photo). State is stored in **Azure Table Storage** for multi-server support. The check happens in `messageHandler.js` **before** the text/photo branching, so reply handlers receive the full message regardless of type. Supports optional `data` parameter for multi-step commands that need to store intermediate state between steps.
+- **Pending Reply Manager:** `src/pendingReplyManager.js` provides a centralized mechanism for commands that need a follow-up reply from the user (text or photo). State is stored in **Azure Table Storage** for multi-server support. The check happens in `messageHandler.js` **before** the text/photo branching, so reply handlers receive the full message regardless of type. Supports optional `data` parameter for multi-step commands that need to store intermediate state between steps. **Global cancel:** `messageHandler.js` intercepts `/cancel`, `cancel`, or `ביטול` (case-insensitive) while any pending reply is active — it clears the entry and confirms with `t('Operation cancelled.')`. This works for every command registered in the pending-reply registry without any per-command changes.
 - **Pending Reply Registry:** `src/pendingReplyRegistry.js` maps command identifiers (e.g., `'report_bug'`, `'send_message_to_user'`, `'set_nickname'`) to builder functions that reconstruct handlers, validators, and prompts. This enables serializable storage — only the command ID and optional data are persisted, and the full behavior is rebuilt on any server instance. Builder functions receive `(chatId, data)` where `data` is optional stored state for multi-step commands.
 - **Caching:** `src/cache.js` holds in-memory data for drivers, constructors, current team info, simulations, next race info, weather forecasts, a cached remaining-race count, and a unified `userCache`. Team-related caches (`currentTeamCache`, `bestTeamsCache`, `selectedChipCache`) are **nested by team ID** — see the [Multi-Team System](#multi-team-system) section below. `src/cacheInitializer.js` populates those caches on startup — most data comes from Azure Blob Storage (with team-aware blob naming), while `userCache` is populated from the `UserRegistry` Azure Table via a single `listAllUsers()` call. Each entry in `userCache` is keyed by `chatId` and holds `{ lang, nickname, chatName, selectedTeam, ... }`.
 - **Display Names:** `src/utils/utils.js` provides `getDisplayName(chatId)` which checks the in-memory `userCache` and returns the nickname if set, then falls back to `chatName`, then to the stringified `chatId`. This is used in `messageHandler.js` for all log messages so admins see nicknames in logs instead of Telegram display names.
@@ -64,7 +64,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/menu`, `/help`, `/lang`
 - `/report_bug` _(reply-based — uses pending reply manager)_
 
-**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`
+**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/register_league`, `/unregister_league`, `/leaderboard`
 
 ---
 
@@ -281,6 +281,44 @@ The table is **extensible** — new attributes can be added at any time without 
 | `updateUserAttributes` | `updateUserAttributes(chatId, attributes) → Promise` | Update one or more user attributes using Merge mode. No read step needed. Example: `updateUserAttributes(chatId, { nickname: 'Max' })`.                                                                           |
 | `getUserById`          | `getUserById(chatId) → Promise<Object\|null>`        | Point lookup for a single user by chat ID. Returns user object with all stored attributes, or `null` if not found. Throws on real storage errors. More efficient than `listAllUsers` when you only need one user. |
 | `listAllUsers`         | `listAllUsers() → Promise<Array<Object>>`            | Return all registered users with all stored attributes. Automatically includes future fields. Used by `cacheInitializer` to populate `userCache` on startup.                                                      |
+
+---
+
+## League Registry
+
+`src/leagueRegistryService.js` tracks league subscriptions in an Azure Table Storage table (`UserLeagues`). Data is produced by the sibling repo `f1-fantasy-api-data`, which writes league blobs to Azure Blob Storage at `leagues/{leagueCode}/f1-fantasy-api-data.json` in the same container (`AZURE_STORAGE_CONTAINER_NAME`) used by the bot.
+
+### How It Works
+
+1. Admin runs `/register_league` → pending-reply flow prompts for the league code.
+2. The `register_league` registry entry calls `getLeagueData(code)` from `src/azureStorageService.js`. If the blob is missing, the flow re-registers itself and re-prompts so the admin can retry without typing the command again.
+3. On success, `addUserLeague(chatId, leagueCode, leagueName)` stores a row in `UserLeagues` (partitionKey=chatId, rowKey=leagueCode) with the league name captured at registration time.
+4. `/leaderboard` calls `listUserLeagues(chatId)`:
+   - 0 leagues → prompt to run `/register_league`.
+   - 1 league → auto-fetch blob and render leaderboard.
+   - 2+ leagues → inline keyboard (`LEAGUE_CALLBACK_TYPE`) showing each league by name; on selection, callback handler fetches the blob and renders.
+5. `/unregister_league` shows an inline keyboard (`LEAGUE_UNREGISTER_CALLBACK_TYPE`) with all registered leagues; selection calls `removeUserLeague(chatId, leagueCode)`.
+
+The leaderboard is rendered compactly (position, team name, total score) with a header showing league name, member count, and fetch time. Teams from the blob are already sorted by `position`.
+
+### Table Schema
+
+| Field          | Type     | Description                                   |
+| -------------- | -------- | --------------------------------------------- |
+| `partitionKey` | `string` | The `chatId` (stringified)                    |
+| `rowKey`       | `string` | The league code (e.g., `C8EFGOXCB04`)         |
+| `leagueName`   | `string` | League display name captured at registration  |
+| `registeredAt` | `string` | ISO timestamp — set when the league was added |
+
+### API Reference
+
+| Method             | Signature                                                          | Purpose                                                                                            |
+| ------------------ | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| `addUserLeague`    | `addUserLeague(chatId, leagueCode, leagueName) → Promise`          | Upsert a league subscription (Merge mode).                                                         |
+| `removeUserLeague` | `removeUserLeague(chatId, leagueCode) → Promise`                   | Delete a league subscription. 404 is ignored (idempotent).                                         |
+| `listUserLeagues`  | `listUserLeagues(chatId) → Promise<Array<{leagueCode, leagueName, registeredAt}>>` | Partition-scoped query returning all leagues for a user.                                           |
+| `getUserLeague`    | `getUserLeague(chatId, leagueCode) → Promise<Object\|null>`        | Point lookup for a specific subscription.                                                          |
+| `getLeagueData`    | `getLeagueData(leagueCode) → Promise<Object\|null>`                | (in `azureStorageService.js`) Fetches the league blob. Returns `null` when the blob does not exist. |
 
 ---
 

@@ -44,6 +44,19 @@ exports.handleMessage = async function (bot, msg) {
   const pendingReply = await getPendingReply(chatId);
 
   if (pendingReply) {
+    // Global cancel keyword — works for any pending reply flow
+    if (msg.text && isCancelKeyword(msg.text)) {
+      await clearPendingReply(chatId);
+
+      await bot
+        .sendMessage(chatId, t('Operation cancelled.', chatId))
+        .catch((err) =>
+          console.error('Error sending cancel confirmation:', err),
+        );
+
+      return;
+    }
+
     // If a validate function is defined and the message fails validation,
     // re-send the prompt and keep the pending reply active
     if (pendingReply.validate && !(await pendingReply.validate(msg))) {
@@ -96,3 +109,15 @@ exports.handleMessage = async function (bot, msg) {
       console.error('Error sending unsupported type reply:', err),
     );
 };
+
+/**
+ * Match cancel keywords (English/Hebrew), with or without leading slash.
+ * Used to abort any pending-reply flow globally.
+ */
+function isCancelKeyword(text) {
+  const normalized = String(text).trim().toLowerCase().replace(/^\//, '');
+
+  return normalized === 'cancel' || normalized === 'ביטול';
+}
+
+exports.isCancelKeyword = isCancelKeyword;

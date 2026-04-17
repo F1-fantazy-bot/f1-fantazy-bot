@@ -41,6 +41,12 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
 - **Automated Data Updates**: Trigger web scraping for the latest F1 Fantasy data (admin feature)
 - **Real-time Updates**: Stay current with the latest fantasy prices and availability
 
+### League Leaderboards
+
+- **League Registration**: Admins can register leagues via `/register_league` (league code captured and validated against the blob produced by the sibling `f1-fantasy-api-data` repo)
+- **Leaderboard Viewer**: `/leaderboard` shows a compact standings table (position, team name, total score) for any registered league; supports multiple leagues per user with inline selection
+- **League Unregistration**: `/unregister_league` removes a league subscription via an inline keyboard
+
 ### Azure Cost Management
 
 - **Real-time Billing Stats**: View current and previous month Azure spending with service breakdown

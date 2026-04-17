@@ -277,4 +277,41 @@ describe('azureStorageService', () => {
       });
     });
   });
+
+  describe('getLeagueData', () => {
+    it('downloads and parses the league blob when it exists', async () => {
+      const mockData = {
+        leagueName: 'Amba',
+        leagueCode: 'ABC',
+        teams: [],
+      };
+
+      mockExists.mockResolvedValueOnce(true);
+      mockDownload.mockResolvedValueOnce({
+        readableStreamBody: createMockStream(mockData),
+      });
+
+      const result = await azureStorageService.getLeagueData('ABC');
+
+      expect(result).toEqual(mockData);
+      expect(mockExists).toHaveBeenCalled();
+    });
+
+    it('returns null when the league blob does not exist', async () => {
+      mockExists.mockResolvedValueOnce(false);
+
+      const result = await azureStorageService.getLeagueData('MISSING');
+
+      expect(result).toBeNull();
+      expect(mockDownload).not.toHaveBeenCalled();
+    });
+
+    it('wraps real errors', async () => {
+      mockExists.mockRejectedValueOnce(new Error('boom'));
+
+      await expect(
+        azureStorageService.getLeagueData('ABC'),
+      ).rejects.toThrow('Failed to get league data for ABC: boom');
+    });
+  });
 });

@@ -25,6 +25,9 @@ const {
   COMMAND_SET_BEST_TEAM_RANKING,
   COMMAND_LIVE_SCORE,
   COMMAND_DEADLINE,
+  COMMAND_REGISTER_LEAGUE,
+  COMMAND_UNREGISTER_LEAGUE,
+  COMMAND_LEADERBOARD,
 } = require('./constants');
 
 jest.mock('openai', () => ({
@@ -95,6 +98,15 @@ const {
 const {
   handleDeadlineCommand,
 } = require('./commandsHandler/deadlineHandler');
+const {
+  handleRegisterLeagueCommand,
+} = require('./commandsHandler/registerLeagueHandler');
+const {
+  handleUnregisterLeagueCommand,
+} = require('./commandsHandler/unregisterLeagueHandler');
+const {
+  handleLeaderboardCommand,
+} = require('./commandsHandler/leaderboardHandler');
 
 jest.mock('./commandsHandler/numberInputHandler');
 jest.mock('./commandsHandler/jsonInputHandler');
@@ -124,6 +136,9 @@ jest.mock('./commandsHandler/uploadConstructorsPhotoHandler');
 jest.mock('./commandsHandler/setBestTeamRankingHandler');
 jest.mock('./commandsHandler/liveScoreHandler');
 jest.mock('./commandsHandler/deadlineHandler');
+jest.mock('./commandsHandler/registerLeagueHandler');
+jest.mock('./commandsHandler/unregisterLeagueHandler');
+jest.mock('./commandsHandler/leaderboardHandler');
 
 const { handleTextMessage } = require('./textMessageHandler');
 const { handleAskCommand } = require('./commandsHandler/askHandler');
@@ -244,6 +259,45 @@ describe('handleTextMessage', () => {
 
       expect(handleDeadlineCommand).toHaveBeenCalledWith(botMock, msgMock);
       expect(handleJsonMessage).not.toHaveBeenCalled();
+    });
+
+    it('should route /register_league command to handleRegisterLeagueCommand', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: COMMAND_REGISTER_LEAGUE,
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(handleRegisterLeagueCommand).toHaveBeenCalledWith(
+        botMock,
+        msgMock,
+      );
+    });
+
+    it('should route /unregister_league command to handleUnregisterLeagueCommand', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: COMMAND_UNREGISTER_LEAGUE,
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(handleUnregisterLeagueCommand).toHaveBeenCalledWith(
+        botMock,
+        msgMock,
+      );
+    });
+
+    it('should route /leaderboard command to handleLeaderboardCommand', async () => {
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        text: COMMAND_LEADERBOARD,
+      };
+
+      await handleTextMessage(botMock, msgMock);
+
+      expect(handleLeaderboardCommand).toHaveBeenCalledWith(botMock, msgMock);
     });
 
     it('should route /print_cache command to sendPrintableCache', async () => {

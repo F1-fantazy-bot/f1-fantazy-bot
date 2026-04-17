@@ -317,4 +317,63 @@ describe('handleMessage', () => {
     expect(clearPendingReply).toHaveBeenCalledWith(KILZI_CHAT_ID);
     expect(mockHandler).toHaveBeenCalledWith(botMock, msgMock);
   });
+
+  describe('global cancel keyword', () => {
+    it.each([
+      ['/cancel'],
+      ['cancel'],
+      ['CANCEL'],
+      ['  /Cancel  '],
+      ['ביטול'],
+    ])('should cancel pending reply when text is %p', async (text) => {
+      const mockHandler = jest.fn().mockResolvedValue();
+      const mockValidate = jest.fn().mockReturnValue(true);
+      getPendingReply.mockResolvedValue({
+        handler: mockHandler,
+        validate: mockValidate,
+        resendPromptIfNotValid: 'Please send text only',
+      });
+
+      const msgMock = { chat: { id: KILZI_CHAT_ID }, text };
+
+      await handleMessage(botMock, msgMock);
+
+      expect(clearPendingReply).toHaveBeenCalledWith(KILZI_CHAT_ID);
+      expect(mockValidate).not.toHaveBeenCalled();
+      expect(mockHandler).not.toHaveBeenCalled();
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        KILZI_CHAT_ID,
+        'Operation cancelled.',
+      );
+    });
+
+    it('should not cancel when no pending reply exists', async () => {
+      getPendingReply.mockResolvedValue(undefined);
+
+      const msgMock = { chat: { id: KILZI_CHAT_ID }, text: '/cancel' };
+
+      await handleMessage(botMock, msgMock);
+
+      expect(clearPendingReply).not.toHaveBeenCalled();
+    });
+
+    it('should not cancel for photo messages even if pending reply exists', async () => {
+      const mockHandler = jest.fn().mockResolvedValue();
+      getPendingReply.mockResolvedValue({
+        handler: mockHandler,
+        validate: null,
+        resendPromptIfNotValid: null,
+      });
+
+      const msgMock = {
+        chat: { id: KILZI_CHAT_ID },
+        photo: [{ file_id: 'p1' }],
+      };
+
+      await handleMessage(botMock, msgMock);
+
+      expect(clearPendingReply).toHaveBeenCalledWith(KILZI_CHAT_ID);
+      expect(mockHandler).toHaveBeenCalledWith(botMock, msgMock);
+    });
+  });
 });

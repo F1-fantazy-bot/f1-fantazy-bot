@@ -446,6 +446,125 @@ const PENDING_REPLY_REGISTRY = {
         chatId,
       ),
   },
+  register_league: {
+    buildHandler: (chatId) => {
+      // Lazy require to avoid circular dependency via pendingReplyManager
+      const { registerPendingReply } = require('./pendingReplyManager');
+      const { getLeagueData } = require('./azureStorageService');
+      const { addUserLeague } = require('./leagueRegistryService');
+      const { sendLogMessage } = require('./utils/utils');
+
+      return async (replyBot, replyMsg) => {
+        const leagueCode = replyMsg.text.trim();
+
+        let leagueData;
+        try {
+          leagueData = await getLeagueData(leagueCode);
+        } catch (err) {
+          console.error('Error fetching league data for registration:', err);
+          await replyBot
+            .sendMessage(
+              chatId,
+              t('❌ Failed to load league data: {ERROR}', chatId, {
+                ERROR: err.message,
+              }),
+            )
+            .catch((sendErr) =>
+              console.error(
+                'Error sending league fetch error message:',
+                sendErr,
+              ),
+            );
+
+          return;
+        }
+
+        if (!leagueData) {
+          // Blob missing → treat as invalid code; re-register pending reply
+          // so the user can try again without re-typing the command.
+          await registerPendingReply(chatId, 'register_league');
+
+          const retryPrompt = [
+            t(
+              'League "{CODE}" not found. Please enter a valid league code:',
+              chatId,
+              { CODE: leagueCode },
+            ),
+            '',
+            t(
+              'To find your league code: go to the F1 Fantasy website, open the league you want to register to, click the share button, and copy the league code from there.',
+              chatId,
+            ),
+            '',
+            t(
+              '📩 If the code is correct but the league is not yet tracked, please report it to the admins via /report_bug with the league code and we will add the bot to the league as soon as possible.',
+              chatId,
+            ),
+            '',
+            t('💡 Send /cancel at any time to abort the registration.', chatId),
+          ].join('\n');
+
+          await replyBot
+            .sendMessage(chatId, retryPrompt, {
+              reply_markup: { force_reply: true },
+            })
+            .catch((err) =>
+              console.error('Error sending league-not-found prompt:', err),
+            );
+
+          return;
+        }
+
+        const leagueName = leagueData.leagueName || leagueCode;
+
+        try {
+          await addUserLeague(chatId, leagueCode, leagueName);
+        } catch (err) {
+          console.error('Error persisting league registration:', err);
+          await replyBot
+            .sendMessage(
+              chatId,
+              t('❌ Failed to register league: {ERROR}', chatId, {
+                ERROR: err.message,
+              }),
+            )
+            .catch((sendErr) =>
+              console.error(
+                'Error sending league registration error message:',
+                sendErr,
+              ),
+            );
+
+          return;
+        }
+
+        await replyBot
+          .sendMessage(
+            chatId,
+            t(
+              'Registered to league "{NAME}" ({CODE}).',
+              chatId,
+              { NAME: leagueName, CODE: leagueCode },
+            ),
+          )
+          .catch((err) =>
+            console.error('Error sending league registration confirmation:', err),
+          );
+
+        await sendLogMessage(
+          replyBot,
+          `Registered league ${leagueName} (${leagueCode}) for chatId ${chatId}`,
+        ).catch(() => {});
+      };
+    },
+    buildValidate: () => (replyMsg) =>
+      !!replyMsg.text && replyMsg.text.trim().length > 0,
+    buildResendPrompt: (chatId) =>
+      t(
+        'We support only text. Please enter the league code:',
+        chatId,
+      ),
+  },
 };
 
 /**
