@@ -97,7 +97,7 @@ describe('leaderboardHandler', () => {
 
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         1,
-        'You are not registered to any league. Run /register_league to register to one first.',
+        'You are not following any league. Run /follow_league to follow one first.',
       );
     });
 

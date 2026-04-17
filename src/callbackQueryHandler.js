@@ -20,7 +20,7 @@ const {
   BEST_TEAM_WEIGHTS_CALLBACK_TYPE,
   DEADLINE_CALLBACK_TYPE,
   LEAGUE_CALLBACK_TYPE,
-  LEAGUE_UNREGISTER_CALLBACK_TYPE,
+  LEAGUE_UNFOLLOW_CALLBACK_TYPE,
 } = require('./constants');
 
 const {
@@ -61,8 +61,8 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handleDeadlineRefreshCallback(bot, query);
     case LEAGUE_CALLBACK_TYPE:
       return await handleLeagueCallback(bot, query);
-    case LEAGUE_UNREGISTER_CALLBACK_TYPE:
-      return await handleLeagueUnregisterCallback(bot, query);
+    case LEAGUE_UNFOLLOW_CALLBACK_TYPE:
+      return await handleLeagueUnfollowCallback(bot, query);
     default:
       await sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
   }
@@ -334,7 +334,7 @@ async function handleLeagueCallback(bot, query) {
   await bot.answerCallbackQuery(query.id);
 }
 
-async function handleLeagueUnregisterCallback(bot, query) {
+async function handleLeagueUnfollowCallback(bot, query) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
   const leagueCode = query.data.split(':')[1];
@@ -342,13 +342,13 @@ async function handleLeagueUnregisterCallback(bot, query) {
   try {
     await removeUserLeague(chatId, leagueCode);
     await bot.editMessageText(
-      t('Unregistered from league {CODE}.', chatId, { CODE: leagueCode }),
+      t('Unfollowed league {CODE}.', chatId, { CODE: leagueCode }),
       { chat_id: chatId, message_id: messageId },
     );
   } catch (err) {
-    console.error('Error unregistering league:', err);
+    console.error('Error unfollowing league:', err);
     await bot.editMessageText(
-      t('❌ Failed to unregister league: {ERROR}', chatId, {
+      t('❌ Failed to unfollow league: {ERROR}', chatId, {
         ERROR: err.message,
       }),
       { chat_id: chatId, message_id: messageId },

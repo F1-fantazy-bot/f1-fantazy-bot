@@ -422,27 +422,27 @@ const translations = {
     'Selected Team: {TEAM}': 'קבוצה נבחרת: {TEAM}',
     '🔀 Select Team': '🔀 בחירת קבוצה',
     'Switch between your fantasy teams': 'מעבר בין הקבוצות שלך',
-    'Please enter the league code you want to register to:':
-      'אנא הזן את קוד הליגה שברצונך להירשם אליה:',
+    'Please enter the league code you want to follow:':
+      'אנא הזן את קוד הליגה שברצונך לעקוב אחריה:',
     'We support only text. Please enter the league code:':
       'אנחנו תומכים רק בטקסט. אנא הזן את קוד הליגה:',
     'League "{CODE}" not found. Please enter a valid league code:':
       'ליגה "{CODE}" לא נמצאה. אנא הזן קוד ליגה תקין:',
     '❌ Failed to load league data: {ERROR}':
       '❌ טעינת נתוני הליגה נכשלה: {ERROR}',
-    '❌ Failed to register league: {ERROR}':
-      '❌ רישום הליגה נכשל: {ERROR}',
-    'Registered to league "{NAME}" ({CODE}).':
-      'נרשמת לליגה "{NAME}" ({CODE}).',
-    'You are not registered to any league. Run {CMD} to register to one first.':
-      'אינך רשום לאף ליגה. הפעל {CMD} כדי להירשם לליגה.',
+    '❌ Failed to follow league: {ERROR}':
+      '❌ מעקב אחר הליגה נכשל: {ERROR}',
+    'Now following league "{NAME}" ({CODE}).':
+      'עוקב כעת אחר הליגה "{NAME}" ({CODE}).',
+    'You are not following any league. Run {CMD} to follow one first.':
+      'אינך עוקב אחר אף ליגה. הפעל {CMD} כדי לעקוב אחר ליגה.',
     'Which league leaderboard do you want to see?':
       'איזו טבלת ליגה ברצונך לראות?',
-    'Which league do you want to unregister from?':
-      'מאיזו ליגה ברצונך להתנתק?',
-    'Unregistered from league {CODE}.': 'התנתקת מהליגה {CODE}.',
-    '❌ Failed to unregister league: {ERROR}':
-      '❌ ביטול רישום הליגה נכשל: {ERROR}',
+    'Which league do you want to unfollow?':
+      'איזו ליגה להפסיק לעקוב?',
+    'Unfollowed league {CODE}.': 'הופסק המעקב אחר הליגה {CODE}.',
+    '❌ Failed to unfollow league: {ERROR}':
+      '❌ הפסקת המעקב אחר הליגה נכשלה: {ERROR}',
     '❌ Failed to load your leagues: {ERROR}':
       '❌ טעינת הליגות שלך נכשלה: {ERROR}',
     'No leaderboard data is available yet for this league. Please try again later.':
@@ -450,22 +450,23 @@ const translations = {
     'No teams in this league yet.': 'אין עדיין קבוצות בליגה הזו.',
     '👥 {COUNT} teams · updated {TIME}':
       '👥 {COUNT} קבוצות · עודכן {TIME}',
-    '➕ Register League': '➕ רישום ליגה',
-    'Register to an F1 Fantasy league by its code':
-      'הירשם לליגת F1 Fantasy לפי קוד',
-    '➖ Unregister League': '➖ ביטול רישום ליגה',
-    'Remove a registered F1 Fantasy league': 'הסר ליגת F1 Fantasy רשומה',
+    '➕ Follow League': '➕ מעקב אחר ליגה',
+    'Follow an F1 Fantasy league by its code':
+      'עקוב אחר ליגת F1 Fantasy לפי קוד',
+    '➖ Unfollow League': '➖ הפסקת מעקב אחר ליגה',
+    'Unfollow an F1 Fantasy league': 'הפסק לעקוב אחר ליגת F1 Fantasy',
     '🏆 Leaderboard': '🏆 טבלת ליגה',
-    'View the leaderboard of a registered league': 'צפה בטבלה של ליגה רשומה',
+    'View the leaderboard of a followed league':
+      'צפה בטבלה של ליגה שאתה עוקב אחריה',
     '🏁 League Management': '🏁 ניהול ליגות',
-    'Register and view F1 Fantasy leagues':
-      'רישום וצפייה בליגות F1 Fantasy',
-    'To find your league code: go to the F1 Fantasy website, open the league you want to register to, click the share button, and copy the league code from there.':
-      'כדי למצוא את קוד הליגה: היכנס לאתר \u2066F1 Fantasy\u2069, פתח את הליגה שברצונך להירשם אליה, לחץ על כפתור השיתוף והעתק את קוד הליגה משם.',
+    'Follow and view F1 Fantasy leagues':
+      'עקוב וצפה בליגות F1 Fantasy',
+    'To find your league code: go to the F1 Fantasy website, open the league you want to follow, click the share button, and copy the league code from there.':
+      'כדי למצוא את קוד הליגה: היכנס לאתר \u2066F1 Fantasy\u2069, פתח את הליגה שברצונך לעקוב אחריה, לחץ על כפתור השיתוף והעתק את קוד הליגה משם.',
     '📩 If the code is correct but the league is not yet tracked, please report it to the admins via /report_bug with the league code and we will add the bot to the league as soon as possible.':
       '📩\u200F אם הקוד תקין אך הליגה עדיין לא מנוטרת, דווח לאדמינים עם קוד הליגה באמצעות \u2066/report_bug\u2069 ונוסיף את הבוט לליגה בהקדם האפשרי.',
-    '💡 Send /cancel at any time to abort the registration.':
-      '💡\u200F שלח \u2066/cancel\u2069 בכל רגע כדי לבטל את הרישום.',
+    '💡 Send /cancel at any time to abort.':
+      '💡\u200F שלח \u2066/cancel\u2069 בכל רגע כדי לבטל.',
     'Operation cancelled.': 'הפעולה בוטלה.',
   },
 };

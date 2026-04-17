@@ -25,8 +25,8 @@ const {
   COMMAND_SET_BEST_TEAM_RANKING,
   COMMAND_LIVE_SCORE,
   COMMAND_DEADLINE,
-  COMMAND_REGISTER_LEAGUE,
-  COMMAND_UNREGISTER_LEAGUE,
+  COMMAND_FOLLOW_LEAGUE,
+  COMMAND_UNFOLLOW_LEAGUE,
   COMMAND_LEADERBOARD,
 } = require('./constants');
 
@@ -99,11 +99,11 @@ const {
   handleDeadlineCommand,
 } = require('./commandsHandler/deadlineHandler');
 const {
-  handleRegisterLeagueCommand,
-} = require('./commandsHandler/registerLeagueHandler');
+  handleFollowLeagueCommand,
+} = require('./commandsHandler/followLeagueHandler');
 const {
-  handleUnregisterLeagueCommand,
-} = require('./commandsHandler/unregisterLeagueHandler');
+  handleUnfollowLeagueCommand,
+} = require('./commandsHandler/unfollowLeagueHandler');
 const {
   handleLeaderboardCommand,
 } = require('./commandsHandler/leaderboardHandler');
@@ -136,8 +136,8 @@ jest.mock('./commandsHandler/uploadConstructorsPhotoHandler');
 jest.mock('./commandsHandler/setBestTeamRankingHandler');
 jest.mock('./commandsHandler/liveScoreHandler');
 jest.mock('./commandsHandler/deadlineHandler');
-jest.mock('./commandsHandler/registerLeagueHandler');
-jest.mock('./commandsHandler/unregisterLeagueHandler');
+jest.mock('./commandsHandler/followLeagueHandler');
+jest.mock('./commandsHandler/unfollowLeagueHandler');
 jest.mock('./commandsHandler/leaderboardHandler');
 
 const { handleTextMessage } = require('./textMessageHandler');
@@ -261,29 +261,29 @@ describe('handleTextMessage', () => {
       expect(handleJsonMessage).not.toHaveBeenCalled();
     });
 
-    it('should route /register_league command to handleRegisterLeagueCommand', async () => {
+    it('should route /follow_league command to handleFollowLeagueCommand', async () => {
       const msgMock = {
         chat: { id: KILZI_CHAT_ID },
-        text: COMMAND_REGISTER_LEAGUE,
+        text: COMMAND_FOLLOW_LEAGUE,
       };
 
       await handleTextMessage(botMock, msgMock);
 
-      expect(handleRegisterLeagueCommand).toHaveBeenCalledWith(
+      expect(handleFollowLeagueCommand).toHaveBeenCalledWith(
         botMock,
         msgMock,
       );
     });
 
-    it('should route /unregister_league command to handleUnregisterLeagueCommand', async () => {
+    it('should route /unfollow_league command to handleUnfollowLeagueCommand', async () => {
       const msgMock = {
         chat: { id: KILZI_CHAT_ID },
-        text: COMMAND_UNREGISTER_LEAGUE,
+        text: COMMAND_UNFOLLOW_LEAGUE,
       };
 
       await handleTextMessage(botMock, msgMock);
 
-      expect(handleUnregisterLeagueCommand).toHaveBeenCalledWith(
+      expect(handleUnfollowLeagueCommand).toHaveBeenCalledWith(
         botMock,
         msgMock,
       );

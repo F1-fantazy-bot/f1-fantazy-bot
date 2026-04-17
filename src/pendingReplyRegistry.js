@@ -446,7 +446,7 @@ const PENDING_REPLY_REGISTRY = {
         chatId,
       ),
   },
-  register_league: {
+  follow_league: {
     buildHandler: (chatId) => {
       // Lazy require to avoid circular dependency via pendingReplyManager
       const { registerPendingReply } = require('./pendingReplyManager');
@@ -461,7 +461,7 @@ const PENDING_REPLY_REGISTRY = {
         try {
           leagueData = await getLeagueData(leagueCode);
         } catch (err) {
-          console.error('Error fetching league data for registration:', err);
+          console.error('Error fetching league data for follow:', err);
           await replyBot
             .sendMessage(
               chatId,
@@ -482,7 +482,7 @@ const PENDING_REPLY_REGISTRY = {
         if (!leagueData) {
           // Blob missing → treat as invalid code; re-register pending reply
           // so the user can try again without re-typing the command.
-          await registerPendingReply(chatId, 'register_league');
+          await registerPendingReply(chatId, 'follow_league');
 
           const retryPrompt = [
             t(
@@ -492,7 +492,7 @@ const PENDING_REPLY_REGISTRY = {
             ),
             '',
             t(
-              'To find your league code: go to the F1 Fantasy website, open the league you want to register to, click the share button, and copy the league code from there.',
+              'To find your league code: go to the F1 Fantasy website, open the league you want to follow, click the share button, and copy the league code from there.',
               chatId,
             ),
             '',
@@ -501,7 +501,7 @@ const PENDING_REPLY_REGISTRY = {
               chatId,
             ),
             '',
-            t('💡 Send /cancel at any time to abort the registration.', chatId),
+            t('💡 Send /cancel at any time to abort.', chatId),
           ].join('\n');
 
           await replyBot
@@ -520,17 +520,17 @@ const PENDING_REPLY_REGISTRY = {
         try {
           await addUserLeague(chatId, leagueCode, leagueName);
         } catch (err) {
-          console.error('Error persisting league registration:', err);
+          console.error('Error persisting league follow:', err);
           await replyBot
             .sendMessage(
               chatId,
-              t('❌ Failed to register league: {ERROR}', chatId, {
+              t('❌ Failed to follow league: {ERROR}', chatId, {
                 ERROR: err.message,
               }),
             )
             .catch((sendErr) =>
               console.error(
-                'Error sending league registration error message:',
+                'Error sending league follow error message:',
                 sendErr,
               ),
             );
@@ -542,18 +542,18 @@ const PENDING_REPLY_REGISTRY = {
           .sendMessage(
             chatId,
             t(
-              'Registered to league "{NAME}" ({CODE}).',
+              'Now following league "{NAME}" ({CODE}).',
               chatId,
               { NAME: leagueName, CODE: leagueCode },
             ),
           )
           .catch((err) =>
-            console.error('Error sending league registration confirmation:', err),
+            console.error('Error sending league follow confirmation:', err),
           );
 
         await sendLogMessage(
           replyBot,
-          `Registered league ${leagueName} (${leagueCode}) for chatId ${chatId}`,
+          `Followed league ${leagueName} (${leagueCode}) for chatId ${chatId}`,
         ).catch(() => {});
       };
     },

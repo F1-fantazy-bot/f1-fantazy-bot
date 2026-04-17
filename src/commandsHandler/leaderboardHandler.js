@@ -4,7 +4,7 @@ const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
 const {
   LEAGUE_CALLBACK_TYPE,
-  COMMAND_REGISTER_LEAGUE,
+  COMMAND_FOLLOW_LEAGUE,
 } = require('../constants');
 
 /**
@@ -105,9 +105,9 @@ async function handleLeaderboardCommand(bot, msg) {
     await bot.sendMessage(
       chatId,
       t(
-        'You are not registered to any league. Run {CMD} to register to one first.',
+        'You are not following any league. Run {CMD} to follow one first.',
         chatId,
-        { CMD: COMMAND_REGISTER_LEAGUE },
+        { CMD: COMMAND_FOLLOW_LEAGUE },
       ),
     );
 
