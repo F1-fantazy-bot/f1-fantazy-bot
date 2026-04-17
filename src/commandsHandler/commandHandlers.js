@@ -34,6 +34,9 @@ const {
   COMMAND_SET_BEST_TEAM_RANKING,
   COMMAND_LIVE_SCORE,
   COMMAND_DEADLINE,
+  COMMAND_REGISTER_LEAGUE,
+  COMMAND_UNREGISTER_LEAGUE,
+  COMMAND_LEADERBOARD,
 } = require('../constants');
 
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
@@ -76,6 +79,11 @@ const { handleSelectTeamCommand } = require('./selectTeamHandler');
 const { handleSetBestTeamRanking } = require('./setBestTeamRankingHandler');
 const { handleLiveScoreCommand } = require('./liveScoreHandler');
 const { handleDeadlineCommand } = require('./deadlineHandler');
+const { handleRegisterLeagueCommand } = require('./registerLeagueHandler');
+const {
+  handleUnregisterLeagueCommand,
+} = require('./unregisterLeagueHandler');
+const { handleLeaderboardCommand } = require('./leaderboardHandler');
 
 // Mapping of command constants to their handler functions
 const COMMAND_HANDLERS = {
@@ -114,6 +122,9 @@ const COMMAND_HANDLERS = {
   [COMMAND_SET_BEST_TEAM_RANKING]: handleSetBestTeamRanking,
   [COMMAND_LIVE_SCORE]: handleLiveScoreCommand,
   [COMMAND_DEADLINE]: handleDeadlineCommand,
+  [COMMAND_REGISTER_LEAGUE]: handleRegisterLeagueCommand,
+  [COMMAND_UNREGISTER_LEAGUE]: handleUnregisterLeagueCommand,
+  [COMMAND_LEADERBOARD]: handleLeaderboardCommand,
 };
 
 async function executeCommand(bot, msg, command) {

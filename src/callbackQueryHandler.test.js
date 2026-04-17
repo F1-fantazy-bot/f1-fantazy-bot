@@ -6,6 +6,8 @@ const {
   TEAM_ASSIGN_CALLBACK_TYPE,
   BEST_TEAM_WEIGHTS_CALLBACK_TYPE,
   DEADLINE_CALLBACK_TYPE,
+  LEAGUE_CALLBACK_TYPE,
+  LEAGUE_UNREGISTER_CALLBACK_TYPE,
   EXTRA_BOOST_CHIP,
 } = require('./constants');
 const cache = require('./cache');
@@ -27,6 +29,14 @@ jest.mock('./azureStorageService', () => ({
   saveUserTeam: jest.fn().mockResolvedValue(undefined),
   getPendingTeamAssignment: jest.fn().mockResolvedValue(null),
   deletePendingTeamAssignment: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('./commandsHandler/leaderboardHandler', () => ({
+  sendLeaderboard: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('./leagueRegistryService', () => ({
+  removeUserLeague: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('./userRegistryService', () => ({
@@ -252,5 +262,41 @@ describe('handleCallbackQuery', () => {
       },
     );
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q9');
+  });
+
+  it('should handle LEAGUE callback by sending the leaderboard', async () => {
+    const {
+      sendLeaderboard,
+    } = require('./commandsHandler/leaderboardHandler');
+
+    const query = {
+      id: 'q-league',
+      data: `${LEAGUE_CALLBACK_TYPE}:ABC`,
+      message: { chat: { id: 123 }, message_id: 456 },
+    };
+
+    await handleCallbackQuery(bot, query);
+
+    expect(sendLeaderboard).toHaveBeenCalledWith(bot, 123, 'ABC');
+    expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q-league');
+  });
+
+  it('should handle LEAGUE_UNREGISTER callback by removing the league', async () => {
+    const { removeUserLeague } = require('./leagueRegistryService');
+
+    const query = {
+      id: 'q-unreg',
+      data: `${LEAGUE_UNREGISTER_CALLBACK_TYPE}:ABC`,
+      message: { chat: { id: 123 }, message_id: 456 },
+    };
+
+    await handleCallbackQuery(bot, query);
+
+    expect(removeUserLeague).toHaveBeenCalledWith(123, 'ABC');
+    expect(bot.editMessageText).toHaveBeenCalledWith(
+      'Unregistered from league {CODE}.',
+      { chat_id: 123, message_id: 456 },
+    );
+    expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q-unreg');
   });
 });

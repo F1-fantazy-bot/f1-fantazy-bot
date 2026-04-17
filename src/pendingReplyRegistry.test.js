@@ -6,6 +6,7 @@ jest.mock('./utils/utils', () => ({
   getChatName: jest.fn(() => 'Test User'),
   getDisplayName: jest.fn(() => 'Test Nickname'),
   sendMessageToAdmins: jest.fn().mockResolvedValue(),
+  sendLogMessage: jest.fn().mockResolvedValue(),
 }));
 
 jest.mock('./constants', () => ({
@@ -25,6 +26,14 @@ jest.mock('./pendingReplyManager', () => ({
 
 jest.mock('./photoProcessingService', () => ({
   processPhotoByType: jest.fn().mockResolvedValue(),
+}));
+
+jest.mock('./azureStorageService', () => ({
+  getLeagueData: jest.fn(),
+}));
+
+jest.mock('./leagueRegistryService', () => ({
+  addUserLeague: jest.fn().mockResolvedValue(),
 }));
 
 const {
@@ -750,6 +759,88 @@ describe('pendingReplyRegistry', () => {
         expect(resolved.resendPromptIfNotValid).toBe(
           'We support only text. Please enter the message to broadcast.',
         );
+      });
+    });
+  });
+
+  describe('register_league', () => {
+    const { getLeagueData } = require('./azureStorageService');
+    const { addUserLeague } = require('./leagueRegistryService');
+
+    beforeEach(() => {
+      getLeagueData.mockReset();
+      addUserLeague.mockReset().mockResolvedValue();
+      registerPendingReply.mockClear();
+    });
+
+    it('registers the league when the blob exists', async () => {
+      getLeagueData.mockResolvedValueOnce({
+        leagueName: 'Amba',
+        leagueCode: 'ABC',
+      });
+
+      const resolved = resolveCommand('register_league', 42);
+      const botMock = { sendMessage: jest.fn().mockResolvedValue() };
+
+      await resolved.handler(botMock, { text: '  ABC  ' });
+
+      expect(getLeagueData).toHaveBeenCalledWith('ABC');
+      expect(addUserLeague).toHaveBeenCalledWith(42, 'ABC', 'Amba');
+      expect(registerPendingReply).not.toHaveBeenCalled();
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        42,
+        expect.any(String),
+      );
+    });
+
+    it('re-registers the pending reply when the league blob is missing', async () => {
+      getLeagueData.mockResolvedValueOnce(null);
+
+      const resolved = resolveCommand('register_league', 42);
+      const botMock = { sendMessage: jest.fn().mockResolvedValue() };
+
+      await resolved.handler(botMock, { text: 'BADCODE' });
+
+      expect(addUserLeague).not.toHaveBeenCalled();
+      expect(registerPendingReply).toHaveBeenCalledWith(42, 'register_league');
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        42,
+        expect.any(String),
+        { reply_markup: { force_reply: true } },
+      );
+    });
+
+    it('reports blob fetch errors without persisting', async () => {
+      const consoleSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      getLeagueData.mockRejectedValueOnce(new Error('boom'));
+
+      const resolved = resolveCommand('register_league', 42);
+      const botMock = { sendMessage: jest.fn().mockResolvedValue() };
+
+      await resolved.handler(botMock, { text: 'ABC' });
+
+      expect(addUserLeague).not.toHaveBeenCalled();
+      expect(registerPendingReply).not.toHaveBeenCalled();
+      expect(botMock.sendMessage).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    describe('buildValidate', () => {
+      it('accepts non-empty text', () => {
+        const resolved = resolveCommand('register_league', 1);
+        expect(resolved.validate({ text: 'ABC' })).toBe(true);
+      });
+
+      it('rejects empty text', () => {
+        const resolved = resolveCommand('register_league', 1);
+        expect(resolved.validate({ text: '  ' })).toBe(false);
+      });
+
+      it('rejects missing text', () => {
+        const resolved = resolveCommand('register_league', 1);
+        expect(resolved.validate({})).toBe(false);
       });
     });
   });

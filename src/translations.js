@@ -422,6 +422,51 @@ const translations = {
     'Selected Team: {TEAM}': 'קבוצה נבחרת: {TEAM}',
     '🔀 Select Team': '🔀 בחירת קבוצה',
     'Switch between your fantasy teams': 'מעבר בין הקבוצות שלך',
+    'Please enter the league code you want to register to:':
+      'אנא הזן את קוד הליגה שברצונך להירשם אליה:',
+    'We support only text. Please enter the league code:':
+      'אנחנו תומכים רק בטקסט. אנא הזן את קוד הליגה:',
+    'League "{CODE}" not found. Please enter a valid league code:':
+      'ליגה "{CODE}" לא נמצאה. אנא הזן קוד ליגה תקין:',
+    '❌ Failed to load league data: {ERROR}':
+      '❌ טעינת נתוני הליגה נכשלה: {ERROR}',
+    '❌ Failed to register league: {ERROR}':
+      '❌ רישום הליגה נכשל: {ERROR}',
+    'Registered to league "{NAME}" ({CODE}).':
+      'נרשמת לליגה "{NAME}" ({CODE}).',
+    'You are not registered to any league. Run {CMD} to register to one first.':
+      'אינך רשום לאף ליגה. הפעל {CMD} כדי להירשם לליגה.',
+    'Which league leaderboard do you want to see?':
+      'איזו טבלת ליגה ברצונך לראות?',
+    'Which league do you want to unregister from?':
+      'מאיזו ליגה ברצונך להתנתק?',
+    'Unregistered from league {CODE}.': 'התנתקת מהליגה {CODE}.',
+    '❌ Failed to unregister league: {ERROR}':
+      '❌ ביטול רישום הליגה נכשל: {ERROR}',
+    '❌ Failed to load your leagues: {ERROR}':
+      '❌ טעינת הליגות שלך נכשלה: {ERROR}',
+    'No leaderboard data is available yet for this league. Please try again later.':
+      'עדיין אין נתוני טבלה עבור הליגה הזו. נסה שוב מאוחר יותר.',
+    'No teams in this league yet.': 'אין עדיין קבוצות בליגה הזו.',
+    '👥 {COUNT} teams · updated {TIME}':
+      '👥 {COUNT} קבוצות · עודכן {TIME}',
+    '➕ Register League': '➕ רישום ליגה',
+    'Register to an F1 Fantasy league by its code':
+      'הירשם לליגת F1 Fantasy לפי קוד',
+    '➖ Unregister League': '➖ ביטול רישום ליגה',
+    'Remove a registered F1 Fantasy league': 'הסר ליגת F1 Fantasy רשומה',
+    '🏆 Leaderboard': '🏆 טבלת ליגה',
+    'View the leaderboard of a registered league': 'צפה בטבלה של ליגה רשומה',
+    '🏁 League Management': '🏁 ניהול ליגות',
+    'Register and view F1 Fantasy leagues':
+      'רישום וצפייה בליגות F1 Fantasy',
+    'To find your league code: go to the F1 Fantasy website, open the league you want to register to, click the share button, and copy the league code from there.':
+      'כדי למצוא את קוד הליגה: היכנס לאתר \u2066F1 Fantasy\u2069, פתח את הליגה שברצונך להירשם אליה, לחץ על כפתור השיתוף והעתק את קוד הליגה משם.',
+    '📩 If the code is correct but the league is not yet tracked, please report it to the admins via /report_bug with the league code and we will add the bot to the league as soon as possible.':
+      '📩\u200F אם הקוד תקין אך הליגה עדיין לא מנוטרת, דווח לאדמינים עם קוד הליגה באמצעות \u2066/report_bug\u2069 ונוסיף את הבוט לליגה בהקדם האפשרי.',
+    '💡 Send /cancel at any time to abort the registration.':
+      '💡\u200F שלח \u2066/cancel\u2069 בכל רגע כדי לבטל את הרישום.',
+    'Operation cancelled.': 'הפעולה בוטלה.',
   },
 };
 

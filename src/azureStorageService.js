@@ -371,6 +371,41 @@ async function deletePendingTeamAssignment(chatId, uniqueKey) {
   }
 }
 
+/**
+ * Get the league leaderboard data for a given league code from Azure Blob Storage.
+ * Blob path mirrors the writer in the sibling f1-fantasy-api-data repo:
+ *   leagues/{leagueCode}/f1-fantasy-api-data.json
+ * @param {string} leagueCode
+ * @returns {Promise<Object|null>} Parsed league data, or null if the blob does not exist.
+ * @throws {Error} If the blob exists but can not be retrieved/parsed.
+ */
+async function getLeagueData(leagueCode) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = `leagues/${leagueCode}/f1-fantasy-api-data.json`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const exists = await blockBlobClient.exists();
+    if (!exists) {
+      return null;
+    }
+
+    const downloadResponse = await blockBlobClient.download();
+    const jsonString = await streamToString(
+      downloadResponse.readableStreamBody,
+    );
+
+    return JSON.parse(jsonString);
+  } catch (error) {
+    throw new Error(
+      `Failed to get league data for ${leagueCode}: ${error.message}`,
+    );
+  }
+}
+
 module.exports = {
   getFantasyData,
   getUserTeam,
@@ -383,4 +418,5 @@ module.exports = {
   savePendingTeamAssignment,
   getPendingTeamAssignment,
   deletePendingTeamAssignment,
+  getLeagueData,
 };
