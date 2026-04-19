@@ -461,6 +461,22 @@ const translations = {
     '🏁 League Management': '🏁 ניהול ליגות',
     'Follow and view F1 Fantasy leagues':
       'עקוב וצפה בליגות F1 Fantasy',
+    '🎯 Select Team From League': '🎯 בחר קבוצה מליגה',
+    'Load a team roster from a followed league as your active team (replaces existing teams)':
+      'טען הרכב של קבוצה מליגה שאתה עוקב אחריה ככבוצה הפעילה שלך (מוחק את הקבוצות הקיימות)',
+    'Which league do you want to select a team from?':
+      'מאיזו ליגה ברצונך לבחור קבוצה?',
+    'Which team do you want to load?': 'איזו קבוצה ברצונך לטעון?',
+    'No team roster is available yet for this league. Please try again later.':
+      'עדיין אין נתוני הרכב קבוצות עבור הליגה הזו. נסה שוב מאוחר יותר.',
+    '❌ Failed to load league teams data: {ERROR}':
+      '❌ טעינת נתוני הקבוצות של הליגה נכשלה: {ERROR}',
+    '❌ Could not find that team in the league anymore.':
+      '❌ לא הצלחתי למצוא את הקבוצה הזו בליגה יותר.',
+    '❌ Failed to save league team: {ERROR}':
+      '❌ שמירת קבוצת הליגה נכשלה: {ERROR}',
+    '✅ Loaded team {TEAM} from league {LEAGUE}. Previous teams have been cleared.':
+      '✅ נטענה הקבוצה {TEAM} מהליגה {LEAGUE}. הקבוצות הקודמות נמחקו.',
     'To find your league code: go to the F1 Fantasy website, open the league you want to follow, click the share button, and copy the league code from there.':
       'כדי למצוא את קוד הליגה: היכנס לאתר \u2066F1 Fantasy\u2069, פתח את הליגה שברצונך לעקוב אחריה, לחץ על כפתור השיתוף והעתק את קוד הליגה משם.',
     '📩 If the code is correct but the league is not yet tracked, please report it to the admins via /report_bug with the league code and we will add the bot to the league as soon as possible.':

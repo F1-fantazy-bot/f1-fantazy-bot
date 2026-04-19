@@ -39,6 +39,10 @@ exports.weatherForecastCache = {};
 
 // Shared in-memory cache for remaining upcoming Grand Prix count
 exports.remainingRaceCountCache = {};
+// In-memory cache for league teams-data.json blobs by leagueCode
+// Structure: leagueTeamsDataCache[leagueCode] = { fetchedAt, leagueName, leagueCode, teams: [...] }
+exports.leagueTeamsDataCache = {};
+
 const DEFAULT_BEST_TEAM_BUDGET_CHANGE_POINTS_PER_MILLION = 0;
 
 exports.DEFAULT_BEST_TEAM_BUDGET_CHANGE_POINTS_PER_MILLION =

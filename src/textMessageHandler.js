@@ -40,6 +40,7 @@ const {
   handleFollowLeagueCommand,
   handleUnfollowLeagueCommand,
   handleLeaderboardCommand,
+  handleSelectTeamFromLeagueCommand,
 } = require('./commandsHandler');
 
 // Import constants
@@ -82,6 +83,7 @@ const {
   COMMAND_FOLLOW_LEAGUE,
   COMMAND_UNFOLLOW_LEAGUE,
   COMMAND_LEADERBOARD,
+  COMMAND_SELECT_TEAM_FROM_LEAGUE,
 } = require('./constants');
 
 exports.handleTextMessage = async function (bot, msg) {
@@ -174,6 +176,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleUnfollowLeagueCommand(bot, msg);
     case msg.text === COMMAND_LEADERBOARD:
       return await handleLeaderboardCommand(bot, msg);
+    case msg.text === COMMAND_SELECT_TEAM_FROM_LEAGUE:
+      return await handleSelectTeamFromLeagueCommand(bot, msg);
     default:
       try {
         const jsonData = JSON.parse(textTrimmed);

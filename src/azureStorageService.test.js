@@ -314,4 +314,77 @@ describe('azureStorageService', () => {
       ).rejects.toThrow('Failed to get league data for ABC: boom');
     });
   });
+
+  describe('getLeagueTeamsData', () => {
+    it('downloads and parses the teams-data blob when it exists', async () => {
+      const mockData = {
+        leagueName: 'Amba',
+        leagueCode: 'ABC',
+        teams: [{ teamName: 'Racers', position: 1 }],
+      };
+
+      mockExists.mockResolvedValueOnce(true);
+      mockDownload.mockResolvedValueOnce({
+        readableStreamBody: createMockStream(mockData),
+      });
+
+      const result = await azureStorageService.getLeagueTeamsData('ABC');
+
+      expect(result).toEqual(mockData);
+    });
+
+    it('returns null when the teams-data blob does not exist', async () => {
+      mockExists.mockResolvedValueOnce(false);
+
+      const result = await azureStorageService.getLeagueTeamsData('MISSING');
+
+      expect(result).toBeNull();
+      expect(mockDownload).not.toHaveBeenCalled();
+    });
+
+    it('wraps real errors', async () => {
+      mockExists.mockRejectedValueOnce(new Error('boom'));
+
+      await expect(
+        azureStorageService.getLeagueTeamsData('ABC'),
+      ).rejects.toThrow('Failed to get league teams data for ABC: boom');
+    });
+  });
+
+  describe('listAllUserTeamData parser (underscore-safe)', () => {
+    it('splits on the first underscore so teamIds may contain underscores', async () => {
+      const mockBlobs = [
+        { name: 'user-teams/123_ABC_Team-One.json' },
+        { name: 'user-teams/123_T1.json' },
+      ];
+
+      const mockTeam1 = { drivers: ['VER'] };
+      const mockTeam2 = { drivers: ['HAM'] };
+
+      mockListBlobsFlat.mockReturnValueOnce({
+        [Symbol.asyncIterator]: async function* () {
+          yield* mockBlobs;
+        },
+      });
+
+      mockExists.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+
+      mockDownload
+        .mockResolvedValueOnce({
+          readableStreamBody: createMockStream(mockTeam1),
+        })
+        .mockResolvedValueOnce({
+          readableStreamBody: createMockStream(mockTeam2),
+        });
+
+      const result = await azureStorageService.listAllUserTeamData();
+
+      expect(result).toEqual({
+        123: {
+          'ABC_Team-One': mockTeam1,
+          T1: mockTeam2,
+        },
+      });
+    });
+  });
 });

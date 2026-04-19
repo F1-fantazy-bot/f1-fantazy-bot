@@ -37,6 +37,7 @@ const {
   COMMAND_FOLLOW_LEAGUE,
   COMMAND_UNFOLLOW_LEAGUE,
   COMMAND_LEADERBOARD,
+  COMMAND_SELECT_TEAM_FROM_LEAGUE,
 } = require('../constants');
 
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
@@ -84,6 +85,9 @@ const {
   handleUnfollowLeagueCommand,
 } = require('./unfollowLeagueHandler');
 const { handleLeaderboardCommand } = require('./leaderboardHandler');
+const {
+  handleSelectTeamFromLeagueCommand,
+} = require('./selectTeamFromLeagueHandler');
 
 // Mapping of command constants to their handler functions
 const COMMAND_HANDLERS = {
@@ -125,6 +129,7 @@ const COMMAND_HANDLERS = {
   [COMMAND_FOLLOW_LEAGUE]: handleFollowLeagueCommand,
   [COMMAND_UNFOLLOW_LEAGUE]: handleUnfollowLeagueCommand,
   [COMMAND_LEADERBOARD]: handleLeaderboardCommand,
+  [COMMAND_SELECT_TEAM_FROM_LEAGUE]: handleSelectTeamFromLeagueCommand,
 };
 
 async function executeCommand(bot, msg, command) {
