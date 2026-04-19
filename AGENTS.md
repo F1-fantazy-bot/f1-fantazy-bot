@@ -286,7 +286,7 @@ The table is **extensible** — new attributes can be added at any time without 
 
 ## League Registry
 
-`src/leagueRegistryService.js` tracks league follows in an Azure Table Storage table (`UserLeagues`). Data is produced by the sibling repo `f1-fantasy-api-data`, which writes league blobs to Azure Blob Storage at `leagues/{leagueCode}/f1-fantasy-api-data.json` in the same container (`AZURE_STORAGE_CONTAINER_NAME`) used by the bot.
+`src/leagueRegistryService.js` tracks league follows in an Azure Table Storage table (`UserLeagues`). Data is produced by the sibling repo `f1-fantasy-api-data`, which writes league blobs to Azure Blob Storage at `leagues/{leagueCode}/league-standings.json` in the same container (`AZURE_STORAGE_CONTAINER_NAME`) used by the bot.
 
 ### How It Works
 
