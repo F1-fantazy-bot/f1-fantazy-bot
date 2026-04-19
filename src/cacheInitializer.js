@@ -25,9 +25,15 @@ const {
   getFantasyData,
   listAllUserTeamData,
   getNextRaceInfoData,
+  getLeagueTeamsData,
+  saveUserTeam,
 } = require('./azureStorageService');
 const { listAllUsers } = require('./userRegistryService');
 const { fetchRemainingRaceCount } = require('./raceScheduleService');
+const {
+  mapLeagueTeamToBotTeam,
+  sanitizeTeamName,
+} = require('./commandsHandler/selectTeamFromLeagueHandler');
 
 /**
  * Initialize all application caches with data from Azure Storage
@@ -71,6 +77,10 @@ async function initializeCaches(bot) {
     bot,
     `Loaded ${Object.keys(userTeams).length} user teams from storage`
   );
+
+  // Refresh any league-sourced teams from the latest league teams-data blob so
+  // rosters/budgets/transfers stay in sync between restarts.
+  await refreshLeagueSourcedTeams(bot);
 
   // Load all user data into userCache (from UserRegistry table)
   const users = await listAllUsers();
@@ -196,7 +206,83 @@ Constructors not found in mapping: ${notFounds.constructors.join(', ')}
   );
 }
 
+/**
+ * For any cached team whose id is in league format ("{leagueCode}_{slug}"),
+ * re-fetch the league's teams-data.json and replace the cached data (and the
+ * persisted blob) with the latest roster/budget/transfers for that team.
+ *
+ * Best-effort: errors for individual leagues or teams are logged but do not
+ * abort cache initialization.
+ */
+async function refreshLeagueSourcedTeams(bot) {
+  const leagueTeamsByCode = {};
+  let refreshed = 0;
+  let missing = 0;
+  let failed = 0;
+
+  for (const [chatId, teamsById] of Object.entries(currentTeamCache)) {
+    if (!teamsById || typeof teamsById !== 'object') {continue;}
+
+    for (const teamId of Object.keys(teamsById)) {
+      const underscoreIdx = teamId.indexOf('_');
+      if (underscoreIdx <= 0) {continue;}
+
+      const leagueCode = teamId.slice(0, underscoreIdx);
+      const sanitizedSlug = teamId.slice(underscoreIdx + 1);
+
+      try {
+        if (!(leagueCode in leagueTeamsByCode)) {
+          leagueTeamsByCode[leagueCode] = await getLeagueTeamsData(leagueCode);
+        }
+        const data = leagueTeamsByCode[leagueCode];
+
+        if (!data || !Array.isArray(data.teams)) {
+          missing += 1;
+          continue;
+        }
+
+        const match = data.teams.find(
+          (team) => sanitizeTeamName(team.teamName) === sanitizedSlug,
+        );
+
+        if (!match) {
+          missing += 1;
+          continue;
+        }
+
+        const refreshedTeam = mapLeagueTeamToBotTeam(match);
+        currentTeamCache[chatId][teamId] = refreshedTeam;
+
+        try {
+          await saveUserTeam(bot, chatId, teamId, refreshedTeam);
+        } catch (saveErr) {
+          console.error(
+            `Failed to persist refreshed league team ${teamId} for ${chatId}:`,
+            saveErr,
+          );
+        }
+
+        refreshed += 1;
+      } catch (err) {
+        failed += 1;
+        console.error(
+          `Failed to refresh league-sourced team ${teamId} for ${chatId}:`,
+          err,
+        );
+      }
+    }
+  }
+
+  if (refreshed > 0 || missing > 0 || failed > 0) {
+    await sendLogMessage(
+      bot,
+      `League-sourced teams refresh: ${refreshed} refreshed, ${missing} missing in league, ${failed} failed`,
+    );
+  }
+}
+
 module.exports = {
   initializeCaches,
   loadSimulationData,
+  refreshLeagueSourcedTeams,
 };

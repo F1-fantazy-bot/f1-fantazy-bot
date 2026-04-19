@@ -13,9 +13,15 @@ const {
   getFantasyData,
   listAllUserTeamData,
   getNextRaceInfoData,
+  getLeagueTeamsData,
+  saveUserTeam,
 } = require('./azureStorageService');
 const { listAllUsers } = require('./userRegistryService');
-const { initializeCaches, loadSimulationData } = require('./cacheInitializer');
+const {
+  initializeCaches,
+  loadSimulationData,
+  refreshLeagueSourcedTeams,
+} = require('./cacheInitializer');
 const { fetchRemainingRaceCount } = require('./raceScheduleService');
 
 // Mock dependencies
@@ -32,6 +38,8 @@ jest.mock('./azureStorageService', () => ({
   getFantasyData: jest.fn(),
   listAllUserTeamData: jest.fn(),
   getNextRaceInfoData: jest.fn(),
+  getLeagueTeamsData: jest.fn(),
+  saveUserTeam: jest.fn(),
 }));
 
 jest.mock('./userRegistryService', () => ({
@@ -291,5 +299,98 @@ describe('cacheInitializer', () => {
     await expect(loadSimulationData(mockBot)).rejects.toThrow(
       'Fantasy data validation failed'
     );
+  });
+
+  describe('refreshLeagueSourcedTeams', () => {
+    beforeEach(() => {
+      getLeagueTeamsData.mockReset();
+      saveUserTeam.mockReset().mockResolvedValue(undefined);
+    });
+
+    it('refreshes league-sourced teams (ids containing "_") from the latest league blob', async () => {
+      currentTeamCache[111] = {
+        T1: { drivers: ['OLD'], constructors: ['OLD'] },
+        'ABC_My-Team': { drivers: ['STALE'], constructors: ['STALE'] },
+      };
+      currentTeamCache[222] = {
+        ABC_Other: { drivers: ['STALE'], constructors: ['STALE'] },
+      };
+
+      getLeagueTeamsData.mockResolvedValue({
+        leagueName: 'League ABC',
+        teams: [
+          {
+            teamName: 'My Team',
+            position: 1,
+            budget: 100,
+            transfersRemaining: 2,
+            drivers: [
+              { name: 'M. Verstappen', price: 30, isCaptain: true },
+              { name: 'L. Norris', price: 25 },
+            ],
+            constructors: [{ name: 'Red Bull Racing', price: 20 }],
+          },
+          {
+            teamName: 'Other',
+            position: 2,
+            budget: 90,
+            transfersRemaining: 1,
+            drivers: [{ name: 'O. Bearman', price: 10, isCaptain: true }],
+            constructors: [{ name: 'Racing Bulls', price: 5 }],
+          },
+        ],
+      });
+
+      await refreshLeagueSourcedTeams(mockBot);
+
+      // Non-league id is untouched
+      expect(currentTeamCache[111].T1).toEqual({
+        drivers: ['OLD'],
+        constructors: ['OLD'],
+      });
+      // League-sourced teams are rebuilt with mapped codes
+      expect(currentTeamCache[111]['ABC_My-Team']).toEqual(
+        expect.objectContaining({
+          drivers: ['VER', 'NOR'],
+          constructors: ['RED'],
+          boost: 'VER',
+          freeTransfers: 2,
+        }),
+      );
+      expect(currentTeamCache[222].ABC_Other).toEqual(
+        expect.objectContaining({
+          drivers: ['BEA'],
+          constructors: ['VRB'],
+          boost: 'BEA',
+        }),
+      );
+      // League blob fetched once per league (cached within the function)
+      expect(getLeagueTeamsData).toHaveBeenCalledTimes(1);
+      expect(getLeagueTeamsData).toHaveBeenCalledWith('ABC');
+      // Persisted back to storage
+      expect(saveUserTeam).toHaveBeenCalledTimes(2);
+    });
+
+    it('is a no-op for users with only T1/T2/T3 style ids', async () => {
+      currentTeamCache[111] = { T1: { drivers: ['OLD'] } };
+
+      await refreshLeagueSourcedTeams(mockBot);
+
+      expect(getLeagueTeamsData).not.toHaveBeenCalled();
+      expect(saveUserTeam).not.toHaveBeenCalled();
+      expect(currentTeamCache[111]).toEqual({ T1: { drivers: ['OLD'] } });
+    });
+
+    it('leaves cached data untouched when the team is missing in the league blob', async () => {
+      currentTeamCache[111] = {
+        ABC_Gone: { drivers: ['STALE'] },
+      };
+      getLeagueTeamsData.mockResolvedValue({ teams: [] });
+
+      await refreshLeagueSourcedTeams(mockBot);
+
+      expect(currentTeamCache[111].ABC_Gone).toEqual({ drivers: ['STALE'] });
+      expect(saveUserTeam).not.toHaveBeenCalled();
+    });
   });
 });
