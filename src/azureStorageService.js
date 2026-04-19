@@ -374,7 +374,7 @@ async function deletePendingTeamAssignment(chatId, uniqueKey) {
 /**
  * Get the league leaderboard data for a given league code from Azure Blob Storage.
  * Blob path mirrors the writer in the sibling f1-fantasy-api-data repo:
- *   leagues/{leagueCode}/f1-fantasy-api-data.json
+ *   leagues/{leagueCode}/league-standings.json
  * @param {string} leagueCode
  * @returns {Promise<Object|null>} Parsed league data, or null if the blob does not exist.
  * @throws {Error} If the blob exists but can not be retrieved/parsed.
@@ -385,7 +385,7 @@ async function getLeagueData(leagueCode) {
       initializeAzureStorage();
     }
 
-    const blobName = `leagues/${leagueCode}/f1-fantasy-api-data.json`;
+    const blobName = `leagues/${leagueCode}/league-standings.json`;
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
     const exists = await blockBlobClient.exists();
