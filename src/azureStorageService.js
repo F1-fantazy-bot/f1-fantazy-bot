@@ -267,8 +267,13 @@ async function listAllUserTeamData() {
     // List all blobs in the user-teams directory
     for await (const blob of containerClient.listBlobsFlat({ prefix })) {
       // Extract chatId and teamId from the blob name (format: user-teams/{chatId}_{teamId}.json)
+      // chatId is always numeric, so the first `_` is the separator. teamId itself
+      // can contain underscores (e.g. `{leagueCode}_{teamName}` for league-loaded teams).
       const fileName = blob.name.substring(prefix.length).replace('.json', '');
-      const separatorIdx = fileName.lastIndexOf('_');
+      const separatorIdx = fileName.indexOf('_');
+      if (separatorIdx === -1) {
+        continue;
+      }
       const chatId = fileName.substring(0, separatorIdx);
       const teamId = fileName.substring(separatorIdx + 1);
 
@@ -406,6 +411,41 @@ async function getLeagueData(leagueCode) {
   }
 }
 
+/**
+ * Get the teams-data (per-team roster, budget, transfers) for a given league code
+ * from Azure Blob Storage. Blob path mirrors the writer in the sibling
+ * f1-fantasy-api-data repo: leagues/{leagueCode}/teams-data.json
+ * @param {string} leagueCode
+ * @returns {Promise<Object|null>} Parsed teams-data, or null if the blob does not exist.
+ * @throws {Error} If the blob exists but cannot be retrieved/parsed.
+ */
+async function getLeagueTeamsData(leagueCode) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = `leagues/${leagueCode}/teams-data.json`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const exists = await blockBlobClient.exists();
+    if (!exists) {
+      return null;
+    }
+
+    const downloadResponse = await blockBlobClient.download();
+    const jsonString = await streamToString(
+      downloadResponse.readableStreamBody,
+    );
+
+    return JSON.parse(jsonString);
+  } catch (error) {
+    throw new Error(
+      `Failed to get league teams data for ${leagueCode}: ${error.message}`,
+    );
+  }
+}
+
 module.exports = {
   getFantasyData,
   getUserTeam,
@@ -419,4 +459,5 @@ module.exports = {
   getPendingTeamAssignment,
   deletePendingTeamAssignment,
   getLeagueData,
+  getLeagueTeamsData,
 };

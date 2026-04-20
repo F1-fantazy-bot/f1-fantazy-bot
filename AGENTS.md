@@ -64,7 +64,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/menu`, `/help`, `/lang`
 - `/report_bug` _(reply-based — uses pending reply manager)_
 
-**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/follow_league`, `/unfollow_league`, `/leaderboard`
+**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/follow_league`, `/unfollow_league`, `/leaderboard`, `/select_team_from_league`
 
 ---
 
@@ -286,7 +286,10 @@ The table is **extensible** — new attributes can be added at any time without 
 
 ## League Registry
 
-`src/leagueRegistryService.js` tracks league follows in an Azure Table Storage table (`UserLeagues`). Data is produced by the sibling repo `f1-fantasy-api-data`, which writes league blobs to Azure Blob Storage at `leagues/{leagueCode}/league-standings.json` in the same container (`AZURE_STORAGE_CONTAINER_NAME`) used by the bot.
+`src/leagueRegistryService.js` tracks league follows in an Azure Table Storage table (`UserLeagues`). Data is produced by the sibling repo `f1-fantasy-api-data`, which writes two blobs per league to Azure Blob Storage in the same container (`AZURE_STORAGE_CONTAINER_NAME`) used by the bot:
+
+- `leagues/{leagueCode}/league-standings.json` — header + `teams: [{ teamName, userName, position, totalScore, raceScores, chipsUsed }]`. Used by `/leaderboard`.
+- `leagues/{leagueCode}/teams-data.json` — header + `teams: [{ teamName, userName, position, budget, transfersRemaining, drivers, constructors }]` where each roster entry is `{ id, name, price, isCaptain, isMegaCaptain, isFinal }`. Used by `/select_team_from_league` to load a team from the league directly into the bot's cache.
 
 ### How It Works
 
@@ -298,27 +301,29 @@ The table is **extensible** — new attributes can be added at any time without 
    - 1 league → auto-fetch blob and render leaderboard.
    - 2+ leagues → inline keyboard (`LEAGUE_CALLBACK_TYPE`) showing each league by name; on selection, callback handler fetches the blob and renders.
 5. `/unfollow_league` shows an inline keyboard (`LEAGUE_UNFOLLOW_CALLBACK_TYPE`) with all followed leagues; selection calls `removeUserLeague(chatId, leagueCode)`.
+6. `/select_team_from_league` (admin-only) lets the admin pick a league (auto-picked when only one) and then a team within it. The selected team replaces **all** previously cached teams for the user — both in-memory (`currentTeamCache`, `bestTeamsCache`, `selectedChipCache`, `selectedBestTeamByTeam`) and in blob storage (`deleteAllUserTeams`). The loaded team is keyed by `teamId = ${leagueCode}_${sanitized(teamName)}` and becomes the active `selectedTeam`. League `teams-data.json` is fetched via `getLeagueTeamsData(leagueCode)` and cached in memory per leagueCode (`leagueTeamsDataCache`). Callback types: `LEAGUE_TEAM_SELECT_CALLBACK_TYPE` (league picker) and `LEAGUE_TEAM_PICK_CALLBACK_TYPE` (team picker; payload `...:<leagueCode>:<position>` so the actual team is resolved server-side from the cached blob to keep callback data short).
 
 The leaderboard is rendered compactly (position, team name, total score) with a header showing league name, member count, and fetch time. Teams from the blob are already sorted by `position`.
 
 ### Table Schema
 
-| Field          | Type     | Description                                          |
-| -------------- | -------- | ---------------------------------------------------- |
-| `partitionKey` | `string` | The `chatId` (stringified)                           |
-| `rowKey`       | `string` | The league code (e.g., `C8EFGOXCB04`)                |
-| `leagueName`   | `string` | League display name captured when the user followed  |
-| `registeredAt` | `string` | ISO timestamp — set when the league was followed     |
+| Field          | Type     | Description                                         |
+| -------------- | -------- | --------------------------------------------------- |
+| `partitionKey` | `string` | The `chatId` (stringified)                          |
+| `rowKey`       | `string` | The league code (e.g., `C8EFGOXCB04`)               |
+| `leagueName`   | `string` | League display name captured when the user followed |
+| `registeredAt` | `string` | ISO timestamp — set when the league was followed    |
 
 ### API Reference
 
-| Method             | Signature                                                          | Purpose                                                                                            |
-| ------------------ | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| `addUserLeague`    | `addUserLeague(chatId, leagueCode, leagueName) → Promise`          | Upsert a league follow (Merge mode).                                                               |
-| `removeUserLeague` | `removeUserLeague(chatId, leagueCode) → Promise`                   | Delete a league follow. 404 is ignored (idempotent).                                               |
-| `listUserLeagues`  | `listUserLeagues(chatId) → Promise<Array<{leagueCode, leagueName, registeredAt}>>` | Partition-scoped query returning all leagues a user follows.                       |
-| `getUserLeague`    | `getUserLeague(chatId, leagueCode) → Promise<Object\|null>`        | Point lookup for a specific league follow.                                                         |
-| `getLeagueData`    | `getLeagueData(leagueCode) → Promise<Object\|null>`                | (in `azureStorageService.js`) Fetches the league blob. Returns `null` when the blob does not exist. |
+| Method             | Signature                                                                          | Purpose                                                                                             |
+| ------------------ | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `addUserLeague`    | `addUserLeague(chatId, leagueCode, leagueName) → Promise`                          | Upsert a league follow (Merge mode).                                                                |
+| `removeUserLeague` | `removeUserLeague(chatId, leagueCode) → Promise`                                   | Delete a league follow. 404 is ignored (idempotent).                                                |
+| `listUserLeagues`  | `listUserLeagues(chatId) → Promise<Array<{leagueCode, leagueName, registeredAt}>>` | Partition-scoped query returning all leagues a user follows.                                        |
+| `getUserLeague`    | `getUserLeague(chatId, leagueCode) → Promise<Object\|null>`                        | Point lookup for a specific league follow.                                                          |
+| `getLeagueData`       | `getLeagueData(leagueCode) → Promise<Object\|null>`                                | (in `azureStorageService.js`) Fetches `leagues/{code}/league-standings.json`. Returns `null` when the blob does not exist. |
+| `getLeagueTeamsData`  | `getLeagueTeamsData(leagueCode) → Promise<Object\|null>`                           | (in `azureStorageService.js`) Fetches `leagues/{code}/teams-data.json` (per-team budget, transfers, roster). Returns `null` when the blob does not exist. |
 
 ---
 
@@ -353,7 +358,14 @@ The nickname system allows admins to assign custom display names to users that r
 
 ## Multi-Team System
 
-The bot supports **multiple teams per user** (e.g., T1, T2, T3). Each team has its own cached data, chip selection, and best-teams calculation. A `selectedTeam` preference determines which team context commands operate on.
+The bot supports **multiple teams per user**. Teams are keyed by a `teamId` string inside each chat's nested caches. Two `teamId` formats are in use:
+
+- **Screenshot flow:** `T1`, `T2`, `T3` — extracted from the colored-square icon in the team photo by `EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT`.
+- **League flow:** `{leagueCode}_{sanitizedTeamName}` — created by `/select_team_from_league`. `sanitizedTeamName` strips unsafe characters (only word chars and `-` survive) and is truncated to 40 chars to keep the blob path (`user-teams/{chatId}_{teamId}.json`) and callback data short.
+
+Picking a team from a league always **replaces all** existing cached teams for that user (both screenshot and league teams, in memory and in blob storage). The screenshot-upload flow is unchanged; the two sources cannot coexist for the same user.
+
+Each team has its own cached data, chip selection, and best-teams calculation. A `selectedTeam` preference determines which team context commands operate on.
 
 ### Cache Structure
 
@@ -428,7 +440,7 @@ Blob naming includes the team ID:
 | Write      | `user-teams/{chatId}_{teamId}.json`        | `saveUserTeam(bot, chatId, teamId, teamData)`                                  |
 | Delete one | `user-teams/{chatId}_{teamId}.json`        | `deleteUserTeam(bot, chatId, teamId)`                                          |
 | Delete all | `user-teams/{chatId}_*.json`               | `deleteAllUserTeams(bot, chatId)` — deletes all team blobs for a user.         |
-| List all   | Parses `{chatId}_{teamId}` from blob names | `listAllUserTeamData()` — returns nested `{ chatId: { T1: data, T2: data } }`. |
+| List all   | Parses `{chatId}_{teamId}` from blob names (splits on the **first** `_` so teamIds containing underscores — e.g. league teams — round-trip correctly; `chatId` is always numeric) | `listAllUserTeamData()` — returns nested `{ chatId: { teamId: data } }`. |
 
 ### Image Extraction — Team Identifier
 
