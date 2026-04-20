@@ -6,6 +6,7 @@
     "AZURE_SUBSCRIPTION_ID": "your-azure-subscription-id",
     "AZURE_CLIENT_ID": "your-azure-client-id",
     "AZURE_CLIENT_SECRET": "your-azure-client-secret",
-    "AZURE_TENANT_ID": "your-azure-tenant-id"
+    "AZURE_TENANT_ID": "your-azure-tenant-id",
+    "AZURE_KEY_VAULT_URL": "https://f1-fantasy-kv.vault.azure.net/"
   }
 }

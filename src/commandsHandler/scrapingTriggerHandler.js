@@ -10,7 +10,7 @@ async function handleScrapingTrigger(bot, msg) {
     return;
   }
 
-  const result = await triggerScraping(bot);
+  const result = await triggerScraping();
   if (result.success) {
     await bot.sendMessage(chatId, t('Web scraping triggered successfully.', chatId));
   } else {
