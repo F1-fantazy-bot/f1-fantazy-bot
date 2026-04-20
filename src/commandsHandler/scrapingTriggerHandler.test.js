@@ -51,7 +51,7 @@ describe('handleScrapingTrigger', () => {
     await handleScrapingTrigger(botMock, msgMock);
 
     expect(mockIsAdminMessage).toHaveBeenCalledWith(msgMock);
-    expect(mockTriggerScraping).toHaveBeenCalledWith(botMock);
+    expect(mockTriggerScraping).toHaveBeenCalledWith();
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
       'Web scraping triggered successfully.'
@@ -73,7 +73,7 @@ describe('handleScrapingTrigger', () => {
     await handleScrapingTrigger(botMock, msgMock);
 
     expect(mockIsAdminMessage).toHaveBeenCalledWith(msgMock);
-    expect(mockTriggerScraping).toHaveBeenCalledWith(botMock);
+    expect(mockTriggerScraping).toHaveBeenCalledWith();
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
       `Failed to trigger web scraping: ${errorMessage}`
@@ -93,7 +93,7 @@ describe('handleScrapingTrigger', () => {
     );
 
     expect(mockIsAdminMessage).toHaveBeenCalledWith(msgMock);
-    expect(mockTriggerScraping).toHaveBeenCalledWith(botMock);
+    expect(mockTriggerScraping).toHaveBeenCalledWith();
   });
 
   it('should work with different chat IDs for admin users', async () => {

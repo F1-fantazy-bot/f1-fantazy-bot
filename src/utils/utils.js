@@ -24,6 +24,10 @@ const {
 } = require('../prompts');
 const { t, getLocale } = require('../i18n');
 const { userCache } = require('../cache');
+const {
+  getSecret,
+  SCRAPER_RUNNER_URL_SECRET,
+} = require('../keyVaultService');
 
 const normalizePrice = function (value) {
   return Math.round(value * 10) / 10;
@@ -354,19 +358,30 @@ exports.calculateTeamInfo = function (team, drivers, constructors) {
 
 exports.normalizePrice = normalizePrice;
 
-exports.triggerScraping = async function (bot, chatId) {
-  const url = process.env.AZURE_LOGICAPP_TRIGGER_URL;
-  if (!url) {
-    await bot.sendMessage(
-      chatId,
-      t('Error: Scraping trigger URL is not configured.', chatId),
-    );
+exports.triggerScraping = async function () {
+  let url;
+  try {
+    url = await getSecret(SCRAPER_RUNNER_URL_SECRET);
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to read scraping trigger URL from Key Vault: ${error.message}`,
+    };
+  }
 
-    return;
+  if (!url) {
+    return {
+      success: false,
+      error: 'Scraping trigger URL is not configured.',
+    };
   }
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
