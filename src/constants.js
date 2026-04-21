@@ -35,6 +35,7 @@ exports.LEAGUE_CALLBACK_TYPE = 'LEAGUE';
 exports.LEAGUE_UNFOLLOW_CALLBACK_TYPE = 'LEAGUE_UNFOLLOW';
 exports.LEAGUE_TEAM_SELECT_CALLBACK_TYPE = 'LEAGUE_TEAM_SELECT';
 exports.LEAGUE_TEAM_PICK_CALLBACK_TYPE = 'LEAGUE_TEAM_PICK';
+exports.LEAGUE_GRAPH_CALLBACK_TYPE = 'LEAGUE_GRAPH';
 
 exports.MAX_TELEGRAM_MESSAGE_LENGTH = 4096;
 exports.BEST_TEAMS_RESULT_COUNT = 15;
@@ -78,6 +79,7 @@ exports.COMMAND_FOLLOW_LEAGUE = '/follow_league';
 exports.COMMAND_UNFOLLOW_LEAGUE = '/unfollow_league';
 exports.COMMAND_LEADERBOARD = '/leaderboard';
 exports.COMMAND_SELECT_TEAM_FROM_LEAGUE = '/select_team_from_league';
+exports.COMMAND_LEAGUE_GRAPH = '/league_graph';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -300,6 +302,12 @@ exports.MENU_CATEGORIES = {
         title: '🎯 Select Team From League',
         description:
           'Load a team roster from a followed league as your active team (replaces existing teams)',
+      },
+      {
+        constant: exports.COMMAND_LEAGUE_GRAPH,
+        title: '📈 League Graph',
+        description:
+          'Render a line chart of cumulative score per race for every team in a followed league',
       },
     ],
   },

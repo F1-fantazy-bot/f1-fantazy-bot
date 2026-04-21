@@ -23,6 +23,7 @@ const {
   LEAGUE_UNFOLLOW_CALLBACK_TYPE,
   LEAGUE_TEAM_SELECT_CALLBACK_TYPE,
   LEAGUE_TEAM_PICK_CALLBACK_TYPE,
+  LEAGUE_GRAPH_CALLBACK_TYPE,
 } = require('./constants');
 
 const {
@@ -41,6 +42,9 @@ const {
 const {
   sendLeaderboard,
 } = require('./commandsHandler/leaderboardHandler');
+const {
+  sendLeagueGraph,
+} = require('./commandsHandler/leagueGraphHandler');
 const { removeUserLeague } = require('./leagueRegistryService');
 const {
   promptTeamPick,
@@ -73,6 +77,8 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handleLeagueTeamSelectCallback(bot, query);
     case LEAGUE_TEAM_PICK_CALLBACK_TYPE:
       return await handleLeagueTeamPickCallback(bot, query);
+    case LEAGUE_GRAPH_CALLBACK_TYPE:
+      return await handleLeagueGraphCallback(bot, query);
     default:
       await sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
   }
@@ -381,5 +387,13 @@ async function handleLeagueTeamPickCallback(bot, query) {
   const [, leagueCode, position] = query.data.split(':');
 
   await applyLeagueTeamSelection(bot, chatId, leagueCode, position);
+  await bot.answerCallbackQuery(query.id);
+}
+
+async function handleLeagueGraphCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const leagueCode = query.data.split(':')[1];
+
+  await sendLeagueGraph(bot, chatId, leagueCode);
   await bot.answerCallbackQuery(query.id);
 }

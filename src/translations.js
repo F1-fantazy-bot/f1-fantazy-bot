@@ -484,6 +484,16 @@ const translations = {
     '💡 Send /cancel at any time to abort.':
       '💡\u200F שלח \u2066/cancel\u2069 בכל רגע כדי לבטל.',
     'Operation cancelled.': 'הפעולה בוטלה.',
+    'Which league graph do you want to see?':
+      'איזה גרף ליגה תרצה לראות?',
+    'Not enough race data yet to render a graph for this league.':
+      'אין עדיין מספיק נתוני מרוצים כדי לצייר גרף עבור הליגה הזו.',
+    '❌ Failed to generate the league graph: {ERROR}':
+      '❌ יצירת גרף הליגה נכשלה: {ERROR}',
+    '❌ Failed to send the league graph: {ERROR}':
+      '❌ שליחת גרף הליגה נכשלה: {ERROR}',
+    '🏆 {LEAGUE} — score progression per race':
+      '🏆 {LEAGUE} — התקדמות נקודות לפי מרוץ',
   },
 };
 
