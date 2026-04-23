@@ -466,6 +466,9 @@ const translations = {
       'עקוב אחר קבוצה מליגה שאתה עוקב אחריה (עד 6 קבוצות במקביל)',
     '🗑️ Unfollow Team': '🗑️ הפסק לעקוב אחר קבוצה',
     'Stop following a league team': 'הפסק לעקוב אחר קבוצת ליגה',
+    '📈 League Graph': '📈 גרף ליגה',
+    'Render a line chart of gap to leader per race for every team in a followed league':
+      'צייר גרף קווי של הפער מהמוביל בכל מרוץ עבור כל קבוצה בליגה במעקב',
     'Which league do you want to select a team from?':
       'מאיזו ליגה ברצונך לבחור קבוצה?',
     'Which team do you want to load?': 'איזו קבוצה ברצונך לטעון?',

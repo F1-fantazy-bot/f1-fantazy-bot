@@ -320,7 +320,7 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_LEAGUE_GRAPH,
         title: '📈 League Graph',
         description:
-          'Render a line chart of cumulative score per race for every team in a followed league',
+          'Render a line chart of gap to leader per race for every team in a followed league',
       },
     ],
   },
