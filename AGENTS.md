@@ -64,7 +64,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/menu`, `/help`, `/lang`
 - `/report_bug` _(reply-based — uses pending reply manager)_
 
-**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/follow_league`, `/unfollow_league`, `/leaderboard`, `/select_team_from_league`
+**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/follow_league`, `/unfollow_league`, `/leaderboard`, `/select_team_from_league`, `/league_graph`
 
 ---
 
@@ -288,7 +288,7 @@ The table is **extensible** — new attributes can be added at any time without 
 
 `src/leagueRegistryService.js` tracks league follows in an Azure Table Storage table (`UserLeagues`). Data is produced by the sibling repo `f1-fantasy-api-data`, which writes two blobs per league to Azure Blob Storage in the same container (`AZURE_STORAGE_CONTAINER_NAME`) used by the bot:
 
-- `leagues/{leagueCode}/league-standings.json` — header + `teams: [{ teamName, userName, position, totalScore, raceScores, chipsUsed }]`. Used by `/leaderboard`.
+- `leagues/{leagueCode}/league-standings.json` — header + `teams: [{ teamName, userName, position, totalScore, raceScores, chipsUsed }]`. Used by `/leaderboard` and `/league_graph`.
 - `leagues/{leagueCode}/teams-data.json` — header + `teams: [{ teamName, userName, position, budget, transfersRemaining, drivers, constructors }]` where each roster entry is `{ id, name, price, isCaptain, isMegaCaptain, isFinal }`. Used by `/select_team_from_league` to load a team from the league directly into the bot's cache.
 
 ### How It Works
@@ -302,6 +302,7 @@ The table is **extensible** — new attributes can be added at any time without 
    - 2+ leagues → inline keyboard (`LEAGUE_CALLBACK_TYPE`) showing each league by name; on selection, callback handler fetches the blob and renders.
 5. `/unfollow_league` shows an inline keyboard (`LEAGUE_UNFOLLOW_CALLBACK_TYPE`) with all followed leagues; selection calls `removeUserLeague(chatId, leagueCode)`.
 6. `/select_team_from_league` (admin-only) lets the admin pick a league (auto-picked when only one) and then a team within it. The selected team replaces **all** previously cached teams for the user — both in-memory (`currentTeamCache`, `bestTeamsCache`, `selectedChipCache`, `selectedBestTeamByTeam`) and in blob storage (`deleteAllUserTeams`). The loaded team is keyed by `teamId = ${leagueCode}_${sanitized(teamName)}` and becomes the active `selectedTeam`. League `teams-data.json` is fetched via `getLeagueTeamsData(leagueCode)` and cached in memory per leagueCode (`leagueTeamsDataCache`). Callback types: `LEAGUE_TEAM_SELECT_CALLBACK_TYPE` (league picker) and `LEAGUE_TEAM_PICK_CALLBACK_TYPE` (team picker; payload `...:<leagueCode>:<position>` so the actual team is resolved server-side from the cached blob to keep callback data short).
+7. `/league_graph` (admin-only) renders a line chart of each team's **gap to the leader** per race in a followed league (leader sits on 0; everyone else is at or below 0). Same 0/1/N league-selection flow as `/leaderboard` (callback type `LEAGUE_GRAPH_CALLBACK_TYPE`). Chart rendering is delegated to [`quickchart-js`](https://quickchart.io) — the handler builds a Chart.js config via `buildChartConfig(leagueData, { roundToRaceName })`, calls `chart.getShortUrl()`, and sends the URL via `bot.sendPhoto` (Telegram fetches the PNG itself, no native `canvas` dep). Chip usage is drawn as an emoji + chip-name label on the specific data point using the `chartjs-plugin-datalabels` plugin (bundled with QuickChart). X-axis labels use the short race name (e.g. `Chinese GP`) — `matchday_N` is mapped to round `N` in the current Jolpica/Ergast season schedule (`fetchCurrentSeasonRaces`) and `raceName` is shortened (`Grand Prix` → `GP`); falls back to `R{N}` if the mapping can't be resolved. Chip → emoji mapping lives in `src/utils/chipEmojis.js`.
 
 The leaderboard is rendered compactly (position, team name, total score) with a header showing league name, member count, and fetch time. Teams from the blob are already sorted by `position`.
 
