@@ -9,15 +9,19 @@ const {
   selectedChipCache,
   userCache,
   leagueTeamsDataCache,
-  clearAllSelectedBestTeams,
+  clearSelectedBestTeam,
   serializeSelectedBestTeamByTeam,
   getPrintableCache,
+  getUserLeagueTeamIds,
 } = require('../cache');
+const { ensureSourceIsLeague } = require('../utils/teamSourceSwitcher');
 const {
   COMMAND_FOLLOW_LEAGUE,
   CURRENT_TEAM_PHOTO_TYPE,
   LEAGUE_TEAM_SELECT_CALLBACK_TYPE,
   LEAGUE_TEAM_PICK_CALLBACK_TYPE,
+  LEAGUE_TEAM_UNFOLLOW_AND_ADD_CALLBACK_TYPE,
+  MAX_FOLLOWED_LEAGUE_TEAMS,
   NAME_TO_CODE_MAPPING,
 } = require('../constants');
 
@@ -168,9 +172,12 @@ async function promptTeamPick(bot, chatId, leagueCode, replyToMessageId) {
 
 /**
  * Apply the user's league team selection:
- * - Remove all existing cached teams (blob + in-memory) for the user
- * - Load the selected league team as the sole active team
- * - Update selectedTeam and persist preferences
+ * - If the user had any screenshot teams, wipe them (cross-source rule).
+ * - If the team is already followed, just switch selectedTeam and notify.
+ * - If the user is at the 6-team cap, stash the pending add and show a picker
+ *   so the user can unfollow one existing team.
+ * - Otherwise, add the team to the existing cache (keeping other followed
+ *   teams intact) and set it as the active team.
  */
 async function applyLeagueTeamSelection(bot, chatId, leagueCode, position) {
   let data;
@@ -212,27 +219,90 @@ async function applyLeagueTeamSelection(bot, chatId, leagueCode, position) {
   }
 
   const teamId = buildTeamId(leagueCode, leagueTeam.teamName);
-  const teamData = mapLeagueTeamToBotTeam(leagueTeam);
+  const leagueLabel = data.leagueName || leagueCode;
+  const teamLabel = leagueTeam.teamName || leagueTeam.userName || teamId;
 
-  // Drop every previously cached team (screenshot or prior league) so the league
-  // team becomes the single active team, matching the rule "work with one source
-  // at a time".
-  try {
-    await azureStorageService.deleteAllUserTeams(bot, chatId);
-  } catch (err) {
-    console.error('Error deleting existing user teams:', err);
+  // If the user already follows this exact team, just switch to it — no
+  // unfollow / cap dance needed.
+  const existingLeagueTeamIds = getUserLeagueTeamIds(chatId);
+  if (existingLeagueTeamIds.includes(teamId)) {
+    const key = String(chatId);
+    if (!userCache[key]) {
+      userCache[key] = {};
+    }
+    userCache[key].selectedTeam = teamId;
+    await updateUserAttributes(chatId, { selectedTeam: teamId });
+
+    await bot.sendMessage(
+      chatId,
+      t('ℹ️ You are already following team {TEAM}. Switched to it.', chatId, {
+        TEAM: teamLabel,
+      }),
+    );
+
+    return;
   }
 
-  delete currentTeamCache[chatId];
-  delete bestTeamsCache[chatId];
-  delete selectedChipCache[chatId];
+  // Cross-source rule: uploading/selecting a league team drops any
+  // screenshot teams so the two sources never coexist.
+  const wipedScreenshotTeams = await ensureSourceIsLeague(bot, chatId);
 
-  currentTeamCache[chatId] = { [teamId]: teamData };
+  // At the cap → stash pending add and show unfollow picker.
+  const leagueTeamIdsAfterWipe = getUserLeagueTeamIds(chatId);
+  if (leagueTeamIdsAfterWipe.length >= MAX_FOLLOWED_LEAGUE_TEAMS) {
+    try {
+      await azureStorageService.savePendingLeagueTeamAdd(chatId, {
+        leagueCode,
+        position: positionNum,
+      });
+    } catch (err) {
+      console.error('Error saving pending league team add:', err);
+      await bot.sendMessage(
+        chatId,
+        t('❌ Failed to save league team: {ERROR}', chatId, {
+          ERROR: err.message,
+        }),
+      );
+
+      return;
+    }
+
+    await promptUnfollowToMakeRoom(bot, chatId, teamLabel);
+
+    return;
+  }
+
+  await followLeagueTeam(bot, chatId, {
+    teamId,
+    leagueTeam,
+    leagueLabel,
+    teamLabel,
+    notifyScreenshotWipe: wipedScreenshotTeams,
+  });
+}
+
+/**
+ * Internal helper: persist and cache a league team as a new followed team,
+ * set it as the active team, and notify the user. Assumes any cap / source /
+ * duplicate checks were already done by the caller.
+ */
+async function followLeagueTeam(
+  bot,
+  chatId,
+  { teamId, leagueTeam, leagueLabel, teamLabel, notifyScreenshotWipe = false },
+) {
+  const teamData = mapLeagueTeamToBotTeam(leagueTeam);
+
+  if (!currentTeamCache[chatId]) {
+    currentTeamCache[chatId] = {};
+  }
+  currentTeamCache[chatId][teamId] = teamData;
 
   try {
     await azureStorageService.saveUserTeam(bot, chatId, teamId, teamData);
   } catch (err) {
     console.error('Error saving league-loaded team:', err);
+    delete currentTeamCache[chatId][teamId];
     await bot.sendMessage(
       chatId,
       t('❌ Failed to save league team: {ERROR}', chatId, {
@@ -248,7 +318,15 @@ async function applyLeagueTeamSelection(bot, chatId, leagueCode, position) {
     userCache[key] = {};
   }
   userCache[key].selectedTeam = teamId;
-  const selectedBestTeamByTeam = clearAllSelectedBestTeams(chatId);
+
+  // Ensure we don't inherit stale best-team / chip state for this teamId.
+  if (bestTeamsCache[chatId]) {
+    delete bestTeamsCache[chatId][teamId];
+  }
+  if (selectedChipCache[chatId]) {
+    delete selectedChipCache[chatId][teamId];
+  }
+  const selectedBestTeamByTeam = clearSelectedBestTeam(chatId, teamId);
 
   await updateUserAttributes(chatId, {
     selectedTeam: teamId,
@@ -257,17 +335,18 @@ async function applyLeagueTeamSelection(bot, chatId, leagueCode, position) {
     ),
   });
 
-  const leagueLabel = data.leagueName || leagueCode;
-  const teamLabel = leagueTeam.teamName || leagueTeam.userName || teamId;
+  const confirmation = notifyScreenshotWipe
+    ? t(
+        '✅ Now following team {TEAM} from league {LEAGUE}. Your previous photo-uploaded teams were cleared.',
+        chatId,
+        { TEAM: teamLabel, LEAGUE: leagueLabel },
+      )
+    : t('✅ Now following team {TEAM} from league {LEAGUE}.', chatId, {
+        TEAM: teamLabel,
+        LEAGUE: leagueLabel,
+      });
 
-  await bot.sendMessage(
-    chatId,
-    t(
-      '✅ Loaded team {TEAM} from league {LEAGUE}. Previous teams have been cleared.',
-      chatId,
-      { TEAM: teamLabel, LEAGUE: leagueLabel },
-    ),
-  );
+  await bot.sendMessage(chatId, confirmation);
 
   await sendMessageToUser(
     bot,
@@ -278,6 +357,50 @@ async function applyLeagueTeamSelection(bot, chatId, leagueCode, position) {
       errorMessageToLog: 'Error sending loaded league team data to user',
     },
   );
+}
+
+async function promptUnfollowToMakeRoom(bot, chatId, newTeamLabel) {
+  const teamIds = getUserLeagueTeamIds(chatId);
+  const keyboard = teamIds.map((teamId) => {
+    const label = formatFollowedTeamLabel(chatId, teamId);
+
+    return [
+      {
+        text: label,
+        callback_data: `${LEAGUE_TEAM_UNFOLLOW_AND_ADD_CALLBACK_TYPE}:${teamId}`,
+      },
+    ];
+  });
+
+  await bot.sendMessage(
+    chatId,
+    t(
+      'You are already following {MAX} league teams. Pick one to unfollow so you can follow {TEAM}:',
+      chatId,
+      { MAX: MAX_FOLLOWED_LEAGUE_TEAMS, TEAM: newTeamLabel },
+    ),
+    { reply_markup: { inline_keyboard: keyboard } },
+  );
+}
+
+/**
+ * Build a human-readable label for a followed league team id.
+ * Falls back gracefully when no league team roster is cached.
+ */
+function formatFollowedTeamLabel(chatId, teamId) {
+  const separatorIdx = teamId.indexOf('_');
+  if (separatorIdx === -1) {
+    return teamId;
+  }
+
+  const leagueCode = teamId.substring(0, separatorIdx);
+  const cachedLeague = leagueTeamsDataCache[leagueCode];
+  const leagueLabel = cachedLeague?.leagueName || leagueCode;
+
+  const teamData = currentTeamCache[chatId]?.[teamId];
+  const teamName = teamData?.teamName || teamId.substring(separatorIdx + 1);
+
+  return `${teamName} — ${leagueLabel}`;
 }
 
 async function handleSelectTeamFromLeagueCommand(bot, msg) {
@@ -351,4 +474,6 @@ module.exports = {
   mapNameToCode,
   buildTeamId,
   sanitizeTeamName,
+  formatFollowedTeamLabel,
+  loadLeagueTeamsData,
 };

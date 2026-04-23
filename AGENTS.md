@@ -64,7 +64,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/menu`, `/help`, `/lang`
 - `/report_bug` _(reply-based — uses pending reply manager)_
 
-**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/follow_league`, `/unfollow_league`, `/leaderboard`, `/select_team_from_league`, `/league_graph`
+**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/follow_league`, `/unfollow_league`, `/leaderboard`, `/select_team_from_league`, `/unfollow_team`, `/league_graph`
 
 ---
 
@@ -301,7 +301,7 @@ The table is **extensible** — new attributes can be added at any time without 
    - 1 league → auto-fetch blob and render leaderboard.
    - 2+ leagues → inline keyboard (`LEAGUE_CALLBACK_TYPE`) showing each league by name; on selection, callback handler fetches the blob and renders.
 5. `/unfollow_league` shows an inline keyboard (`LEAGUE_UNFOLLOW_CALLBACK_TYPE`) with all followed leagues; selection calls `removeUserLeague(chatId, leagueCode)`.
-6. `/select_team_from_league` (admin-only) lets the admin pick a league (auto-picked when only one) and then a team within it. The selected team replaces **all** previously cached teams for the user — both in-memory (`currentTeamCache`, `bestTeamsCache`, `selectedChipCache`, `selectedBestTeamByTeam`) and in blob storage (`deleteAllUserTeams`). The loaded team is keyed by `teamId = ${leagueCode}_${sanitized(teamName)}` and becomes the active `selectedTeam`. League `teams-data.json` is fetched via `getLeagueTeamsData(leagueCode)` and cached in memory per leagueCode (`leagueTeamsDataCache`). Callback types: `LEAGUE_TEAM_SELECT_CALLBACK_TYPE` (league picker) and `LEAGUE_TEAM_PICK_CALLBACK_TYPE` (team picker; payload `...:<leagueCode>:<position>` so the actual team is resolved server-side from the cached blob to keep callback data short).
+6. `/select_team_from_league` (admin-only) lets the admin pick a league (auto-picked when only one) and then a team within it. The picked team is **added** to the user's followed league teams (up to `MAX_FOLLOWED_LEAGUE_TEAMS = 6`); existing followed league teams are preserved. Any pre-existing screenshot teams (`T1`/`T2`/`T3`) are wiped first via `ensureSourceIsScreenshot`→`ensureSourceIsLeague` so the two sources never coexist. If the user is already at the cap, the add is stashed in `pending-league-team-adds/{chatId}.json` and an inline unfollow-and-add picker is shown (`UFTA` callback). The loaded team is keyed by `teamId = ${leagueCode}_${sanitized(teamName)}` and becomes the active `selectedTeam`. League `teams-data.json` is fetched via `getLeagueTeamsData(leagueCode)` and cached in memory per leagueCode (`leagueTeamsDataCache`). Callback types: `LEAGUE_TEAM_SELECT_CALLBACK_TYPE` (league picker), `LEAGUE_TEAM_PICK_CALLBACK_TYPE` (team picker; payload `...:<leagueCode>:<position>`), `LEAGUE_TEAM_UNFOLLOW_CALLBACK_TYPE = 'UFT'` (plain unfollow via `/unfollow_team`), `LEAGUE_TEAM_UNFOLLOW_AND_ADD_CALLBACK_TYPE = 'UFTA'` (unfollow then resume the stashed add).
 7. `/league_graph` (admin-only) renders a line chart of each team's **gap to the leader** per race in a followed league (leader sits on 0; everyone else is at or below 0). Same 0/1/N league-selection flow as `/leaderboard` (callback type `LEAGUE_GRAPH_CALLBACK_TYPE`). Chart rendering is delegated to [`quickchart-js`](https://quickchart.io) — the handler builds a Chart.js config via `buildChartConfig(leagueData, { roundToRaceName })`, calls `chart.getShortUrl()`, and sends the URL via `bot.sendPhoto` (Telegram fetches the PNG itself, no native `canvas` dep). Chip usage is drawn as an emoji + chip-name label on the specific data point using the `chartjs-plugin-datalabels` plugin (bundled with QuickChart). X-axis labels use the short race name (e.g. `Chinese GP`) — `matchday_N` is mapped to round `N` in the current Jolpica/Ergast season schedule (`fetchCurrentSeasonRaces`) and `raceName` is shortened (`Grand Prix` → `GP`); falls back to `R{N}` if the mapping can't be resolved. Chip → emoji mapping lives in `src/utils/chipEmojis.js`.
 
 The leaderboard is rendered compactly (position, team name, total score) with a header showing league name, member count, and fetch time. Teams from the blob are already sorted by `position`.
@@ -364,7 +364,18 @@ The bot supports **multiple teams per user**. Teams are keyed by a `teamId` stri
 - **Screenshot flow:** `T1`, `T2`, `T3` — extracted from the colored-square icon in the team photo by `EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT`.
 - **League flow:** `{leagueCode}_{sanitizedTeamName}` — created by `/select_team_from_league`. `sanitizedTeamName` strips unsafe characters (only word chars and `-` survive) and is truncated to 40 chars to keep the blob path (`user-teams/{chatId}_{teamId}.json`) and callback data short.
 
-Picking a team from a league always **replaces all** existing cached teams for that user (both screenshot and league teams, in memory and in blob storage). The screenshot-upload flow is unchanged; the two sources cannot coexist for the same user.
+Picking a team from a league **adds it** to the user's followed league teams (up to `MAX_FOLLOWED_LEAGUE_TEAMS = 6`, in `constants.js`). The two sources still cannot coexist:
+
+- **Following a league team** wipes any screenshot teams (`T1`/`T2`/`T3`) first.
+- **Uploading/assigning a screenshot team** wipes any followed league teams first.
+
+Cross-source wiping is centralized in `src/utils/teamSourceSwitcher.js` (`ensureSourceIsLeague`, `ensureSourceIsScreenshot`).
+
+**Over the cap:** if the user is already following 6 league teams and picks another, `/select_team_from_league` stashes the pending add in Azure Blob Storage (`pending-league-team-adds/{chatId}.json` — helpers `savePendingLeagueTeamAdd` / `getPendingLeagueTeamAdd` / `deletePendingLeagueTeamAdd` in `azureStorageService.js`) and shows an inline "unfollow-and-add" picker (`LEAGUE_TEAM_UNFOLLOW_AND_ADD_CALLBACK_TYPE = 'UFTA'`). Picking a button removes that team and resumes the pending add automatically.
+
+**`/unfollow_team`** (admin-only, `src/commandsHandler/unfollowTeamHandler.js`): shows an inline picker (`LEAGUE_TEAM_UNFOLLOW_CALLBACK_TYPE = 'UFT'`) of the user's currently-followed league teams. Selecting one calls `removeFollowedTeam(bot, chatId, teamId)` — the shared removal helper also used by the `UFTA` resume-add flow. It deletes the blob, clears the per-team entries in `currentTeamCache`/`bestTeamsCache`/`selectedChipCache`/`selectedBestTeamByTeam`, and if the removed team was active promotes the first remaining league team (or clears `selectedTeam` when none remain). Running `/unfollow_team` also deletes any dangling pending-add blob so an abandoned over-cap flow doesn't accidentally resume.
+
+Short callback-data type names (`UFT`, `UFTA`) keep `UFT:{teamId}` / `UFTA:{teamId}` under Telegram's 64-byte `callback_data` limit (league `teamId` length ≤ ~55 chars).
 
 Each team has its own cached data, chip selection, and best-teams calculation. A `selectedTeam` preference determines which team context commands operate on.
 

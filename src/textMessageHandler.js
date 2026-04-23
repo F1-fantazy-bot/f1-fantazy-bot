@@ -41,6 +41,7 @@ const {
   handleUnfollowLeagueCommand,
   handleLeaderboardCommand,
   handleSelectTeamFromLeagueCommand,
+  handleUnfollowTeamCommand,
   handleLeagueGraphCommand,
 } = require('./commandsHandler');
 
@@ -85,6 +86,7 @@ const {
   COMMAND_UNFOLLOW_LEAGUE,
   COMMAND_LEADERBOARD,
   COMMAND_SELECT_TEAM_FROM_LEAGUE,
+  COMMAND_UNFOLLOW_TEAM,
   COMMAND_LEAGUE_GRAPH,
 } = require('./constants');
 
@@ -180,6 +182,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleLeaderboardCommand(bot, msg);
     case msg.text === COMMAND_SELECT_TEAM_FROM_LEAGUE:
       return await handleSelectTeamFromLeagueCommand(bot, msg);
+    case msg.text === COMMAND_UNFOLLOW_TEAM:
+      return await handleUnfollowTeamCommand(bot, msg);
     case msg.text === COMMAND_LEAGUE_GRAPH:
       return await handleLeagueGraphCommand(bot, msg);
     default:

@@ -462,8 +462,10 @@ const translations = {
     'Follow and view F1 Fantasy leagues':
       'עקוב וצפה בליגות F1 Fantasy',
     '🎯 Select Team From League': '🎯 בחר קבוצה מליגה',
-    'Load a team roster from a followed league as your active team (replaces existing teams)':
-      'טען הרכב של קבוצה מליגה שאתה עוקב אחריה ככבוצה הפעילה שלך (מוחק את הקבוצות הקיימות)',
+    'Follow a team roster from a followed league (up to 6 followed teams)':
+      'עקוב אחר קבוצה מליגה שאתה עוקב אחריה (עד 6 קבוצות במקביל)',
+    '🗑️ Unfollow Team': '🗑️ הפסק לעקוב אחר קבוצה',
+    'Stop following a league team': 'הפסק לעקוב אחר קבוצת ליגה',
     'Which league do you want to select a team from?':
       'מאיזו ליגה ברצונך לבחור קבוצה?',
     'Which team do you want to load?': 'איזו קבוצה ברצונך לטעון?',
@@ -475,8 +477,25 @@ const translations = {
       '❌ לא הצלחתי למצוא את הקבוצה הזו בליגה יותר.',
     '❌ Failed to save league team: {ERROR}':
       '❌ שמירת קבוצת הליגה נכשלה: {ERROR}',
-    '✅ Loaded team {TEAM} from league {LEAGUE}. Previous teams have been cleared.':
-      '✅ נטענה הקבוצה {TEAM} מהליגה {LEAGUE}. הקבוצות הקודמות נמחקו.',
+    '✅ Now following team {TEAM} from league {LEAGUE}.':
+      '✅ כעת עוקב אחר הקבוצה {TEAM} מהליגה {LEAGUE}.',
+    '✅ Now following team {TEAM} from league {LEAGUE}. Your previous photo-uploaded teams were cleared.':
+      '✅ כעת עוקב אחר הקבוצה {TEAM} מהליגה {LEAGUE}. הקבוצות שהועלו מתמונות נמחקו.',
+    'ℹ️ You are already following team {TEAM}. Switched to it.':
+      'ℹ️ אתה כבר עוקב אחר הקבוצה {TEAM}. עברתי אליה.',
+    'You are already following {MAX} league teams. Pick one to unfollow so you can follow {TEAM}:':
+      'אתה עוקב כבר אחר {MAX} קבוצות ליגה. בחר אחת להפסיק לעקוב כדי לעקוב אחר {TEAM}:',
+    'Which team do you want to stop following?':
+      'איזו קבוצה ברצונך להפסיק לעקוב אחריה?',
+    'You are not following any league teams yet. Run {CMD} to follow one.':
+      'אתה עדיין לא עוקב אחר אף קבוצת ליגה. הפעל {CMD} כדי לעקוב אחר קבוצה.',
+    '✅ Stopped following team {TEAM}.': '✅ הפסקת לעקוב אחר הקבוצה {TEAM}.',
+    '❌ Failed to stop following team: {ERROR}':
+      '❌ הפסקת המעקב אחר הקבוצה נכשלה: {ERROR}',
+    '❌ That followed team no longer exists.':
+      '❌ הקבוצה שעקבת אחריה כבר לא קיימת.',
+    '❌ The pending team to follow was lost. Please try /select_team_from_league again.':
+      '❌ הקבוצה שהמתנת להוסיף אבדה. אנא נסה שוב את /select_team_from_league.',
     'To find your league code: go to the F1 Fantasy website, open the league you want to follow, click the share button, and copy the league code from there.':
       'כדי למצוא את קוד הליגה: היכנס לאתר \u2066F1 Fantasy\u2069, פתח את הליגה שברצונך לעקוב אחריה, לחץ על כפתור השיתוף והעתק את קוד הליגה משם.',
     '📩 If the code is correct but the league is not yet tracked, please report it to the admins via /report_bug with the league code and we will add the bot to the league as soon as possible.':
