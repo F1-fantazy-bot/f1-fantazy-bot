@@ -27,9 +27,14 @@ jest.mock('../azureStorageService', () => ({
   getLeagueData: jest.fn(),
 }));
 
+jest.mock('../cache', () => ({
+  getSelectedTeam: jest.fn(),
+}));
+
 const { isAdminMessage } = require('../utils/utils');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
+const { getSelectedTeam } = require('../cache');
 
 describe('leaderboardHandler', () => {
   let botMock;
@@ -40,6 +45,10 @@ describe('leaderboardHandler', () => {
   });
 
   describe('formatLeaderboard', () => {
+    beforeEach(() => {
+      getSelectedTeam.mockReturnValue(null);
+    });
+
     it('produces header + position-sorted rows', () => {
       const data = {
         leagueName: 'Amba',
@@ -73,6 +82,25 @@ describe('leaderboardHandler', () => {
       );
 
       expect(output).toContain('No teams in this league yet.');
+    });
+
+    it('bolds the selected team row', () => {
+      getSelectedTeam.mockReturnValue('ABC_A');
+
+      const output = formatLeaderboard(
+        {
+          leagueName: 'Amba',
+          leagueCode: 'ABC',
+          teams: [
+            { teamName: 'A', totalScore: 900, position: 1 },
+            { teamName: 'B', totalScore: 800, position: 2 },
+          ],
+        },
+        1,
+      );
+
+      expect(output).toContain('<b> 1. A — 900</b>');
+      expect(output).toContain(' 2. B — 800');
     });
   });
 
@@ -119,6 +147,7 @@ describe('leaderboardHandler', () => {
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         1,
         expect.stringContaining('🏆 Amba'),
+        { parse_mode: 'HTML' },
       );
     });
 
