@@ -6,7 +6,6 @@ const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
 const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 const { getChipEmoji } = require('../utils/chipEmojis');
-const { getFlagForCountry } = require('../utils/countryFlags');
 const {
   LEAGUE_GRAPH_CALLBACK_TYPE,
   COMMAND_FOLLOW_LEAGUE,
@@ -59,12 +58,13 @@ function matchdayNumber(key) {
 }
 
 /**
- * Build a `roundNumber -> flagEmoji` map from the Ergast current-season payload.
- * Returns an empty map if the payload shape is unexpected.
+ * Build a `roundNumber -> shortRaceName` map from the Ergast current-season payload.
+ * Converts e.g. `"Chinese Grand Prix"` -> `"Chinese GP"`. Returns an empty map if
+ * the payload shape is unexpected.
  * @param {Object|null} seasonData
  * @returns {Record<number,string>}
  */
-function buildRoundToFlagMap(seasonData) {
+function buildRoundToRaceNameMap(seasonData) {
   const races = seasonData?.MRData?.RaceTable?.Races;
   if (!Array.isArray(races)) {
     return {};
@@ -73,14 +73,11 @@ function buildRoundToFlagMap(seasonData) {
   const map = {};
   for (const race of races) {
     const round = Number(race?.round);
-    const country = race?.Circuit?.Location?.country;
-    if (!Number.isFinite(round) || !country) {
+    const raceName = race?.raceName;
+    if (!Number.isFinite(round) || typeof raceName !== 'string' || !raceName) {
       continue;
     }
-    const flag = getFlagForCountry(country);
-    if (flag) {
-      map[round] = flag;
-    }
+    map[round] = raceName.replace(/\s*Grand Prix\s*$/i, ' GP').trim();
   }
 
   return map;
@@ -90,13 +87,17 @@ function buildRoundToFlagMap(seasonData) {
  * Build the Chart.js config consumed by QuickChart.
  * Pure function — no IO. All async work is done by the caller.
  *
+ * Y-axis encodes each team's **gap to the leader** at every race
+ * (cumulative_team - cumulative_leader). The leader sits on 0 at every
+ * step; everyone else is at or below 0.
+ *
  * @param {Object} leagueData - parsed `league-standings.json`.
  * @param {Object} [options]
- * @param {Record<number,string>} [options.roundToFlag] - map of round -> flag emoji.
+ * @param {Record<number,string>} [options.roundToRaceName] - map of round -> short race name (e.g. "Chinese GP").
  * @returns {Object} Chart.js config.
  */
 function buildChartConfig(leagueData, options = {}) {
-  const roundToFlag = options.roundToFlag || {};
+  const roundToRaceName = options.roundToRaceName || {};
 
   const teams = Array.isArray(leagueData?.teams) ? [...leagueData.teams] : [];
   teams.sort((a, b) => (a.position || 0) - (b.position || 0));
@@ -105,24 +106,44 @@ function buildChartConfig(leagueData, options = {}) {
 
   const labels = matchdayKeys.map((key) => {
     const round = matchdayNumber(key);
-    const flag = round !== null ? roundToFlag[round] || '' : '';
-    const roundLabel = round !== null ? `R${round}` : key;
+    if (round !== null && roundToRaceName[round]) {
+      return roundToRaceName[round];
+    }
 
-    return flag ? `${flag} ${roundLabel}` : roundLabel;
+    return round !== null ? `R${round}` : key;
   });
 
-  const datasets = teams.map((team, idx) => {
-    const color = TEAM_COLOR_PALETTE[idx % TEAM_COLOR_PALETTE.length];
-
-    // Cumulative score per matchday, in matchday order.
-    const data = [];
+  // First pass: compute the cumulative running total per team.
+  const cumulativeByTeam = teams.map((team) => {
+    const series = [];
     let running = 0;
     for (const key of matchdayKeys) {
       const raw = Number(team?.raceScores?.[key]);
       const delta = Number.isFinite(raw) ? raw : 0;
       running += delta;
-      data.push(running);
+      series.push(running);
     }
+
+    return series;
+  });
+
+  // For each matchday, the leader = max cumulative across all teams at that index.
+  const leaderPerStep = matchdayKeys.map((_, i) => {
+    let max = -Infinity;
+    for (const series of cumulativeByTeam) {
+      if (series[i] > max) {
+        max = series[i];
+      }
+    }
+
+    return max === -Infinity ? 0 : max;
+  });
+
+  const datasets = teams.map((team, idx) => {
+    const color = TEAM_COLOR_PALETTE[idx % TEAM_COLOR_PALETTE.length];
+    const cumulative = cumulativeByTeam[idx];
+    // Gap to leader at each step: leader is 0, everyone else is <= 0.
+    const data = cumulative.map((value, i) => value - leaderPerStep[i]);
 
     // Per-point chip labels + point radii.
     const chipLabels = matchdayKeys.map(() => '');
@@ -177,7 +198,7 @@ function buildChartConfig(leagueData, options = {}) {
     };
   });
 
-  const title = `${leagueData?.leagueName || leagueData?.leagueCode || 'League'} — cumulative score per race`;
+  const title = `${leagueData?.leagueName || leagueData?.leagueCode || 'League'} — gap to leader per race`;
 
   return {
     type: 'line',
@@ -195,8 +216,8 @@ function buildChartConfig(leagueData, options = {}) {
       },
       scales: {
         y: {
-          beginAtZero: true,
-          title: { display: true, text: 'Cumulative points' },
+          // Leader is 0; gaps are negative — let Chart.js auto-fit the bottom.
+          title: { display: true, text: 'Gap to leader (points)' },
         },
         x: {
           title: { display: true, text: 'Race' },
@@ -259,16 +280,16 @@ async function sendLeagueGraph(bot, chatId, leagueCode) {
   }
 
   // Best-effort: fetch the current season schedule so X-axis labels can
-  // include country flag emojis. Safe to fall back silently if it fails.
-  let roundToFlag = {};
+  // show short race names (e.g. "Chinese GP"). Falls back silently to "R{N}".
+  let roundToRaceName = {};
   try {
     const seasonData = await fetchCurrentSeasonRaces();
-    roundToFlag = buildRoundToFlagMap(seasonData);
+    roundToRaceName = buildRoundToRaceNameMap(seasonData);
   } catch (err) {
-    console.error('Error fetching season schedule for graph flags:', err);
+    console.error('Error fetching season schedule for graph labels:', err);
   }
 
-  const config = buildChartConfig(leagueData, { roundToFlag });
+  const config = buildChartConfig(leagueData, { roundToRaceName });
 
   const chart = new QuickChart();
   chart
@@ -299,7 +320,7 @@ async function sendLeagueGraph(bot, chatId, leagueCode) {
     return;
   }
 
-  const caption = t('🏆 {LEAGUE} — score progression per race', chatId, {
+  const caption = t('🏆 {LEAGUE} — gap to leader per race', chatId, {
     LEAGUE: leagueData.leagueName || leagueData.leagueCode || '',
   });
 
@@ -389,5 +410,5 @@ module.exports = {
   buildChartConfig,
   // Exported for unit tests — not part of the public handler API.
   getSortedMatchdayKeys,
-  buildRoundToFlagMap,
+  buildRoundToRaceNameMap,
 };

@@ -67,7 +67,7 @@ const {
   sendLeagueGraph,
   buildChartConfig,
   getSortedMatchdayKeys,
-  buildRoundToFlagMap,
+  buildRoundToRaceNameMap,
 } = require('./leagueGraphHandler');
 
 // Fixture mirroring the real league-standings.json shape shared by the user.
@@ -167,40 +167,60 @@ describe('leagueGraphHandler', () => {
     });
   });
 
-  describe('buildRoundToFlagMap', () => {
-    it('maps round -> flag for known countries', () => {
+  describe('buildRoundToRaceNameMap', () => {
+    it('maps round -> short race name (Grand Prix -> GP)', () => {
       const data = {
         MRData: {
           RaceTable: {
             Races: [
-              { round: '1', Circuit: { Location: { country: 'Australia' } } },
-              { round: '2', Circuit: { Location: { country: 'Italy' } } },
-              { round: '3', Circuit: { Location: { country: 'Atlantis' } } }, // unknown
+              { round: '1', raceName: 'Bahrain Grand Prix' },
+              { round: '2', raceName: 'Chinese Grand Prix' },
+              { round: '3', raceName: 'Emilia Romagna Grand Prix' },
             ],
           },
         },
       };
-      expect(buildRoundToFlagMap(data)).toEqual({ 1: '🇦🇺', 2: '🇮🇹' });
+      expect(buildRoundToRaceNameMap(data)).toEqual({
+        1: 'Bahrain GP',
+        2: 'Chinese GP',
+        3: 'Emilia Romagna GP',
+      });
     });
 
     it('returns empty map for unexpected shapes', () => {
-      expect(buildRoundToFlagMap(null)).toEqual({});
-      expect(buildRoundToFlagMap({})).toEqual({});
-      expect(buildRoundToFlagMap({ MRData: {} })).toEqual({});
+      expect(buildRoundToRaceNameMap(null)).toEqual({});
+      expect(buildRoundToRaceNameMap({})).toEqual({});
+      expect(buildRoundToRaceNameMap({ MRData: {} })).toEqual({});
+    });
+
+    it('skips entries without a valid round or raceName', () => {
+      const data = {
+        MRData: {
+          RaceTable: {
+            Races: [
+              { round: 'abc', raceName: 'Bad Round GP' },
+              { round: '4', raceName: '' },
+              { round: '5' },
+              { round: '6', raceName: 'Miami Grand Prix' },
+            ],
+          },
+        },
+      };
+      expect(buildRoundToRaceNameMap(data)).toEqual({ 6: 'Miami GP' });
     });
   });
 
   describe('buildChartConfig', () => {
-    it('sorts teams by position, builds cumulative series, and annotates chips', () => {
+    it('sorts teams by position, plots gap-to-leader, and annotates chips', () => {
       const config = buildChartConfig(FIXTURE, {
-        roundToFlag: { 1: '🇧🇭', 2: '🇸🇦', 3: '🇦🇺' },
+        roundToRaceName: { 1: 'Bahrain GP', 2: 'Saudi GP', 3: 'Australia GP' },
       });
 
       expect(config.type).toBe('line');
       expect(config.data.labels).toEqual([
-        '🇧🇭 R1',
-        '🇸🇦 R2',
-        '🇦🇺 R3',
+        'Bahrain GP',
+        'Saudi GP',
+        'Australia GP',
       ]);
 
       // Position-sorted: Cooperon(1), dorsegal1(2), Kilzid(3)
@@ -210,12 +230,18 @@ describe('leagueGraphHandler', () => {
         'Kilzid',
       ]);
 
-      // Cumulative sums for Cooperon: 259, 259+481=740, 740+236=976
-      expect(config.data.datasets[0].data).toEqual([259, 740, 976]);
-      // Cumulative for dorsegal1: 251, 620, 984
-      expect(config.data.datasets[1].data).toEqual([251, 620, 984]);
-      // Cumulative for Kilzid: 251, 620, 965
-      expect(config.data.datasets[2].data).toEqual([251, 620, 965]);
+      // Cumulative sums:
+      //   Cooperon : 259, 740, 976
+      //   dorsegal1: 251, 620, 984
+      //   Kilzid   : 251, 620, 965
+      // Leader per step (max cumulative): 259, 740, 984
+      // Gap = cumulative - leader (<= 0):
+      //   Cooperon : 0,    0,   -8
+      //   dorsegal1: -8, -120,    0
+      //   Kilzid   : -8, -120,  -19
+      expect(config.data.datasets[0].data).toEqual([0, 0, -8]);
+      expect(config.data.datasets[1].data).toEqual([-8, -120, 0]);
+      expect(config.data.datasets[2].data).toEqual([-8, -120, -19]);
 
       // Chip labels for Cooperon: Limitless at R2, Extra DRS Boost at R3
       expect(config.data.datasets[0].chipLabels).toEqual([
@@ -239,8 +265,8 @@ describe('leagueGraphHandler', () => {
       expect(config.data.datasets[2].pointRadius).toEqual([3, 3, 3]);
     });
 
-    it('falls back to "R{N}" when no flag is available', () => {
-      const config = buildChartConfig(FIXTURE, { roundToFlag: {} });
+    it('falls back to "R{N}" when no race name is available', () => {
+      const config = buildChartConfig(FIXTURE, { roundToRaceName: {} });
       expect(config.data.labels).toEqual(['R1', 'R2', 'R3']);
     });
 
@@ -260,8 +286,11 @@ describe('leagueGraphHandler', () => {
         ],
       };
       const config = buildChartConfig(data);
-      expect(config.data.datasets[0].data).toEqual([100, 150]);
-      expect(config.data.datasets[1].data).toEqual([80, 80]);
+      // Cumulatives: A=100,150  B=80,80 → leaders=100,150 → gaps:
+      //   A: 0, 0
+      //   B: -20, -70
+      expect(config.data.datasets[0].data).toEqual([0, 0]);
+      expect(config.data.datasets[1].data).toEqual([-20, -70]);
     });
 
     it('ignores chips with a gameDayId that is not in the matchday series', () => {
@@ -401,7 +430,7 @@ describe('leagueGraphHandler', () => {
       expect(botMock.sendPhoto).not.toHaveBeenCalled();
     });
 
-    it('proceeds without flags if the schedule fetch fails', async () => {
+    it('proceeds with R{N} labels if the schedule fetch fails', async () => {
       const consoleSpy = jest
         .spyOn(console, 'error')
         .mockImplementation(() => {});
@@ -412,7 +441,7 @@ describe('leagueGraphHandler', () => {
 
       expect(botMock.sendPhoto).toHaveBeenCalled();
       const configArg = mockSetConfig.mock.calls[0][0];
-      // No flags — labels are just "R1", "R2", "R3"
+      // No race names — labels are just "R1", "R2", "R3"
       expect(configArg.data.labels).toEqual(['R1', 'R2', 'R3']);
       consoleSpy.mockRestore();
     });

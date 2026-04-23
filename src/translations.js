@@ -492,8 +492,8 @@ const translations = {
       '❌ יצירת גרף הליגה נכשלה: {ERROR}',
     '❌ Failed to send the league graph: {ERROR}':
       '❌ שליחת גרף הליגה נכשלה: {ERROR}',
-    '🏆 {LEAGUE} — score progression per race':
-      '🏆 {LEAGUE} — התקדמות נקודות לפי מרוץ',
+    '🏆 {LEAGUE} — gap to leader per race':
+      '🏆 {LEAGUE} — פער מהמוביל לפי מרוץ',
   },
 };
 
