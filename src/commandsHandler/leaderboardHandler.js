@@ -3,26 +3,11 @@ const { isAdminMessage } = require('../utils/utils');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
 const { getSelectedTeam } = require('../cache');
+const { buildTeamId } = require('../utils/teamId');
 const {
   LEAGUE_CALLBACK_TYPE,
   COMMAND_FOLLOW_LEAGUE,
 } = require('../constants');
-
-function sanitizeTeamName(name) {
-  const base = String(name || 'team')
-    .normalize('NFKD')
-    .replace(/[^\w-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-
-  const trimmed = base.length > 0 ? base : 'team';
-
-  return trimmed.slice(0, 40);
-}
-
-function buildTeamId(leagueCode, teamName) {
-  return `${leagueCode}_${sanitizeTeamName(teamName)}`;
-}
 
 function escapeHtml(value) {
   return String(value)

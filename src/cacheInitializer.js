@@ -30,10 +30,8 @@ const {
 } = require('./azureStorageService');
 const { listAllUsers } = require('./userRegistryService');
 const { fetchRemainingRaceCount } = require('./raceScheduleService');
-const {
-  mapLeagueTeamToBotTeam,
-  sanitizeTeamName,
-} = require('./commandsHandler/selectTeamFromLeagueHandler');
+const { sanitizeTeamName } = require('./utils/teamId');
+const { mapLeagueTeamToBotTeam } = require('./commandsHandler/selectTeamFromLeagueHandler');
 
 /**
  * Initialize all application caches with data from Azure Storage
