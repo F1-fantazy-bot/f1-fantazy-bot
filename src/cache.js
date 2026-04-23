@@ -163,6 +163,25 @@ exports.getUserTeamIds = function (chatId) {
   return Object.keys(currentTeamCache[chatId] || {});
 };
 
+/**
+ * A league-loaded teamId has the shape `{leagueCode}_{sanitizedTeamName}`
+ * (always contains `_`), while screenshot teamIds are the short labels
+ * `T1`, `T2`, `T3` (no `_`).
+ */
+exports.isLeagueTeamId = function (teamId) {
+  return typeof teamId === 'string' && teamId.includes('_');
+};
+
+exports.getUserLeagueTeamIds = function (chatId) {
+  return exports.getUserTeamIds(chatId).filter(exports.isLeagueTeamId);
+};
+
+exports.getUserScreenshotTeamIds = function (chatId) {
+  return exports
+    .getUserTeamIds(chatId)
+    .filter((teamId) => !exports.isLeagueTeamId(teamId));
+};
+
 exports.getBestTeamBudgetChangePointsPerMillion = function (chatId, teamId) {
   const key = String(chatId);
   const bestTeamBudgetChangePointsPerMillion =

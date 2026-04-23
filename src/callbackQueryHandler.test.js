@@ -79,7 +79,13 @@ jest.mock('./cache', () => ({
   getPrintableCache: jest.fn(() => 'printable cache'),
   normalizeBestTeamBudgetChangePointsPerMillion: jest.fn(() => ({})),
   clearSelectedBestTeam: jest.fn(() => ({})),
+  clearAllSelectedBestTeams: jest.fn(() => ({})),
   serializeSelectedBestTeamByTeam: jest.fn(() => null),
+  getUserLeagueTeamIds: jest.fn(() => []),
+  getUserScreenshotTeamIds: jest.fn(() => []),
+  getUserTeamIds: jest.fn(() => []),
+  getSelectedTeam: jest.fn(() => null),
+  isLeagueTeamId: jest.fn((id) => typeof id === 'string' && id.includes('_')),
 }));
 
 describe('handleCallbackQuery', () => {

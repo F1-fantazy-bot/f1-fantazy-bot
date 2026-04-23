@@ -22,6 +22,10 @@ jest.mock('../azureStorageService', () => ({
   getLeagueTeamsData: jest.fn(),
   saveUserTeam: jest.fn().mockResolvedValue(),
   deleteAllUserTeams: jest.fn().mockResolvedValue(),
+  deleteUserTeam: jest.fn().mockResolvedValue(),
+  savePendingLeagueTeamAdd: jest.fn().mockResolvedValue(),
+  getPendingLeagueTeamAdd: jest.fn().mockResolvedValue(null),
+  deletePendingLeagueTeamAdd: jest.fn().mockResolvedValue(),
 }));
 
 jest.mock('../userRegistryService', () => ({
@@ -328,19 +332,28 @@ describe('selectTeamFromLeagueHandler', () => {
             { name: 'FER', price: 1 },
           ],
         },
+        {
+          teamName: 'Other',
+          userName: 'Bob',
+          position: 2,
+          budget: 100,
+          transfersRemaining: 0,
+          drivers: [{ name: 'LAW', price: 10, isCaptain: true }],
+          constructors: [],
+        },
       ],
     };
 
     beforeEach(() => {
       azureStorageService.getLeagueTeamsData.mockResolvedValue(leagueData);
-      // Preload existing cached team + selection to prove it's wiped
+    });
+
+    it('wipes screenshot teams and follows the league team when user had only screenshots', async () => {
       cache.currentTeamCache[1] = { T1: { drivers: ['OLD'] } };
       cache.bestTeamsCache[1] = { T1: { bestTeams: [] } };
       cache.selectedChipCache[1] = { T1: 'EXTRA_BOOST' };
       cache.userCache['1'] = { selectedTeam: 'T1' };
-    });
 
-    it('deletes existing teams, loads the picked team, and updates selectedTeam', async () => {
       await applyLeagueTeamSelection(botMock, 1, 'ABC', 1);
 
       expect(azureStorageService.deleteAllUserTeams).toHaveBeenCalledWith(
@@ -372,11 +385,105 @@ describe('selectTeamFromLeagueHandler', () => {
       );
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         1,
-        expect.stringContaining('Loaded team My Team from league Amba'),
+        expect.stringContaining('Now following team My Team from league Amba'),
+      );
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        1,
+        expect.stringContaining('photo-uploaded teams were cleared'),
       );
     });
 
+    it('adds the new team WITHOUT wiping existing followed league teams (under the cap)', async () => {
+      cache.currentTeamCache[1] = {
+        XYZ_Existing: { drivers: ['KEEP'] },
+      };
+      cache.userCache['1'] = { selectedTeam: 'XYZ_Existing' };
+
+      await applyLeagueTeamSelection(botMock, 1, 'ABC', 1);
+
+      expect(azureStorageService.deleteAllUserTeams).not.toHaveBeenCalled();
+      // Existing league team still there, new team appended.
+      expect(Object.keys(cache.currentTeamCache[1]).sort()).toEqual(
+        ['ABC_My-Team', 'XYZ_Existing'].sort(),
+      );
+      expect(cache.currentTeamCache[1].XYZ_Existing).toEqual({
+        drivers: ['KEEP'],
+      });
+      expect(cache.userCache['1'].selectedTeam).toBe('ABC_My-Team');
+
+      expect(azureStorageService.saveUserTeam).toHaveBeenCalledWith(
+        botMock,
+        1,
+        'ABC_My-Team',
+        expect.objectContaining({ boost: 'VER' }),
+      );
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        1,
+        expect.stringContaining('Now following team My Team from league Amba'),
+      );
+      // The screenshot-wipe notice must NOT appear when we only had league teams.
+      expect(botMock.sendMessage).not.toHaveBeenCalledWith(
+        1,
+        expect.stringContaining('photo-uploaded teams were cleared'),
+      );
+    });
+
+    it('switches to the team (no save/add) when already followed', async () => {
+      cache.currentTeamCache[1] = {
+        'ABC_My-Team': { drivers: ['VER'] },
+        XYZ_Existing: { drivers: ['KEEP'] },
+      };
+      cache.userCache['1'] = { selectedTeam: 'XYZ_Existing' };
+
+      await applyLeagueTeamSelection(botMock, 1, 'ABC', 1);
+
+      expect(azureStorageService.saveUserTeam).not.toHaveBeenCalled();
+      expect(azureStorageService.deleteAllUserTeams).not.toHaveBeenCalled();
+      expect(cache.userCache['1'].selectedTeam).toBe('ABC_My-Team');
+      expect(updateUserAttributes).toHaveBeenCalledWith(1, {
+        selectedTeam: 'ABC_My-Team',
+      });
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        1,
+        expect.stringContaining('already following team My Team'),
+      );
+    });
+
+    it('stashes pending add and shows unfollow picker when at the cap', async () => {
+      cache.currentTeamCache[1] = {
+        'L1_A': { drivers: [] },
+        'L1_B': { drivers: [] },
+        'L1_C': { drivers: [] },
+        'L1_D': { drivers: [] },
+        'L1_E': { drivers: [] },
+        'L1_F': { drivers: [] },
+      };
+      cache.userCache['1'] = { selectedTeam: 'L1_A' };
+
+      await applyLeagueTeamSelection(botMock, 1, 'ABC', 1);
+
+      expect(azureStorageService.savePendingLeagueTeamAdd).toHaveBeenCalledWith(
+        1,
+        { leagueCode: 'ABC', position: 1 },
+      );
+      expect(azureStorageService.saveUserTeam).not.toHaveBeenCalled();
+      expect(cache.currentTeamCache[1]['ABC_My-Team']).toBeUndefined();
+
+      // Shows picker with all 6 currently followed teams as UFTA callbacks.
+      const [, , options] = botMock.sendMessage.mock.calls.find(
+        ([, text]) =>
+          typeof text === 'string' &&
+          text.startsWith('You are already following'),
+      );
+      expect(options.reply_markup.inline_keyboard).toHaveLength(6);
+      for (const [button] of options.reply_markup.inline_keyboard) {
+        expect(button.callback_data).toMatch(/^UFTA:L1_/);
+      }
+    });
+
     it('errors gracefully when position does not exist in league', async () => {
+      cache.currentTeamCache[1] = { T1: { drivers: ['OLD'] } };
+
       await applyLeagueTeamSelection(botMock, 1, 'ABC', 99);
 
       expect(botMock.sendMessage).toHaveBeenCalledWith(

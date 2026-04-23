@@ -20,6 +20,9 @@ const {
 } = require('./constants');
 const { sendLogMessage, sendMessageToUser } = require('./utils');
 const { t } = require('./i18n');
+const {
+  ensureSourceIsScreenshot,
+} = require('./utils/teamSourceSwitcher');
 
 async function processPhotoByType(
   bot,
@@ -126,6 +129,10 @@ async function storeInCache(bot, chatId, type, extractedData, fileUniqueId) {
 
       return null;
     }
+
+    // Cross-source rule: uploading a screenshot drops any previously
+    // followed league teams so the two sources never coexist.
+    await ensureSourceIsScreenshot(bot, chatId);
 
     if (!currentTeamCache[chatId]) {
       currentTeamCache[chatId] = {};

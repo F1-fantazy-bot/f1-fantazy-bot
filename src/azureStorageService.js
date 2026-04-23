@@ -446,6 +446,85 @@ async function getLeagueTeamsData(leagueCode) {
   }
 }
 
+/**
+ * Save a pending "follow league team" request for a user.
+ * Used when the user has hit the 6-team cap in /select_team_from_league and
+ * must first unfollow an existing team before the new one can be added.
+ * @param {string|number} chatId
+ * @param {{leagueCode: string, position: number}} pendingAdd
+ */
+async function savePendingLeagueTeamAdd(chatId, pendingAdd) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = `pending-league-team-adds/${chatId}.json`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    const content = JSON.stringify(pendingAdd, null, 2);
+
+    await blockBlobClient.upload(content, content.length, {
+      blobHTTPHeaders: { blobContentType: 'application/json' },
+    });
+  } catch (error) {
+    throw new Error(
+      `Failed to save pending league team add for ${chatId}: ${error.message}`,
+    );
+  }
+}
+
+/**
+ * Read a pending "follow league team" request for a user.
+ * @param {string|number} chatId
+ * @returns {Promise<{leagueCode: string, position: number}|null>}
+ */
+async function getPendingLeagueTeamAdd(chatId) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = `pending-league-team-adds/${chatId}.json`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const exists = await blockBlobClient.exists();
+    if (!exists) {
+      return null;
+    }
+
+    const downloadResponse = await blockBlobClient.download();
+    const jsonString = await streamToString(
+      downloadResponse.readableStreamBody,
+    );
+
+    return JSON.parse(jsonString);
+  } catch (error) {
+    throw new Error(
+      `Failed to get pending league team add for ${chatId}: ${error.message}`,
+    );
+  }
+}
+
+/**
+ * Delete a pending "follow league team" request for a user.
+ * @param {string|number} chatId
+ */
+async function deletePendingLeagueTeamAdd(chatId) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = `pending-league-team-adds/${chatId}.json`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    await blockBlobClient.deleteIfExists();
+  } catch (error) {
+    console.error(
+      `Failed to delete pending league team add for ${chatId}: ${error.message}`,
+    );
+  }
+}
+
 module.exports = {
   getFantasyData,
   getUserTeam,
@@ -458,6 +537,9 @@ module.exports = {
   savePendingTeamAssignment,
   getPendingTeamAssignment,
   deletePendingTeamAssignment,
+  savePendingLeagueTeamAdd,
+  getPendingLeagueTeamAdd,
+  deletePendingLeagueTeamAdd,
   getLeagueData,
   getLeagueTeamsData,
 };
