@@ -206,7 +206,7 @@ function buildChartConfig(leagueData, options = {}) {
         align: 'top',
         offset: 4,
         clamp: true,
-        font: { size: 10, weight: 'bold' },
+        font: { size: 11, weight: 'bold' },
       },
     };
   });
@@ -219,21 +219,24 @@ function buildChartConfig(leagueData, options = {}) {
     options: {
       responsive: false,
       plugins: {
-        title: { display: true, text: title, font: { size: 16 } },
-        legend: { position: 'bottom', labels: { boxWidth: 14 } },
+        title: { display: true, text: title, font: { size: 20 } },
+        legend: { position: 'bottom', labels: { boxWidth: 16, font: { size: 13 } } },
         datalabels: {
           // Dataset-level `datalabels` above provide the actual formatter;
           // this block just enables the plugin globally with sane defaults.
           display: true,
+          font: { size: 11 },
         },
       },
       scales: {
         y: {
           // Leader is 0; gaps are negative — let Chart.js auto-fit the bottom.
-          title: { display: true, text: 'Gap to leader (points)' },
+          title: { display: true, text: 'Gap to leader (points)', font: { size: 14 } },
+          ticks: { font: { size: 12 } },
         },
         x: {
-          title: { display: true, text: 'Race' },
+          title: { display: true, text: 'Race', font: { size: 14 } },
+          ticks: { font: { size: 12 } },
         },
       },
       layout: { padding: { top: 24, right: 24, bottom: 8, left: 8 } },
@@ -311,8 +314,9 @@ async function sendLeagueGraph(bot, chatId, leagueCode) {
   const chart = new QuickChart();
   chart
     .setConfig(config)
-    .setWidth(900)
-    .setHeight(500)
+    .setWidth(1400)
+    .setHeight(780)
+    .setDevicePixelRatio(2)
     .setBackgroundColor('white')
     .setVersion('4');
 
