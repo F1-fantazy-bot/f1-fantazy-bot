@@ -180,7 +180,7 @@ function buildChartConfig(leagueData, options = {}) {
     const teamLabel = team.teamName || team.userName || `Team ${idx + 1}`;
 
     return {
-      label: isSelectedTeam ? `👉 ${teamLabel}` : teamLabel,
+      label: teamLabel,
       data,
       borderColor: color,
       backgroundColor: color,
