@@ -2,10 +2,19 @@ const { t } = require('../i18n');
 const { isAdminMessage } = require('../utils/utils');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
+const { getSelectedTeam } = require('../cache');
+const { buildTeamId } = require('../utils/teamId');
 const {
   LEAGUE_CALLBACK_TYPE,
   COMMAND_FOLLOW_LEAGUE,
 } = require('../constants');
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
 
 /**
  * Render a compact leaderboard message from the blob payload.
@@ -18,12 +27,13 @@ const {
 function formatLeaderboard(leagueData, chatId) {
   const teams = Array.isArray(leagueData.teams) ? [...leagueData.teams] : [];
   teams.sort((a, b) => (a.position || 0) - (b.position || 0));
+  const selectedTeamId = getSelectedTeam(chatId);
 
   const header =
-    `🏆 ${leagueData.leagueName || leagueData.leagueCode}\n` +
+    `🏆 ${escapeHtml(leagueData.leagueName || leagueData.leagueCode)}\n` +
     t('👥 {COUNT} teams · updated {TIME}', chatId, {
       COUNT: String(leagueData.memberCount ?? teams.length),
-      TIME: leagueData.fetchedAt || '',
+      TIME: escapeHtml(leagueData.fetchedAt || ''),
     });
 
   if (teams.length === 0) {
@@ -34,10 +44,15 @@ function formatLeaderboard(leagueData, chatId) {
   const posWidth = String(maxPos).length;
   const lines = teams.map((team) => {
     const pos = String(team.position ?? '?').padStart(posWidth, ' ');
-    const name = team.teamName || team.userName || '—';
+    const name = escapeHtml(team.teamName || team.userName || '—');
     const score = team.totalScore ?? 0;
+    const line = ` ${pos}. ${name} — ${escapeHtml(score)}`;
+    const teamId = buildTeamId(
+      leagueData.leagueCode,
+      team.teamName || team.userName || 'team',
+    );
 
-    return ` ${pos}. ${name} — ${score}`;
+    return teamId === selectedTeamId ? `<b>${line}</b>` : line;
   });
 
   return `${header}\n\n${lines.join('\n')}`;
@@ -71,7 +86,9 @@ async function sendLeaderboard(bot, chatId, leagueCode) {
     return;
   }
 
-  await bot.sendMessage(chatId, formatLeaderboard(leagueData, chatId));
+  await bot.sendMessage(chatId, formatLeaderboard(leagueData, chatId), {
+    parse_mode: 'HTML',
+  });
 }
 
 async function handleLeaderboardCommand(bot, msg) {

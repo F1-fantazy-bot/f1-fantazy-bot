@@ -6,6 +6,8 @@ const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
 const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 const { getChipEmoji } = require('../utils/chipEmojis');
+const { getSelectedTeam } = require('../cache');
+const { buildTeamId } = require('../utils/teamId');
 const {
   LEAGUE_GRAPH_CALLBACK_TYPE,
   COMMAND_FOLLOW_LEAGUE,
@@ -98,6 +100,7 @@ function buildRoundToRaceNameMap(seasonData) {
  */
 function buildChartConfig(leagueData, options = {}) {
   const roundToRaceName = options.roundToRaceName || {};
+  const selectedTeamId = options.selectedTeamId || null;
 
   const teams = Array.isArray(leagueData?.teams) ? [...leagueData.teams] : [];
   teams.sort((a, b) => (a.position || 0) - (b.position || 0));
@@ -141,6 +144,11 @@ function buildChartConfig(leagueData, options = {}) {
 
   const datasets = teams.map((team, idx) => {
     const color = TEAM_COLOR_PALETTE[idx % TEAM_COLOR_PALETTE.length];
+    const teamId = buildTeamId(
+      leagueData?.leagueCode,
+      team.teamName || team.userName || 'team',
+    );
+    const isSelectedTeam = teamId === selectedTeamId;
     const cumulative = cumulativeByTeam[idx];
     // Gap to leader at each step: leader is 0, everyone else is <= 0.
     const data = cumulative.map((value, i) => value - leaderPerStep[i]);
@@ -169,15 +177,20 @@ function buildChartConfig(leagueData, options = {}) {
       pointBorderWidth[idxInSeries] = 2;
     }
 
+    const teamLabel = team.teamName || team.userName || `Team ${idx + 1}`;
+
     return {
-      label: team.teamName || team.userName || `Team ${idx + 1}`,
+      label: teamLabel,
       data,
       borderColor: color,
       backgroundColor: color,
+      borderWidth: isSelectedTeam ? 5 : 2,
       fill: false,
       tension: 0.25,
-      pointRadius,
-      pointHoverRadius: pointRadius,
+      pointRadius: pointRadius.map((radius) => (isSelectedTeam ? radius + 2 : radius)),
+      pointHoverRadius: pointRadius.map((radius) =>
+        isSelectedTeam ? radius + 2 : radius,
+      ),
       pointBorderWidth,
       chipLabels,
       datalabels: {
@@ -289,7 +302,11 @@ async function sendLeagueGraph(bot, chatId, leagueCode) {
     console.error('Error fetching season schedule for graph labels:', err);
   }
 
-  const config = buildChartConfig(leagueData, { roundToRaceName });
+  const selectedTeamId = getSelectedTeam(chatId);
+  const config = buildChartConfig(leagueData, {
+    roundToRaceName,
+    selectedTeamId,
+  });
 
   const chart = new QuickChart();
   chart

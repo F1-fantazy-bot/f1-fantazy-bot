@@ -29,6 +29,10 @@ jest.mock('../raceScheduleService', () => ({
   fetchCurrentSeasonRaces: jest.fn(),
 }));
 
+jest.mock('../cache', () => ({
+  getSelectedTeam: jest.fn(),
+}));
+
 // Mock quickchart-js so tests never touch the network.
 // Names must be prefixed with `mock` to be accessible inside jest.mock factories.
 const mockGetShortUrl = jest.fn();
@@ -61,6 +65,7 @@ const { isAdminMessage } = require('../utils/utils');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
 const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
+const { getSelectedTeam } = require('../cache');
 
 const {
   handleLeagueGraphCommand,
@@ -125,6 +130,7 @@ describe('leagueGraphHandler', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    getSelectedTeam.mockReturnValue(null);
     botMock = {
       sendMessage: jest.fn().mockResolvedValue(),
       sendPhoto: jest.fn().mockResolvedValue(),
@@ -323,6 +329,17 @@ describe('leagueGraphHandler', () => {
       const config = buildChartConfig(data);
       expect(config.data.datasets[0].chipLabels[0]).toBe('🎖️ Mystery Chip');
     });
+
+    it('highlights the selected team with a thicker line and larger points', () => {
+      const selectedTeamId = 'C8EFGOXCB04_Cooperon';
+      const config = buildChartConfig(FIXTURE, { selectedTeamId });
+
+      expect(config.data.datasets[0].label).toBe('Cooperon');
+      expect(config.data.datasets[0].borderWidth).toBe(5);
+      expect(config.data.datasets[1].borderWidth).toBe(2);
+      expect(config.data.datasets[0].pointRadius).toEqual([5, 9, 9]);
+      expect(config.data.datasets[1].pointRadius).toEqual([3, 3, 7]);
+    });
   });
 
   describe('handleLeagueGraphCommand', () => {
@@ -444,6 +461,20 @@ describe('leagueGraphHandler', () => {
       // No race names — labels are just "R1", "R2", "R3"
       expect(configArg.data.labels).toEqual(['R1', 'R2', 'R3']);
       consoleSpy.mockRestore();
+    });
+
+    it('passes selectedTeamId into chart config so selected series is highlighted', async () => {
+      getSelectedTeam.mockReturnValue('C8EFGOXCB04_Cooperon');
+      getLeagueData.mockResolvedValueOnce(FIXTURE);
+      fetchCurrentSeasonRaces.mockResolvedValueOnce({
+        MRData: { RaceTable: { Races: [] } },
+      });
+
+      await sendLeagueGraph(botMock, 1, 'ABC');
+
+      const configArg = mockSetConfig.mock.calls[0][0];
+      expect(configArg.data.datasets[0].label).toBe('Cooperon');
+      expect(configArg.data.datasets[0].borderWidth).toBe(5);
     });
 
     it('surfaces fetch errors to the user and error channel', async () => {

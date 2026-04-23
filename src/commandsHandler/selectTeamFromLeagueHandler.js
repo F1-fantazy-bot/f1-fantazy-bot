@@ -3,6 +3,7 @@ const { isAdminMessage, sendMessageToUser } = require('../utils/utils');
 const { listUserLeagues } = require('../leagueRegistryService');
 const azureStorageService = require('../azureStorageService');
 const { updateUserAttributes } = require('../userRegistryService');
+const { sanitizeTeamName, buildTeamId } = require('../utils/teamId');
 const {
   currentTeamCache,
   bestTeamsCache,
@@ -33,26 +34,6 @@ function mapNameToCode(name) {
   const key = String(name).toLowerCase().trim();
 
   return NAME_TO_CODE_MAPPING[key] || name;
-}
-
-/**
- * Sanitize a team name so it can be safely embedded into blob paths.
- * Keeps the result short and readable.
- */
-function sanitizeTeamName(name) {
-  const base = String(name || 'team')
-    .normalize('NFKD')
-    .replace(/[^\w-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-
-  const trimmed = base.length > 0 ? base : 'team';
-
-  return trimmed.slice(0, 40);
-}
-
-function buildTeamId(leagueCode, teamName) {
-  return `${leagueCode}_${sanitizeTeamName(teamName)}`;
 }
 
 /**
