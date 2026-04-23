@@ -155,7 +155,7 @@ function buildChartConfig(leagueData, options = {}) {
 
     // Per-point chip labels + point radii.
     const chipLabels = matchdayKeys.map(() => '');
-    const pointRadius = matchdayKeys.map(() => 3);
+    const pointRadius = matchdayKeys.map(() => 4);
     const pointBorderWidth = matchdayKeys.map(() => 1);
 
     const chips = Array.isArray(team?.chipsUsed) ? team.chipsUsed : [];
@@ -173,7 +173,7 @@ function buildChartConfig(leagueData, options = {}) {
       const emoji = getChipEmoji(chip?.name);
       const chipName = typeof chip?.name === 'string' ? chip.name : '';
       chipLabels[idxInSeries] = chipName ? `${emoji} ${chipName}` : emoji;
-      pointRadius[idxInSeries] = 7;
+      pointRadius[idxInSeries] = 9;
       pointBorderWidth[idxInSeries] = 2;
     }
 
@@ -184,12 +184,12 @@ function buildChartConfig(leagueData, options = {}) {
       data,
       borderColor: color,
       backgroundColor: color,
-      borderWidth: isSelectedTeam ? 5 : 2,
+      borderWidth: isSelectedTeam ? 6 : 3,
       fill: false,
       tension: 0.25,
-      pointRadius: pointRadius.map((radius) => (isSelectedTeam ? radius + 2 : radius)),
+      pointRadius: pointRadius.map((radius) => (isSelectedTeam ? radius + 3 : radius)),
       pointHoverRadius: pointRadius.map((radius) =>
-        isSelectedTeam ? radius + 2 : radius,
+        isSelectedTeam ? radius + 3 : radius,
       ),
       pointBorderWidth,
       chipLabels,
@@ -206,7 +206,7 @@ function buildChartConfig(leagueData, options = {}) {
         align: 'top',
         offset: 4,
         clamp: true,
-        font: { size: 11, weight: 'bold' },
+        font: { size: 12, weight: 'bold' },
       },
     };
   });
@@ -219,24 +219,24 @@ function buildChartConfig(leagueData, options = {}) {
     options: {
       responsive: false,
       plugins: {
-        title: { display: true, text: title, font: { size: 20 } },
-        legend: { position: 'bottom', labels: { boxWidth: 16, font: { size: 13 } } },
+        title: { display: true, text: title, font: { size: 22 } },
+        legend: { position: 'bottom', labels: { boxWidth: 18, font: { size: 14 } } },
         datalabels: {
           // Dataset-level `datalabels` above provide the actual formatter;
           // this block just enables the plugin globally with sane defaults.
           display: true,
-          font: { size: 11 },
+          font: { size: 12 },
         },
       },
       scales: {
         y: {
           // Leader is 0; gaps are negative — let Chart.js auto-fit the bottom.
-          title: { display: true, text: 'Gap to leader (points)', font: { size: 14 } },
-          ticks: { font: { size: 12 } },
+          title: { display: true, text: 'Gap to leader (points)', font: { size: 15 } },
+          ticks: { font: { size: 13 } },
         },
         x: {
-          title: { display: true, text: 'Race', font: { size: 14 } },
-          ticks: { font: { size: 12 } },
+          title: { display: true, text: 'Race', font: { size: 15 } },
+          ticks: { font: { size: 13 } },
         },
       },
       layout: { padding: { top: 24, right: 24, bottom: 8, left: 8 } },
@@ -314,9 +314,9 @@ async function sendLeagueGraph(bot, chatId, leagueCode) {
   const chart = new QuickChart();
   chart
     .setConfig(config)
-    .setWidth(1400)
-    .setHeight(780)
-    .setDevicePixelRatio(2)
+    .setWidth(1600)
+    .setHeight(920)
+    .setDevicePixelRatio(3)
     .setBackgroundColor('white')
     .setVersion('4');
 
