@@ -29,6 +29,24 @@ const TEAM_COLOR_PALETTE = [
   '#a9a9a9', // grey
 ];
 
+function toBoldUnicode(text) {
+  return String(text).replace(/[A-Za-z0-9]/g, (char) => {
+    const code = char.codePointAt(0);
+
+    if (code >= 65 && code <= 90) {
+      return String.fromCodePoint(0x1d5d4 + (code - 65));
+    }
+    if (code >= 97 && code <= 122) {
+      return String.fromCodePoint(0x1d5ee + (code - 97));
+    }
+    if (code >= 48 && code <= 57) {
+      return String.fromCodePoint(0x1d7ec + (code - 48));
+    }
+
+    return char;
+  });
+}
+
 /**
  * Extract matchday keys from a teams array and sort them by trailing numeric id.
  * Accepts keys like `matchday_1`, `matchday_10` — sorts numerically, not lexically.
@@ -177,8 +195,10 @@ function buildChartConfig(leagueData, options = {}) {
       pointBorderWidth[idxInSeries] = 2;
     }
 
+    const teamLabel = team.teamName || team.userName || `Team ${idx + 1}`;
+
     return {
-      label: team.teamName || team.userName || `Team ${idx + 1}`,
+      label: isSelectedTeam ? toBoldUnicode(teamLabel) : teamLabel,
       data,
       borderColor: color,
       backgroundColor: color,
