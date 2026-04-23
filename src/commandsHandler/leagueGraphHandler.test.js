@@ -334,7 +334,7 @@ describe('leagueGraphHandler', () => {
       const selectedTeamId = 'C8EFGOXCB04_Cooperon';
       const config = buildChartConfig(FIXTURE, { selectedTeamId });
 
-      expect(config.data.datasets[0].label).toBe('𝗖𝗼𝗼𝗽𝗲𝗿𝗼𝗻');
+      expect(config.data.datasets[0].label).toBe('👉 Cooperon');
       expect(config.data.datasets[0].borderWidth).toBe(5);
       expect(config.data.datasets[1].borderWidth).toBe(2);
       expect(config.data.datasets[0].pointRadius).toEqual([5, 9, 9]);
@@ -473,7 +473,7 @@ describe('leagueGraphHandler', () => {
       await sendLeagueGraph(botMock, 1, 'ABC');
 
       const configArg = mockSetConfig.mock.calls[0][0];
-      expect(configArg.data.datasets[0].label).toBe('𝗖𝗼𝗼𝗽𝗲𝗿𝗼𝗻');
+      expect(configArg.data.datasets[0].label).toBe('👉 Cooperon');
       expect(configArg.data.datasets[0].borderWidth).toBe(5);
     });
 
