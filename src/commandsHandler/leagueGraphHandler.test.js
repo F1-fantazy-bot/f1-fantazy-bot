@@ -39,6 +39,7 @@ const mockGetShortUrl = jest.fn();
 const mockSetConfig = jest.fn();
 const mockSetWidth = jest.fn();
 const mockSetHeight = jest.fn();
+const mockSetDevicePixelRatio = jest.fn();
 const mockSetBg = jest.fn();
 const mockSetVersion = jest.fn();
 
@@ -48,11 +49,13 @@ jest.mock('quickchart-js', () => {
     mockSetConfig.mockImplementation(() => chainable);
     mockSetWidth.mockImplementation(() => chainable);
     mockSetHeight.mockImplementation(() => chainable);
+    mockSetDevicePixelRatio.mockImplementation(() => chainable);
     mockSetBg.mockImplementation(() => chainable);
     mockSetVersion.mockImplementation(() => chainable);
     chainable.setConfig = mockSetConfig;
     chainable.setWidth = mockSetWidth;
     chainable.setHeight = mockSetHeight;
+    chainable.setDevicePixelRatio = mockSetDevicePixelRatio;
     chainable.setBackgroundColor = mockSetBg;
     chainable.setVersion = mockSetVersion;
     chainable.getShortUrl = mockGetShortUrl;
@@ -256,9 +259,9 @@ describe('leagueGraphHandler', () => {
         '⚡ Extra DRS Boost',
       ]);
       // Bigger point radius for chip races
-      expect(config.data.datasets[0].pointRadius[0]).toBe(3);
-      expect(config.data.datasets[0].pointRadius[1]).toBe(7);
-      expect(config.data.datasets[0].pointRadius[2]).toBe(7);
+      expect(config.data.datasets[0].pointRadius[0]).toBe(4);
+      expect(config.data.datasets[0].pointRadius[1]).toBe(9);
+      expect(config.data.datasets[0].pointRadius[2]).toBe(9);
 
       // Chip labels for dorsegal1: Limitless at R3
       expect(config.data.datasets[1].chipLabels).toEqual([
@@ -268,7 +271,7 @@ describe('leagueGraphHandler', () => {
       ]);
       // No chips for Kilzid
       expect(config.data.datasets[2].chipLabels).toEqual(['', '', '']);
-      expect(config.data.datasets[2].pointRadius).toEqual([3, 3, 3]);
+      expect(config.data.datasets[2].pointRadius).toEqual([4, 4, 4]);
     });
 
     it('falls back to "R{N}" when no race name is available', () => {
@@ -312,7 +315,7 @@ describe('leagueGraphHandler', () => {
       };
       const config = buildChartConfig(data);
       expect(config.data.datasets[0].chipLabels).toEqual(['', '']);
-      expect(config.data.datasets[0].pointRadius).toEqual([3, 3]);
+      expect(config.data.datasets[0].pointRadius).toEqual([4, 4]);
     });
 
     it('falls back to the default chip emoji for unknown chip names', () => {
@@ -335,10 +338,22 @@ describe('leagueGraphHandler', () => {
       const config = buildChartConfig(FIXTURE, { selectedTeamId });
 
       expect(config.data.datasets[0].label).toBe('Cooperon');
-      expect(config.data.datasets[0].borderWidth).toBe(5);
-      expect(config.data.datasets[1].borderWidth).toBe(2);
-      expect(config.data.datasets[0].pointRadius).toEqual([5, 9, 9]);
-      expect(config.data.datasets[1].pointRadius).toEqual([3, 3, 7]);
+      expect(config.data.datasets[0].borderWidth).toBe(6);
+      expect(config.data.datasets[1].borderWidth).toBe(3);
+      expect(config.data.datasets[0].pointRadius).toEqual([7, 12, 12]);
+      expect(config.data.datasets[1].pointRadius).toEqual([4, 4, 9]);
+    });
+
+    it('uses larger font sizes for high-resolution rendering readability', () => {
+      const config = buildChartConfig(FIXTURE);
+
+      expect(config.options.plugins.title.font.size).toBe(22);
+      expect(config.options.plugins.legend.labels.font.size).toBe(14);
+      expect(config.options.scales.x.title.font.size).toBe(15);
+      expect(config.options.scales.y.title.font.size).toBe(15);
+      expect(config.options.scales.x.ticks.font.size).toBe(13);
+      expect(config.options.scales.y.ticks.font.size).toBe(13);
+      expect(config.data.datasets[0].datalabels.font.size).toBe(12);
     });
   });
 
@@ -474,7 +489,20 @@ describe('leagueGraphHandler', () => {
 
       const configArg = mockSetConfig.mock.calls[0][0];
       expect(configArg.data.datasets[0].label).toBe('Cooperon');
-      expect(configArg.data.datasets[0].borderWidth).toBe(5);
+      expect(configArg.data.datasets[0].borderWidth).toBe(6);
+    });
+
+    it('configures QuickChart with larger dimensions and explicit pixel ratio', async () => {
+      getLeagueData.mockResolvedValueOnce(FIXTURE);
+      fetchCurrentSeasonRaces.mockResolvedValueOnce({
+        MRData: { RaceTable: { Races: [] } },
+      });
+
+      await sendLeagueGraph(botMock, 1, 'ABC');
+
+      expect(mockSetWidth).toHaveBeenCalledWith(1600);
+      expect(mockSetHeight).toHaveBeenCalledWith(920);
+      expect(mockSetDevicePixelRatio).toHaveBeenCalledWith(3);
     });
 
     it('surfaces fetch errors to the user and error channel', async () => {
