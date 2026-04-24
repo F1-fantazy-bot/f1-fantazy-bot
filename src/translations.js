@@ -510,6 +510,7 @@ const translations = {
       'איזה גרף ליגה תרצה לראות?',
     'Which graph do you want to see?': 'איזה גרף תרצה לראות?',
     '📉 Gap to Leader': '📉 פער מהמוביל',
+    '🏆 Standings': '🏆 דירוג',
     '💰 Budget': '💰 תקציב',
     'No budget data is available yet for this league. Please try again later.':
       'עדיין אין נתוני תקציב זמינים עבור הליגה הזו. נסה שוב מאוחר יותר.',
@@ -523,6 +524,8 @@ const translations = {
       '🏆 {LEAGUE} — פער מהמוביל לפי מרוץ',
     '💰 {LEAGUE} — budget per race':
       '💰 {LEAGUE} — תקציב לפי מרוץ',
+    '🏆 {LEAGUE} — standings per race':
+      '🏆 {LEAGUE} — דירוג לפי מרוץ',
   },
 };
 

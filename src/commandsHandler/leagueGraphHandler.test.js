@@ -412,6 +412,12 @@ describe('leagueGraphHandler', () => {
               ],
               [
                 {
+                  text: '🏆 Standings',
+                  callback_data: 'LEAGUE_GRAPH_TYPE:standings:ABC',
+                },
+              ],
+              [
+                {
                   text: '💰 Budget',
                   callback_data: 'LEAGUE_GRAPH_TYPE:budget:ABC',
                 },
@@ -452,9 +458,10 @@ describe('leagueGraphHandler', () => {
   });
 
   describe('buildGraphTypeKeyboard / sendGraphTypePicker', () => {
-    it('builds a two-button keyboard scoped to the league code', () => {
+    it('builds a three-button keyboard scoped to the league code', () => {
       expect(buildGraphTypeKeyboard('ABC', 1)).toEqual([
         [{ text: '📉 Gap to Leader', callback_data: 'LEAGUE_GRAPH_TYPE:gap:ABC' }],
+        [{ text: '🏆 Standings', callback_data: 'LEAGUE_GRAPH_TYPE:standings:ABC' }],
         [{ text: '💰 Budget', callback_data: 'LEAGUE_GRAPH_TYPE:budget:ABC' }],
       ]);
     });

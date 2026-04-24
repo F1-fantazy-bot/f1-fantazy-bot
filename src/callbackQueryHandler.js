@@ -56,6 +56,9 @@ const {
 const {
   sendLeagueBudgetGraph,
 } = require('./commandsHandler/leagueBudgetGraphHandler');
+const {
+  sendLeagueStandingsGraph,
+} = require('./commandsHandler/leagueStandingsGraphHandler');
 const { removeUserLeague } = require('./leagueRegistryService');
 const {
   promptTeamPick,
@@ -429,6 +432,8 @@ async function handleLeagueGraphTypeCallback(bot, query) {
 
   if (graphType === LEAGUE_GRAPH_TYPES.BUDGET) {
     await sendLeagueBudgetGraph(bot, chatId, leagueCode);
+  } else if (graphType === LEAGUE_GRAPH_TYPES.STANDINGS) {
+    await sendLeagueStandingsGraph(bot, chatId, leagueCode);
   } else {
     // Default to the gap-to-leader chart for any unknown/legacy type value.
     await sendLeagueGraph(bot, chatId, leagueCode);
