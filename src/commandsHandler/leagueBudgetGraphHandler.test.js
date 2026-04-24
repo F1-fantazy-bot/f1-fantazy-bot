@@ -142,7 +142,7 @@ describe('leagueBudgetGraphHandler', () => {
   });
 
   describe('buildBudgetChartConfig', () => {
-    it('sorts teams by position and plots one series per team', () => {
+    it('plots one series per team (order follows latest-budget sort, then position tie-break)', () => {
       const config = buildBudgetChartConfig(FIXTURE, {
         roundToRaceName: {
           1: 'Bahrain GP',
@@ -196,6 +196,92 @@ describe('leagueBudgetGraphHandler', () => {
       expect(config.data.datasets[0].data).toEqual([100, null, 104]);
       expect(config.data.datasets[0].spanGaps).toBe(true);
       expect(config.data.datasets[1].data).toEqual([100, 101, 103]);
+    });
+
+    it('sorts legend by most recent budget (desc) rather than position', () => {
+      const data = {
+        leagueName: 'Mixed',
+        teams: [
+          {
+            teamName: 'Leader',
+            position: 1,
+            raceBudgets: { matchday_1: 100, matchday_2: 101 },
+          },
+          {
+            teamName: 'Second',
+            position: 2,
+            raceBudgets: { matchday_1: 100, matchday_2: 104 },
+          },
+          {
+            teamName: 'Third',
+            position: 3,
+            raceBudgets: { matchday_1: 100, matchday_2: 102 },
+          },
+        ],
+      };
+      const config = buildBudgetChartConfig(data);
+      expect(config.data.datasets.map((d) => d.label)).toEqual([
+        'Second',
+        'Third',
+        'Leader',
+      ]);
+    });
+
+    it('falls back to the last non-null budget when the latest matchday is missing for a team', () => {
+      const data = {
+        teams: [
+          {
+            teamName: 'A',
+            position: 1,
+            raceBudgets: { matchday_1: 100, matchday_2: 105 }, // missing md3
+          },
+          {
+            teamName: 'B',
+            position: 2,
+            raceBudgets: { matchday_1: 100, matchday_2: 101, matchday_3: 103 },
+          },
+        ],
+      };
+      const config = buildBudgetChartConfig(data);
+      // A's latest (matchday_2 = 105) > B's latest (matchday_3 = 103)
+      expect(config.data.datasets.map((d) => d.label)).toEqual(['A', 'B']);
+    });
+
+    it('ties break by leaderboard position when budgets are equal', () => {
+      const data = {
+        teams: [
+          {
+            teamName: 'A',
+            position: 2,
+            raceBudgets: { matchday_1: 100, matchday_2: 105 },
+          },
+          {
+            teamName: 'B',
+            position: 1,
+            raceBudgets: { matchday_1: 100, matchday_2: 105 },
+          },
+        ],
+      };
+      const config = buildBudgetChartConfig(data);
+      expect(config.data.datasets.map((d) => d.label)).toEqual(['B', 'A']);
+    });
+
+    it('pushes teams with no budget data to the bottom', () => {
+      const data = {
+        teams: [
+          { teamName: 'NoData', position: 1, raceBudgets: {} },
+          {
+            teamName: 'HasData',
+            position: 2,
+            raceBudgets: { matchday_1: 100 },
+          },
+        ],
+      };
+      const config = buildBudgetChartConfig(data);
+      expect(config.data.datasets.map((d) => d.label)).toEqual([
+        'HasData',
+        'NoData',
+      ]);
     });
 
     it('highlights the selected team with a thicker line and larger points', () => {

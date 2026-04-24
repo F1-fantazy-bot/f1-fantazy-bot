@@ -51,9 +51,42 @@ function buildBudgetChartConfig(leagueData, options = {}) {
   const selectedTeamId = options.selectedTeamId || null;
 
   const teams = Array.isArray(leagueData?.teams) ? [...leagueData.teams] : [];
-  teams.sort((a, b) => (a.position || 0) - (b.position || 0));
-
   const matchdayKeys = getSortedBudgetMatchdayKeys(teams);
+
+  // Sort legend/series order by each team's most recent recorded budget
+  // (highest first). Falls back to the latest-available matchday per team
+  // if the most recent matchday has no entry. Teams with no budget data
+  // sink to the bottom; ties break by `position` (leaderboard order).
+  const latestBudgetByTeam = new Map();
+  for (const team of teams) {
+    let latest = null;
+    for (let i = matchdayKeys.length - 1; i >= 0; i--) {
+      const raw = Number(team?.raceBudgets?.[matchdayKeys[i]]);
+      if (Number.isFinite(raw)) {
+        latest = raw;
+        break;
+      }
+    }
+    latestBudgetByTeam.set(team, latest);
+  }
+  teams.sort((a, b) => {
+    const aVal = latestBudgetByTeam.get(a);
+    const bVal = latestBudgetByTeam.get(b);
+    if (aVal === null && bVal === null) {
+      return (a.position || 0) - (b.position || 0);
+    }
+    if (aVal === null) {
+      return 1;
+    }
+    if (bVal === null) {
+      return -1;
+    }
+    if (bVal !== aVal) {
+      return bVal - aVal;
+    }
+
+    return (a.position || 0) - (b.position || 0);
+  });
 
   const labels = matchdayKeys.map((key) => {
     const round = matchdayNumber(key);
