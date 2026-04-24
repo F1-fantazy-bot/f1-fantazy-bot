@@ -387,6 +387,12 @@ function buildGraphTypeKeyboard(leagueCode, chatId) {
     ],
     [
       {
+        text: t('🏆 Standings', chatId),
+        callback_data: `${LEAGUE_GRAPH_TYPE_CALLBACK_TYPE}:${LEAGUE_GRAPH_TYPES.STANDINGS}:${leagueCode}`,
+      },
+    ],
+    [
+      {
         text: t('💰 Budget', chatId),
         callback_data: `${LEAGUE_GRAPH_TYPE_CALLBACK_TYPE}:${LEAGUE_GRAPH_TYPES.BUDGET}:${leagueCode}`,
       },

@@ -40,6 +40,7 @@ exports.LEAGUE_GRAPH_TYPE_CALLBACK_TYPE = 'LEAGUE_GRAPH_TYPE';
 exports.LEAGUE_GRAPH_TYPES = {
   GAP: 'gap',
   BUDGET: 'budget',
+  STANDINGS: 'standings',
 };
 // Kept short (3 chars) so the callback data stays under the 64-byte Telegram
 // limit even when teamIds are near their max of `{leagueCode}_{sanitizedName}`
