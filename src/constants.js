@@ -33,8 +33,6 @@ exports.BEST_TEAM_WEIGHTS_CALLBACK_TYPE = 'BEST_TEAM_WEIGHTS';
 exports.DEADLINE_CALLBACK_TYPE = 'DEADLINE';
 exports.LEAGUE_CALLBACK_TYPE = 'LEAGUE';
 exports.LEAGUE_UNFOLLOW_CALLBACK_TYPE = 'LEAGUE_UNFOLLOW';
-exports.LEAGUE_TEAM_SELECT_CALLBACK_TYPE = 'LEAGUE_TEAM_SELECT';
-exports.LEAGUE_TEAM_PICK_CALLBACK_TYPE = 'LEAGUE_TEAM_PICK';
 exports.LEAGUE_GRAPH_CALLBACK_TYPE = 'LEAGUE_GRAPH';
 exports.LEAGUE_GRAPH_TYPE_CALLBACK_TYPE = 'LEAGUE_GRAPH_TYPE';
 exports.LEAGUE_GRAPH_TYPES = {
@@ -42,11 +40,18 @@ exports.LEAGUE_GRAPH_TYPES = {
   BUDGET: 'budget',
   STANDINGS: 'standings',
 };
-// Kept short (3 chars) so the callback data stays under the 64-byte Telegram
-// limit even when teamIds are near their max of `{leagueCode}_{sanitizedName}`
-// (leagueCode up to ~15 chars, sanitized name up to 40 chars).
-exports.LEAGUE_TEAM_UNFOLLOW_CALLBACK_TYPE = 'UFT';
-exports.LEAGUE_TEAM_UNFOLLOW_AND_ADD_CALLBACK_TYPE = 'UFTA';
+// Kept short (2 chars) so the callback data `TT:<action>:<leagueCode>:<position>`
+// stays under the 64-byte Telegram limit.
+exports.TEAMS_TRACKER_CALLBACK_TYPE = 'TT';
+exports.TEAMS_TRACKER_ACTIONS = {
+  OPEN_LEAGUE: 'L',
+  TOGGLE: 'T',
+  BACK: 'B',
+  SAVE: 'S',
+  CANCEL: 'C',
+};
+// Max age of a Teams-Tracker session before callbacks expire (milliseconds).
+exports.TEAMS_TRACKER_SESSION_TTL_MS = 30 * 60 * 1000;
 
 exports.MAX_FOLLOWED_LEAGUE_TEAMS = 6;
 
@@ -91,8 +96,7 @@ exports.COMMAND_DEADLINE = '/deadline';
 exports.COMMAND_FOLLOW_LEAGUE = '/follow_league';
 exports.COMMAND_UNFOLLOW_LEAGUE = '/unfollow_league';
 exports.COMMAND_LEADERBOARD = '/leaderboard';
-exports.COMMAND_SELECT_TEAM_FROM_LEAGUE = '/select_team_from_league';
-exports.COMMAND_UNFOLLOW_TEAM = '/unfollow_team';
+exports.COMMAND_TEAMS_TRACKER = '/teams_tracker';
 exports.COMMAND_LEAGUE_GRAPHS = '/league_graphs';
 
 // Menu configuration for interactive menu command
@@ -308,15 +312,10 @@ exports.MENU_CATEGORIES = {
         description: 'Unfollow an F1 Fantasy league',
       },
       {
-        constant: exports.COMMAND_SELECT_TEAM_FROM_LEAGUE,
-        title: '🎯 Select Team From League',
+        constant: exports.COMMAND_TEAMS_TRACKER,
+        title: '📋 Teams Tracker',
         description:
-          'Follow a team roster from a followed league (up to 6 followed teams)',
-      },
-      {
-        constant: exports.COMMAND_UNFOLLOW_TEAM,
-        title: '🗑️ Unfollow Team',
-        description: 'Stop following a league team',
+          'Pick which league teams to follow (toggle up to 6 teams, then save)',
       },
       {
         constant: exports.COMMAND_LEADERBOARD,

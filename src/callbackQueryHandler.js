@@ -21,10 +21,7 @@ const {
   DEADLINE_CALLBACK_TYPE,
   LEAGUE_CALLBACK_TYPE,
   LEAGUE_UNFOLLOW_CALLBACK_TYPE,
-  LEAGUE_TEAM_SELECT_CALLBACK_TYPE,
-  LEAGUE_TEAM_PICK_CALLBACK_TYPE,
-  LEAGUE_TEAM_UNFOLLOW_CALLBACK_TYPE,
-  LEAGUE_TEAM_UNFOLLOW_AND_ADD_CALLBACK_TYPE,
+  TEAMS_TRACKER_CALLBACK_TYPE,
   LEAGUE_GRAPH_CALLBACK_TYPE,
   LEAGUE_GRAPH_TYPE_CALLBACK_TYPE,
   LEAGUE_GRAPH_TYPES,
@@ -61,12 +58,8 @@ const {
 } = require('./commandsHandler/leagueStandingsGraphHandler');
 const { removeUserLeague } = require('./leagueRegistryService');
 const {
-  promptTeamPick,
-  applyLeagueTeamSelection,
-} = require('./commandsHandler/selectTeamFromLeagueHandler');
-const {
-  removeFollowedTeam,
-} = require('./commandsHandler/unfollowTeamHandler');
+  handleTeamsTrackerCallback,
+} = require('./commandsHandler/teamsTrackerHandler');
 
 exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
@@ -90,14 +83,8 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handleLeagueCallback(bot, query);
     case LEAGUE_UNFOLLOW_CALLBACK_TYPE:
       return await handleLeagueUnfollowCallback(bot, query);
-    case LEAGUE_TEAM_SELECT_CALLBACK_TYPE:
-      return await handleLeagueTeamSelectCallback(bot, query);
-    case LEAGUE_TEAM_PICK_CALLBACK_TYPE:
-      return await handleLeagueTeamPickCallback(bot, query);
-    case LEAGUE_TEAM_UNFOLLOW_CALLBACK_TYPE:
-      return await handleLeagueTeamUnfollowCallback(bot, query);
-    case LEAGUE_TEAM_UNFOLLOW_AND_ADD_CALLBACK_TYPE:
-      return await handleLeagueTeamUnfollowAndAddCallback(bot, query);
+    case TEAMS_TRACKER_CALLBACK_TYPE:
+      return await handleTeamsTrackerCallback(bot, query);
     case LEAGUE_GRAPH_CALLBACK_TYPE:
       return await handleLeagueGraphCallback(bot, query);
     case LEAGUE_GRAPH_TYPE_CALLBACK_TYPE:
@@ -400,22 +387,6 @@ async function handleLeagueUnfollowCallback(bot, query) {
   await bot.answerCallbackQuery(query.id);
 }
 
-async function handleLeagueTeamSelectCallback(bot, query) {
-  const chatId = query.message.chat.id;
-  const leagueCode = query.data.split(':')[1];
-
-  await promptTeamPick(bot, chatId, leagueCode);
-  await bot.answerCallbackQuery(query.id);
-}
-
-async function handleLeagueTeamPickCallback(bot, query) {
-  const chatId = query.message.chat.id;
-  const [, leagueCode, position] = query.data.split(':');
-
-  await applyLeagueTeamSelection(bot, chatId, leagueCode, position);
-  await bot.answerCallbackQuery(query.id);
-}
-
 async function handleLeagueGraphCallback(bot, query) {
   const chatId = query.message.chat.id;
   const leagueCode = query.data.split(':')[1];
@@ -438,94 +409,6 @@ async function handleLeagueGraphTypeCallback(bot, query) {
     // Default to the gap-to-leader chart for any unknown/legacy type value.
     await sendLeagueGraph(bot, chatId, leagueCode);
   }
-
-  await bot.answerCallbackQuery(query.id);
-}
-
-async function handleLeagueTeamUnfollowCallback(bot, query) {
-  const chatId = query.message.chat.id;
-  const messageId = query.message.message_id;
-  const teamId = query.data.substring(query.data.indexOf(':') + 1);
-
-  try {
-    const { removed } = await removeFollowedTeam(bot, chatId, teamId);
-    if (!removed) {
-      await bot.editMessageText(
-        t('❌ That followed team no longer exists.', chatId),
-        { chat_id: chatId, message_id: messageId },
-      );
-    } else {
-      await bot.editMessageText(
-        t('✅ Stopped following team {TEAM}.', chatId, { TEAM: teamId }),
-        { chat_id: chatId, message_id: messageId },
-      );
-    }
-  } catch (err) {
-    console.error('Error in unfollow-team callback:', err);
-    await bot.editMessageText(
-      t('❌ Failed to stop following team: {ERROR}', chatId, {
-        ERROR: err.message,
-      }),
-      { chat_id: chatId, message_id: messageId },
-    );
-  }
-
-  await bot.answerCallbackQuery(query.id);
-}
-
-async function handleLeagueTeamUnfollowAndAddCallback(bot, query) {
-  const chatId = query.message.chat.id;
-  const messageId = query.message.message_id;
-  const teamId = query.data.substring(query.data.indexOf(':') + 1);
-
-  let pendingAdd;
-  try {
-    pendingAdd = await azureStorageService.getPendingLeagueTeamAdd(chatId);
-  } catch (err) {
-    console.error('Error reading pending league team add:', err);
-  }
-
-  try {
-    await removeFollowedTeam(bot, chatId, teamId);
-  } catch (err) {
-    console.error('Error removing team during over-cap unfollow:', err);
-    await bot.editMessageText(
-      t('❌ Failed to stop following team: {ERROR}', chatId, {
-        ERROR: err.message,
-      }),
-      { chat_id: chatId, message_id: messageId },
-    );
-    await bot.answerCallbackQuery(query.id);
-
-    return;
-  }
-
-  if (!pendingAdd || !pendingAdd.leagueCode) {
-    await bot.editMessageText(
-      t(
-        '❌ The pending team to follow was lost. Please try /select_team_from_league again.',
-        chatId,
-      ),
-      { chat_id: chatId, message_id: messageId },
-    );
-    await bot.answerCallbackQuery(query.id);
-
-    return;
-  }
-
-  await azureStorageService.deletePendingLeagueTeamAdd(chatId);
-
-  await bot.editMessageText(
-    t('✅ Stopped following team {TEAM}.', chatId, { TEAM: teamId }),
-    { chat_id: chatId, message_id: messageId },
-  );
-
-  await applyLeagueTeamSelection(
-    bot,
-    chatId,
-    pendingAdd.leagueCode,
-    pendingAdd.position,
-  );
 
   await bot.answerCallbackQuery(query.id);
 }

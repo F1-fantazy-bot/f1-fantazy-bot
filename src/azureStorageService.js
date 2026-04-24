@@ -447,44 +447,43 @@ async function getLeagueTeamsData(leagueCode) {
 }
 
 /**
- * Save a pending "follow league team" request for a user.
- * Used when the user has hit the 6-team cap in /select_team_from_league and
- * must first unfollow an existing team before the new one can be added.
+ * Save a Teams-Tracker staging session for a user.
+ * Allows the multi-step inline-keyboard flow to survive across servers.
  * @param {string|number} chatId
- * @param {{leagueCode: string, position: number}} pendingAdd
+ * @param {Object} session
  */
-async function savePendingLeagueTeamAdd(chatId, pendingAdd) {
+async function saveTeamsTrackerSession(chatId, session) {
   try {
     if (!containerClient) {
       initializeAzureStorage();
     }
 
-    const blobName = `pending-league-team-adds/${chatId}.json`;
+    const blobName = `teams-tracker-sessions/${chatId}.json`;
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-    const content = JSON.stringify(pendingAdd, null, 2);
+    const content = JSON.stringify(session, null, 2);
 
     await blockBlobClient.upload(content, content.length, {
       blobHTTPHeaders: { blobContentType: 'application/json' },
     });
   } catch (error) {
     throw new Error(
-      `Failed to save pending league team add for ${chatId}: ${error.message}`,
+      `Failed to save teams tracker session for ${chatId}: ${error.message}`,
     );
   }
 }
 
 /**
- * Read a pending "follow league team" request for a user.
+ * Read the Teams-Tracker staging session for a user.
  * @param {string|number} chatId
- * @returns {Promise<{leagueCode: string, position: number}|null>}
+ * @returns {Promise<Object|null>}
  */
-async function getPendingLeagueTeamAdd(chatId) {
+async function getTeamsTrackerSession(chatId) {
   try {
     if (!containerClient) {
       initializeAzureStorage();
     }
 
-    const blobName = `pending-league-team-adds/${chatId}.json`;
+    const blobName = `teams-tracker-sessions/${chatId}.json`;
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
     const exists = await blockBlobClient.exists();
@@ -500,27 +499,27 @@ async function getPendingLeagueTeamAdd(chatId) {
     return JSON.parse(jsonString);
   } catch (error) {
     throw new Error(
-      `Failed to get pending league team add for ${chatId}: ${error.message}`,
+      `Failed to get teams tracker session for ${chatId}: ${error.message}`,
     );
   }
 }
 
 /**
- * Delete a pending "follow league team" request for a user.
+ * Delete the Teams-Tracker staging session for a user.
  * @param {string|number} chatId
  */
-async function deletePendingLeagueTeamAdd(chatId) {
+async function deleteTeamsTrackerSession(chatId) {
   try {
     if (!containerClient) {
       initializeAzureStorage();
     }
 
-    const blobName = `pending-league-team-adds/${chatId}.json`;
+    const blobName = `teams-tracker-sessions/${chatId}.json`;
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
     await blockBlobClient.deleteIfExists();
   } catch (error) {
     console.error(
-      `Failed to delete pending league team add for ${chatId}: ${error.message}`,
+      `Failed to delete teams tracker session for ${chatId}: ${error.message}`,
     );
   }
 }
@@ -537,9 +536,9 @@ module.exports = {
   savePendingTeamAssignment,
   getPendingTeamAssignment,
   deletePendingTeamAssignment,
-  savePendingLeagueTeamAdd,
-  getPendingLeagueTeamAdd,
-  deletePendingLeagueTeamAdd,
+  saveTeamsTrackerSession,
+  getTeamsTrackerSession,
+  deleteTeamsTrackerSession,
   getLeagueData,
   getLeagueTeamsData,
 };
