@@ -5,7 +5,6 @@ const {
   getPrintableCache,
   bestTeamsCache,
   userCache,
-  getUserLeagueTeamIds,
   normalizeBestTeamBudgetChangePointsPerMillion,
   clearSelectedBestTeam,
   serializeSelectedBestTeamByTeam,
@@ -29,7 +28,7 @@ const {
   MANAGE_TRACKING_LEAGUE_CALLBACK_TYPE,
   MANAGE_TRACKING_TOGGLE_CALLBACK_TYPE,
   MANAGE_TRACKING_BACK_CALLBACK_TYPE,
-  MAX_FOLLOWED_LEAGUE_TEAMS,
+  MANAGE_TRACKING_SAVE_CALLBACK_TYPE,
   LEAGUE_GRAPH_CALLBACK_TYPE,
   LEAGUE_GRAPH_TYPE_CALLBACK_TYPE,
   LEAGUE_GRAPH_TYPES,
@@ -68,14 +67,14 @@ const { removeUserLeague, listUserLeagues } = require('./leagueRegistryService')
 const {
   promptTeamPick,
   applyLeagueTeamSelection,
-  loadLeagueTeamsData,
 } = require('./commandsHandler/selectTeamFromLeagueHandler');
 const {
   removeFollowedTeam,
 } = require('./commandsHandler/unfollowTeamHandler');
-const { buildTeamId } = require('./utils/teamId');
 const {
   buildManageTrackingTeamsMessage,
+  togglePendingTrackedTeam,
+  savePendingTrackedTeams,
 } = require('./commandsHandler/manageTrackingHandler');
 
 exports.handleCallbackQuery = async function (bot, query) {
@@ -114,6 +113,8 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handleManageTrackingToggleCallback(bot, query);
     case MANAGE_TRACKING_BACK_CALLBACK_TYPE:
       return await handleManageTrackingBackCallback(bot, query);
+    case MANAGE_TRACKING_SAVE_CALLBACK_TYPE:
+      return await handleManageTrackingSaveCallback(bot, query);
     case LEAGUE_GRAPH_CALLBACK_TYPE:
       return await handleLeagueGraphCallback(bot, query);
     case LEAGUE_GRAPH_TYPE_CALLBACK_TYPE:
@@ -577,29 +578,7 @@ async function handleManageTrackingToggleCallback(bot, query) {
   const [, leagueCode, position] = query.data.split(':');
 
   try {
-    const teamsData = await loadLeagueTeamsData(leagueCode);
-    const selectedTeam = (teamsData?.teams || []).find(
-      (team) => team.position === Number(position),
-    );
-    if (!selectedTeam) {
-      throw new Error('Team not found');
-    }
-    const teamId = buildTeamId(leagueCode, selectedTeam.teamName);
-    const currentlyTracked = getUserLeagueTeamIds(chatId).includes(teamId);
-
-    if (currentlyTracked) {
-      await removeFollowedTeam(bot, chatId, teamId);
-    } else {
-      const followedCount = getUserLeagueTeamIds(chatId).length;
-      if (followedCount >= MAX_FOLLOWED_LEAGUE_TEAMS) {
-        await bot.answerCallbackQuery(query.id, {
-          text: t('You can track up to 6 teams. Untrack one first.', chatId),
-        });
-
-        return;
-      }
-      await applyLeagueTeamSelection(bot, chatId, leagueCode, position);
-    }
+    await togglePendingTrackedTeam(chatId, leagueCode, position);
 
     const payloadAfter = await buildManageTrackingTeamsMessage(chatId, leagueCode, true);
     await bot.editMessageText(payloadAfter.text, {
@@ -619,6 +598,41 @@ async function handleManageTrackingToggleCallback(bot, query) {
   }
 
   await bot.answerCallbackQuery(query.id);
+}
+
+async function handleManageTrackingSaveCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const messageId = query.message.message_id;
+  const leagueCode = query.data.split(':')[1];
+
+  try {
+    const result = await savePendingTrackedTeams(bot, chatId, leagueCode);
+    const payload = await buildManageTrackingTeamsMessage(chatId, leagueCode, true);
+    await bot.editMessageText(payload.text, {
+      chat_id: chatId,
+      message_id: messageId,
+      reply_markup: payload.reply_markup,
+    });
+    await bot.answerCallbackQuery(query.id, {
+      text: t('Saved tracking changes. Added: {ADDED}, Removed: {REMOVED}.', chatId, {
+        ADDED: result.added,
+        REMOVED: result.removed,
+      }),
+    });
+
+    return;
+  } catch (err) {
+    console.error('Error saving tracked teams:', err);
+    await bot.answerCallbackQuery(query.id, {
+      text:
+        err.message ||
+        t('❌ Failed to save tracking changes: {ERROR}', chatId, {
+          ERROR: err.message,
+        }),
+    });
+
+    return;
+  }
 }
 
 async function handleManageTrackingBackCallback(bot, query) {

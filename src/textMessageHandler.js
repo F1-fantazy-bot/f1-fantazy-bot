@@ -88,7 +88,7 @@ const {
   COMMAND_LEADERBOARD,
   COMMAND_SELECT_TEAM_FROM_LEAGUE,
   COMMAND_UNFOLLOW_TEAM,
-  COMMAND_MANAGE_TRACKING,
+  COMMAND_TEAMS_TRACKER,
   COMMAND_LEAGUE_GRAPHS,
 } = require('./constants');
 
@@ -186,7 +186,7 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleSelectTeamFromLeagueCommand(bot, msg);
     case msg.text === COMMAND_UNFOLLOW_TEAM:
       return await handleUnfollowTeamCommand(bot, msg);
-    case msg.text === COMMAND_MANAGE_TRACKING:
+    case msg.text === COMMAND_TEAMS_TRACKER:
       return await handleManageTrackingCommand(bot, msg);
     case msg.text === COMMAND_LEAGUE_GRAPHS:
       return await handleLeagueGraphsCommand(bot, msg);

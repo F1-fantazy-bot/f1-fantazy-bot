@@ -497,6 +497,11 @@ const translations = {
       'לאיזו ליגה תרצה לנהל את הקבוצות במעקב?',
     'Toggle tracked teams in {LEAGUE}:': 'הפעל/כבה מעקב קבוצות ב-{LEAGUE}:',
     '⬅️ Back to leagues': '⬅️ חזרה לליגות',
+    '💾 Save changes': '💾 שמור שינויים',
+    'Saved tracking changes. Added: {ADDED}, Removed: {REMOVED}.':
+      'שינויי המעקב נשמרו. נוספו: {ADDED}, הוסרו: {REMOVED}.',
+    '❌ Failed to save tracking changes: {ERROR}':
+      '❌ שמירת שינויי המעקב נכשלה: {ERROR}',
     'You can track up to 6 teams. Untrack one first.':
       'ניתן לעקוב אחר עד 6 קבוצות. בטל מעקב מקבוצה אחת תחילה.',
     'You are not following any league teams yet. Run {CMD} to follow one.':
