@@ -71,8 +71,10 @@ const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 const { getSelectedTeam } = require('../cache');
 
 const {
-  handleLeagueGraphCommand,
+  handleLeagueGraphsCommand,
   sendLeagueGraph,
+  sendGraphTypePicker,
+  buildGraphTypeKeyboard,
   buildChartConfig,
   getSortedMatchdayKeys,
   buildRoundToRaceNameMap,
@@ -357,11 +359,11 @@ describe('leagueGraphHandler', () => {
     });
   });
 
-  describe('handleLeagueGraphCommand', () => {
+  describe('handleLeagueGraphsCommand', () => {
     it('rejects non-admins', async () => {
       isAdminMessage.mockReturnValue(false);
 
-      await handleLeagueGraphCommand(botMock, { chat: { id: 9 } });
+      await handleLeagueGraphsCommand(botMock, { chat: { id: 9 } });
 
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         9,
@@ -374,7 +376,7 @@ describe('leagueGraphHandler', () => {
       isAdminMessage.mockReturnValue(true);
       listUserLeagues.mockResolvedValueOnce([]);
 
-      await handleLeagueGraphCommand(botMock, { chat: { id: 1 } });
+      await handleLeagueGraphsCommand(botMock, { chat: { id: 1 } });
 
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         1,
@@ -382,37 +384,52 @@ describe('leagueGraphHandler', () => {
       );
     });
 
-    it('auto-renders the graph when the user has exactly one league', async () => {
+    it('shows the graph-type picker directly when the user has exactly one league', async () => {
       isAdminMessage.mockReturnValue(true);
       listUserLeagues.mockResolvedValueOnce([
         { leagueCode: 'ABC', leagueName: 'Amba' },
       ]);
-      getLeagueData.mockResolvedValueOnce(FIXTURE);
-      fetchCurrentSeasonRaces.mockResolvedValueOnce({
-        MRData: { RaceTable: { Races: [] } },
+
+      await handleLeagueGraphsCommand(botMock, {
+        chat: { id: 1 },
+        message_id: 7,
       });
 
-      await handleLeagueGraphCommand(botMock, { chat: { id: 1 } });
-
-      expect(getLeagueData).toHaveBeenCalledWith('ABC');
-      expect(mockSetConfig).toHaveBeenCalled();
-      expect(botMock.sendPhoto).toHaveBeenCalledWith(
+      expect(getLeagueData).not.toHaveBeenCalled();
+      expect(botMock.sendPhoto).not.toHaveBeenCalled();
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
         1,
-        'https://quickchart.io/chart/render/abc',
+        'Which graph do you want to see?',
         expect.objectContaining({
-          caption: expect.stringContaining('Amba'),
+          reply_to_message_id: 7,
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: '📉 Gap to Leader',
+                  callback_data: 'LEAGUE_GRAPH_TYPE:gap:ABC',
+                },
+              ],
+              [
+                {
+                  text: '💰 Budget',
+                  callback_data: 'LEAGUE_GRAPH_TYPE:budget:ABC',
+                },
+              ],
+            ],
+          },
         }),
       );
     });
 
-    it('shows an inline keyboard when the user has multiple leagues', async () => {
+    it('shows a league picker when the user has multiple leagues', async () => {
       isAdminMessage.mockReturnValue(true);
       listUserLeagues.mockResolvedValueOnce([
         { leagueCode: 'ABC', leagueName: 'Amba' },
         { leagueCode: 'XYZ', leagueName: 'Other' },
       ]);
 
-      await handleLeagueGraphCommand(botMock, {
+      await handleLeagueGraphsCommand(botMock, {
         chat: { id: 1 },
         message_id: 5,
       });
@@ -430,6 +447,25 @@ describe('leagueGraphHandler', () => {
             ],
           },
         }),
+      );
+    });
+  });
+
+  describe('buildGraphTypeKeyboard / sendGraphTypePicker', () => {
+    it('builds a two-button keyboard scoped to the league code', () => {
+      expect(buildGraphTypeKeyboard('ABC', 1)).toEqual([
+        [{ text: '📉 Gap to Leader', callback_data: 'LEAGUE_GRAPH_TYPE:gap:ABC' }],
+        [{ text: '💰 Budget', callback_data: 'LEAGUE_GRAPH_TYPE:budget:ABC' }],
+      ]);
+    });
+
+    it('omits reply_to_message_id when no replyToMessageId is supplied', async () => {
+      await sendGraphTypePicker(botMock, 1, 'ABC');
+
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        1,
+        'Which graph do you want to see?',
+        expect.not.objectContaining({ reply_to_message_id: expect.anything() }),
       );
     });
   });

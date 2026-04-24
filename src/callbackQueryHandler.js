@@ -26,6 +26,8 @@ const {
   LEAGUE_TEAM_UNFOLLOW_CALLBACK_TYPE,
   LEAGUE_TEAM_UNFOLLOW_AND_ADD_CALLBACK_TYPE,
   LEAGUE_GRAPH_CALLBACK_TYPE,
+  LEAGUE_GRAPH_TYPE_CALLBACK_TYPE,
+  LEAGUE_GRAPH_TYPES,
 } = require('./constants');
 
 const {
@@ -49,7 +51,11 @@ const {
 } = require('./commandsHandler/leaderboardHandler');
 const {
   sendLeagueGraph,
+  sendGraphTypePicker,
 } = require('./commandsHandler/leagueGraphHandler');
+const {
+  sendLeagueBudgetGraph,
+} = require('./commandsHandler/leagueBudgetGraphHandler');
 const { removeUserLeague } = require('./leagueRegistryService');
 const {
   promptTeamPick,
@@ -91,6 +97,8 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handleLeagueTeamUnfollowAndAddCallback(bot, query);
     case LEAGUE_GRAPH_CALLBACK_TYPE:
       return await handleLeagueGraphCallback(bot, query);
+    case LEAGUE_GRAPH_TYPE_CALLBACK_TYPE:
+      return await handleLeagueGraphTypeCallback(bot, query);
     default:
       await sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
   }
@@ -409,7 +417,23 @@ async function handleLeagueGraphCallback(bot, query) {
   const chatId = query.message.chat.id;
   const leagueCode = query.data.split(':')[1];
 
-  await sendLeagueGraph(bot, chatId, leagueCode);
+  // Old behavior: render gap-to-leader immediately. New behavior: ask the
+  // user which graph type they want (gap vs budget) for the chosen league.
+  await sendGraphTypePicker(bot, chatId, leagueCode);
+  await bot.answerCallbackQuery(query.id);
+}
+
+async function handleLeagueGraphTypeCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const [, graphType, leagueCode] = query.data.split(':');
+
+  if (graphType === LEAGUE_GRAPH_TYPES.BUDGET) {
+    await sendLeagueBudgetGraph(bot, chatId, leagueCode);
+  } else {
+    // Default to the gap-to-leader chart for any unknown/legacy type value.
+    await sendLeagueGraph(bot, chatId, leagueCode);
+  }
+
   await bot.answerCallbackQuery(query.id);
 }
 
