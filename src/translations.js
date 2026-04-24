@@ -466,7 +466,7 @@ const translations = {
       'עקוב אחר קבוצה מליגה שאתה עוקב אחריה (עד 6 קבוצות במקביל)',
     '🗑️ Unfollow Team': '🗑️ הפסק לעקוב אחר קבוצה',
     'Stop following a league team': 'הפסק לעקוב אחר קבוצת ליגה',
-    '🎯 Manage Tracking': '🎯 ניהול מעקב',
+    '🎯 Manage Tracking': '🎯 קבוצות במעקב',
     'Manage tracked teams from your followed leagues (up to 6 teams)':
       'נהל את הקבוצות במעקב מהליגות שלך (עד 6 קבוצות)',
     '📊 Graphs': '📊 גרפים',
@@ -500,6 +500,8 @@ const translations = {
     '💾 Save changes': '💾 שמור שינויים',
     'Saved tracking changes. Added: {ADDED}, Removed: {REMOVED}.':
       'שינויי המעקב נשמרו. נוספו: {ADDED}, הוסרו: {REMOVED}.',
+    '✅ Tracking changes saved successfully.':
+      '✅ קבוצות המעקב נשמרו בהצלחה.',
     '❌ Failed to save tracking changes: {ERROR}':
       '❌ שמירת שינויי המעקב נכשלה: {ERROR}',
     'You can track up to 6 teams. Untrack one first.':

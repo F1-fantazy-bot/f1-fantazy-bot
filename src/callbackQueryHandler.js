@@ -619,6 +619,7 @@ async function handleManageTrackingSaveCallback(bot, query) {
         REMOVED: result.removed,
       }),
     });
+    await bot.sendMessage(chatId, t('✅ Tracking changes saved successfully.', chatId));
 
     return;
   } catch (err) {
