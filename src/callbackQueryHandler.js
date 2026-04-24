@@ -589,10 +589,18 @@ async function handleManageTrackingToggleCallback(bot, query) {
   } catch (err) {
     console.error('Error toggling tracked team:', err);
     await bot.answerCallbackQuery(query.id, {
-      text: t('❌ Failed to stop following team: {ERROR}', chatId, {
+      text:
+        err.message ||
+        t('❌ Failed to update tracked teams: {ERROR}', chatId, {
+          ERROR: err.message,
+        }),
+    });
+    await bot.sendMessage(
+      chatId,
+      t('❌ Failed to update tracked teams: {ERROR}', chatId, {
         ERROR: err.message,
       }),
-    });
+    );
 
     return;
   }
@@ -631,6 +639,13 @@ async function handleManageTrackingSaveCallback(bot, query) {
           ERROR: err.message,
         }),
     });
+    await bot.sendMessage(
+      chatId,
+      err.message ||
+        t('❌ Failed to save tracking changes: {ERROR}', chatId, {
+          ERROR: err.message,
+        }),
+    );
 
     return;
   }

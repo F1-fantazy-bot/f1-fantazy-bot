@@ -127,6 +127,15 @@ async function togglePendingTrackedTeam(chatId, leagueCode, position) {
   if (state.selectedTeamIds.has(teamId)) {
     state.selectedTeamIds.delete(teamId);
   } else {
+    const currentLeagueTracked = getTrackedTeamIdsByLeague(chatId, leagueCode);
+    const trackedOutsideLeague =
+      getUserLeagueTeamIds(chatId).length - currentLeagueTracked.length;
+    const projectedTrackedCount =
+      trackedOutsideLeague + state.selectedTeamIds.size + 1;
+    if (projectedTrackedCount > MAX_FOLLOWED_LEAGUE_TEAMS) {
+      throw new Error(t('You can track up to 6 teams. Untrack one first.', chatId));
+    }
+
     state.selectedTeamIds.add(teamId);
   }
 }

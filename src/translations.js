@@ -502,6 +502,8 @@ const translations = {
       'שינויי המעקב נשמרו. נוספו: {ADDED}, הוסרו: {REMOVED}.',
     '✅ Tracking changes saved successfully.':
       '✅ קבוצות המעקב נשמרו בהצלחה.',
+    '❌ Failed to update tracked teams: {ERROR}':
+      '❌ עדכון קבוצות המעקב נכשל: {ERROR}',
     '❌ Failed to save tracking changes: {ERROR}':
       '❌ שמירת שינויי המעקב נכשלה: {ERROR}',
     'You can track up to 6 teams. Untrack one first.':
