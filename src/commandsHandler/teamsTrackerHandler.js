@@ -310,8 +310,29 @@ function parsePayload(data) {
   return { action: parts[1], payload: parts.slice(2) };
 }
 
+function isStaleCallbackQueryError(err) {
+  const desc = err?.response?.body?.description || err?.message || '';
+
+  return (
+    typeof desc === 'string' &&
+    (desc.includes('query is too old') ||
+      desc.includes('query ID is invalid'))
+  );
+}
+
+async function safeAnswerCallbackQuery(bot, queryId, options) {
+  try {
+    await bot.answerCallbackQuery(queryId, options);
+  } catch (err) {
+    if (isStaleCallbackQueryError(err)) {
+      return;
+    }
+    throw err;
+  }
+}
+
 async function respondExpired(bot, query) {
-  await bot.answerCallbackQuery(query.id, {
+  await safeAnswerCallbackQuery(bot, query.id, {
     text: t(
       'This Teams Tracker view has expired. Open /teams_tracker again.',
       query.message.chat.id,
@@ -500,7 +521,7 @@ async function handleTeamsTrackerCallback(bot, query) {
         t('Teams tracker cancelled. No changes saved.', chatId),
         { chat_id: chatId, message_id: messageId },
       );
-      await bot.answerCallbackQuery(query.id);
+      await safeAnswerCallbackQuery(bot, query.id);
 
       return;
     }
@@ -510,7 +531,7 @@ async function handleTeamsTrackerCallback(bot, query) {
       session.currentLeagueCode = null;
       await touchSession(chatId, session);
       await renderCurrentView(bot, chatId, session);
-      await bot.answerCallbackQuery(query.id);
+      await safeAnswerCallbackQuery(bot, query.id);
 
       return;
     }
@@ -521,7 +542,7 @@ async function handleTeamsTrackerCallback(bot, query) {
       session.currentLeagueCode = leagueCode;
       await touchSession(chatId, session);
       await renderCurrentView(bot, chatId, session);
-      await bot.answerCallbackQuery(query.id);
+      await safeAnswerCallbackQuery(bot, query.id);
 
       return;
     }
@@ -532,7 +553,7 @@ async function handleTeamsTrackerCallback(bot, query) {
       const currentlySelected = isSelected(session, leagueCode, position);
 
       if (!currentlySelected && countSelected(session) >= MAX_FOLLOWED_LEAGUE_TEAMS) {
-        await bot.answerCallbackQuery(query.id, {
+        await safeAnswerCallbackQuery(bot, query.id, {
           text: t(
             'You can follow at most {MAX} teams. Deselect one first.',
             chatId,
@@ -564,7 +585,7 @@ async function handleTeamsTrackerCallback(bot, query) {
 
       await touchSession(chatId, session);
       await renderCurrentView(bot, chatId, session);
-      await bot.answerCallbackQuery(query.id);
+      await safeAnswerCallbackQuery(bot, query.id);
 
       return;
     }
@@ -605,7 +626,7 @@ async function handleTeamsTrackerCallback(bot, query) {
         chat_id: chatId,
         message_id: messageId,
       });
-      await bot.answerCallbackQuery(query.id);
+      await safeAnswerCallbackQuery(bot, query.id);
       await sendLogMessage(
         bot,
         `User ${getDisplayName(chatId)} updated teams tracker: ${
@@ -616,15 +637,18 @@ async function handleTeamsTrackerCallback(bot, query) {
       return;
     }
 
-    await bot.answerCallbackQuery(query.id);
+    await safeAnswerCallbackQuery(bot, query.id);
   } catch (error) {
+    if (isStaleCallbackQueryError(error)) {
+      return;
+    }
     console.error(`Error handling teams tracker callback for ${chatId}:`, error);
     await sendErrorMessage(
       bot,
       `Teams tracker callback error for ${getDisplayName(chatId)}: ${error.message}`,
     );
     try {
-      await bot.answerCallbackQuery(query.id, {
+      await safeAnswerCallbackQuery(bot, query.id, {
         text: t('❌ Failed to save teams tracker: {ERROR}', chatId).replace(
           '{ERROR}',
           error.message,

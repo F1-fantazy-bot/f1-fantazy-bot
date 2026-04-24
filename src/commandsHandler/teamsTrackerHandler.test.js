@@ -348,4 +348,28 @@ describe('handleTeamsTrackerCallback', () => {
     await handleTeamsTrackerCallback(bot, queryFixture('TT:S'));
     expect(ensureSourceIsLeague).toHaveBeenCalledWith(bot, CHAT_ID);
   });
+
+  it('swallows stale callback (query too old) errors without logging', async () => {
+    const oldTime = new Date(Date.now() - 61 * 60 * 1000).toISOString();
+    azureStorageService.getTeamsTrackerSession = jest
+      .fn()
+      .mockResolvedValue(sessionFixture({ updatedAt: oldTime }));
+    const staleErr = new Error(
+      'ETELEGRAM: 400 Bad Request: query is too old and response timeout expired or query ID is invalid',
+    );
+    staleErr.response = {
+      body: {
+        description:
+          'Bad Request: query is too old and response timeout expired or query ID is invalid',
+      },
+    };
+    const bot = makeBot();
+    bot.answerCallbackQuery = jest.fn().mockRejectedValue(staleErr);
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(
+      handleTeamsTrackerCallback(bot, queryFixture('TT:S')),
+    ).resolves.toBeUndefined();
+    expect(consoleSpy).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
 });
