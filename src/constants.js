@@ -36,6 +36,11 @@ exports.LEAGUE_UNFOLLOW_CALLBACK_TYPE = 'LEAGUE_UNFOLLOW';
 exports.LEAGUE_TEAM_SELECT_CALLBACK_TYPE = 'LEAGUE_TEAM_SELECT';
 exports.LEAGUE_TEAM_PICK_CALLBACK_TYPE = 'LEAGUE_TEAM_PICK';
 exports.LEAGUE_GRAPH_CALLBACK_TYPE = 'LEAGUE_GRAPH';
+exports.LEAGUE_GRAPH_TYPE_CALLBACK_TYPE = 'LEAGUE_GRAPH_TYPE';
+exports.LEAGUE_GRAPH_TYPES = {
+  GAP: 'gap',
+  BUDGET: 'budget',
+};
 // Kept short (3 chars) so the callback data stays under the 64-byte Telegram
 // limit even when teamIds are near their max of `{leagueCode}_{sanitizedName}`
 // (leagueCode up to ~15 chars, sanitized name up to 40 chars).
@@ -87,7 +92,7 @@ exports.COMMAND_UNFOLLOW_LEAGUE = '/unfollow_league';
 exports.COMMAND_LEADERBOARD = '/leaderboard';
 exports.COMMAND_SELECT_TEAM_FROM_LEAGUE = '/select_team_from_league';
 exports.COMMAND_UNFOLLOW_TEAM = '/unfollow_team';
-exports.COMMAND_LEAGUE_GRAPH = '/league_graph';
+exports.COMMAND_LEAGUE_GRAPHS = '/league_graphs';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -184,7 +189,8 @@ exports.MENU_CATEGORIES = {
       {
         constant: exports.COMMAND_DEADLINE,
         title: '⏳ Deadline',
-        description: 'Show time left until your next fantasy team lock deadline',
+        description:
+          'Show time left until your next fantasy team lock deadline',
       },
       {
         constant: exports.COMMAND_GET_CURRENT_SIMULATION,
@@ -301,11 +307,6 @@ exports.MENU_CATEGORIES = {
         description: 'Unfollow an F1 Fantasy league',
       },
       {
-        constant: exports.COMMAND_LEADERBOARD,
-        title: '🏆 Leaderboard',
-        description: 'View the leaderboard of a followed league',
-      },
-      {
         constant: exports.COMMAND_SELECT_TEAM_FROM_LEAGUE,
         title: '🎯 Select Team From League',
         description:
@@ -317,10 +318,15 @@ exports.MENU_CATEGORIES = {
         description: 'Stop following a league team',
       },
       {
-        constant: exports.COMMAND_LEAGUE_GRAPH,
-        title: '📈 League Graph',
+        constant: exports.COMMAND_LEADERBOARD,
+        title: '🏆 Leaderboard',
+        description: 'View the leaderboard of a followed league',
+      },
+      {
+        constant: exports.COMMAND_LEAGUE_GRAPHS,
+        title: '📊 Graphs',
         description:
-          'Render a line chart of gap to leader per race for every team in a followed league',
+          'Show league graphs: gap to leader per race, or budget per race',
       },
     ],
   },

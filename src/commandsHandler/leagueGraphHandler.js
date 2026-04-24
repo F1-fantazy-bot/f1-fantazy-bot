@@ -10,6 +10,8 @@ const { getSelectedTeam } = require('../cache');
 const { buildTeamId } = require('../utils/teamId');
 const {
   LEAGUE_GRAPH_CALLBACK_TYPE,
+  LEAGUE_GRAPH_TYPE_CALLBACK_TYPE,
+  LEAGUE_GRAPH_TYPES,
   COMMAND_FOLLOW_LEAGUE,
 } = require('../constants');
 
@@ -362,7 +364,59 @@ async function sendLeagueGraph(bot, chatId, leagueCode) {
   }
 }
 
-async function handleLeagueGraphCommand(bot, msg) {
+/**
+ * Color palette shared by every per-team line chart in this codebase. Exported
+ * so sibling handlers (e.g. the budget graph) can stay visually consistent.
+ */
+const TEAM_COLOR_PALETTE_EXPORT = TEAM_COLOR_PALETTE;
+
+/**
+ * Build the inline keyboard that lets the user choose between the different
+ * league-graph types (gap to leader vs. budget) for a specific league.
+ * @param {string} leagueCode
+ * @param {number|string} chatId
+ * @returns {Array<Array<{text:string,callback_data:string}>>}
+ */
+function buildGraphTypeKeyboard(leagueCode, chatId) {
+  return [
+    [
+      {
+        text: t('📉 Gap to Leader', chatId),
+        callback_data: `${LEAGUE_GRAPH_TYPE_CALLBACK_TYPE}:${LEAGUE_GRAPH_TYPES.GAP}:${leagueCode}`,
+      },
+    ],
+    [
+      {
+        text: t('💰 Budget', chatId),
+        callback_data: `${LEAGUE_GRAPH_TYPE_CALLBACK_TYPE}:${LEAGUE_GRAPH_TYPES.BUDGET}:${leagueCode}`,
+      },
+    ],
+  ];
+}
+
+/**
+ * Prompt the user to pick a graph type for the given league.
+ * @param {Object} bot
+ * @param {number|string} chatId
+ * @param {string} leagueCode
+ * @param {Object} [options]
+ * @param {number} [options.replyToMessageId]
+ */
+async function sendGraphTypePicker(bot, chatId, leagueCode, options = {}) {
+  const reply_markup = { inline_keyboard: buildGraphTypeKeyboard(leagueCode, chatId) };
+  const sendOptions = { reply_markup };
+  if (options.replyToMessageId) {
+    sendOptions.reply_to_message_id = options.replyToMessageId;
+  }
+
+  await bot.sendMessage(
+    chatId,
+    t('Which graph do you want to see?', chatId),
+    sendOptions,
+  );
+}
+
+async function handleLeagueGraphsCommand(bot, msg) {
   const chatId = msg.chat.id;
 
   if (!isAdminMessage(msg)) {
@@ -403,7 +457,9 @@ async function handleLeagueGraphCommand(bot, msg) {
   }
 
   if (leagues.length === 1) {
-    await sendLeagueGraph(bot, chatId, leagues[0].leagueCode);
+    await sendGraphTypePicker(bot, chatId, leagues[0].leagueCode, {
+      replyToMessageId: msg.message_id,
+    });
 
     return;
   }
@@ -426,10 +482,14 @@ async function handleLeagueGraphCommand(bot, msg) {
 }
 
 module.exports = {
-  handleLeagueGraphCommand,
+  handleLeagueGraphsCommand,
   sendLeagueGraph,
+  sendGraphTypePicker,
+  buildGraphTypeKeyboard,
   buildChartConfig,
-  // Exported for unit tests — not part of the public handler API.
+  // Exported for unit tests and for reuse by sibling graph handlers.
   getSortedMatchdayKeys,
   buildRoundToRaceNameMap,
+  matchdayNumber,
+  TEAM_COLOR_PALETTE: TEAM_COLOR_PALETTE_EXPORT,
 };
