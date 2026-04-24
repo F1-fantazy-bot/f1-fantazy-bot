@@ -54,6 +54,7 @@ const {
   handleUnfollowTeamCommand,
 } = require('./unfollowTeamHandler');
 const { handleLeagueGraphsCommand } = require('./leagueGraphHandler');
+const { handleManageTrackingCommand } = require('./manageTrackingHandler');
 
 module.exports = {
   handleBestTeamsMessage,
@@ -98,5 +99,6 @@ module.exports = {
   handleLeaderboardCommand,
   handleSelectTeamFromLeagueCommand,
   handleUnfollowTeamCommand,
+  handleManageTrackingCommand,
   handleLeagueGraphsCommand,
 };

@@ -466,6 +466,9 @@ const translations = {
       'עקוב אחר קבוצה מליגה שאתה עוקב אחריה (עד 6 קבוצות במקביל)',
     '🗑️ Unfollow Team': '🗑️ הפסק לעקוב אחר קבוצה',
     'Stop following a league team': 'הפסק לעקוב אחר קבוצת ליגה',
+    '🎯 Manage Tracking': '🎯 ניהול מעקב',
+    'Manage tracked teams from your followed leagues (up to 6 teams)':
+      'נהל את הקבוצות במעקב מהליגות שלך (עד 6 קבוצות)',
     '📊 Graphs': '📊 גרפים',
     'Render a line chart of gap to leader per race for every team in a followed league':
       'צייר גרף קווי של הפער מהמוביל בכל מרוץ עבור כל קבוצה בליגה במעקב',
@@ -490,6 +493,12 @@ const translations = {
       'אתה עוקב כבר אחר {MAX} קבוצות ליגה. בחר אחת להפסיק לעקוב כדי לעקוב אחר {TEAM}:',
     'Which team do you want to stop following?':
       'איזו קבוצה ברצונך להפסיק לעקוב אחריה?',
+    'Which league would you like to manage tracked teams for?':
+      'לאיזו ליגה תרצה לנהל את הקבוצות במעקב?',
+    'Toggle tracked teams in {LEAGUE}:': 'הפעל/כבה מעקב קבוצות ב-{LEAGUE}:',
+    '⬅️ Back to leagues': '⬅️ חזרה לליגות',
+    'You can track up to 6 teams. Untrack one first.':
+      'ניתן לעקוב אחר עד 6 קבוצות. בטל מעקב מקבוצה אחת תחילה.',
     'You are not following any league teams yet. Run {CMD} to follow one.':
       'אתה עדיין לא עוקב אחר אף קבוצת ליגה. הפעל {CMD} כדי לעקוב אחר קבוצה.',
     '✅ Stopped following team {TEAM}.': '✅ הפסקת לעקוב אחר הקבוצה {TEAM}.',

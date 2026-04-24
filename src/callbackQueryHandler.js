@@ -5,6 +5,7 @@ const {
   getPrintableCache,
   bestTeamsCache,
   userCache,
+  getUserLeagueTeamIds,
   normalizeBestTeamBudgetChangePointsPerMillion,
   clearSelectedBestTeam,
   serializeSelectedBestTeamByTeam,
@@ -25,6 +26,10 @@ const {
   LEAGUE_TEAM_PICK_CALLBACK_TYPE,
   LEAGUE_TEAM_UNFOLLOW_CALLBACK_TYPE,
   LEAGUE_TEAM_UNFOLLOW_AND_ADD_CALLBACK_TYPE,
+  MANAGE_TRACKING_LEAGUE_CALLBACK_TYPE,
+  MANAGE_TRACKING_TOGGLE_CALLBACK_TYPE,
+  MANAGE_TRACKING_BACK_CALLBACK_TYPE,
+  MAX_FOLLOWED_LEAGUE_TEAMS,
   LEAGUE_GRAPH_CALLBACK_TYPE,
   LEAGUE_GRAPH_TYPE_CALLBACK_TYPE,
   LEAGUE_GRAPH_TYPES,
@@ -59,14 +64,19 @@ const {
 const {
   sendLeagueStandingsGraph,
 } = require('./commandsHandler/leagueStandingsGraphHandler');
-const { removeUserLeague } = require('./leagueRegistryService');
+const { removeUserLeague, listUserLeagues } = require('./leagueRegistryService');
 const {
   promptTeamPick,
   applyLeagueTeamSelection,
+  loadLeagueTeamsData,
 } = require('./commandsHandler/selectTeamFromLeagueHandler');
 const {
   removeFollowedTeam,
 } = require('./commandsHandler/unfollowTeamHandler');
+const { buildTeamId } = require('./utils/teamId');
+const {
+  buildManageTrackingTeamsMessage,
+} = require('./commandsHandler/manageTrackingHandler');
 
 exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
@@ -98,6 +108,12 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handleLeagueTeamUnfollowCallback(bot, query);
     case LEAGUE_TEAM_UNFOLLOW_AND_ADD_CALLBACK_TYPE:
       return await handleLeagueTeamUnfollowAndAddCallback(bot, query);
+    case MANAGE_TRACKING_LEAGUE_CALLBACK_TYPE:
+      return await handleManageTrackingLeagueCallback(bot, query);
+    case MANAGE_TRACKING_TOGGLE_CALLBACK_TYPE:
+      return await handleManageTrackingToggleCallback(bot, query);
+    case MANAGE_TRACKING_BACK_CALLBACK_TYPE:
+      return await handleManageTrackingBackCallback(bot, query);
     case LEAGUE_GRAPH_CALLBACK_TYPE:
       return await handleLeagueGraphCallback(bot, query);
     case LEAGUE_GRAPH_TYPE_CALLBACK_TYPE:
@@ -526,6 +542,115 @@ async function handleLeagueTeamUnfollowAndAddCallback(bot, query) {
     pendingAdd.leagueCode,
     pendingAdd.position,
   );
+
+  await bot.answerCallbackQuery(query.id);
+}
+
+async function handleManageTrackingLeagueCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const messageId = query.message.message_id;
+  const leagueCode = query.data.split(':')[1];
+
+  try {
+    const payload = await buildManageTrackingTeamsMessage(chatId, leagueCode, true);
+    await bot.editMessageText(payload.text, {
+      chat_id: chatId,
+      message_id: messageId,
+      reply_markup: payload.reply_markup,
+    });
+  } catch (err) {
+    console.error('Error opening manage-tracking teams view:', err);
+    await bot.editMessageText(
+      t('❌ Failed to load league teams data: {ERROR}', chatId, {
+        ERROR: err.message,
+      }),
+      { chat_id: chatId, message_id: messageId },
+    );
+  }
+
+  await bot.answerCallbackQuery(query.id);
+}
+
+async function handleManageTrackingToggleCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const messageId = query.message.message_id;
+  const [, leagueCode, position] = query.data.split(':');
+
+  try {
+    const teamsData = await loadLeagueTeamsData(leagueCode);
+    const selectedTeam = (teamsData?.teams || []).find(
+      (team) => team.position === Number(position),
+    );
+    if (!selectedTeam) {
+      throw new Error('Team not found');
+    }
+    const teamId = buildTeamId(leagueCode, selectedTeam.teamName);
+    const currentlyTracked = getUserLeagueTeamIds(chatId).includes(teamId);
+
+    if (currentlyTracked) {
+      await removeFollowedTeam(bot, chatId, teamId);
+    } else {
+      const followedCount = getUserLeagueTeamIds(chatId).length;
+      if (followedCount >= MAX_FOLLOWED_LEAGUE_TEAMS) {
+        await bot.answerCallbackQuery(query.id, {
+          text: t('You can track up to 6 teams. Untrack one first.', chatId),
+        });
+
+        return;
+      }
+      await applyLeagueTeamSelection(bot, chatId, leagueCode, position);
+    }
+
+    const payloadAfter = await buildManageTrackingTeamsMessage(chatId, leagueCode, true);
+    await bot.editMessageText(payloadAfter.text, {
+      chat_id: chatId,
+      message_id: messageId,
+      reply_markup: payloadAfter.reply_markup,
+    });
+  } catch (err) {
+    console.error('Error toggling tracked team:', err);
+    await bot.answerCallbackQuery(query.id, {
+      text: t('❌ Failed to stop following team: {ERROR}', chatId, {
+        ERROR: err.message,
+      }),
+    });
+
+    return;
+  }
+
+  await bot.answerCallbackQuery(query.id);
+}
+
+async function handleManageTrackingBackCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const messageId = query.message.message_id;
+
+  try {
+    const leagues = await listUserLeagues(chatId);
+    const keyboard = (leagues || []).map((league) => [
+      {
+        text: league.leagueName || league.leagueCode,
+        callback_data: `${MANAGE_TRACKING_LEAGUE_CALLBACK_TYPE}:${league.leagueCode}`,
+      },
+    ]);
+    await bot.editMessageText(
+      t('Which league would you like to manage tracked teams for?', chatId),
+      {
+        chat_id: chatId,
+        message_id: messageId,
+        reply_markup: { inline_keyboard: keyboard },
+      },
+    );
+  } catch (err) {
+    console.error('Error returning to manage-tracking league list:', err);
+    await bot.answerCallbackQuery(query.id, {
+      text: t('❌ Failed to load your leagues: {ERROR}', chatId, {
+        ERROR: err.message,
+      }),
+    });
+
+    return;
+  }
 
   await bot.answerCallbackQuery(query.id);
 }

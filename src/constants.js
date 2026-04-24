@@ -47,6 +47,9 @@ exports.LEAGUE_GRAPH_TYPES = {
 // (leagueCode up to ~15 chars, sanitized name up to 40 chars).
 exports.LEAGUE_TEAM_UNFOLLOW_CALLBACK_TYPE = 'UFT';
 exports.LEAGUE_TEAM_UNFOLLOW_AND_ADD_CALLBACK_TYPE = 'UFTA';
+exports.MANAGE_TRACKING_LEAGUE_CALLBACK_TYPE = 'MTL';
+exports.MANAGE_TRACKING_TOGGLE_CALLBACK_TYPE = 'MTT';
+exports.MANAGE_TRACKING_BACK_CALLBACK_TYPE = 'MTB';
 
 exports.MAX_FOLLOWED_LEAGUE_TEAMS = 6;
 
@@ -93,6 +96,7 @@ exports.COMMAND_UNFOLLOW_LEAGUE = '/unfollow_league';
 exports.COMMAND_LEADERBOARD = '/leaderboard';
 exports.COMMAND_SELECT_TEAM_FROM_LEAGUE = '/select_team_from_league';
 exports.COMMAND_UNFOLLOW_TEAM = '/unfollow_team';
+exports.COMMAND_MANAGE_TRACKING = '/manage_tracking';
 exports.COMMAND_LEAGUE_GRAPHS = '/league_graphs';
 
 // Menu configuration for interactive menu command
@@ -308,15 +312,10 @@ exports.MENU_CATEGORIES = {
         description: 'Unfollow an F1 Fantasy league',
       },
       {
-        constant: exports.COMMAND_SELECT_TEAM_FROM_LEAGUE,
-        title: '🎯 Select Team From League',
+        constant: exports.COMMAND_MANAGE_TRACKING,
+        title: '🎯 Manage Tracking',
         description:
-          'Follow a team roster from a followed league (up to 6 followed teams)',
-      },
-      {
-        constant: exports.COMMAND_UNFOLLOW_TEAM,
-        title: '🗑️ Unfollow Team',
-        description: 'Stop following a league team',
+          'Manage tracked teams from your followed leagues (up to 6 teams)',
       },
       {
         constant: exports.COMMAND_LEADERBOARD,

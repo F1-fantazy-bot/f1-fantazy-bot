@@ -39,6 +39,7 @@ const {
   COMMAND_LEADERBOARD,
   COMMAND_SELECT_TEAM_FROM_LEAGUE,
   COMMAND_UNFOLLOW_TEAM,
+  COMMAND_MANAGE_TRACKING,
   COMMAND_LEAGUE_GRAPHS,
 } = require('../constants');
 
@@ -94,6 +95,7 @@ const {
   handleUnfollowTeamCommand,
 } = require('./unfollowTeamHandler');
 const { handleLeagueGraphsCommand } = require('./leagueGraphHandler');
+const { handleManageTrackingCommand } = require('./manageTrackingHandler');
 
 // Mapping of command constants to their handler functions
 const COMMAND_HANDLERS = {
@@ -137,6 +139,7 @@ const COMMAND_HANDLERS = {
   [COMMAND_LEADERBOARD]: handleLeaderboardCommand,
   [COMMAND_SELECT_TEAM_FROM_LEAGUE]: handleSelectTeamFromLeagueCommand,
   [COMMAND_UNFOLLOW_TEAM]: handleUnfollowTeamCommand,
+  [COMMAND_MANAGE_TRACKING]: handleManageTrackingCommand,
   [COMMAND_LEAGUE_GRAPHS]: handleLeagueGraphsCommand,
 };
 
