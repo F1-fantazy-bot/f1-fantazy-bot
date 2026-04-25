@@ -466,6 +466,35 @@ const translations = {
       'עקוב אחר קבוצה מליגה שאתה עוקב אחריה (עד 6 קבוצות במקביל)',
     '🗑️ Unfollow Team': '🗑️ הפסק לעקוב אחר קבוצה',
     'Stop following a league team': 'הפסק לעקוב אחר קבוצת ליגה',
+    '📋 Teams Tracker': '📋 קבוצות במעקב',
+    'Pick which league teams to follow (toggle up to 6 teams, then save)':
+      'בחר אילו קבוצות מהליגה לעקוב אחריהן (עד 6 קבוצות, ושמור בסיום)',
+    'Show league graphs: gap to leader per race, or budget per race':
+      'הצג גרפים של הליגה: פער מהמוביל לכל מרוץ, או תקציב לכל מרוץ',
+    'Pick a league to manage followed teams:':
+      'בחר ליגה כדי לנהל את הקבוצות במעקב:',
+    'Toggle teams to follow. Save when done.':
+      'סמן קבוצות למעקב. שמור כשסיימת.',
+    '💾 Save ({N}/{MAX})': '💾 שמור ({N}/{MAX})',
+    '✖ Cancel': '✖ ביטול',
+    '⬅ Back': '⬅ חזרה',
+    'You can follow at most {MAX} teams. Deselect one first.':
+      'ניתן לעקוב אחר עד {MAX} קבוצות. בטל סימון של אחת קודם.',
+    '✅ Teams tracker updated. Following {N}/{MAX}. Active team: {TEAM}.':
+      '✅ קבוצות המעקב עודכנו. במעקב {N}/{MAX}. קבוצה פעילה: {TEAM}.',
+    '✅ Teams tracker updated. No teams are being followed.':
+      '✅ קבוצות המעקב עודכנו. אין קבוצות במעקב.',
+    '⚠️ {N} team(s) could not be added (league roster changed).':
+      '⚠️ {N} קבוצה/ות לא נוספו (סגל הליגה השתנה).',
+    'Teams tracker cancelled. No changes saved.':
+      'קבוצות המעקב בוטלו. שום שינוי לא נשמר.',
+    'This Teams Tracker view has expired. Open /teams_tracker again.':
+      'תצוגת קבוצות המעקב פגה. הפעל /teams_tracker שוב.',
+    '❌ Expired — reopen /teams_tracker':
+      '❌ פג תוקף — הפעל /teams_tracker שוב',
+    '❌ Failed to save teams tracker: {ERROR}':
+      '❌ שמירת קבוצות המעקב נכשלה: {ERROR}',
+    'no active team': 'אין קבוצה פעילה',
     '📊 Graphs': '📊 גרפים',
     'Render a line chart of gap to leader per race for every team in a followed league':
       'צייר גרף קווי של הפער מהמוביל בכל מרוץ עבור כל קבוצה בליגה במעקב',

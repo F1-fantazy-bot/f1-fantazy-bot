@@ -37,8 +37,7 @@ const {
   COMMAND_FOLLOW_LEAGUE,
   COMMAND_UNFOLLOW_LEAGUE,
   COMMAND_LEADERBOARD,
-  COMMAND_SELECT_TEAM_FROM_LEAGUE,
-  COMMAND_UNFOLLOW_TEAM,
+  COMMAND_TEAMS_TRACKER,
   COMMAND_LEAGUE_GRAPHS,
 } = require('../constants');
 
@@ -88,11 +87,8 @@ const {
 } = require('./unfollowLeagueHandler');
 const { handleLeaderboardCommand } = require('./leaderboardHandler');
 const {
-  handleSelectTeamFromLeagueCommand,
-} = require('./selectTeamFromLeagueHandler');
-const {
-  handleUnfollowTeamCommand,
-} = require('./unfollowTeamHandler');
+  handleTeamsTrackerCommand,
+} = require('./teamsTrackerHandler');
 const { handleLeagueGraphsCommand } = require('./leagueGraphHandler');
 
 // Mapping of command constants to their handler functions
@@ -135,8 +131,7 @@ const COMMAND_HANDLERS = {
   [COMMAND_FOLLOW_LEAGUE]: handleFollowLeagueCommand,
   [COMMAND_UNFOLLOW_LEAGUE]: handleUnfollowLeagueCommand,
   [COMMAND_LEADERBOARD]: handleLeaderboardCommand,
-  [COMMAND_SELECT_TEAM_FROM_LEAGUE]: handleSelectTeamFromLeagueCommand,
-  [COMMAND_UNFOLLOW_TEAM]: handleUnfollowTeamCommand,
+  [COMMAND_TEAMS_TRACKER]: handleTeamsTrackerCommand,
   [COMMAND_LEAGUE_GRAPHS]: handleLeagueGraphsCommand,
 };
 
