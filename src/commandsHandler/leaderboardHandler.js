@@ -42,11 +42,14 @@ function formatLeaderboard(leagueData, chatId) {
 
   const maxPos = teams[teams.length - 1].position ?? teams.length;
   const posWidth = String(maxPos).length;
-  const lines = teams.map((team) => {
+  const leaderScore = teams[0]?.totalScore ?? 0;
+  const lines = teams.map((team, idx) => {
     const pos = String(team.position ?? '?').padStart(posWidth, ' ');
     const name = escapeHtml(team.teamName || team.userName || '—');
     const score = team.totalScore ?? 0;
-    const line = ` ${pos}. ${name} — ${escapeHtml(score)}`;
+    const gapSuffix =
+      idx === 0 ? '' : ` (${escapeHtml(score - leaderScore)})`;
+    const line = ` ${pos}. ${name} — ${escapeHtml(score)}${gapSuffix}`;
     const teamId = buildTeamId(
       leagueData.leagueCode,
       team.teamName || team.userName || 'team',

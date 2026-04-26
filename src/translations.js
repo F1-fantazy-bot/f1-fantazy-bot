@@ -469,8 +469,8 @@ const translations = {
     '📋 Teams Tracker': '📋 קבוצות במעקב',
     'Pick which league teams to follow (toggle up to 6 teams, then save)':
       'בחר אילו קבוצות מהליגה לעקוב אחריהן (עד 6 קבוצות, ושמור בסיום)',
-    'Show league graphs: gap to leader per race, or budget per race':
-      'הצג גרפים של הליגה: פער מהמוביל לכל מרוץ, או תקציב לכל מרוץ',
+    'Show league graphs: gap to leader, standings, or budget per race':
+      'הצג גרפים של הליגה: פער מהמוביל, דירוג, או תקציב לכל מרוץ',
     'Pick a league to manage followed teams:':
       'בחר ליגה כדי לנהל את הקבוצות במעקב:',
     'Toggle teams to follow. Save when done.':
