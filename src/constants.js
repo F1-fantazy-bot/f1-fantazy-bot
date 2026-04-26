@@ -326,7 +326,7 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_LEAGUE_GRAPHS,
         title: '📊 Graphs',
         description:
-          'Show league graphs: gap to leader per race, or budget per race',
+          'Show league graphs: gap to leader, standings, or budget per race',
       },
     ],
   },

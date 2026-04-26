@@ -82,8 +82,8 @@ function formatUsersMessage(users, chatId) {
       message += `📛 ${t('Nickname', chatId)}: ${user.nickname}\n`;
     }
     message += `🌐 ${t('Language', chatId)}: ${langDisplay}\n`;
-    message += `📅 ${t('First Seen', chatId)}: ${firstSeenFormatted.dateStr}, ${firstSeenFormatted.timeStr}\n`;
-    message += `🕐 ${t('Last Seen', chatId)}: ${lastSeenFormatted.dateStr}, ${lastSeenFormatted.timeStr}\n\n`;
+    message += `🕐 ${t('Last Seen', chatId)}: ${lastSeenFormatted.dateStr}, ${lastSeenFormatted.timeStr}\n`;
+    message += `📅 ${t('First Seen', chatId)}: ${firstSeenFormatted.dateStr}, ${firstSeenFormatted.timeStr}\n\n`;
   });
 
   return message;
