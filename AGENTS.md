@@ -514,3 +514,11 @@ Blob naming includes the team ID:
 - **Keep `AGENTS.md` Up to Date:** After completing any task that changes the codebase structure, adds new commands, modifies architecture, or introduces new patterns, review `AGENTS.md` and update it to reflect the changes. This file is the primary reference for contributors and AI agents — keeping it accurate prevents confusion and misaligned implementations.
 
 With this reference and the checklist above, adding features—especially new commands—should be predictable and safe.
+
+---
+
+## Project Skills (Copilot CLI)
+
+Project-scoped Copilot CLI skills live under `.github/skills/<name>/SKILL.md` and are auto-discovered by the CLI when running inside this repo.
+
+- **`release-announcement`** — Given a commit SHA or ISO date, walks the commits up to `HEAD`, lets the admin pick which are user-visible, and produces three Hebrew announcement drafts (תמציתי / שובב / מפורט) ready to be sent via `/broadcast`. Read-only on the repo; never sends anything itself. See `.github/skills/release-announcement/SKILL.md`.
