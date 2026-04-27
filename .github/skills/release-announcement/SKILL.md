@@ -311,8 +311,10 @@ After both drafts are printed, ask the user which one to keep using
      - **Strip the surrounding ```` ``` ```` fences.**
      - **Do not wrap `/command` names in backticks** (or any other
        markdown). Reference them as bare `/best_teams`, `/follow_league`,
-       etc. The bot sends the text with `parse_mode: 'Markdown'`, and
-       Telegram auto-links bare `/commands` — backticks would break that.
+       etc. The bot sends the text with `parse_mode: 'Markdown'` and
+       takes care of escaping underscores inside command names so
+       Telegram doesn't parse them as italic markers — leave commands as
+       plain `/name_with_underscores`.
      - The rest of the markdown (`*bold*`, bullet lists, emoji headers)
        stays intact and is rendered by the bot as Markdown.
   4. **Prepend** the entry to the array (newest first) and write the file

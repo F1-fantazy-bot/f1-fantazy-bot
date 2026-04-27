@@ -3,6 +3,16 @@ const { t } = require('../i18n');
 const { getLatestAnnouncement } = require('../announcementsService');
 const { MAX_TELEGRAM_MESSAGE_LENGTH } = require('../constants');
 
+function escapeCommandUnderscores(text) {
+  // In Telegram legacy Markdown, '_' starts italic. Command names like
+  // /best_teams would have their underscores consumed. Escape '_' only
+  // inside /command tokens so the text still renders as '/best_teams' and
+  // Telegram auto-links it as a command.
+  return text.replace(/\/[A-Za-z][A-Za-z0-9_]*/g, (match) =>
+    match.replace(/_/g, '\\_'),
+  );
+}
+
 async function handleWhatsNewCommand(bot, msg) {
   const chatId = msg.chat.id;
 
@@ -34,8 +44,10 @@ async function handleWhatsNewCommand(bot, msg) {
     ).catch(() => {});
   }
 
+  const markdownText = escapeCommandUnderscores(text);
+
   try {
-    await bot.sendMessage(chatId, text, { parse_mode: 'Markdown' });
+    await bot.sendMessage(chatId, markdownText, { parse_mode: 'Markdown' });
   } catch (err) {
     console.error(
       'whats_new: markdown send failed, retrying as plain text:',
