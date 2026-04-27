@@ -1,22 +1,23 @@
 ---
 name: release-announcement
 description: >
-  Generate three Hebrew release-announcement drafts for f1-fantazy-bot users
+  Generate two Hebrew release-announcement drafts for f1-fantazy-bot users
   based on commits since a given commit SHA or ISO date. Use when the user
   says "draft release announcement", "announce changes since <sha>", "announce
   changes since <date>", "release notes for users", "בוא נכין הודעת שחרור",
   "כתוב הודעה למשתמשים על השינויים החדשים", "הודעת ריליס", or any similar
   request to communicate new bot features to end users. Walks the commits,
-  lets the user pick which are significant, then produces concise / playful /
-  detailed Hebrew variants ready to be sent via /broadcast.
+  lets the user pick which are significant, then produces a standard draft
+  and an amplified "wow" version ready to be sent via /broadcast.
 ---
 
 # Release Announcement Skill
 
-Produces **three Hebrew announcement drafts** describing new user-visible
-features in `f1-fantazy-bot`, based on commits since a starting point chosen
-by the user. The skill never sends anything — it only produces text the
-admin can copy into the bot's existing `/broadcast` admin command.
+Produces **two Hebrew announcement drafts** — a standard version and an
+amplified "wow" version — describing new user-visible features in
+`f1-fantazy-bot`, based on commits since a starting point chosen by the
+user. The skill never sends anything — it only produces text the admin can
+copy into the bot's existing `/broadcast` admin command.
 
 ## Inputs
 
@@ -109,42 +110,104 @@ paths to reason about scope — e.g. files in `src/commandsHandler/` usually
 mean a new or updated bot command, files under `src/utils/weatherApi.js`
 mean weather behaviour, etc.
 
-### Step 4 — Produce three Hebrew announcement drafts
+### Step 4 — Produce a Hebrew announcement draft
 
-Generate **three drafts of the same announcement**, all in **Hebrew**, all
-covering the same set of selected commits, differing **only in tone**.
-Output them in this exact order, each in its own fenced markdown block so
-they can be copied cleanly:
+Generate **one draft** of the announcement in **Hebrew**. Output it inside a
+single fenced markdown block so it can be copied cleanly:
 
 ```
-### הצעה 1 — תמציתי
-<draft 1>
+### 📋 הודעת עדכון
+<draft>
 ```
 
-```
-### הצעה 2 — שובב
-<draft 2>
-```
+#### Tone & structure
 
-```
-### הצעה 3 — מפורט
-<draft 3>
-```
+The tone is **warm and engaging, with F1 personality** — like a passionate
+fan talking to fellow fans. It should feel like a pit-wall radio message:
+confident, a bit playful, and to the point. Think of it as sitting between
+"concise bullet list" and "over-the-top comedy" — informative first,
+personality second.
 
-Tone definitions:
+Follow this structure:
 
-1. **תמציתי (Concise)** — bullet-point summary, ≤6 short bullets. Suitable
-   for a quick channel post. No fluff.
-2. **שובב (Playful)** — friendly and warm, light humour, emojis welcome.
-   Written like a fan talking to fans. Still honest about what changed.
-3. **מפורט (Detailed)** — longer narrative. Group related commits into
-   themes. For each meaningful feature, briefly explain **what it does**
-   and **how the user benefits / how to use it**.
+1. **Opening hook** — Start with an F1-themed catchphrase or metaphor as
+   the first line, prefixed with a racing emoji (e.g. 🚦, 🏎️). This is
+   the attention-grabber. Example pattern:
+   `🚦 It's lights out and away we go: <one-liner about the update>!`
+   One short paragraph after the hook sets the context — why this matters
+   to the user.
 
-Hard rules for **all three** drafts:
+2. **Features section** — Use an emoji header (e.g. 🛠️) followed by a
+   bold section title. List each user-visible change as a bullet point
+   with a bold label and a short explanation. Mention the actual
+   `/command` name when relevant. Keep bullets concise — one or two
+   sentences each.
 
-- **Hebrew only.** No English sentences. (Specific Telegram command names
-  like `/best_teams` and brand names stay in English — that's expected.)
+3. **Closing / CTA** — Use a 🏁 emoji header. Write a short motivating
+   paragraph that ties back to F1 (next race, strategy, timing). End
+   with a clear call-to-action — e.g. "try the new command now". Add a
+   trailing `🏎️💨` or similar for flair.
+
+#### Emoji usage
+
+- Use emojis for **section headers** (🚦, 🛠️, 🏁) — these are
+  structural markers.
+- One or two inline emojis (e.g. 🔄, ⚡) in the body are fine when they
+  add clarity.
+- Do **not** emoji-spam every sentence.
+
+#### Hebrew quality
+
+The Hebrew should be **polished and native** — the level of a sports columnist
+or product blogger writing in Hebrew, not a translation from English. The
+tone is set by the structure above; this section is about *language quality
+underneath* both drafts.
+
+**Do:**
+
+- Prefer **short Hebrew clauses**. Break long English-style compound
+  sentences into two or three Hebrew sentences.
+- Use **natural Hebrew connectives** — `כש־`, `מעכשיו`, `כך`, `לכן`, `אז` —
+  over literal English-isms.
+- Use **active voice** and direct verbs.
+- For "now you can…" phrasings, prefer `מעכשיו אפשר…` over
+  `אתם יכולים עכשיו…`.
+- Use **natural Hebrew word order** — the verb often comes earlier than in
+  English; don't force English SVO order.
+
+**Avoid (translation tells):**
+
+- **Literal calques of English idioms.** Don't translate "game-changer" or
+  "at the end of the day" word-for-word. Describe the actual benefit
+  instead.
+- **Overuse of `אנחנו` / `אנו`.** Hebrew product copy usually drops the
+  pronoun; the verb form already carries it.
+- **Translated marketing tropes** — `אנחנו שמחים להציג…`,
+  `ברוכים הבאים ל…`, `קחו את ה־X שלכם לרמה הבאה`.
+- **English-style passive constructions** where active works.
+- **Anglicized prepositions** — e.g. `לעדכן את X ב־Y` when natural Hebrew
+  would say `לעדכן ש־` or restructure the sentence.
+- **Foreign loan words** when a clean Hebrew word exists. (Telegram
+  `/commands` and brand names like `F1` stay English — that's already
+  specified.)
+
+**Self-edit pass — required before outputting the draft.**
+Re-read each sentence and ask:
+
+1. Would a native Hebrew speaker actually phrase it this way?
+2. Could the same idea be said in fewer Hebrew words?
+3. Is anything a literal translation of an English phrase? Replace it.
+4. Does the rhythm feel like natural Hebrew, or like English wearing
+   Hebrew clothes?
+
+Fix issues before outputting.
+
+#### Hard rules
+
+- **Native-quality Hebrew.** Both drafts must read like native written
+  Hebrew, not translated English — see the Hebrew quality subsection
+  above. Telegram command names like `/best_teams` and brand names
+  (`F1`, etc.) stay in English — that's expected.
 - **User-visible focus.** Skip refactors, tests, CI, dependency bumps,
   docs-only changes, and anything internal — even if the user selected
   them, omit them when they have no observable user impact.
@@ -160,15 +223,51 @@ Hard rules for **all three** drafts:
   appropriate for Hebrew text.
 - **No version numbers** unless one of the selected commits is explicitly a
   version bump and the user chose to include it.
+- **Group related changes.** If multiple commits touch the same feature
+  area, merge them into a single bullet rather than listing each commit
+  separately.
 
-### Step 5 — Suggest next step
+### Step 5 — Produce a "wow" version
 
-After the three drafts, print exactly one short Hebrew suggestion such as:
+Take the draft from Step 4 and **rewrite it** with dramatically amplified
+energy. Same facts, same commands, same structure — but turned up to race-day
+intensity. Output it in its own fenced block:
+
+```
+### 🔥 גרסת WOW
+<wow draft>
+```
+
+#### Wow tone
+
+Think of a breathless F1 commentator calling the final lap. The wow version
+should feel like **the announcement itself is a podium celebration**:
+
+- **Bigger metaphors** — championship-deciding language, pit-stop precision,
+  DRS zones, safety-car restarts. Go beyond the standard F1 references.
+- **Punchier sentences** — shorter, more urgent. Break long explanations into
+  snappy fragments.
+- **More emojis** — still purposeful (not every word), but noticeably more
+  than the standard draft. Use racing emojis (🏆, ⚡, 🔥, 💥, 🚀) alongside
+  the structural ones.
+- **Drama and hype** — the opening hook should hit harder, the features
+  should sound like game-changers, and the CTA should create real urgency.
+- **Still honest** — do not exaggerate what a feature does. The excitement
+  comes from *how* you describe it, not from inflating the scope.
+
+All hard rules from Step 4 still apply (native-quality Hebrew, real
+commands, no invented features, etc.). The wow tone is amplified — the
+Hebrew language quality is not. Run the same self-edit pass before
+outputting: replace any phrase that feels translated.
+
+### Step 6 — Suggest next step
+
+After both drafts, print exactly one short Hebrew suggestion:
 
 > "כשתבחר ניסוח — אפשר לשלוח אותו דרך `/broadcast` בבוט."
 
 **Do not** call `/broadcast`, do not modify any file, do not commit
-anything. The skill's job ends at producing the three drafts.
+anything. The skill's job ends at producing the two drafts.
 
 ## Constraints
 
@@ -179,9 +278,9 @@ anything. The skill's job ends at producing the three drafts.
 - **Confirm before generating.** Always run Step 2's confirmation loop. Do
   not skip straight to drafts even if the user's initial request seems to
   imply "all commits".
-- **Bilingual content.** The drafts themselves are Hebrew, but the
-  scaffolding around them (the section headers like
-  `### הצעה 1 — תמציתי`, the suggestion line) follows the spec above.
+- **Hebrew drafts.** Both drafts are Hebrew. The markdown headers
+  (`### 📋 הודעת עדכון`, `### 🔥 גרסת WOW`) and the `/broadcast`
+  suggestion line follow the spec above.
 
 ## Example interactions
 
