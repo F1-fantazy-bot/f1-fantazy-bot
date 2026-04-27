@@ -156,10 +156,58 @@ Follow this structure:
   add clarity.
 - Do **not** emoji-spam every sentence.
 
+#### Hebrew quality
+
+The Hebrew should be **polished and native** — the level of a sports columnist
+or product blogger writing in Hebrew, not a translation from English. The
+tone is set by the structure above; this section is about *language quality
+underneath* both drafts.
+
+**Do:**
+
+- Prefer **short Hebrew clauses**. Break long English-style compound
+  sentences into two or three Hebrew sentences.
+- Use **natural Hebrew connectives** — `כש־`, `מעכשיו`, `כך`, `לכן`, `אז` —
+  over literal English-isms.
+- Use **active voice** and direct verbs.
+- For "now you can…" phrasings, prefer `מעכשיו אפשר…` over
+  `אתם יכולים עכשיו…`.
+- Use **natural Hebrew word order** — the verb often comes earlier than in
+  English; don't force English SVO order.
+
+**Avoid (translation tells):**
+
+- **Literal calques of English idioms.** Don't translate "game-changer" or
+  "at the end of the day" word-for-word. Describe the actual benefit
+  instead.
+- **Overuse of `אנחנו` / `אנו`.** Hebrew product copy usually drops the
+  pronoun; the verb form already carries it.
+- **Translated marketing tropes** — `אנחנו שמחים להציג…`,
+  `ברוכים הבאים ל…`, `קחו את ה־X שלכם לרמה הבאה`.
+- **English-style passive constructions** where active works.
+- **Anglicized prepositions** — e.g. `לעדכן את X ב־Y` when natural Hebrew
+  would say `לעדכן ש־` or restructure the sentence.
+- **Foreign loan words** when a clean Hebrew word exists. (Telegram
+  `/commands` and brand names like `F1` stay English — that's already
+  specified.)
+
+**Self-edit pass — required before outputting the draft.**
+Re-read each sentence and ask:
+
+1. Would a native Hebrew speaker actually phrase it this way?
+2. Could the same idea be said in fewer Hebrew words?
+3. Is anything a literal translation of an English phrase? Replace it.
+4. Does the rhythm feel like natural Hebrew, or like English wearing
+   Hebrew clothes?
+
+Fix issues before outputting.
+
 #### Hard rules
 
-- **Hebrew only.** No English sentences. (Specific Telegram command names
-  like `/best_teams` and brand names stay in English — that's expected.)
+- **Native-quality Hebrew.** Both drafts must read like native written
+  Hebrew, not translated English — see the Hebrew quality subsection
+  above. Telegram command names like `/best_teams` and brand names
+  (`F1`, etc.) stay in English — that's expected.
 - **User-visible focus.** Skip refactors, tests, CI, dependency bumps,
   docs-only changes, and anything internal — even if the user selected
   them, omit them when they have no observable user impact.
@@ -207,8 +255,10 @@ should feel like **the announcement itself is a podium celebration**:
 - **Still honest** — do not exaggerate what a feature does. The excitement
   comes from *how* you describe it, not from inflating the scope.
 
-All hard rules from Step 4 still apply (Hebrew only, real commands, no
-invented features, etc.).
+All hard rules from Step 4 still apply (native-quality Hebrew, real
+commands, no invented features, etc.). The wow tone is amplified — the
+Hebrew language quality is not. Run the same self-edit pass before
+outputting: replace any phrase that feels translated.
 
 ### Step 6 — Suggest next step
 
