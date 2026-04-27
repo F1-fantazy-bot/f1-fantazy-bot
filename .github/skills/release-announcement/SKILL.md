@@ -1,22 +1,23 @@
 ---
 name: release-announcement
 description: >
-  Generate a Hebrew release-announcement draft for f1-fantazy-bot users
+  Generate two Hebrew release-announcement drafts for f1-fantazy-bot users
   based on commits since a given commit SHA or ISO date. Use when the user
   says "draft release announcement", "announce changes since <sha>", "announce
   changes since <date>", "release notes for users", "בוא נכין הודעת שחרור",
   "כתוב הודעה למשתמשים על השינויים החדשים", "הודעת ריליס", or any similar
   request to communicate new bot features to end users. Walks the commits,
-  lets the user pick which are significant, then produces a single Hebrew
-  draft ready to be sent via /broadcast.
+  lets the user pick which are significant, then produces a standard draft
+  and an amplified "wow" version ready to be sent via /broadcast.
 ---
 
 # Release Announcement Skill
 
-Produces **a single Hebrew announcement draft** describing new user-visible
-features in `f1-fantazy-bot`, based on commits since a starting point chosen
-by the user. The skill never sends anything — it only produces text the
-admin can copy into the bot's existing `/broadcast` admin command.
+Produces **two Hebrew announcement drafts** — a standard version and an
+amplified "wow" version — describing new user-visible features in
+`f1-fantazy-bot`, based on commits since a starting point chosen by the
+user. The skill never sends anything — it only produces text the admin can
+copy into the bot's existing `/broadcast` admin command.
 
 ## Inputs
 
@@ -178,14 +179,45 @@ Follow this structure:
   area, merge them into a single bullet rather than listing each commit
   separately.
 
-### Step 5 — Suggest next step
+### Step 5 — Produce a "wow" version
 
-After the draft, print exactly one short Hebrew suggestion:
+Take the draft from Step 4 and **rewrite it** with dramatically amplified
+energy. Same facts, same commands, same structure — but turned up to race-day
+intensity. Output it in its own fenced block:
 
-> "אפשר לשלוח את ההודעה דרך `/broadcast` בבוט."
+```
+### 🔥 גרסת WOW
+<wow draft>
+```
+
+#### Wow tone
+
+Think of a breathless F1 commentator calling the final lap. The wow version
+should feel like **the announcement itself is a podium celebration**:
+
+- **Bigger metaphors** — championship-deciding language, pit-stop precision,
+  DRS zones, safety-car restarts. Go beyond the standard F1 references.
+- **Punchier sentences** — shorter, more urgent. Break long explanations into
+  snappy fragments.
+- **More emojis** — still purposeful (not every word), but noticeably more
+  than the standard draft. Use racing emojis (🏆, ⚡, 🔥, 💥, 🚀) alongside
+  the structural ones.
+- **Drama and hype** — the opening hook should hit harder, the features
+  should sound like game-changers, and the CTA should create real urgency.
+- **Still honest** — do not exaggerate what a feature does. The excitement
+  comes from *how* you describe it, not from inflating the scope.
+
+All hard rules from Step 4 still apply (Hebrew only, real commands, no
+invented features, etc.).
+
+### Step 6 — Suggest next step
+
+After both drafts, print exactly one short Hebrew suggestion:
+
+> "כשתבחר ניסוח — אפשר לשלוח אותו דרך `/broadcast` בבוט."
 
 **Do not** call `/broadcast`, do not modify any file, do not commit
-anything. The skill's job ends at producing the draft.
+anything. The skill's job ends at producing the two drafts.
 
 ## Constraints
 
@@ -194,11 +226,11 @@ anything. The skill's job ends at producing the draft.
 - **No network calls.** Don't fetch external data; everything needed is in
   the local git history and the working tree.
 - **Confirm before generating.** Always run Step 2's confirmation loop. Do
-  not skip straight to the draft even if the user's initial request seems to
+  not skip straight to drafts even if the user's initial request seems to
   imply "all commits".
-- **Hebrew draft.** The draft itself is Hebrew. The markdown header
-  (`### 📋 הודעת עדכון`) and the `/broadcast` suggestion line follow the
-  spec above.
+- **Hebrew drafts.** Both drafts are Hebrew. The markdown headers
+  (`### 📋 הודעת עדכון`, `### 🔥 גרסת WOW`) and the `/broadcast`
+  suggestion line follow the spec above.
 
 ## Example interactions
 
