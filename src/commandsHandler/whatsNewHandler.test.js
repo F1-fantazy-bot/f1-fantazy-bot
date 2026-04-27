@@ -51,20 +51,21 @@ describe('handleWhatsNewCommand', () => {
     );
   });
 
-  it('sends the latest announcement text with markdown parse mode', async () => {
+  it('sends the latest announcement text with Markdown parse_mode', async () => {
     mockGetLatestAnnouncement.mockReturnValue({
       id: 'x',
       createdAt: '2026-04-15T10:00:00.000Z',
       version: 'standard',
-      text: '### 📋 הודעת עדכון\nשלום עולם',
+      text: '*בולד* שלום עולם — נסו /best_teams',
     });
     const msg = { chat: { id: KILZI_CHAT_ID }, text: '/whats_new' };
 
     await handleWhatsNewCommand(botMock, msg);
 
+    expect(botMock.sendMessage).toHaveBeenCalledTimes(1);
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      '### 📋 הודעת עדכון\nשלום עולם',
+      '*בולד* שלום עולם — נסו /best_teams',
       { parse_mode: 'Markdown' },
     );
   });

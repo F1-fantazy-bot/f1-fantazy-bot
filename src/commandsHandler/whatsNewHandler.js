@@ -37,7 +37,10 @@ async function handleWhatsNewCommand(bot, msg) {
   try {
     await bot.sendMessage(chatId, text, { parse_mode: 'Markdown' });
   } catch (err) {
-    console.error('whats_new: markdown send failed, retrying as plain text:', err);
+    console.error(
+      'whats_new: markdown send failed, retrying as plain text:',
+      err,
+    );
     await bot.sendMessage(chatId, text);
   }
 }

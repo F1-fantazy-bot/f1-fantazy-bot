@@ -300,9 +300,21 @@ After both drafts are printed, ask the user which one to keep using
        "version": "standard" | "wow",
        "sinceRef": "<the original SHA or date input>",
        "headCommit": "<output of git rev-parse HEAD>",
-       "text": "<the chosen draft body, including its `### 📋 ...` or `### 🔥 ...` heading, but WITHOUT the surrounding ```` ``` ```` fences>"
+       "text": "<the chosen draft body — see rules below>"
      }
      ```
+     Rules for `text`:
+     - **Strip the leading title line** — drop the `### 📋 הודעת עדכון`
+       or `### 🔥 גרסת WOW` heading (and the blank line right after it,
+       if any). The bot prints the body as-is; users don't need to see
+       the internal version label.
+     - **Strip the surrounding ```` ``` ```` fences.**
+     - **Do not wrap `/command` names in backticks** (or any other
+       markdown). Reference them as bare `/best_teams`, `/follow_league`,
+       etc. The bot sends the text with `parse_mode: 'Markdown'`, and
+       Telegram auto-links bare `/commands` — backticks would break that.
+     - The rest of the markdown (`*bold*`, bullet lists, emoji headers)
+       stays intact and is rendered by the bot as Markdown.
   4. **Prepend** the entry to the array (newest first) and write the file
      back with 2-space JSON indent + a trailing newline.
   5. Confirm to the user in Hebrew, naming the saved version and the file
