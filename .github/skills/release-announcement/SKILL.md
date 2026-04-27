@@ -27,10 +27,11 @@ When invoked, the user provides **one** of:
 - An ISO date — e.g. `2026-04-01` (interpreted as `--since=<date>`, author
   date inclusive).
 
-If neither is supplied, immediately ask the user via `ask_user` (freeform
-allowed) for the starting point before doing anything else. Example
-question: _"From which commit SHA or date should I start collecting
-commits?"_
+If neither is supplied, **first** try to read `data/announcements.json` for
+a previous `headCommit` to offer as default (see Step 1 below). Only if that
+file is missing or empty, ask the user via `ask_user` (freeform allowed) for
+the starting point. Example fallback question: _"From which commit SHA or
+date should I start collecting commits?"_
 
 ## Workflow
 
@@ -38,7 +39,24 @@ Follow these steps in order. Do not skip steps. Do not invent extra steps.
 
 ### Step 1 — Validate input and collect commits
 
-Run a single `bash` call to collect the candidate commits:
+If the user did not provide a SHA or date, first try to derive a smart
+default from `data/announcements.json` at the repo root (created by previous
+runs of this skill — see Step 6 below):
+
+- If the file exists and contains at least one entry, pick the entry with
+  the highest `createdAt` and read its `headCommit`. Then ask the user via
+  `ask_user` (choices `["Use <short-sha>", "Provide a different SHA/date"]`,
+  freeform also allowed):
+  > _"Last announcement covered up to `<short-sha>` (saved on
+  > `<createdAt>`). Use it as the starting point, or supply another SHA/date?"_
+  - "Use …" → use that `headCommit` as the SHA input.
+  - Anything else → treat the reply as the new SHA/date input.
+- If the file is missing, empty, or malformed, fall back to the original
+  freeform prompt: _"From which commit SHA or date should I start collecting
+  commits?"_
+
+Once you have an input, run a single `bash` call to collect the candidate
+commits:
 
 - **SHA / ref input:**
   ```bash
@@ -260,7 +278,41 @@ commands, no invented features, etc.). The wow tone is amplified — the
 Hebrew language quality is not. Run the same self-edit pass before
 outputting: replace any phrase that feels translated.
 
-### Step 6 — Suggest next step
+### Step 6 — Pick a version and save to the announcements file
+
+After both drafts are printed, ask the user which one to keep using
+`ask_user` with choices `["Standard", "WOW", "Don't save"]`:
+
+> _"Which version should I save as the latest release announcement?
+> (`/whats_new` will display whichever is saved.)"_
+
+- **`Don't save`** → skip the file write entirely and continue to Step 7.
+- **`Standard`** or **`WOW`** → append the chosen draft to
+  `data/announcements.json`:
+  1. Get the current head SHA: `git rev-parse HEAD`.
+  2. Read `data/announcements.json` (treat missing or malformed file as
+     `[]`).
+  3. Build a new entry:
+     ```json
+     {
+       "id": "<ISO-timestamp-slug, e.g. 2026-04-27T20-33-00Z>",
+       "createdAt": "<ISO timestamp of now>",
+       "version": "standard" | "wow",
+       "sinceRef": "<the original SHA or date input>",
+       "headCommit": "<output of git rev-parse HEAD>",
+       "text": "<the chosen draft body, including its `### 📋 ...` or `### 🔥 ...` heading, but WITHOUT the surrounding ```` ``` ```` fences>"
+     }
+     ```
+  4. **Prepend** the entry to the array (newest first) and write the file
+     back with 2-space JSON indent + a trailing newline.
+  5. Confirm to the user in Hebrew, naming the saved version and the file
+     path, e.g.:
+     > _"שמרתי את הגרסה ה־**WOW** ב־`data/announcements.json`. הפעלה של
+     > `/whats_new` בבוט תציג אותה."_
+
+This is the **only** file the skill is permitted to write.
+
+### Step 7 — Suggest next step
 
 After both drafts, print exactly one short Hebrew suggestion:
 
@@ -271,8 +323,10 @@ anything. The skill's job ends at producing the two drafts.
 
 ## Constraints
 
-- **Read-only on the repo.** Only `git log` / `git show` / `git rev-parse`
-  are needed. Do not run `git checkout`, `git commit`, `git push`, etc.
+- **Read-only on the repo, with one exception.** Only `git log` /
+  `git show` / `git rev-parse` are needed for git history. The **only**
+  file the skill may write is `data/announcements.json` (see Step 6). Do
+  not run `git checkout`, `git commit`, `git push`, etc.
 - **No network calls.** Don't fetch external data; everything needed is in
   the local git history and the working tree.
 - **Confirm before generating.** Always run Step 2's confirmation loop. Do
