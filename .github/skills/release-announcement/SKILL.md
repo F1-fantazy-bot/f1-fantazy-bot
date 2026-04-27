@@ -1,19 +1,19 @@
 ---
 name: release-announcement
 description: >
-  Generate three Hebrew release-announcement drafts for f1-fantazy-bot users
+  Generate a Hebrew release-announcement draft for f1-fantazy-bot users
   based on commits since a given commit SHA or ISO date. Use when the user
   says "draft release announcement", "announce changes since <sha>", "announce
   changes since <date>", "release notes for users", "בוא נכין הודעת שחרור",
   "כתוב הודעה למשתמשים על השינויים החדשים", "הודעת ריליס", or any similar
   request to communicate new bot features to end users. Walks the commits,
-  lets the user pick which are significant, then produces concise / playful /
-  detailed Hebrew variants ready to be sent via /broadcast.
+  lets the user pick which are significant, then produces a single Hebrew
+  draft ready to be sent via /broadcast.
 ---
 
 # Release Announcement Skill
 
-Produces **three Hebrew announcement drafts** describing new user-visible
+Produces **a single Hebrew announcement draft** describing new user-visible
 features in `f1-fantazy-bot`, based on commits since a starting point chosen
 by the user. The skill never sends anything — it only produces text the
 admin can copy into the bot's existing `/broadcast` admin command.
@@ -109,39 +109,53 @@ paths to reason about scope — e.g. files in `src/commandsHandler/` usually
 mean a new or updated bot command, files under `src/utils/weatherApi.js`
 mean weather behaviour, etc.
 
-### Step 4 — Produce three Hebrew announcement drafts
+### Step 4 — Produce a Hebrew announcement draft
 
-Generate **three drafts of the same announcement**, all in **Hebrew**, all
-covering the same set of selected commits, differing **only in tone**.
-Output them in this exact order, each in its own fenced markdown block so
-they can be copied cleanly:
+Generate **one draft** of the announcement in **Hebrew**. Output it inside a
+single fenced markdown block so it can be copied cleanly:
 
 ```
-### הצעה 1 — תמציתי
-<draft 1>
+### 📋 הודעת עדכון
+<draft>
 ```
 
-```
-### הצעה 2 — שובב
-<draft 2>
-```
+#### Tone & structure
 
-```
-### הצעה 3 — מפורט
-<draft 3>
-```
+The tone is **warm and engaging, with F1 personality** — like a passionate
+fan talking to fellow fans. It should feel like a pit-wall radio message:
+confident, a bit playful, and to the point. Think of it as sitting between
+"concise bullet list" and "over-the-top comedy" — informative first,
+personality second.
 
-Tone definitions:
+Follow this structure:
 
-1. **תמציתי (Concise)** — bullet-point summary, ≤6 short bullets. Suitable
-   for a quick channel post. No fluff.
-2. **שובב (Playful)** — friendly and warm, light humour, emojis welcome.
-   Written like a fan talking to fans. Still honest about what changed.
-3. **מפורט (Detailed)** — longer narrative. Group related commits into
-   themes. For each meaningful feature, briefly explain **what it does**
-   and **how the user benefits / how to use it**.
+1. **Opening hook** — Start with an F1-themed catchphrase or metaphor as
+   the first line, prefixed with a racing emoji (e.g. 🚦, 🏎️). This is
+   the attention-grabber. Example pattern:
+   `🚦 It's lights out and away we go: <one-liner about the update>!`
+   One short paragraph after the hook sets the context — why this matters
+   to the user.
 
-Hard rules for **all three** drafts:
+2. **Features section** — Use an emoji header (e.g. 🛠️) followed by a
+   bold section title. List each user-visible change as a bullet point
+   with a bold label and a short explanation. Mention the actual
+   `/command` name when relevant. Keep bullets concise — one or two
+   sentences each.
+
+3. **Closing / CTA** — Use a 🏁 emoji header. Write a short motivating
+   paragraph that ties back to F1 (next race, strategy, timing). End
+   with a clear call-to-action — e.g. "try the new command now". Add a
+   trailing `🏎️💨` or similar for flair.
+
+#### Emoji usage
+
+- Use emojis for **section headers** (🚦, 🛠️, 🏁) — these are
+  structural markers.
+- One or two inline emojis (e.g. 🔄, ⚡) in the body are fine when they
+  add clarity.
+- Do **not** emoji-spam every sentence.
+
+#### Hard rules
 
 - **Hebrew only.** No English sentences. (Specific Telegram command names
   like `/best_teams` and brand names stay in English — that's expected.)
@@ -160,15 +174,18 @@ Hard rules for **all three** drafts:
   appropriate for Hebrew text.
 - **No version numbers** unless one of the selected commits is explicitly a
   version bump and the user chose to include it.
+- **Group related changes.** If multiple commits touch the same feature
+  area, merge them into a single bullet rather than listing each commit
+  separately.
 
 ### Step 5 — Suggest next step
 
-After the three drafts, print exactly one short Hebrew suggestion such as:
+After the draft, print exactly one short Hebrew suggestion:
 
-> "כשתבחר ניסוח — אפשר לשלוח אותו דרך `/broadcast` בבוט."
+> "אפשר לשלוח את ההודעה דרך `/broadcast` בבוט."
 
 **Do not** call `/broadcast`, do not modify any file, do not commit
-anything. The skill's job ends at producing the three drafts.
+anything. The skill's job ends at producing the draft.
 
 ## Constraints
 
@@ -177,11 +194,11 @@ anything. The skill's job ends at producing the three drafts.
 - **No network calls.** Don't fetch external data; everything needed is in
   the local git history and the working tree.
 - **Confirm before generating.** Always run Step 2's confirmation loop. Do
-  not skip straight to drafts even if the user's initial request seems to
+  not skip straight to the draft even if the user's initial request seems to
   imply "all commits".
-- **Bilingual content.** The drafts themselves are Hebrew, but the
-  scaffolding around them (the section headers like
-  `### הצעה 1 — תמציתי`, the suggestion line) follows the spec above.
+- **Hebrew draft.** The draft itself is Hebrew. The markdown header
+  (`### 📋 הודעת עדכון`) and the `/broadcast` suggestion line follow the
+  spec above.
 
 ## Example interactions
 
