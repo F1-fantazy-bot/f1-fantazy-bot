@@ -30,13 +30,15 @@ describe('handleFlowCommand', () => {
     const sentMessage = botMock.sendMessage.mock.calls[0][1];
 
     expect(sentMessage).toContain('F1 Fantasy Bot - Usage Flow');
-    expect(sentMessage).toContain('Upload Your Data');
+    expect(sentMessage).toContain('Follow Your League');
     expect(sentMessage).toContain('Choose a Chip (Optional)');
     expect(sentMessage).toContain('Adjust Budget Change Ranking (Optional)');
     expect(sentMessage).toContain('Calculate Best Teams');
     expect(sentMessage).toContain('Get Team Details');
     expect(sentMessage).toContain('Check Live Score');
     expect(sentMessage).toContain('Explore Race Info');
+    expect(sentMessage).toContain('League Insights');
+    expect(sentMessage).toContain('/league\\_graphs');
     expect(sentMessage).toContain('Tips:');
     expect(sentMessage).toContain('/menu');
     expect(sentMessage).toContain('/best\\_teams');
@@ -65,13 +67,15 @@ describe('handleFlowCommand', () => {
     const sentMessage = botMock.sendMessage.mock.calls[0][1];
 
     expect(sentMessage).toContain('תהליך שימוש');
-    expect(sentMessage).toContain('העלאת נתונים');
+    expect(sentMessage).toContain('עקוב אחרי הליגה שלך');
     expect(sentMessage).toContain('בחירת צ\'יפ (אופציונלי)');
     expect(sentMessage).toContain('דירוג שינויי תקציב (אופציונלי)');
     expect(sentMessage).toContain('חישוב הקבוצות הטובות ביותר');
     expect(sentMessage).toContain('פרטי קבוצה');
     expect(sentMessage).toContain('ניקוד חי');
     expect(sentMessage).toContain('מידע על מרוצים');
+    expect(sentMessage).toContain('תובנות ליגה');
+    expect(sentMessage).toContain('/league\\_graphs');
     expect(sentMessage).toContain('טיפים:');
     expect(sentMessage).toContain('/live\\_score');
     expect(sentMessage).toContain('/set\\_best\\_team\\_ranking');

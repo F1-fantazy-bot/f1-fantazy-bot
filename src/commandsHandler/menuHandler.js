@@ -6,7 +6,6 @@ const {
   COMMAND_HELP,
 } = require('../constants');
 
-const { displayHelpMessage } = require('./helpHandler');
 const { t } = require('../i18n');
 
 async function displayMenuMessage(bot, msg) {
@@ -44,10 +43,6 @@ async function handleMenuCallback(bot, query) {
       await executeMenuCommand(bot, query, data);
 
       return; // Don't answer callback query here as command handlers might do it
-    case MENU_ACTIONS.HELP:
-      await executeHelpCommand(bot, query);
-
-      return; // Don't answer callback query here
     default:
       await bot.answerCallbackQuery(query.id, {
         text: t('Unknown menu action', chatId),
@@ -92,14 +87,6 @@ function buildMainMenuKeyboard(isAdmin, chatId) {
     2,
   );
 
-  // Add direct help button
-  keyboard.push([
-    {
-      text: t('❓ Help', chatId),
-      callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.HELP}`,
-    },
-  ]);
-
   return keyboard;
 }
 
@@ -125,7 +112,8 @@ function buildCategoryMenuKeyboard(category, isAdmin, chatId) {
   // Filter visible commands
   const visibleCommands = category.commands.filter((command) => {
     // Skip admin-only commands for non-admin users
-    return !(command.adminOnly && !isAdmin);
+    // Skip commands marked as hideFromMenu (e.g., /menu inside the menu itself)
+    return !(command.adminOnly && !isAdmin) && !command.hideFromMenu;
   });
 
   // Build command buttons (2 per row)
@@ -223,27 +211,6 @@ async function executeMenuCommand(bot, query, command) {
     console.error(`Error executing command ${command}:`, error);
     await bot.answerCallbackQuery(query.id, {
       text: t('Error executing command', chatId),
-      show_alert: true,
-    });
-  }
-}
-
-async function executeHelpCommand(bot, query) {
-  const chatId = query.message.chat.id;
-  const mockMsg = {
-    chat: { id: chatId },
-    text: COMMAND_HELP,
-  };
-
-  try {
-    await bot.answerCallbackQuery(query.id, {
-      text: t('Showing help...', chatId),
-    });
-    await displayHelpMessage(bot, mockMsg);
-  } catch (error) {
-    console.error('Error executing help command:', error);
-    await bot.answerCallbackQuery(query.id, {
-      text: t('Error showing help', chatId),
       show_alert: true,
     });
   }

@@ -15,10 +15,6 @@ jest.mock('../i18n', () => ({
   ),
 }));
 
-jest.mock('../utils/utils', () => ({
-  isAdminMessage: jest.fn(),
-}));
-
 jest.mock('../leagueRegistryService', () => ({
   listUserLeagues: jest.fn(),
 }));
@@ -31,7 +27,6 @@ jest.mock('../cache', () => ({
   getSelectedTeam: jest.fn(),
 }));
 
-const { isAdminMessage } = require('../utils/utils');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
 const { getSelectedTeam } = require('../cache');
@@ -105,20 +100,7 @@ describe('leaderboardHandler', () => {
   });
 
   describe('handleLeaderboardCommand', () => {
-    it('rejects non-admins', async () => {
-      isAdminMessage.mockReturnValue(false);
-
-      await handleLeaderboardCommand(botMock, { chat: { id: 9 } });
-
-      expect(botMock.sendMessage).toHaveBeenCalledWith(
-        9,
-        'Sorry, only admins can use this command.',
-      );
-      expect(listUserLeagues).not.toHaveBeenCalled();
-    });
-
     it('asks the user to register when they have no leagues', async () => {
-      isAdminMessage.mockReturnValue(true);
       listUserLeagues.mockResolvedValueOnce([]);
 
       await handleLeaderboardCommand(botMock, { chat: { id: 1 } });
@@ -130,7 +112,6 @@ describe('leaderboardHandler', () => {
     });
 
     it('auto-renders the leaderboard when the user has one league', async () => {
-      isAdminMessage.mockReturnValue(true);
       listUserLeagues.mockResolvedValueOnce([
         { leagueCode: 'ABC', leagueName: 'Amba' },
       ]);
@@ -152,7 +133,6 @@ describe('leaderboardHandler', () => {
     });
 
     it('shows an inline keyboard when the user has multiple leagues', async () => {
-      isAdminMessage.mockReturnValue(true);
       listUserLeagues.mockResolvedValueOnce([
         { leagueCode: 'ABC', leagueName: 'Amba' },
         { leagueCode: 'XYZ', leagueName: 'Other' },

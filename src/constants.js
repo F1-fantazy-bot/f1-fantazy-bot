@@ -106,7 +106,6 @@ exports.MENU_CATEGORIES = {
     id: 'help_menu',
     title: '❓ Help & Menu',
     description: 'Help and navigation commands',
-    hideFromMenu: true, // Don't show in interactive menu
     commands: [
       {
         constant: exports.COMMAND_HELP,
@@ -117,11 +116,17 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_MENU,
         title: '📱 Menu',
         description: 'Show interactive menu with all available commands.',
+        hideFromMenu: true, // Don't show /menu as a button inside the menu itself
       },
       {
         constant: exports.COMMAND_FLOW,
         title: '🏁 Usage Flow',
         description: 'Explains the usage flow of the bot step by step.',
+      },
+      {
+        constant: exports.COMMAND_WHATS_NEW,
+        title: "🆕 What's New",
+        description: 'Show the latest release announcement',
       },
       {
         constant: exports.COMMAND_REPORT_BUG,
@@ -294,18 +299,12 @@ exports.MENU_CATEGORIES = {
         title: '📤 Upload Constructors Photo',
         description: 'Upload a constructors screenshot for cache extraction',
       },
-      {
-        constant: exports.COMMAND_WHATS_NEW,
-        title: "🆕 What's New",
-        description: 'Show the latest release announcement',
-      },
     ],
   },
   LEAGUE_MANAGEMENT: {
     id: 'league_management',
     title: '🏁 League Management',
     description: 'Follow and view F1 Fantasy leagues',
-    adminOnly: true,
     commands: [
       {
         constant: exports.COMMAND_FOLLOW_LEAGUE,
@@ -435,5 +434,4 @@ exports.MENU_ACTIONS = {
   MAIN_MENU: 'main_menu',
   CATEGORY: 'category',
   COMMAND: 'command',
-  HELP: 'help',
 };

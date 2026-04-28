@@ -9,7 +9,10 @@ async function handleSelectTeamCommand(bot, msg) {
   if (teamIds.length === 0) {
     await bot.sendMessage(
       chatId,
-      t('No teams found. Please upload a team screenshot first.', chatId),
+      t(
+        "No teams found. Please run /follow_league to follow your F1 Fantasy league (if you haven't yet), then /teams_tracker to pick teams to track.",
+        chatId,
+      ),
     );
 
     return;

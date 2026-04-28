@@ -51,7 +51,6 @@ const { isAdminMessage } = require('../utils');
 
 // Import the mocked handlers
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
-const { displayHelpMessage } = require('./helpHandler');
 const { sendPrintableCache } = require('./printCacheHandler');
 const { resetCacheForChat } = require('./resetCacheHandler');
 const { handleVersionCommand } = require('./versionHandler');
@@ -118,8 +117,8 @@ describe('Menu Handler', () => {
               ]),
               expect.arrayContaining([
                 expect.objectContaining({
-                  text: '❓ Help',
-                  callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.HELP}`,
+                  text: '❓ Help & Menu',
+                  callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.CATEGORY}:help_menu`,
                 }),
               ]),
             ]),
@@ -237,26 +236,6 @@ describe('Menu Handler', () => {
       expect(hasLiveScore).toBe(true);
     });
 
-    it('should handle help callback', async () => {
-      mockQuery.data = `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.HELP}`;
-
-      await handleMenuCallback(mockBot, mockQuery);
-
-      expect(mockBot.answerCallbackQuery).toHaveBeenCalledWith(
-        'callback_query_id',
-        {
-          text: 'Showing help...',
-        }
-      );
-      expect(displayHelpMessage).toHaveBeenCalledWith(
-        mockBot,
-        expect.objectContaining({
-          chat: { id: 123 },
-          text: '/help',
-        })
-      );
-    });
-
     it('should handle command callback', async () => {
       mockQuery.data = `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.COMMAND}:/best_teams`;
 
@@ -358,27 +337,6 @@ describe('Menu Handler', () => {
         'callback_query_id',
         {
           text: 'Error executing command',
-          show_alert: true,
-        }
-      );
-      consoleSpy.mockRestore();
-    });
-
-    it('should handle help command execution error', async () => {
-      displayHelpMessage.mockRejectedValue(new Error('Help error'));
-      mockQuery.data = `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.HELP}`;
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      await handleMenuCallback(mockBot, mockQuery);
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Error executing help command:',
-        expect.any(Error)
-      );
-      expect(mockBot.answerCallbackQuery).toHaveBeenCalledWith(
-        'callback_query_id',
-        {
-          text: 'Error showing help',
           show_alert: true,
         }
       );

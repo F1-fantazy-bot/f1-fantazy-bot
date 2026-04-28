@@ -2,6 +2,7 @@ const {
   KILZI_CHAT_ID,
   MENU_CATEGORIES,
   COMMAND_BEST_TEAMS,
+  COMMAND_FOLLOW_LEAGUE,
   COMMAND_LIVE_SCORE,
   USER_COMMANDS_CONFIG,
 } = require('../constants');
@@ -40,7 +41,7 @@ describe('displayHelpMessage', () => {
     expect(sentMessage).toContain('*F1 Fantasy Bot - Available Commands*');
     expect(sentMessage).toContain('*Other Messages:*');
     expect(sentMessage).toContain(
-      'Send an image (drivers, constructors, or current team screenshot)'
+      `Run ${COMMAND_FOLLOW_LEAGUE.replace(/_/g, '\\_')} to track your F1 Fantasy league`
     );
     expect(sentMessage).toContain(
       'Send valid JSON data to update your drivers, constructors, and current team cache'

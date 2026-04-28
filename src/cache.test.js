@@ -427,7 +427,7 @@ describe('cache', () => {
       expect(result).toBeNull();
       expect(mockBot.sendMessage).toHaveBeenCalledWith(
         chatId,
-        expect.stringContaining('upload a team screenshot'),
+        expect.stringContaining('/follow_league'),
       );
     });
 

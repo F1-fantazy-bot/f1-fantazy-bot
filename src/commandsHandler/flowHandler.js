@@ -8,8 +8,8 @@ function buildFlowMessage(chatId) {
 
 כך תפיקו את המרב מהבוט:
 
-1️⃣ העלאת נתונים
-   שלחו צילום מסך של הקבוצה הנוכחית מאפליקציית F1 Fantasy
+1️⃣ עקוב אחרי הליגה שלך
+   הריצו /follow\\_league והדביקו את קוד הליגה שלכם מאפליקציית F1 Fantasy. לאחר מכן הריצו /teams\\_tracker כדי לבחור עד 6 קבוצות מהליגה שיהיו במעקב.
 
 2️⃣ בחירת צ'יפ (אופציונלי)
    השתמשו ב-/chips כדי לבחור צ'יפ (אקסטרה בוסט, Wildcard, או Limitless) לפני חישוב הקבוצות הטובות ביותר.
@@ -32,6 +32,10 @@ function buildFlowMessage(chatId) {
    • /next\\_races - לוח זמנים למרוצים הקרובים
    • /next\\_race\\_weather - תחזית מזג אוויר למרוץ הבא
 
+8️⃣ תובנות ליגה
+   • /leaderboard - דירוג עדכני של ליגה שאתם עוקבים אחריה
+   • /league\\_graphs - גרפים לאורך העונה: פער מהמוביל, מיקומים, ותקציב לפי מרוץ
+
 💡 טיפים:
 • השתמשו ב-/menu לתפריט אינטראקטיבי
 • השתמשו ב-/print\\_cache כדי לבדוק את הנתונים השמורים
@@ -43,8 +47,8 @@ function buildFlowMessage(chatId) {
 
 Here's how to get the most out of this bot:
 
-1️⃣ Upload Your Data
-   Send Current team screenshot from the F1 Fantasy app
+1️⃣ Follow Your League
+   Run /follow\\_league and paste your league code from the F1 Fantasy app. Then run /teams\\_tracker to pick up to 6 teams from the league to track.
 
 2️⃣ Choose a Chip (Optional)
    Use /chips to select a chip (Extra Boost, Wildcard, or Limitless) before calculating best teams.
@@ -66,6 +70,10 @@ Here's how to get the most out of this bot:
    • /next\\_race\\_info - Details about the next race
    • /next\\_races - Upcoming race schedule
    • /next\\_race\\_weather - Weather forecast for the next race
+
+8️⃣ League Insights
+   • /leaderboard - Current standings of a league you follow
+   • /league\\_graphs - Season-long charts: gap to leader, standings, and budget per race
 
 💡 Tips:
 • Use /menu for an interactive menu of all commands

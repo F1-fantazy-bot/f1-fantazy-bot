@@ -61,14 +61,15 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/next_race_info`, `/next_races`, `/next_race_weather`, `/deadline`
 - `/get_current_simulation`
 - `/load_simulation`
-- `/menu`, `/help`, `/lang`
+- `/menu`, `/help`, `/lang`, `/whats_new`
+- `/follow_league`, `/unfollow_league`, `/teams_tracker`, `/leaderboard`, `/league_graphs`
 - `/report_bug` _(reply-based — uses pending reply manager)_
 
-**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/follow_league`, `/unfollow_league`, `/leaderboard`, `/teams_tracker`, `/league_graphs`, `/whats_new`
+**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/upload_drivers_photo`, `/upload_constructors_photo`
 
 ### Announcements file (`/whats_new`)
 
-`data/announcements.json` is a committed array of release-announcement entries (newest first). The `release-announcement` skill **writes** to it (after the admin picks Standard/WOW); `src/announcementsService.js` **reads** it and `src/commandsHandler/whatsNewHandler.js` exposes the latest entry via the admin-only `/whats_new` command. Each entry has shape `{ id, createdAt, version: 'standard'|'wow', sinceRef, headCommit, text }` where `text` is the Hebrew Markdown body **without** the `### 📋`/`### 🔥` title line, fence wrappers, or backticks around `/commands`. The handler sends `text` with `parse_mode: 'Markdown'` (with plain-text fallback on parse errors) and escapes underscores inside `/command` tokens at send time so Telegram auto-links them instead of consuming the underscore as an italic marker. Missing or malformed file → handler shows a localized "no announcements yet" message and the skill treats it as `[]`.
+`data/announcements.json` is a committed array of release-announcement entries (newest first). The `release-announcement` skill **writes** to it (after the admin picks Standard/WOW); `src/announcementsService.js` **reads** it and `src/commandsHandler/whatsNewHandler.js` exposes the latest entry via the user-facing `/whats_new` command. Each entry has shape `{ id, createdAt, version: 'standard'|'wow', sinceRef, headCommit, text }` where `text` is the Hebrew Markdown body **without** the `### 📋`/`### 🔥` title line, fence wrappers, or backticks around `/commands`. The handler sends `text` with `parse_mode: 'Markdown'` (with plain-text fallback on parse errors) and escapes underscores inside `/command` tokens at send time so Telegram auto-links them instead of consuming the underscore as an italic marker. Missing or malformed file → handler shows a localized "no announcements yet" message and the skill treats it as `[]`.
 
 ---
 
@@ -305,7 +306,7 @@ The table is **extensible** — new attributes can be added at any time without 
    - 1 league → auto-fetch blob and render leaderboard.
    - 2+ leagues → inline keyboard (`LEAGUE_CALLBACK_TYPE`) showing each league by name; on selection, callback handler fetches the blob and renders.
 5. `/unfollow_league` shows an inline keyboard (`LEAGUE_UNFOLLOW_CALLBACK_TYPE`) with all followed leagues; selection calls `removeUserLeague(chatId, leagueCode)`.
-6. `/teams_tracker` (admin-only, label `📋 Teams Tracker` / `📋 קבוצות במעקב`) opens a **multi-level inline-keyboard** to manage all followed teams in one place:
+6. `/teams_tracker` (label `📋 Teams Tracker` / `📋 קבוצות במעקב`) opens a **multi-level inline-keyboard** to manage all followed teams in one place:
    - **League picker** (shown when the user follows >1 league) — one button per league with a count of currently-staged selections.
    - **Team toggle view** — each league's teams are rendered as `✅`/`⬜` toggle buttons. Selections are staged (not persisted) until **Save**. Hard cap: `MAX_FOLLOWED_LEAGUE_TEAMS = 6` across all leagues — attempting to toggle ON a 7th team triggers a `show_alert` popup and does not mutate state.
    - Bottom row: `💾 Save ({N}/{MAX})`, `✖ Cancel`, and `⬅ Back` (only when there are >1 leagues).
@@ -318,7 +319,7 @@ The table is **extensible** — new attributes can be added at any time without 
    **Callback types.** `TEAMS_TRACKER_CALLBACK_TYPE = 'TT'` with actions `TEAMS_TRACKER_ACTIONS = { OPEN_LEAGUE:'L', TOGGLE:'T', BACK:'B', SAVE:'S', CANCEL:'C' }`. Payload formats: `TT:L:{leagueCode}`, `TT:T:{leagueCode}:{position}`, `TT:B`, `TT:S`, `TT:C`. The short (2-char) type + single-char action names keep the worst-case payload (`TT:T:{leagueCode}_{position}`) well under Telegram's 64-byte `callback_data` limit.
 
    **Shared helpers.** The league-team read/write logic lives in `src/utils/leagueTeamHelpers.js` (`mapLeagueTeamToBotTeam`, `loadLeagueTeamsData`, `refreshLeagueTeamsData`, `followLeagueTeam`, `removeFollowedTeam`, `extractLeagueCode`, `buildLeagueNameMap`, `buildTeamLabel`). `followLeagueTeam` does **not** mutate `selectedTeam` — Teams Tracker save owns active-team resolution end-to-end. `removeFollowedTeam(chatId, teamId, { mutateSelectedTeam = true })` exposes a flag used by save to defer active-team mutation.
-7. `/league_graphs` (admin-only) opens a two-step flow that renders per-league charts. Same 0/1/N league-selection flow as `/leaderboard` (callback type `LEAGUE_GRAPH_CALLBACK_TYPE`), followed by a graph-type picker (callback type `LEAGUE_GRAPH_TYPE_CALLBACK_TYPE`, payload `LEAGUE_GRAPH_TYPE:<gap|standings|budget>:<leagueCode>`). Three graph types are available:
+7. `/league_graphs` opens a two-step flow that renders per-league charts. Same 0/1/N league-selection flow as `/leaderboard` (callback type `LEAGUE_GRAPH_CALLBACK_TYPE`), followed by a graph-type picker (callback type `LEAGUE_GRAPH_TYPE_CALLBACK_TYPE`, payload `LEAGUE_GRAPH_TYPE:<gap|standings|budget>:<leagueCode>`). Three graph types are available:
    - **Gap to Leader** — line chart of each team's cumulative gap to the leader per race (leader sits on 0; everyone else is at or below 0). Chip usage is drawn as an emoji + chip-name label on the specific data point using the `chartjs-plugin-datalabels` plugin.
    - **Standings** — line chart of each team's **rank per race** computed from cumulative `raceScores` with competition-style ties (1, 2, 2, 4). Y-axis is reversed so rank 1 sits at the top, integer ticks with `stepSize: 1`, `min: 1`, `max: teams.length`. Legend is sorted by current-race rank ascending. Chip markers reuse the same emoji + chip-name datalabels pattern as Gap to Leader.
    - **Budget** — line chart of each team's **start-of-race budget** (`raceBudgets.matchday_N`, i.e. `maxTeambal` at the start of each race) per race. No chip annotations — clean lines only. Gaps in the data render as broken line segments (`spanGaps: true` + `null` values). Legend sorted by each team's most recent recorded budget, highest first (tie-break on `position`).
@@ -513,8 +514,13 @@ Blob naming includes the team ID:
 - **Cache Awareness:** Before fetching external data, check relevant caches to avoid redundant requests (see `nextRaceInfoHandler` and `nextRacesHandler`).
 - **Multi-Team Awareness:** Team-related caches are nested by team ID. Always use `resolveSelectedTeam(bot, chatId)` as a guard before accessing team-scoped data. Access patterns: `currentTeamCache[chatId]?.[teamId]`, `bestTeamsCache[chatId]?.[teamId]`, `selectedChipCache[chatId]?.[teamId]`.
 - **Admin Safeguards:** Use `isAdminMessage` from `src/utils` to restrict sensitive commands.
-- **Menu Navigation:** Maintain `MENU_CATEGORIES` order for a consistent UI. Hiding a command from the interactive menu requires setting `hideFromMenu: true` in its category entry.
+- **Menu Navigation:** Maintain `MENU_CATEGORIES` order for a consistent UI. Set `hideFromMenu: true` on a category to hide the entire category from the interactive `/menu`, or on an individual command entry to hide just that one button (e.g. `/menu` inside `HELP_MENU` is hidden so it doesn't surface as a button inside the menu it produces). The flag does not affect `/help` output or the BotFather command list.
 - **Localization:** Always wrap user-facing strings with `t('key', chatId)` to ensure translation support.
+- **Embedding commands inside Markdown messages:** When a `sendMessage` / `editMessageText` call uses `parse_mode: 'Markdown'` and the body contains a command with an underscore (e.g. `/follow_league`, `/best_teams`), the `_` is parsed as italic — the command renders garbled and stops being clickable. The convention is:
+  - Use a placeholder in the translation key (e.g. `'Run {FOLLOW_CMD} to track...'`) so the EN source stays clean.
+  - At the call site, substitute with `COMMAND_FOO.replace(/_/g, '\\_')` (escaped underscore). Telegram renders this as a literal `_` AND keeps the command tappable. See `helpHandler.js` (per-command listing on line ~49 and "Other Messages" section) for the canonical pattern.
+  - Backticks (`` `/cmd_name` ``) also fix the underscore but render the command as inline code → not clickable. Don't use them for commands.
+  - Plain-text messages (no `parse_mode`) and HTML-mode messages don't need any escaping — Telegram auto-links `/cmd_name` literally.
 - **Keep `AGENTS.md` Up to Date:** After completing any task that changes the codebase structure, adds new commands, modifies architecture, or introduces new patterns, review `AGENTS.md` and update it to reflect the changes. This file is the primary reference for contributors and AI agents — keeping it accurate prevents confusion and misaligned implementations.
 
 With this reference and the checklist above, adding features—especially new commands—should be predictable and safe.

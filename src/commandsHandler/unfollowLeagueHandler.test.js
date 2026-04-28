@@ -13,15 +13,10 @@ jest.mock('../i18n', () => ({
   ),
 }));
 
-jest.mock('../utils/utils', () => ({
-  isAdminMessage: jest.fn(),
-}));
-
 jest.mock('../leagueRegistryService', () => ({
   listUserLeagues: jest.fn(),
 }));
 
-const { isAdminMessage } = require('../utils/utils');
 const { listUserLeagues } = require('../leagueRegistryService');
 
 describe('unfollowLeagueHandler', () => {
@@ -32,20 +27,7 @@ describe('unfollowLeagueHandler', () => {
     botMock = { sendMessage: jest.fn().mockResolvedValue() };
   });
 
-  it('rejects non-admin users', async () => {
-    isAdminMessage.mockReturnValue(false);
-
-    await handleUnfollowLeagueCommand(botMock, { chat: { id: 999 } });
-
-    expect(botMock.sendMessage).toHaveBeenCalledWith(
-      999,
-      'Sorry, only admins can use this command.',
-    );
-    expect(listUserLeagues).not.toHaveBeenCalled();
-  });
-
-  it('tells the admin when no leagues are followed', async () => {
-    isAdminMessage.mockReturnValue(true);
+  it('tells the user when no leagues are followed', async () => {
     listUserLeagues.mockResolvedValueOnce([]);
 
     await handleUnfollowLeagueCommand(botMock, {
@@ -60,7 +42,6 @@ describe('unfollowLeagueHandler', () => {
   });
 
   it('shows an inline keyboard with league name labels', async () => {
-    isAdminMessage.mockReturnValue(true);
     listUserLeagues.mockResolvedValueOnce([
       { leagueCode: 'ABC', leagueName: 'Amba' },
       { leagueCode: 'XYZ', leagueName: 'Other' },
@@ -87,7 +68,6 @@ describe('unfollowLeagueHandler', () => {
   });
 
   it('surfaces service errors', async () => {
-    isAdminMessage.mockReturnValue(true);
     const consoleSpy = jest
       .spyOn(console, 'error')
       .mockImplementation(() => {});
