@@ -221,8 +221,8 @@ const translations = {
     'Remaining race count is unavailable right now. Switch to Pure Points or try again later.':
       'מספר המרוצים שנותרו אינו זמין כרגע. עבור לנקודות בלבד או נסה שוב מאוחר יותר.',
     'Please provide a question.': 'אנא ספק שאלה.',
-    '❓ Help & Menu': '❓ עזרה ותפריט',
-    'Help and navigation commands': 'פקודות עזרה וניווט',
+    '❓ Support & Info': '❓ תמיכה ומידע',
+    'Help, updates, and feedback': 'עזרה, עדכונים ומשוב',
     '🏎️ Team Management': '🏎️ ניהול קבוצה',
     'Manage and optimize your F1 Fantasy team':
       'ניהול ואופטימיזציה של קבוצת F1 Fantasy',
