@@ -61,15 +61,15 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/next_race_info`, `/next_races`, `/next_race_weather`, `/deadline`
 - `/get_current_simulation`
 - `/load_simulation`
-- `/menu`, `/help`, `/lang`
+- `/menu`, `/help`, `/lang`, `/whats_new`
 - `/follow_league`, `/unfollow_league`, `/teams_tracker`, `/leaderboard`, `/league_graphs`
 - `/report_bug` _(reply-based — uses pending reply manager)_
 
-**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/upload_drivers_photo`, `/upload_constructors_photo`, `/whats_new`
+**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/upload_drivers_photo`, `/upload_constructors_photo`
 
 ### Announcements file (`/whats_new`)
 
-`data/announcements.json` is a committed array of release-announcement entries (newest first). The `release-announcement` skill **writes** to it (after the admin picks Standard/WOW); `src/announcementsService.js` **reads** it and `src/commandsHandler/whatsNewHandler.js` exposes the latest entry via the admin-only `/whats_new` command. Each entry has shape `{ id, createdAt, version: 'standard'|'wow', sinceRef, headCommit, text }` where `text` is the Hebrew Markdown body **without** the `### 📋`/`### 🔥` title line, fence wrappers, or backticks around `/commands`. The handler sends `text` with `parse_mode: 'Markdown'` (with plain-text fallback on parse errors) and escapes underscores inside `/command` tokens at send time so Telegram auto-links them instead of consuming the underscore as an italic marker. Missing or malformed file → handler shows a localized "no announcements yet" message and the skill treats it as `[]`.
+`data/announcements.json` is a committed array of release-announcement entries (newest first). The `release-announcement` skill **writes** to it (after the admin picks Standard/WOW); `src/announcementsService.js` **reads** it and `src/commandsHandler/whatsNewHandler.js` exposes the latest entry via the user-facing `/whats_new` command. Each entry has shape `{ id, createdAt, version: 'standard'|'wow', sinceRef, headCommit, text }` where `text` is the Hebrew Markdown body **without** the `### 📋`/`### 🔥` title line, fence wrappers, or backticks around `/commands`. The handler sends `text` with `parse_mode: 'Markdown'` (with plain-text fallback on parse errors) and escapes underscores inside `/command` tokens at send time so Telegram auto-links them instead of consuming the underscore as an italic marker. Missing or malformed file → handler shows a localized "no announcements yet" message and the skill treats it as `[]`.
 
 ---
 
@@ -514,7 +514,7 @@ Blob naming includes the team ID:
 - **Cache Awareness:** Before fetching external data, check relevant caches to avoid redundant requests (see `nextRaceInfoHandler` and `nextRacesHandler`).
 - **Multi-Team Awareness:** Team-related caches are nested by team ID. Always use `resolveSelectedTeam(bot, chatId)` as a guard before accessing team-scoped data. Access patterns: `currentTeamCache[chatId]?.[teamId]`, `bestTeamsCache[chatId]?.[teamId]`, `selectedChipCache[chatId]?.[teamId]`.
 - **Admin Safeguards:** Use `isAdminMessage` from `src/utils` to restrict sensitive commands.
-- **Menu Navigation:** Maintain `MENU_CATEGORIES` order for a consistent UI. Hiding a command from the interactive menu requires setting `hideFromMenu: true` in its category entry.
+- **Menu Navigation:** Maintain `MENU_CATEGORIES` order for a consistent UI. Set `hideFromMenu: true` on a category to hide the entire category from the interactive `/menu`, or on an individual command entry to hide just that one button (e.g. `/menu` inside `HELP_MENU` is hidden so it doesn't surface as a button inside the menu it produces). The flag does not affect `/help` output or the BotFather command list.
 - **Localization:** Always wrap user-facing strings with `t('key', chatId)` to ensure translation support.
 - **Embedding commands inside Markdown messages:** When a `sendMessage` / `editMessageText` call uses `parse_mode: 'Markdown'` and the body contains a command with an underscore (e.g. `/follow_league`, `/best_teams`), the `_` is parsed as italic — the command renders garbled and stops being clickable. The convention is:
   - Use a placeholder in the translation key (e.g. `'Run {FOLLOW_CMD} to track...'`) so the EN source stays clean.

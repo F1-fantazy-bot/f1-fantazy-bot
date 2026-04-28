@@ -1,4 +1,4 @@
-const { isAdminMessage, sendErrorMessage } = require('../utils');
+const { sendErrorMessage } = require('../utils');
 const { t } = require('../i18n');
 const { getLatestAnnouncement } = require('../announcementsService');
 const { MAX_TELEGRAM_MESSAGE_LENGTH } = require('../constants');
@@ -15,15 +15,6 @@ function escapeCommandUnderscores(text) {
 
 async function handleWhatsNewCommand(bot, msg) {
   const chatId = msg.chat.id;
-
-  if (!isAdminMessage(msg)) {
-    await bot.sendMessage(
-      chatId,
-      t('Sorry, only admins can use this command.', chatId),
-    );
-
-    return;
-  }
 
   const latest = getLatestAnnouncement();
   if (!latest || !latest.text) {

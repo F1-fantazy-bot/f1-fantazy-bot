@@ -1,11 +1,9 @@
 const { KILZI_CHAT_ID } = require('../constants');
 
-const mockIsAdminMessage = jest.fn().mockReturnValue(true);
 const mockSendErrorMessage = jest.fn().mockResolvedValue();
 const mockGetLatestAnnouncement = jest.fn();
 
 jest.mock('../utils', () => ({
-  isAdminMessage: mockIsAdminMessage,
   sendErrorMessage: mockSendErrorMessage,
 }));
 
@@ -20,23 +18,9 @@ describe('handleWhatsNewCommand', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockIsAdminMessage.mockReturnValue(true);
     botMock = {
       sendMessage: jest.fn().mockResolvedValue(),
     };
-  });
-
-  it('denies access for non-admin users', async () => {
-    mockIsAdminMessage.mockReturnValue(false);
-    const msg = { chat: { id: KILZI_CHAT_ID }, text: '/whats_new' };
-
-    await handleWhatsNewCommand(botMock, msg);
-
-    expect(botMock.sendMessage).toHaveBeenCalledWith(
-      KILZI_CHAT_ID,
-      'Sorry, only admins can use this command.',
-    );
-    expect(mockGetLatestAnnouncement).not.toHaveBeenCalled();
   });
 
   it('shows fallback message when there are no announcements', async () => {
