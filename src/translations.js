@@ -177,8 +177,8 @@ const translations = {
     'Track History': 'היסטוריית מסלול',
     'F1 Fantasy Bot - Available Commands': 'פקודות זמינות - F1 Fantasy Bot',
     'Other Messages': 'הודעות נוספות',
-    'Run `/follow_league` to track your F1 Fantasy league. You can also send a JSON dump or, as a fallback, a current-team screenshot to update the cache.':
-      'הפעילו `/follow_league` כדי לעקוב אחרי הליגה שלכם ב-F1 Fantasy. אפשר גם לשלוח JSON או, כגיבוי, צילום מסך של הקבוצה הנוכחית כדי לעדכן את המטמון.',
+    'Run {FOLLOW_CMD} to track your F1 Fantasy league. You can also send a JSON dump or, as a fallback, a current-team screenshot to update the cache.':
+      'הפעילו {FOLLOW_CMD} כדי לעקוב אחרי הליגה שלכם ב-F1 Fantasy. אפשר גם לשלוח JSON או, כגיבוי, צילום מסך של הקבוצה הנוכחית כדי לעדכן את המטמון.',
     'Send valid JSON data to update your drivers, constructors, and current team cache.':
       'שלח נתוני JSON תקינים לעדכון המטמון של הנהגים, הקבוצות והקבוצה הנוכחית שלך.',
     'Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using {CMD}).':

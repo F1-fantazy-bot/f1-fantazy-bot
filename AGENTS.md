@@ -512,6 +512,11 @@ Blob naming includes the team ID:
 - **Admin Safeguards:** Use `isAdminMessage` from `src/utils` to restrict sensitive commands.
 - **Menu Navigation:** Maintain `MENU_CATEGORIES` order for a consistent UI. Hiding a command from the interactive menu requires setting `hideFromMenu: true` in its category entry.
 - **Localization:** Always wrap user-facing strings with `t('key', chatId)` to ensure translation support.
+- **Embedding commands inside Markdown messages:** When a `sendMessage` / `editMessageText` call uses `parse_mode: 'Markdown'` and the body contains a command with an underscore (e.g. `/follow_league`, `/best_teams`), the `_` is parsed as italic — the command renders garbled and stops being clickable. The convention is:
+  - Use a placeholder in the translation key (e.g. `'Run {FOLLOW_CMD} to track...'`) so the EN source stays clean.
+  - At the call site, substitute with `COMMAND_FOO.replace(/_/g, '\\_')` (escaped underscore). Telegram renders this as a literal `_` AND keeps the command tappable. See `helpHandler.js` (per-command listing on line ~49 and "Other Messages" section) for the canonical pattern.
+  - Backticks (`` `/cmd_name` ``) also fix the underscore but render the command as inline code → not clickable. Don't use them for commands.
+  - Plain-text messages (no `parse_mode`) and HTML-mode messages don't need any escaping — Telegram auto-links `/cmd_name` literally.
 - **Keep `AGENTS.md` Up to Date:** After completing any task that changes the codebase structure, adds new commands, modifies architecture, or introduces new patterns, review `AGENTS.md` and update it to reflect the changes. This file is the primary reference for contributors and AI agents — keeping it accurate prevents confusion and misaligned implementations.
 
 With this reference and the checklist above, adding features—especially new commands—should be predictable and safe.
