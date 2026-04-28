@@ -181,6 +181,7 @@ Restricted to authorized administrators:
 - **`/billing_stats`** - View current month Azure billing statistics with service breakdown
 - **`/get_botfather_commands`** - Get commands formatted for BotFather setup
 - **`/version`** - Display commit ID, commit message, and link for the deployed version
+- **`/whats_new`** - Show the latest release announcement (saved by the `release-announcement` skill into `data/announcements.json`)
 
 ### Other Input Methods
 
