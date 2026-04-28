@@ -24,6 +24,7 @@ const translations = {
     'Sorry, only admins can use this command.':
       'מצטער, רק מנהלים יכולים להשתמש בפקודה זו.',
     'No release notes available yet.': 'אין הודעת עדכון זמינה כרגע.',
+    'Updated on: {DATE}': 'עודכן בתאריך: {DATE}',
     "🆕 What's New": '🆕 מה חדש',
     'Show the latest release announcement': 'הצגת הודעת השחרור האחרונה',
     'Please send a drivers screenshot.': 'אנא שלח צילום מסך של נהגים.',
