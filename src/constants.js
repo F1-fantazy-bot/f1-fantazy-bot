@@ -98,6 +98,7 @@ exports.COMMAND_UNFOLLOW_LEAGUE = '/unfollow_league';
 exports.COMMAND_LEADERBOARD = '/leaderboard';
 exports.COMMAND_TEAMS_TRACKER = '/teams_tracker';
 exports.COMMAND_LEAGUE_GRAPHS = '/league_graphs';
+exports.COMMAND_WHATS_NEW = '/whats_new';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -292,6 +293,11 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_UPLOAD_CONSTRUCTORS_PHOTO,
         title: '📤 Upload Constructors Photo',
         description: 'Upload a constructors screenshot for cache extraction',
+      },
+      {
+        constant: exports.COMMAND_WHATS_NEW,
+        title: "🆕 What's New",
+        description: 'Show the latest release announcement',
       },
     ],
   },

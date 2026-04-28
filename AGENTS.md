@@ -65,7 +65,11 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/follow_league`, `/unfollow_league`, `/teams_tracker`, `/leaderboard`, `/league_graphs`
 - `/report_bug` _(reply-based — uses pending reply manager)_
 
-**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/upload_drivers_photo`, `/upload_constructors_photo`
+**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/upload_drivers_photo`, `/upload_constructors_photo`, `/whats_new`
+
+### Announcements file (`/whats_new`)
+
+`data/announcements.json` is a committed array of release-announcement entries (newest first). The `release-announcement` skill **writes** to it (after the admin picks Standard/WOW); `src/announcementsService.js` **reads** it and `src/commandsHandler/whatsNewHandler.js` exposes the latest entry via the admin-only `/whats_new` command. Each entry has shape `{ id, createdAt, version: 'standard'|'wow', sinceRef, headCommit, text }` where `text` is the Hebrew Markdown body **without** the `### 📋`/`### 🔥` title line, fence wrappers, or backticks around `/commands`. The handler sends `text` with `parse_mode: 'Markdown'` (with plain-text fallback on parse errors) and escapes underscores inside `/command` tokens at send time so Telegram auto-links them instead of consuming the underscore as an italic marker. Missing or malformed file → handler shows a localized "no announcements yet" message and the skill treats it as `[]`.
 
 ---
 
@@ -527,4 +531,4 @@ With this reference and the checklist above, adding features—especially new co
 
 Project-scoped Copilot CLI skills live under `.github/skills/<name>/SKILL.md` and are auto-discovered by the CLI when running inside this repo.
 
-- **`release-announcement`** — Given a commit SHA or ISO date, walks the commits up to `HEAD`, lets the admin pick which are user-visible, and produces three Hebrew announcement drafts (תמציתי / שובב / מפורט) ready to be sent via `/broadcast`. Read-only on the repo; never sends anything itself. See `.github/skills/release-announcement/SKILL.md`.
+- **`release-announcement`** — Given a commit SHA or ISO date (or auto-detected from the previous `headCommit` saved in `data/announcements.json`), walks the commits up to `HEAD`, lets the admin pick which are user-visible, and produces three Hebrew announcement drafts (תמציתי / שובב / מפורט) ready to be sent via `/broadcast`. After printing the drafts, asks the admin which version to keep and **prepends** it to `data/announcements.json` (newest first) so `/whats_new` can display it later. The only file the skill writes; otherwise read-only on the repo and never sends anything itself. See `.github/skills/release-announcement/SKILL.md`.

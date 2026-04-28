@@ -23,6 +23,9 @@ const translations = {
     'Without Chip': "ללא צ'יפ",
     'Sorry, only admins can use this command.':
       'מצטער, רק מנהלים יכולים להשתמש בפקודה זו.',
+    'No release notes available yet.': 'אין הודעת עדכון זמינה כרגע.',
+    "🆕 What's New": '🆕 מה חדש',
+    'Show the latest release announcement': 'הצגת הודעת השחרור האחרונה',
     'Please send a drivers screenshot.': 'אנא שלח צילום מסך של נהגים.',
     'Please send a constructors screenshot.': 'אנא שלח צילום מסך של קבוצות.',
     'We support only photo replies for this command. Please send a drivers screenshot.':
