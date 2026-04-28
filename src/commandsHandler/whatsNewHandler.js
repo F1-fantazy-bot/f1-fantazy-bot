@@ -1,5 +1,5 @@
 const { sendErrorMessage } = require('../utils');
-const { t } = require('../i18n');
+const { getLocale, t } = require('../i18n');
 const { getLatestAnnouncement } = require('../announcementsService');
 const { MAX_TELEGRAM_MESSAGE_LENGTH } = require('../constants');
 
@@ -11,6 +11,29 @@ function escapeCommandUnderscores(text) {
   return text.replace(/\/[A-Za-z][A-Za-z0-9_]*/g, (match) =>
     match.replace(/_/g, '\\_'),
   );
+}
+
+function formatUpdateDate(createdAt, chatId) {
+  const date = new Date(createdAt);
+  if (!Number.isFinite(date.getTime())) {
+    return null;
+  }
+
+  return date.toLocaleDateString(getLocale(chatId), {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Asia/Jerusalem',
+  });
+}
+
+function buildAnnouncementText(latest, chatId) {
+  const updateDate = formatUpdateDate(latest.createdAt, chatId);
+  if (!updateDate) {
+    return latest.text;
+  }
+
+  return `${t('Updated on: {DATE}', chatId, { DATE: updateDate })}\n\n${latest.text}`;
 }
 
 async function handleWhatsNewCommand(bot, msg) {
@@ -26,7 +49,7 @@ async function handleWhatsNewCommand(bot, msg) {
     return;
   }
 
-  let text = latest.text;
+  let text = buildAnnouncementText(latest, chatId);
   if (text.length > MAX_TELEGRAM_MESSAGE_LENGTH) {
     text = `${text.slice(0, MAX_TELEGRAM_MESSAGE_LENGTH - 1)}…`;
     await sendErrorMessage(
