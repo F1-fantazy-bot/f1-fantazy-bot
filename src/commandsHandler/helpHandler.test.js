@@ -57,7 +57,7 @@ describe('displayHelpMessage', () => {
     expect(sentMessage).toContain('🏎️ Team Management');
     expect(sentMessage).toContain('📊 Analysis & Stats');
     expect(sentMessage).toContain('🔧 Utilities');
-    expect(sentMessage).toContain('❓ Help & Menu');
+    expect(sentMessage).toContain('❓ Support & Info');
 
     // Should NOT include admin category for regular users
     expect(sentMessage).not.toContain('👤 Admin Commands');
@@ -117,7 +117,7 @@ describe('displayHelpMessage', () => {
     expect(sentMessage).toContain('📊 Analysis & Stats');
     expect(sentMessage).toContain('🔧 Utilities');
     expect(sentMessage).toContain('👤 Admin Commands');
-    expect(sentMessage).toContain('❓ Help & Menu');
+    expect(sentMessage).toContain('❓ Support & Info');
 
     // Should include help and menu commands
     const helpCommand = USER_COMMANDS_CONFIG.find(
@@ -222,7 +222,7 @@ describe('displayHelpMessage', () => {
 
     // Check message structure
     const sections = sentMessage.split('\n\n');
-    expect(sections.length).toBeGreaterThanOrEqual(5); // Header, Team Management, Analysis & Stats, Utilities, Admin Commands, Help & Menu, Other Messages
+    expect(sections.length).toBeGreaterThanOrEqual(5); // Header, Team Management, Analysis & Stats, Utilities, Admin Commands, Support & Info, Other Messages
 
     // Check that the message starts with the correct header
     expect(sentMessage).toMatch(/^\*F1 Fantasy Bot - Available Commands\*/);
@@ -232,7 +232,7 @@ describe('displayHelpMessage', () => {
     expect(sentMessage).toMatch(/📊 Analysis & Stats/);
     expect(sentMessage).toMatch(/🔧 Utilities/);
     expect(sentMessage).toMatch(/👤 Admin Commands/);
-    expect(sentMessage).toMatch(/❓ Help & Menu/);
+    expect(sentMessage).toMatch(/❓ Support & Info/);
 
     // Check that the message ends with Other Messages
     expect(sentMessage).toMatch(/\*Other Messages:\*/);

@@ -104,8 +104,8 @@ exports.COMMAND_WHATS_NEW = '/whats_new';
 exports.MENU_CATEGORIES = {
   HELP_MENU: {
     id: 'help_menu',
-    title: '❓ Help & Menu',
-    description: 'Help and navigation commands',
+    title: '❓ Support & Info',
+    description: 'Help, updates, and feedback',
     commands: [
       {
         constant: exports.COMMAND_HELP,

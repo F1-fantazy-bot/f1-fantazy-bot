@@ -117,7 +117,7 @@ describe('Menu Handler', () => {
               ]),
               expect.arrayContaining([
                 expect.objectContaining({
-                  text: '❓ Help & Menu',
+                  text: '❓ Support & Info',
                   callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.CATEGORY}:help_menu`,
                 }),
               ]),
