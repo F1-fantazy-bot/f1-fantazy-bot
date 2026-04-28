@@ -177,8 +177,8 @@ const translations = {
     'Track History': 'היסטוריית מסלול',
     'F1 Fantasy Bot - Available Commands': 'פקודות זמינות - F1 Fantasy Bot',
     'Other Messages': 'הודעות נוספות',
-    'Send an image (drivers, constructors, or current team screenshot) to automatically extract and cache the relevant data.':
-      'שלח תמונה (נהגים, קבוצות או צילום של הקבוצה הנוכחית) לחילוץ אוטומטי ושמירת הנתונים.',
+    'Run /follow_league to track your F1 Fantasy league. You can also send a JSON dump or, as a fallback, a current-team screenshot to update the cache.':
+      'הפעילו /follow_league כדי לעקוב אחרי הליגה שלכם ב-F1 Fantasy. אפשר גם לשלוח JSON או, כגיבוי, צילום מסך של הקבוצה הנוכחית כדי לעדכן את המטמון.',
     'Send valid JSON data to update your drivers, constructors, and current team cache.':
       'שלח נתוני JSON תקינים לעדכון המטמון של הנהגים, הקבוצות והקבוצה הנוכחית שלך.',
     'Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using {CMD}).':
@@ -414,8 +414,8 @@ const translations = {
     'Active team switched to {TEAM}.': 'הקבוצה הפעילה הוחלפה ל-{TEAM}.',
     '🔄 Active team auto-switched to {TEAM}.':
       '🔄 הקבוצה הפעילה הוחלפה אוטומטית ל-{TEAM}.',
-    'No teams found. Please upload a team screenshot first.':
-      'לא נמצאו קבוצות. אנא העלה צילום מסך של קבוצה.',
+    'No teams found. Please run /follow_league to follow your F1 Fantasy league (if you haven\'t yet), then /teams_tracker to pick teams to track.':
+      'לא נמצאו קבוצות. אנא הפעל /follow_league כדי לעקוב אחרי הליגה שלך (אם עוד לא עשית זאת), ולאחר מכן /teams_tracker כדי לבחור קבוצות לעקוב אחריהן.',
     'You have multiple teams. Please run /select_team to choose your active team.':
       'יש לך מספר קבוצות. אנא הפעל /select_team כדי לבחור קבוצה פעילה.',
     'Which team is this screenshot from?': 'לאיזו קבוצה שייך צילום המסך הזה?',

@@ -9,10 +9,6 @@ jest.mock('../i18n', () => ({
   ),
 }));
 
-jest.mock('../utils/utils', () => ({
-  isAdminMessage: jest.fn(),
-}));
-
 jest.mock('../utils', () => ({
   sendErrorMessage: jest.fn().mockResolvedValue(),
 }));
@@ -64,7 +60,6 @@ jest.mock('quickchart-js', () => {
   });
 });
 
-const { isAdminMessage } = require('../utils/utils');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
 const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
@@ -360,20 +355,7 @@ describe('leagueGraphHandler', () => {
   });
 
   describe('handleLeagueGraphsCommand', () => {
-    it('rejects non-admins', async () => {
-      isAdminMessage.mockReturnValue(false);
-
-      await handleLeagueGraphsCommand(botMock, { chat: { id: 9 } });
-
-      expect(botMock.sendMessage).toHaveBeenCalledWith(
-        9,
-        'Sorry, only admins can use this command.',
-      );
-      expect(listUserLeagues).not.toHaveBeenCalled();
-    });
-
     it('asks the user to follow a league when they have none', async () => {
-      isAdminMessage.mockReturnValue(true);
       listUserLeagues.mockResolvedValueOnce([]);
 
       await handleLeagueGraphsCommand(botMock, { chat: { id: 1 } });
@@ -385,7 +367,6 @@ describe('leagueGraphHandler', () => {
     });
 
     it('shows the graph-type picker directly when the user has exactly one league', async () => {
-      isAdminMessage.mockReturnValue(true);
       listUserLeagues.mockResolvedValueOnce([
         { leagueCode: 'ABC', leagueName: 'Amba' },
       ]);
@@ -429,7 +410,6 @@ describe('leagueGraphHandler', () => {
     });
 
     it('shows a league picker when the user has multiple leagues', async () => {
-      isAdminMessage.mockReturnValue(true);
       listUserLeagues.mockResolvedValueOnce([
         { leagueCode: 'ABC', leagueName: 'Amba' },
         { leagueCode: 'XYZ', leagueName: 'Other' },

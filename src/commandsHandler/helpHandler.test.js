@@ -40,7 +40,7 @@ describe('displayHelpMessage', () => {
     expect(sentMessage).toContain('*F1 Fantasy Bot - Available Commands*');
     expect(sentMessage).toContain('*Other Messages:*');
     expect(sentMessage).toContain(
-      'Send an image (drivers, constructors, or current team screenshot)'
+      'Run /follow_league to track your F1 Fantasy league'
     );
     expect(sentMessage).toContain(
       'Send valid JSON data to update your drivers, constructors, and current team cache'

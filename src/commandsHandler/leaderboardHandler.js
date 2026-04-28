@@ -1,5 +1,4 @@
 const { t } = require('../i18n');
-const { isAdminMessage } = require('../utils/utils');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
 const { getSelectedTeam } = require('../cache');
@@ -96,15 +95,6 @@ async function sendLeaderboard(bot, chatId, leagueCode) {
 
 async function handleLeaderboardCommand(bot, msg) {
   const chatId = msg.chat.id;
-
-  if (!isAdminMessage(msg)) {
-    await bot.sendMessage(
-      chatId,
-      t('Sorry, only admins can use this command.', chatId),
-    );
-
-    return;
-  }
 
   let leagues;
   try {

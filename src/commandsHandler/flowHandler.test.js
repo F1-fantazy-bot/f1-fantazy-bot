@@ -30,7 +30,7 @@ describe('handleFlowCommand', () => {
     const sentMessage = botMock.sendMessage.mock.calls[0][1];
 
     expect(sentMessage).toContain('F1 Fantasy Bot - Usage Flow');
-    expect(sentMessage).toContain('Upload Your Data');
+    expect(sentMessage).toContain('Follow Your League');
     expect(sentMessage).toContain('Choose a Chip (Optional)');
     expect(sentMessage).toContain('Adjust Budget Change Ranking (Optional)');
     expect(sentMessage).toContain('Calculate Best Teams');
@@ -65,7 +65,7 @@ describe('handleFlowCommand', () => {
     const sentMessage = botMock.sendMessage.mock.calls[0][1];
 
     expect(sentMessage).toContain('תהליך שימוש');
-    expect(sentMessage).toContain('העלאת נתונים');
+    expect(sentMessage).toContain('עקוב אחרי הליגה שלך');
     expect(sentMessage).toContain('בחירת צ\'יפ (אופציונלי)');
     expect(sentMessage).toContain('דירוג שינויי תקציב (אופציונלי)');
     expect(sentMessage).toContain('חישוב הקבוצות הטובות ביותר');

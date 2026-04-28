@@ -48,7 +48,7 @@ describe('handleBestTeamsMessage', () => {
 
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
-      'No teams found. Please upload a team screenshot first.',
+      "No teams found. Please run /follow_league to follow your F1 Fantasy league (if you haven't yet), then /teams_tracker to pick teams to track.",
     );
   });
 

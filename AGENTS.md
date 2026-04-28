@@ -62,9 +62,10 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/get_current_simulation`
 - `/load_simulation`
 - `/menu`, `/help`, `/lang`
+- `/follow_league`, `/unfollow_league`, `/teams_tracker`, `/leaderboard`, `/league_graphs`
 - `/report_bug` _(reply-based — uses pending reply manager)_
 
-**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/follow_league`, `/unfollow_league`, `/leaderboard`, `/teams_tracker`, `/league_graphs`
+**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/upload_drivers_photo`, `/upload_constructors_photo`
 
 ---
 
@@ -301,7 +302,7 @@ The table is **extensible** — new attributes can be added at any time without 
    - 1 league → auto-fetch blob and render leaderboard.
    - 2+ leagues → inline keyboard (`LEAGUE_CALLBACK_TYPE`) showing each league by name; on selection, callback handler fetches the blob and renders.
 5. `/unfollow_league` shows an inline keyboard (`LEAGUE_UNFOLLOW_CALLBACK_TYPE`) with all followed leagues; selection calls `removeUserLeague(chatId, leagueCode)`.
-6. `/teams_tracker` (admin-only, label `📋 Teams Tracker` / `📋 קבוצות במעקב`) opens a **multi-level inline-keyboard** to manage all followed teams in one place:
+6. `/teams_tracker` (label `📋 Teams Tracker` / `📋 קבוצות במעקב`) opens a **multi-level inline-keyboard** to manage all followed teams in one place:
    - **League picker** (shown when the user follows >1 league) — one button per league with a count of currently-staged selections.
    - **Team toggle view** — each league's teams are rendered as `✅`/`⬜` toggle buttons. Selections are staged (not persisted) until **Save**. Hard cap: `MAX_FOLLOWED_LEAGUE_TEAMS = 6` across all leagues — attempting to toggle ON a 7th team triggers a `show_alert` popup and does not mutate state.
    - Bottom row: `💾 Save ({N}/{MAX})`, `✖ Cancel`, and `⬅ Back` (only when there are >1 leagues).
@@ -314,7 +315,7 @@ The table is **extensible** — new attributes can be added at any time without 
    **Callback types.** `TEAMS_TRACKER_CALLBACK_TYPE = 'TT'` with actions `TEAMS_TRACKER_ACTIONS = { OPEN_LEAGUE:'L', TOGGLE:'T', BACK:'B', SAVE:'S', CANCEL:'C' }`. Payload formats: `TT:L:{leagueCode}`, `TT:T:{leagueCode}:{position}`, `TT:B`, `TT:S`, `TT:C`. The short (2-char) type + single-char action names keep the worst-case payload (`TT:T:{leagueCode}_{position}`) well under Telegram's 64-byte `callback_data` limit.
 
    **Shared helpers.** The league-team read/write logic lives in `src/utils/leagueTeamHelpers.js` (`mapLeagueTeamToBotTeam`, `loadLeagueTeamsData`, `refreshLeagueTeamsData`, `followLeagueTeam`, `removeFollowedTeam`, `extractLeagueCode`, `buildLeagueNameMap`, `buildTeamLabel`). `followLeagueTeam` does **not** mutate `selectedTeam` — Teams Tracker save owns active-team resolution end-to-end. `removeFollowedTeam(chatId, teamId, { mutateSelectedTeam = true })` exposes a flag used by save to defer active-team mutation.
-7. `/league_graphs` (admin-only) opens a two-step flow that renders per-league charts. Same 0/1/N league-selection flow as `/leaderboard` (callback type `LEAGUE_GRAPH_CALLBACK_TYPE`), followed by a graph-type picker (callback type `LEAGUE_GRAPH_TYPE_CALLBACK_TYPE`, payload `LEAGUE_GRAPH_TYPE:<gap|standings|budget>:<leagueCode>`). Three graph types are available:
+7. `/league_graphs` opens a two-step flow that renders per-league charts. Same 0/1/N league-selection flow as `/leaderboard` (callback type `LEAGUE_GRAPH_CALLBACK_TYPE`), followed by a graph-type picker (callback type `LEAGUE_GRAPH_TYPE_CALLBACK_TYPE`, payload `LEAGUE_GRAPH_TYPE:<gap|standings|budget>:<leagueCode>`). Three graph types are available:
    - **Gap to Leader** — line chart of each team's cumulative gap to the leader per race (leader sits on 0; everyone else is at or below 0). Chip usage is drawn as an emoji + chip-name label on the specific data point using the `chartjs-plugin-datalabels` plugin.
    - **Standings** — line chart of each team's **rank per race** computed from cumulative `raceScores` with competition-style ties (1, 2, 2, 4). Y-axis is reversed so rank 1 sits at the top, integer ticks with `stepSize: 1`, `min: 1`, `max: teams.length`. Legend is sorted by current-race rank ascending. Chip markers reuse the same emoji + chip-name datalabels pattern as Gap to Leader.
    - **Budget** — line chart of each team's **start-of-race budget** (`raceBudgets.matchday_N`, i.e. `maxTeambal` at the start of each race) per race. No chip annotations — clean lines only. Gaps in the data render as broken line segments (`spanGaps: true` + `null` values). Legend sorted by each team's most recent recorded budget, highest first (tie-break on `position`).

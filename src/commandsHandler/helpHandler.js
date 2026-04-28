@@ -62,7 +62,7 @@ function buildCategoryHelpSection(category, isAdmin, chatId) {
 function buildOtherMessagesSection(chatId) {
   return (
     `*${t('Other Messages', chatId)}:*\n` +
-    `${t('Send an image (drivers, constructors, or current team screenshot) to automatically extract and cache the relevant data.', chatId)}\n` +
+    `${t('Run /follow_league to track your F1 Fantasy league. You can also send a JSON dump or, as a fallback, a current-team screenshot to update the cache.', chatId)}\n` +
     `${t('Send valid JSON data to update your drivers, constructors, and current team cache.', chatId)}\n` +
     `${t(
       'Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using {CMD}).',

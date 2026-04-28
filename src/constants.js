@@ -299,7 +299,6 @@ exports.MENU_CATEGORIES = {
     id: 'league_management',
     title: '🏁 League Management',
     description: 'Follow and view F1 Fantasy leagues',
-    adminOnly: true,
     commands: [
       {
         constant: exports.COMMAND_FOLLOW_LEAGUE,

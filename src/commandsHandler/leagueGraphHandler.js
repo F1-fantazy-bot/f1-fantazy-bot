@@ -1,6 +1,5 @@
 const QuickChart = require('quickchart-js');
 const { t } = require('../i18n');
-const { isAdminMessage } = require('../utils/utils');
 const { sendErrorMessage } = require('../utils');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
@@ -424,15 +423,6 @@ async function sendGraphTypePicker(bot, chatId, leagueCode, options = {}) {
 
 async function handleLeagueGraphsCommand(bot, msg) {
   const chatId = msg.chat.id;
-
-  if (!isAdminMessage(msg)) {
-    await bot.sendMessage(
-      chatId,
-      t('Sorry, only admins can use this command.', chatId),
-    );
-
-    return;
-  }
 
   let leagues;
   try {

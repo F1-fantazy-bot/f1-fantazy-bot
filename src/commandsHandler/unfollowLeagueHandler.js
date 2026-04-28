@@ -1,5 +1,4 @@
 const { t } = require('../i18n');
-const { isAdminMessage } = require('../utils/utils');
 const { listUserLeagues } = require('../leagueRegistryService');
 const {
   LEAGUE_UNFOLLOW_CALLBACK_TYPE,
@@ -8,15 +7,6 @@ const {
 
 async function handleUnfollowLeagueCommand(bot, msg) {
   const chatId = msg.chat.id;
-
-  if (!isAdminMessage(msg)) {
-    await bot.sendMessage(
-      chatId,
-      t('Sorry, only admins can use this command.', chatId),
-    );
-
-    return;
-  }
 
   let leagues;
   try {
