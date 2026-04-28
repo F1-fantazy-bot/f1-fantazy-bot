@@ -40,16 +40,13 @@ describe('displayHelpMessage', () => {
     expect(sentMessage).toContain('*F1 Fantasy Bot - Available Commands*');
     expect(sentMessage).toContain('*Other Messages:*');
     expect(sentMessage).toContain(
-      'Run /follow_league to track your F1 Fantasy league'
+      'Run `/follow_league` to track your F1 Fantasy league'
     );
     expect(sentMessage).toContain(
       'Send valid JSON data to update your drivers, constructors, and current team cache'
     );
     expect(sentMessage).toContain(
-      `Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using ${COMMAND_BEST_TEAMS.replace(
-        /_/g,
-        '\\_'
-      )})`
+      `Send a number (e.g., 1) to get the required changes to reach that team from your current team (after using \`${COMMAND_BEST_TEAMS}\`)`
     );
 
     // Should include non-admin category titles
