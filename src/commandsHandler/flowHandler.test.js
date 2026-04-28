@@ -37,6 +37,8 @@ describe('handleFlowCommand', () => {
     expect(sentMessage).toContain('Get Team Details');
     expect(sentMessage).toContain('Check Live Score');
     expect(sentMessage).toContain('Explore Race Info');
+    expect(sentMessage).toContain('League Insights');
+    expect(sentMessage).toContain('/league\\_graphs');
     expect(sentMessage).toContain('Tips:');
     expect(sentMessage).toContain('/menu');
     expect(sentMessage).toContain('/best\\_teams');
@@ -72,6 +74,8 @@ describe('handleFlowCommand', () => {
     expect(sentMessage).toContain('פרטי קבוצה');
     expect(sentMessage).toContain('ניקוד חי');
     expect(sentMessage).toContain('מידע על מרוצים');
+    expect(sentMessage).toContain('תובנות ליגה');
+    expect(sentMessage).toContain('/league\\_graphs');
     expect(sentMessage).toContain('טיפים:');
     expect(sentMessage).toContain('/live\\_score');
     expect(sentMessage).toContain('/set\\_best\\_team\\_ranking');

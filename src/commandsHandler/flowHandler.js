@@ -32,6 +32,10 @@ function buildFlowMessage(chatId) {
    • /next\\_races - לוח זמנים למרוצים הקרובים
    • /next\\_race\\_weather - תחזית מזג אוויר למרוץ הבא
 
+8️⃣ תובנות ליגה
+   • /leaderboard - דירוג עדכני של ליגה שאתם עוקבים אחריה
+   • /league\\_graphs - גרפים לאורך העונה: פער מהמוביל, מיקומים, ותקציב לפי מרוץ
+
 💡 טיפים:
 • השתמשו ב-/menu לתפריט אינטראקטיבי
 • השתמשו ב-/print\\_cache כדי לבדוק את הנתונים השמורים
@@ -66,6 +70,10 @@ Here's how to get the most out of this bot:
    • /next\\_race\\_info - Details about the next race
    • /next\\_races - Upcoming race schedule
    • /next\\_race\\_weather - Weather forecast for the next race
+
+8️⃣ League Insights
+   • /leaderboard - Current standings of a league you follow
+   • /league\\_graphs - Season-long charts: gap to leader, standings, and budget per race
 
 💡 Tips:
 • Use /menu for an interactive menu of all commands
