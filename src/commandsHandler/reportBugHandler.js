@@ -4,10 +4,10 @@ const { registerPendingReply } = require('../pendingReplyManager');
 async function handleReportBugCommand(bot, msg) {
   const chatId = msg.chat.id;
 
-  const prompt = t(
+  const prompt = `${t(
     'What message would you like to send to the admins?',
     chatId,
-  );
+  )}\n\n${t('💡 Send /cancel at any time to abort.', chatId)}`;
 
   await registerPendingReply(chatId, 'report_bug');
 

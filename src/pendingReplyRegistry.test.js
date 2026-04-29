@@ -342,9 +342,13 @@ describe('pendingReplyRegistry', () => {
           100,
           { NAME: 'Target User' },
         );
+        expect(t).toHaveBeenCalledWith(
+          '💡 Send /cancel at any time to abort.',
+          100,
+        );
         expect(botMock.sendMessage).toHaveBeenCalledWith(
           100,
-          'What message or image do you want to send to {NAME}?',
+          'What message or image do you want to send to {NAME}?\n\n💡 Send /cancel at any time to abort.',
           { reply_markup: { force_reply: true } },
         );
       });

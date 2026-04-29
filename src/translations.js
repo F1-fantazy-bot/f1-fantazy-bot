@@ -383,8 +383,8 @@ const translations = {
       'אנא הזן טקסט או תמונה לשליחה.',
     '📩 Message from bot admin:\n\n{MESSAGE}':
       '📩 הודעה ממנהל הבוט:\n\n{MESSAGE}',
-    'Please enter the message or image you want to broadcast to all users:\n\n(Send /cancel to abort.)':
-      'אנא הזן את ההודעה או התמונה שברצונך לשלוח לכל המשתמשים:\n\n(שלח /cancel כדי לבטל.)',
+    'Please enter the message or image you want to broadcast to all users:':
+      'אנא הזן את ההודעה או התמונה שברצונך לשלוח לכל המשתמשים:',
     '📢 Broadcast from bot admin:\n\n{MESSAGE}':
       '📢 הודעה ממנהל הבוט:\n\n{MESSAGE}',
     'Broadcast complete.\n\n✅ Sent successfully: {SUCCESS}\n❌ Failed: {FAILED}':

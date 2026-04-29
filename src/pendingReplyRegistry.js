@@ -111,14 +111,16 @@ const PENDING_REPLY_REGISTRY = {
             targetChatId,
           });
 
+          const collectMessagePrompt = `${t(
+            'What message or image do you want to send to {NAME}?',
+            chatId,
+            { NAME: user.chatName },
+          )}\n\n${t('💡 Send /cancel at any time to abort.', chatId)}`;
+
           await replyBot
-            .sendMessage(
-              chatId,
-              t('What message or image do you want to send to {NAME}?', chatId, {
-                NAME: user.chatName,
-              }),
-              { reply_markup: { force_reply: true } },
-            )
+            .sendMessage(chatId, collectMessagePrompt, {
+              reply_markup: { force_reply: true },
+            })
             .catch((err) =>
               console.error('Error sending collect message prompt:', err),
             );
@@ -346,14 +348,16 @@ const PENDING_REPLY_REGISTRY = {
             targetChatName: user.chatName,
           });
 
+          const collectNicknamePrompt = `${t(
+            'Please enter the nickname for {NAME}:',
+            chatId,
+            { NAME: user.chatName },
+          )}\n\n${t('💡 Send /cancel at any time to abort.', chatId)}`;
+
           await replyBot
-            .sendMessage(
-              chatId,
-              t('Please enter the nickname for {NAME}:', chatId, {
-                NAME: user.chatName,
-              }),
-              { reply_markup: { force_reply: true } },
-            )
+            .sendMessage(chatId, collectNicknamePrompt, {
+              reply_markup: { force_reply: true },
+            })
             .catch((err) =>
               console.error('Error sending collect nickname prompt:', err),
             );

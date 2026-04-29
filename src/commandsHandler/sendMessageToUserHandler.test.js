@@ -63,9 +63,13 @@ describe('sendMessageToUserHandler', () => {
         'Please enter the chat ID of the user you want to send a message or image to:',
         123,
       );
+      expect(t).toHaveBeenCalledWith(
+        '💡 Send /cancel at any time to abort.',
+        123,
+      );
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        'Please enter the chat ID of the user you want to send a message or image to:',
+        'Please enter the chat ID of the user you want to send a message or image to:\n\n💡 Send /cancel at any time to abort.',
         { reply_markup: { force_reply: true } },
       );
     });

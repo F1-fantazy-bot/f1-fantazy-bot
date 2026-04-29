@@ -56,12 +56,16 @@ describe('broadcastHandler', () => {
       await handleBroadcastCommand(botMock, msg);
 
       expect(t).toHaveBeenCalledWith(
-        'Please enter the message or image you want to broadcast to all users:\n\n(Send /cancel to abort.)',
+        'Please enter the message or image you want to broadcast to all users:',
+        123,
+      );
+      expect(t).toHaveBeenCalledWith(
+        '💡 Send /cancel at any time to abort.',
         123,
       );
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        'Please enter the message or image you want to broadcast to all users:\n\n(Send /cancel to abort.)',
+        'Please enter the message or image you want to broadcast to all users:\n\n💡 Send /cancel at any time to abort.',
         { reply_markup: { force_reply: true } },
       );
     });

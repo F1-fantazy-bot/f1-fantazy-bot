@@ -22,10 +22,10 @@ async function handleSendMessageToUserCommand(bot, msg) {
     return;
   }
 
-  const prompt = t(
+  const prompt = `${t(
     'Please enter the chat ID of the user you want to send a message or image to:',
     chatId,
-  );
+  )}\n\n${t('💡 Send /cancel at any time to abort.', chatId)}`;
 
   await registerPendingReply(chatId, 'send_message_to_user', {
     step: 'collect_user_id',
