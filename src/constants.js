@@ -277,12 +277,12 @@ exports.MENU_CATEGORIES = {
       {
         constant: exports.COMMAND_SEND_MESSAGE_TO_USER,
         title: '✉️ Send Message to User',
-        description: 'Send a message to a specific bot user',
+        description: 'Send a message or image to a specific bot user',
       },
       {
         constant: exports.COMMAND_BROADCAST,
         title: '📢 Broadcast',
-        description: 'Send a message to all bot users',
+        description: 'Send a message or image to all bot users',
       },
       {
         constant: exports.COMMAND_SET_NICKNAME,

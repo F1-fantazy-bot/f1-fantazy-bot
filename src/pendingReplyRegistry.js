@@ -114,7 +114,7 @@ const PENDING_REPLY_REGISTRY = {
           await replyBot
             .sendMessage(
               chatId,
-              t('What message do you want to send to {NAME}?', chatId, {
+              t('What message or image do you want to send to {NAME}?', chatId, {
                 NAME: user.chatName,
               }),
               { reply_markup: { force_reply: true } },
@@ -123,24 +123,36 @@ const PENDING_REPLY_REGISTRY = {
               console.error('Error sending collect message prompt:', err),
             );
         } else if (data.step === 'collect_message') {
-          // Step 2: Admin provided the message text
+          // Step 2: Admin provided the message text or photo
           try {
             // Prefix with admin notice localized to the TARGET user's language
+            const hasPhoto =
+              Array.isArray(replyMsg.photo) && replyMsg.photo.length > 0;
+            const photoFileId = hasPhoto
+              ? replyMsg.photo[replyMsg.photo.length - 1].file_id
+              : null;
+            const messageText = replyMsg.text || replyMsg.caption || '';
             const prefixedMessage = t(
               '📩 Message from bot admin:\n\n{MESSAGE}',
               Number(data.targetChatId),
-              { MESSAGE: replyMsg.text },
+              { MESSAGE: messageText },
             );
 
-            await replyBot.sendMessage(
-              Number(data.targetChatId),
-              prefixedMessage,
-            );
+            if (hasPhoto) {
+              await replyBot.sendPhoto(Number(data.targetChatId), photoFileId, {
+                caption: prefixedMessage,
+              });
+            } else {
+              await replyBot.sendMessage(
+                Number(data.targetChatId),
+                prefixedMessage,
+              );
+            }
 
             await replyBot
               .sendMessage(
                 chatId,
-                t('Message sent successfully to user {ID}.', chatId, {
+                t('Content sent successfully to user {ID}.', chatId, {
                   ID: data.targetChatId,
                 }),
               )
@@ -153,7 +165,7 @@ const PENDING_REPLY_REGISTRY = {
             await replyBot
               .sendMessage(
                 chatId,
-                t('Failed to send message to user {ID}: {ERROR}', chatId, {
+                t('Failed to send content to user {ID}: {ERROR}', chatId, {
                   ID: data.targetChatId,
                   ERROR: err.message,
                 }),
@@ -185,8 +197,10 @@ const PENDING_REPLY_REGISTRY = {
         };
       }
 
-      // Step 2: Only require text
-      return (replyMsg) => !!replyMsg.text;
+      // Step 2: Require text or a photo
+      return (replyMsg) =>
+        !!replyMsg.text ||
+        (Array.isArray(replyMsg.photo) && replyMsg.photo.length > 0);
     },
     buildResendPrompt: (chatId, data) => {
       if (!data || data.step === 'collect_user_id') {
@@ -194,7 +208,7 @@ const PENDING_REPLY_REGISTRY = {
       }
 
       return t(
-        'We support only text. Please enter the message to send.',
+        'Please enter text or a photo to send.',
         chatId,
       );
     },
@@ -235,16 +249,28 @@ const PENDING_REPLY_REGISTRY = {
 
       let successCount = 0;
       const failures = [];
+      const hasPhoto =
+        Array.isArray(replyMsg.photo) && replyMsg.photo.length > 0;
+      const photoFileId = hasPhoto
+        ? replyMsg.photo[replyMsg.photo.length - 1].file_id
+        : null;
+      const broadcastText = replyMsg.text || replyMsg.caption || '';
 
       for (const user of users) {
         try {
           const prefixedMessage = t(
             '📢 Broadcast from bot admin:\n\n{MESSAGE}',
             Number(user.chatId),
-            { MESSAGE: replyMsg.text },
+            { MESSAGE: broadcastText },
           );
 
-          await replyBot.sendMessage(Number(user.chatId), prefixedMessage);
+          if (hasPhoto) {
+            await replyBot.sendPhoto(Number(user.chatId), photoFileId, {
+              caption: prefixedMessage,
+            });
+          } else {
+            await replyBot.sendMessage(Number(user.chatId), prefixedMessage);
+          }
           successCount++;
         } catch (err) {
           console.error(`Error sending broadcast to user ${user.chatId}:`, err);
@@ -270,9 +296,14 @@ const PENDING_REPLY_REGISTRY = {
         .sendMessage(chatId, summary)
         .catch((err) => console.error('Error sending broadcast summary:', err));
     },
-    buildValidate: () => (replyMsg) => !!replyMsg.text,
+    buildValidate: () => (replyMsg) =>
+      !!replyMsg.text ||
+      (Array.isArray(replyMsg.photo) && replyMsg.photo.length > 0),
     buildResendPrompt: (chatId) =>
-      t('We support only text. Please enter the message to broadcast.', chatId),
+      t(
+        'Please enter text or a photo to broadcast.',
+        chatId,
+      ),
   },
   set_nickname: {
     buildHandler: (chatId, data) => {

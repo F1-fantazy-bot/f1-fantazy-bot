@@ -60,12 +60,12 @@ describe('sendMessageToUserHandler', () => {
       await handleSendMessageToUserCommand(botMock, msg);
 
       expect(t).toHaveBeenCalledWith(
-        'Please enter the chat ID of the user you want to send a message to:',
+        'Please enter the chat ID of the user you want to send a message or image to:',
         123,
       );
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        'Please enter the chat ID of the user you want to send a message to:',
+        'Please enter the chat ID of the user you want to send a message or image to:',
         { reply_markup: { force_reply: true } },
       );
     });
