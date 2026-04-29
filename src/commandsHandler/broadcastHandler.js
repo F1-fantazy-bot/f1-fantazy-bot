@@ -23,7 +23,7 @@ async function handleBroadcastCommand(bot, msg) {
   }
 
   const prompt = t(
-    'Please enter the message or image you want to broadcast to all users:',
+    'Please enter the message or image you want to broadcast to all users:\n\n(Send /cancel to abort.)',
     chatId,
   );
 
