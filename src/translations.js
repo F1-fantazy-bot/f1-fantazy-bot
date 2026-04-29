@@ -364,35 +364,37 @@ const translations = {
     '🌦️ Next Race Weather': '🌦️ מזג אוויר למרוץ הבא',
     'Get detailed weather forecast for the next race':
       'קבל תחזית מזג אוויר מפורטת למרוץ הבא',
-    'Please enter the chat ID of the user you want to send a message to:':
-      'אנא הזן את מזהה הצ׳אט של המשתמש שאליו תרצה לשלוח הודעה:',
-    'What message do you want to send to {NAME}?':
-      'איזו הודעה תרצה לשלוח ל{NAME}?',
-    'Message sent successfully to user {ID}.':
-      'ההודעה נשלחה בהצלחה למשתמש {ID}.',
+    'Please enter the chat ID of the user you want to send a message or image to:':
+      'אנא הזן את מזהה הצ׳אט של המשתמש שאליו תרצה לשלוח הודעה או תמונה:',
+    'What message or image do you want to send to {NAME}?':
+      'איזו הודעה או תמונה תרצה לשלוח ל{NAME}?',
+    'Content sent successfully to user {ID}.':
+      'התוכן נשלח בהצלחה למשתמש {ID}.',
     'User with ID {ID} not found. Please enter a valid chat ID:':
       'משתמש עם מזהה {ID} לא נמצא. אנא הזן מזהה צ׳אט תקין:',
-    'Failed to send message to user {ID}: {ERROR}':
-      'שליחת ההודעה למשתמש {ID} נכשלה: {ERROR}',
+    'Failed to send content to user {ID}: {ERROR}':
+      'שליחת התוכן למשתמש {ID} נכשלה: {ERROR}',
     '✉️ Send Message to User': '✉️ שלח הודעה למשתמש',
-    'Send a message to a specific bot user': 'שלח הודעה למשתמש ספציפי של הבוט',
+    'Send a message or image to a specific bot user':
+      'שלח הודעה או תמונה למשתמש ספציפי של הבוט',
     'User not found. Please enter a valid chat ID:':
       'משתמש לא נמצא. אנא הזן מזהה צ׳אט תקין:',
-    'We support only text. Please enter the message to send.':
-      'אנו תומכים רק בטקסט. אנא הזן את ההודעה לשליחה.',
+    'Please enter text or a photo to send.':
+      'אנא הזן טקסט או תמונה לשליחה.',
     '📩 Message from bot admin:\n\n{MESSAGE}':
       '📩 הודעה ממנהל הבוט:\n\n{MESSAGE}',
-    'Please enter the message you want to broadcast to all users:\n\n(Send /cancel to abort.)':
-      'אנא הזן את ההודעה שברצונך לשלוח לכל המשתמשים:\n\n(שלח /cancel כדי לבטל.)',
+    'Please enter the message or image you want to broadcast to all users:\n\n(Send /cancel to abort.)':
+      'אנא הזן את ההודעה או התמונה שברצונך לשלוח לכל המשתמשים:\n\n(שלח /cancel כדי לבטל.)',
     '📢 Broadcast from bot admin:\n\n{MESSAGE}':
       '📢 הודעה ממנהל הבוט:\n\n{MESSAGE}',
     'Broadcast complete.\n\n✅ Sent successfully: {SUCCESS}\n❌ Failed: {FAILED}':
       'השידור הושלם.\n\n✅ נשלח בהצלחה: {SUCCESS}\n❌ נכשל: {FAILED}',
     'Failed to send to:\n{DETAILS}': 'שליחה נכשלה אל:\n{DETAILS}',
     '📢 Broadcast': '📢 שידור',
-    'Send a message to all bot users': 'שלח הודעה לכל משתמשי הבוט',
-    'We support only text. Please enter the message to broadcast.':
-      'אנו תומכים רק בטקסט. אנא הזן את ההודעה לשידור.',
+    'Send a message or image to all bot users':
+      'שלח הודעה או תמונה לכל משתמשי הבוט',
+    'Please enter text or a photo to broadcast.':
+      'אנא הזן טקסט או תמונה לשידור.',
     'No registered users found to broadcast to.':
       'לא נמצאו משתמשים רשומים לשידור.',
     'Please enter the chat ID of the user you want to set a nickname for:':

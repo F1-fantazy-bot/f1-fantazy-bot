@@ -338,13 +338,13 @@ describe('pendingReplyRegistry', () => {
           { step: 'collect_message', targetChatId: '456' },
         );
         expect(t).toHaveBeenCalledWith(
-          'What message do you want to send to {NAME}?',
+          'What message or image do you want to send to {NAME}?',
           100,
           { NAME: 'Target User' },
         );
         expect(botMock.sendMessage).toHaveBeenCalledWith(
           100,
-          'What message do you want to send to {NAME}?',
+          'What message or image do you want to send to {NAME}?',
           { reply_markup: { force_reply: true } },
         );
       });
@@ -426,13 +426,49 @@ describe('pendingReplyRegistry', () => {
           '📩 Message from bot admin:\n\n{MESSAGE}',
         );
         expect(t).toHaveBeenCalledWith(
-          'Message sent successfully to user {ID}.',
+          'Content sent successfully to user {ID}.',
           100,
           { ID: '456' },
         );
         expect(botMock.sendMessage).toHaveBeenCalledWith(
           100,
-          'Message sent successfully to user {ID}.',
+          'Content sent successfully to user {ID}.',
+        );
+      });
+
+      it('should send the prefixed photo to the target user and confirm to admin', async () => {
+        const botMock = {
+          sendMessage: jest.fn().mockResolvedValue(),
+          sendPhoto: jest.fn().mockResolvedValue(),
+        };
+        const replyMsg = {
+          chat: { id: 100, first_name: 'Admin' },
+          caption: 'Photo from admin!',
+          photo: [
+            { file_id: 'small-photo' },
+            { file_id: 'large-photo' },
+          ],
+        };
+
+        const resolved = resolveCommand('send_message_to_user', 100, {
+          step: 'collect_message',
+          targetChatId: '456',
+        });
+        await resolved.handler(botMock, replyMsg);
+
+        expect(t).toHaveBeenCalledWith(
+          '📩 Message from bot admin:\n\n{MESSAGE}',
+          456,
+          { MESSAGE: 'Photo from admin!' },
+        );
+        expect(botMock.sendPhoto).toHaveBeenCalledWith(
+          456,
+          'large-photo',
+          { caption: '📩 Message from bot admin:\n\n{MESSAGE}' },
+        );
+        expect(botMock.sendMessage).toHaveBeenCalledWith(
+          100,
+          'Content sent successfully to user {ID}.',
         );
       });
 
@@ -462,7 +498,7 @@ describe('pendingReplyRegistry', () => {
           expect.any(Error),
         );
         expect(t).toHaveBeenCalledWith(
-          'Failed to send message to user {ID}: {ERROR}',
+          'Failed to send content to user {ID}: {ERROR}',
           100,
           { ID: '456', ERROR: 'User blocked bot' },
         );
@@ -538,13 +574,22 @@ describe('pendingReplyRegistry', () => {
         expect(resolved.validate({ text: 'hello' })).toBe(true);
       });
 
-      it('should reject non-text messages for collect_message step', () => {
+      it('should accept photo messages for collect_message step', () => {
         const resolved = resolveCommand('send_message_to_user', 123, {
           step: 'collect_message',
           targetChatId: '456',
         });
 
-        expect(resolved.validate({ photo: [{ file_id: 'abc' }] })).toBe(false);
+        expect(resolved.validate({ photo: [{ file_id: 'abc' }] })).toBe(true);
+      });
+
+      it('should reject unsupported messages for collect_message step', () => {
+        const resolved = resolveCommand('send_message_to_user', 123, {
+          step: 'collect_message',
+          targetChatId: '456',
+        });
+
+        expect(resolved.validate({ sticker: { file_id: 'abc' } })).toBe(false);
       });
     });
 
@@ -566,7 +611,7 @@ describe('pendingReplyRegistry', () => {
         });
 
         expect(resolved.resendPromptIfNotValid).toBe(
-          'We support only text. Please enter the message to send.',
+          'Please enter text or a photo to send.',
         );
       });
 
@@ -661,6 +706,43 @@ describe('pendingReplyRegistry', () => {
         consoleSpy.mockRestore();
       });
 
+      it('should send a photo broadcast to all registered users and report summary', async () => {
+        listAllUsers.mockResolvedValue([
+          { chatId: '100', chatName: 'User A' },
+          { chatId: '200', chatName: 'User B' },
+        ]);
+        const botMock = {
+          sendMessage: jest.fn().mockResolvedValue(),
+          sendPhoto: jest.fn().mockResolvedValue(),
+        };
+        const replyMsg = {
+          chat: { id: 999, first_name: 'Admin' },
+          caption: 'Important image announcement!',
+          photo: [
+            { file_id: 'small-photo' },
+            { file_id: 'large-photo' },
+          ],
+        };
+
+        const resolved = resolveCommand('broadcast', 999);
+        await resolved.handler(botMock, replyMsg);
+
+        expect(botMock.sendPhoto).toHaveBeenCalledWith(
+          100,
+          'large-photo',
+          { caption: '📢 Broadcast from bot admin:\n\n{MESSAGE}' },
+        );
+        expect(botMock.sendPhoto).toHaveBeenCalledWith(
+          200,
+          'large-photo',
+          { caption: '📢 Broadcast from bot admin:\n\n{MESSAGE}' },
+        );
+        expect(botMock.sendMessage).toHaveBeenCalledWith(
+          999,
+          'Broadcast complete.\n\n✅ Sent successfully: {SUCCESS}\n❌ Failed: {FAILED}',
+        );
+      });
+
       it('should handle empty user list', async () => {
         listAllUsers.mockResolvedValue([]);
         const botMock = {
@@ -741,10 +823,16 @@ describe('pendingReplyRegistry', () => {
         expect(resolved.validate({ text: 'hello' })).toBe(true);
       });
 
-      it('should reject non-text messages', () => {
+      it('should accept photo messages', () => {
         const resolved = resolveCommand('broadcast', 123);
 
-        expect(resolved.validate({ photo: [{ file_id: 'abc' }] })).toBe(false);
+        expect(resolved.validate({ photo: [{ file_id: 'abc' }] })).toBe(true);
+      });
+
+      it('should reject unsupported messages', () => {
+        const resolved = resolveCommand('broadcast', 123);
+
+        expect(resolved.validate({ sticker: { file_id: 'abc' } })).toBe(false);
       });
     });
 
@@ -753,11 +841,11 @@ describe('pendingReplyRegistry', () => {
         const resolved = resolveCommand('broadcast', 789);
 
         expect(t).toHaveBeenCalledWith(
-          'We support only text. Please enter the message to broadcast.',
+          'Please enter text or a photo to broadcast.',
           789,
         );
         expect(resolved.resendPromptIfNotValid).toBe(
-          'We support only text. Please enter the message to broadcast.',
+          'Please enter text or a photo to broadcast.',
         );
       });
     });

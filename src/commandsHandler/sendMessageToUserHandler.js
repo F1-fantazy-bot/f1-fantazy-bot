@@ -6,7 +6,7 @@ const { registerPendingReply } = require('../pendingReplyManager');
  * Handle the /send_message_to_user admin command.
  * Initiates a two-step reply flow:
  *   Step 1: Asks admin for the target user's chat ID
- *   Step 2: Asks admin for the message to send (handled in pendingReplyRegistry)
+ *   Step 2: Asks admin for the message or image to send (handled in pendingReplyRegistry)
  * @param {Object} bot - The Telegram bot instance
  * @param {Object} msg - The Telegram message object
  */
@@ -23,7 +23,7 @@ async function handleSendMessageToUserCommand(bot, msg) {
   }
 
   const prompt = t(
-    'Please enter the chat ID of the user you want to send a message to:',
+    'Please enter the chat ID of the user you want to send a message or image to:',
     chatId,
   );
 
