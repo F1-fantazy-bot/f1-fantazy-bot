@@ -5,7 +5,7 @@ const { registerPendingReply } = require('../pendingReplyManager');
 /**
  * Handle the /broadcast admin command.
  * Initiates a single-step reply flow:
- *   Asks admin for the message to broadcast to all registered users.
+ *   Asks admin for the message or image to broadcast to all registered users.
  *   The actual broadcast logic lives in pendingReplyRegistry under 'broadcast'.
  * @param {Object} bot - The Telegram bot instance
  * @param {Object} msg - The Telegram message object
@@ -23,7 +23,7 @@ async function handleBroadcastCommand(bot, msg) {
   }
 
   const prompt = t(
-    'Please enter the message you want to broadcast to all users:',
+    'Please enter the message or image you want to broadcast to all users:',
     chatId,
   );
 
