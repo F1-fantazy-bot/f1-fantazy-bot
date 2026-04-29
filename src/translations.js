@@ -382,8 +382,8 @@ const translations = {
       'אנו תומכים רק בטקסט. אנא הזן את ההודעה לשליחה.',
     '📩 Message from bot admin:\n\n{MESSAGE}':
       '📩 הודעה ממנהל הבוט:\n\n{MESSAGE}',
-    'Please enter the message you want to broadcast to all users:':
-      'אנא הזן את ההודעה שברצונך לשלוח לכל המשתמשים:',
+    'Please enter the message you want to broadcast to all users:\n\n(Send /cancel to abort.)':
+      'אנא הזן את ההודעה שברצונך לשלוח לכל המשתמשים:\n\n(שלח /cancel כדי לבטל.)',
     '📢 Broadcast from bot admin:\n\n{MESSAGE}':
       '📢 הודעה ממנהל הבוט:\n\n{MESSAGE}',
     'Broadcast complete.\n\n✅ Sent successfully: {SUCCESS}\n❌ Failed: {FAILED}':
