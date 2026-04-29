@@ -63,9 +63,13 @@ describe('setNicknameHandler', () => {
         'Please enter the chat ID of the user you want to set a nickname for:',
         123,
       );
+      expect(t).toHaveBeenCalledWith(
+        '💡 Send /cancel at any time to abort.',
+        123,
+      );
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        'Please enter the chat ID of the user you want to set a nickname for:',
+        'Please enter the chat ID of the user you want to set a nickname for:\n\n💡 Send /cancel at any time to abort.',
         { reply_markup: { force_reply: true } },
       );
     });

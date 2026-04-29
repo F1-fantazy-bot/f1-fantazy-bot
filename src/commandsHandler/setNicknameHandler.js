@@ -22,10 +22,10 @@ async function handleSetNicknameCommand(bot, msg) {
     return;
   }
 
-  const prompt = t(
+  const prompt = `${t(
     'Please enter the chat ID of the user you want to set a nickname for:',
     chatId,
-  );
+  )}\n\n${t('💡 Send /cancel at any time to abort.', chatId)}`;
 
   await registerPendingReply(chatId, 'set_nickname', {
     step: 'collect_user_id',

@@ -22,10 +22,10 @@ async function handleBroadcastCommand(bot, msg) {
     return;
   }
 
-  const prompt = t(
-    'Please enter the message or image you want to broadcast to all users:\n\n(Send /cancel to abort.)',
+  const prompt = `${t(
+    'Please enter the message or image you want to broadcast to all users:',
     chatId,
-  );
+  )}\n\n${t('💡 Send /cancel at any time to abort.', chatId)}`;
 
   await registerPendingReply(chatId, 'broadcast');
 

@@ -40,9 +40,13 @@ describe('reportBugHandler', () => {
         'What message would you like to send to the admins?',
         123,
       );
+      expect(t).toHaveBeenCalledWith(
+        '💡 Send /cancel at any time to abort.',
+        123,
+      );
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         123,
-        'What message would you like to send to the admins?',
+        'What message would you like to send to the admins?\n\n💡 Send /cancel at any time to abort.',
         { reply_markup: { force_reply: true } },
       );
     });
