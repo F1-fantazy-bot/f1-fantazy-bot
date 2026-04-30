@@ -160,9 +160,13 @@ async function getUserTeam(chatId, teamId) {
  * @param {string} chatId - The chat ID of the user
  * @param {string} teamId - The team identifier (e.g., 'T1', 'T2', 'T3')
  * @param {Object} teamData - The team data to save
+ * @param {Object} [options] - Optional flags
+ * @param {boolean} [options.silent=false] - When true, suppress the success log message. Used by background flows (e.g., startup league refresh) to avoid log-channel spam.
  * @throws {Error} If the data cannot be saved
  */
-async function saveUserTeam(bot, chatId, teamId, teamData) {
+// eslint-disable-next-line max-params
+async function saveUserTeam(bot, chatId, teamId, teamData, options = {}) {
+  const { silent = false } = options;
   try {
     if (!containerClient) {
       initializeAzureStorage();
@@ -176,12 +180,14 @@ async function saveUserTeam(bot, chatId, teamId, teamData) {
       blobHTTPHeaders: { blobContentType: 'application/json' },
     });
 
-    const displayName = getDisplayName(chatId);
+    if (!silent) {
+      const displayName = getDisplayName(chatId);
 
-    await sendLogMessage(
-      bot,
-      `Successfully saved team data for ${displayName} (${chatId}) team ${teamId}`,
-    );
+      await sendLogMessage(
+        bot,
+        `Successfully saved team data for ${displayName} (${chatId}) team ${teamId}`,
+      );
+    }
   } catch (error) {
     throw new Error(
       `Failed to save user team for ${chatId}_${teamId}: ${error.message}`,

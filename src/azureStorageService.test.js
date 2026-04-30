@@ -21,6 +21,11 @@ jest.mock('@azure/storage-blob', () => ({
   },
 }));
 
+jest.mock('./utils/utils', () => ({
+  sendLogMessage: jest.fn().mockResolvedValue(undefined),
+  getDisplayName: jest.fn().mockReturnValue('Test User'),
+}));
+
 describe('azureStorageService', () => {
   const originalEnv = process.env;
 
@@ -162,6 +167,39 @@ describe('azureStorageService', () => {
         expect.any(Number),
         expect.any(Object),
       );
+    });
+
+    it('logs a success message by default', async () => {
+      mockUpload.mockResolvedValueOnce(undefined);
+      const { sendLogMessage } = require('./utils/utils');
+      sendLogMessage.mockClear();
+      const mockBot = { sendMessage: jest.fn() };
+
+      await azureStorageService.saveUserTeam(mockBot, chatId, teamId, teamData);
+
+      expect(sendLogMessage).toHaveBeenCalledTimes(1);
+      expect(sendLogMessage).toHaveBeenCalledWith(
+        mockBot,
+        expect.stringContaining('Successfully saved team data'),
+      );
+    });
+
+    it('suppresses the success log when silent: true', async () => {
+      mockUpload.mockResolvedValueOnce(undefined);
+      const { sendLogMessage } = require('./utils/utils');
+      sendLogMessage.mockClear();
+      const mockBot = { sendMessage: jest.fn() };
+
+      await azureStorageService.saveUserTeam(
+        mockBot,
+        chatId,
+        teamId,
+        teamData,
+        { silent: true },
+      );
+
+      expect(mockUpload).toHaveBeenCalled();
+      expect(sendLogMessage).not.toHaveBeenCalled();
     });
   });
 
