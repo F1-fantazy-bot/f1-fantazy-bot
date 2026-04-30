@@ -268,7 +268,7 @@ describe('cacheInitializer', () => {
       mockBot,
       expect.stringContaining('Fantasy data json downloaded successfully')
     );
-    expect(utils.sendLogMessage).toHaveBeenCalledWith(
+    expect(utils.sendLogMessage).not.toHaveBeenCalledWith(
       mockBot,
       expect.stringContaining('Simulation data loaded successfully')
     );
@@ -367,8 +367,16 @@ describe('cacheInitializer', () => {
       // League blob fetched once per league (cached within the function)
       expect(getLeagueTeamsData).toHaveBeenCalledTimes(1);
       expect(getLeagueTeamsData).toHaveBeenCalledWith('ABC');
-      // Persisted back to storage
+      // Persisted back to storage with silent: true so the per-team success
+      // log doesn't spam the log channel during startup.
       expect(saveUserTeam).toHaveBeenCalledTimes(2);
+      expect(saveUserTeam).toHaveBeenCalledWith(
+        mockBot,
+        expect.anything(),
+        expect.any(String),
+        expect.any(Object),
+        { silent: true },
+      );
     });
 
     it('is a no-op for users with only T1/T2/T3 style ids', async () => {

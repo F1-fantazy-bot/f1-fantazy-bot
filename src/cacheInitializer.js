@@ -197,11 +197,6 @@ Constructors not found in mapping: ${notFounds.constructors.join(', ')}
     await sendErrorMessage(bot, message);
     await sendMessageToAdmins(bot, message);
   }
-
-  await sendLogMessage(
-    bot,
-    `Simulation data loaded successfully: ${fantasyDataJson.SimulationName}`
-  );
 }
 
 /**
@@ -252,7 +247,9 @@ async function refreshLeagueSourcedTeams(bot) {
         currentTeamCache[chatId][teamId] = refreshedTeam;
 
         try {
-          await saveUserTeam(bot, chatId, teamId, refreshedTeam);
+          await saveUserTeam(bot, chatId, teamId, refreshedTeam, {
+            silent: true,
+          });
         } catch (saveErr) {
           console.error(
             `Failed to persist refreshed league team ${teamId} for ${chatId}:`,
