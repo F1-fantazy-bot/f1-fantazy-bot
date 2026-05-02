@@ -2,15 +2,20 @@ const {
   handleLiveScoreCommand,
   calculateLiveScoreBreakdown,
   formatSessionBreakdown,
+  resolveLiveScoreTeam,
 } = require('./liveScoreHandler');
-const { getLiveScoreData } = require('../azureStorageService');
-const { getSelectedBestTeam, resolveSelectedTeam } = require('../cache');
+const {
+  getLiveScoreData,
+  getLockedTeamsData,
+  listLockedMatchdays,
+} = require('../azureStorageService');
+const { resolveSelectedTeam, currentTeamCache } = require('../cache');
 const { sendErrorMessage } = require('../utils');
 
 jest.mock('../azureStorageService');
 jest.mock('../cache', () => ({
-  getSelectedBestTeam: jest.fn(),
   resolveSelectedTeam: jest.fn(),
+  currentTeamCache: {},
 }));
 jest.mock('../utils', () => ({
   formatDateTime: jest.fn().mockReturnValue({
@@ -56,17 +61,152 @@ describe('liveScoreHandler', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    Object.keys(currentTeamCache).forEach((k) => delete currentTeamCache[k]);
     resolveSelectedTeam.mockResolvedValue(teamId);
-    getSelectedBestTeam.mockReturnValue({
-      drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
-      constructors: ['FER', 'MER'],
-      boostDriver: 'HAM',
-    });
+    // Default cache fallback: a screenshot team (T1) under chat 123
+    currentTeamCache[chatId] = {
+      [teamId]: {
+        drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+        constructors: ['FER', 'MER'],
+        boost: 'HAM',
+      },
+    };
     getLiveScoreData.mockResolvedValue(liveScorePayload);
     sendErrorMessage.mockResolvedValue();
   });
 
-  it('sends live score breakdown', async () => {
+  // -------------------------------------------------------------------
+  // resolveLiveScoreTeam
+  // -------------------------------------------------------------------
+  describe('resolveLiveScoreTeam', () => {
+    it('returns the cache team for screenshot teams (T1)', async () => {
+      const team = await resolveLiveScoreTeam(chatId, 'T1');
+
+      expect(team).toEqual({
+        drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
+        constructors: ['FER', 'MER'],
+        boostDriver: 'HAM',
+        extraBoostDriver: null,
+        source: 'cache',
+        matchdayId: null,
+      });
+      expect(listLockedMatchdays).not.toHaveBeenCalled();
+    });
+
+    it('returns null when neither locked nor cache has the team', async () => {
+      delete currentTeamCache[chatId];
+
+      const team = await resolveLiveScoreTeam(chatId, 'T1');
+
+      expect(team).toBeNull();
+    });
+
+    it('prefers the locked snapshot for league teams', async () => {
+      const leagueTeamId = 'ABC_Cooperon';
+      currentTeamCache[chatId] = {
+        [leagueTeamId]: {
+          // Stale cache should be ignored when locked snapshot is present
+          drivers: ['STALE'],
+          constructors: ['STALE'],
+          boost: 'STALE',
+        },
+      };
+      listLockedMatchdays.mockResolvedValueOnce([3, 4]);
+      getLockedTeamsData.mockResolvedValueOnce({
+        leagueCode: 'ABC',
+        matchdayId: 4,
+        teams: [
+          {
+            teamName: 'Cooperon',
+            userName: 'u',
+            drivers: [
+              { name: 'M. Verstappen', isCaptain: true, isMegaCaptain: false },
+              { name: 'L. Hamilton', isCaptain: false, isMegaCaptain: false },
+            ],
+            constructors: [{ name: 'Ferrari' }],
+            chipsUsed: [],
+          },
+        ],
+      });
+
+      const team = await resolveLiveScoreTeam(chatId, leagueTeamId);
+
+      expect(listLockedMatchdays).toHaveBeenCalledWith('ABC');
+      expect(getLockedTeamsData).toHaveBeenCalledWith('ABC', 4);
+      expect(team.source).toBe('locked');
+      expect(team.matchdayId).toBe(4);
+      // Names map to codes via NAME_TO_CODE_MAPPING
+      expect(team.drivers).toEqual(['VER', 'HAM']);
+      expect(team.constructors).toEqual(['FER']);
+      expect(team.boostDriver).toBe('VER');
+      expect(team.extraBoostDriver).toBeNull();
+    });
+
+    it('captures isMegaCaptain as extraBoostDriver', async () => {
+      const leagueTeamId = 'ABC_Cooperon';
+      listLockedMatchdays.mockResolvedValueOnce([4]);
+      getLockedTeamsData.mockResolvedValueOnce({
+        leagueCode: 'ABC',
+        matchdayId: 4,
+        teams: [
+          {
+            teamName: 'Cooperon',
+            drivers: [
+              { name: 'M. Verstappen', isMegaCaptain: true },
+              { name: 'L. Hamilton', isCaptain: true },
+            ],
+            constructors: [],
+            chipsUsed: [],
+          },
+        ],
+      });
+
+      const team = await resolveLiveScoreTeam(chatId, leagueTeamId);
+
+      expect(team.boostDriver).toBe('HAM');
+      expect(team.extraBoostDriver).toBe('VER');
+    });
+
+    it('falls back to cache when locked snapshot has no matching team', async () => {
+      const leagueTeamId = 'ABC_Cooperon';
+      currentTeamCache[chatId] = {
+        [leagueTeamId]: {
+          drivers: ['VER'],
+          constructors: ['FER'],
+          boost: 'VER',
+        },
+      };
+      listLockedMatchdays.mockResolvedValueOnce([4]);
+      getLockedTeamsData.mockResolvedValueOnce({
+        matchdayId: 4,
+        teams: [{ teamName: 'OtherTeam', drivers: [], constructors: [] }],
+      });
+
+      const team = await resolveLiveScoreTeam(chatId, leagueTeamId);
+
+      expect(team.source).toBe('cache');
+      expect(team.drivers).toEqual(['VER']);
+    });
+
+    it('falls back to cache when locked-snapshot fetch throws', async () => {
+      const leagueTeamId = 'ABC_X';
+      currentTeamCache[chatId] = {
+        [leagueTeamId]: {
+          drivers: ['VER'], constructors: ['FER'], boost: 'VER',
+        },
+      };
+      listLockedMatchdays.mockRejectedValueOnce(new Error('boom'));
+
+      const team = await resolveLiveScoreTeam(chatId, leagueTeamId);
+
+      expect(team.source).toBe('cache');
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // handleLiveScoreCommand
+  // -------------------------------------------------------------------
+  it('sends live score breakdown for a screenshot team (cache source)', async () => {
     await handleLiveScoreCommand(mockBot, msg);
 
     expect(mockBot.sendMessage).toHaveBeenCalledWith(
@@ -74,13 +214,16 @@ describe('liveScoreHandler', () => {
       expect.stringContaining('<b>🏎️ Live Score Summary (T1)</b>'),
       { parse_mode: 'HTML' },
     );
-
+    expect(mockBot.sendMessage).toHaveBeenCalledWith(
+      chatId,
+      expect.stringContaining('<i>Source: current team</i>'),
+      { parse_mode: 'HTML' },
+    );
     expect(mockBot.sendMessage).toHaveBeenCalledWith(
       chatId,
       expect.stringContaining('<b>Total Live Points:</b> 116.00'),
       { parse_mode: 'HTML' },
     );
-
     expect(mockBot.sendMessage).toHaveBeenCalledWith(
       chatId,
       expect.stringContaining('<b>HAM (Boost x2) — 40 pts | Δ +0.2</b>'),
@@ -88,14 +231,55 @@ describe('liveScoreHandler', () => {
     );
   });
 
-  it('requires a persisted selected best team', async () => {
-    getSelectedBestTeam.mockReturnValue(null);
+  it('uses the locked snapshot for league teams and labels the source', async () => {
+    const leagueTeamId = 'ABC_Cooperon';
+    resolveSelectedTeam.mockResolvedValue(leagueTeamId);
+    listLockedMatchdays.mockResolvedValueOnce([4]);
+    getLockedTeamsData.mockResolvedValueOnce({
+      matchdayId: 4,
+      teams: [
+        {
+          teamName: 'Cooperon',
+          drivers: [
+            { name: 'M. Verstappen', isMegaCaptain: true },
+            { name: 'L. Hamilton', isCaptain: true },
+            { name: 'L. Norris' },
+            { name: 'C. Leclerc' },
+            { name: 'O. Piastri' },
+          ],
+          constructors: [{ name: 'Ferrari' }, { name: 'Mercedes' }],
+          chipsUsed: [{ name: 'Extra DRS Boost' }],
+        },
+      ],
+    });
 
     await handleLiveScoreCommand(mockBot, msg);
 
     expect(mockBot.sendMessage).toHaveBeenCalledWith(
       chatId,
-      'No selected best team found for T1. Please run /best_teams and send a number first.',
+      expect.stringContaining('<i>Source: locked snapshot · md 4</i>'),
+      { parse_mode: 'HTML' },
+    );
+    expect(mockBot.sendMessage).toHaveBeenCalledWith(
+      chatId,
+      expect.stringContaining('<b>VER (Extra Boost x3) — 30 pts | Δ +0.1</b>'),
+      { parse_mode: 'HTML' },
+    );
+    expect(mockBot.sendMessage).toHaveBeenCalledWith(
+      chatId,
+      expect.stringContaining('<b>HAM (Boost x2) — 40 pts | Δ +0.2</b>'),
+      { parse_mode: 'HTML' },
+    );
+  });
+
+  it('messages "no locked roster" when neither locked nor cache has the team', async () => {
+    delete currentTeamCache[chatId];
+
+    await handleLiveScoreCommand(mockBot, msg);
+
+    expect(mockBot.sendMessage).toHaveBeenCalledWith(
+      chatId,
+      expect.stringContaining('No locked roster is available yet for T1'),
     );
     expect(getLiveScoreData).not.toHaveBeenCalled();
   });
@@ -151,7 +335,6 @@ describe('liveScoreHandler', () => {
     expect(markdownPayload).not.toContain('Sprint:');
     expect(markdownPayload).not.toContain('PG 0');
     expect(markdownPayload).not.toContain('OV 0');
-    expect(markdownPayload).not.toContain('→');
   });
 
   it('handles errors', async () => {
@@ -175,6 +358,7 @@ describe('liveScoreHandler', () => {
         drivers: ['VER', 'MIS'],
         constructors: ['FER'],
         boostDriver: 'VER',
+        extraBoostDriver: null,
       },
       {
         drivers: {
@@ -189,28 +373,6 @@ describe('liveScoreHandler', () => {
     expect(result.totalPoints).toBe(50);
     expect(result.totalPriceChange).toBeCloseTo(0.6);
     expect(result.missingMembers).toEqual(['MIS']);
-  });
-
-  it('applies extra Boost as x3 total', async () => {
-    getSelectedBestTeam.mockReturnValue({
-      drivers: ['VER', 'HAM', 'NOR', 'LEC', 'PIA'],
-      constructors: ['FER', 'MER'],
-      boostDriver: 'HAM',
-      extraBoostDriver: 'VER',
-    });
-
-    await handleLiveScoreCommand(mockBot, msg);
-
-    expect(mockBot.sendMessage).toHaveBeenCalledWith(
-      chatId,
-      expect.stringContaining('<b>Total Live Points:</b> 136.00'),
-      { parse_mode: 'HTML' },
-    );
-    expect(mockBot.sendMessage).toHaveBeenCalledWith(
-      chatId,
-      expect.stringContaining('<b>VER (Extra Boost x3) — 30 pts | Δ +0.1</b>'),
-      { parse_mode: 'HTML' },
-    );
   });
 
   it('returns null for empty session after strict zero filtering', () => {

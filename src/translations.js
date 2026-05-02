@@ -467,6 +467,11 @@ const translations = {
     '🔄 League Changes': '🔄 שינויי ליגה',
     'Show what each league team changed between the last two race weekends':
       'הצג מה כל קבוצה בליגה שינתה בין שני סופי השבוע האחרונים',
+    'No locked roster is available yet for {TEAM}. Either upload a current-team screenshot or wait for the next race weekend lock.':
+      'אין עדיין הרכב נעול עבור {TEAM}. העלה צילום מסך של הקבוצה הנוכחית או חכה לנעילה של סוף השבוע הבא.',
+    Source: 'מקור',
+    'locked snapshot · md {MD}': 'הרכב נעול · סבב {MD}',
+    'current team': 'קבוצה נוכחית',
     'Which league changes do you want to see?':
       'שינויים של איזו ליגה ברצונך לראות?',
     'No locked-roster snapshots are available yet for this league. Wait until the next race weekend.':
