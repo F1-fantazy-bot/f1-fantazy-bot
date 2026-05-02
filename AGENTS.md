@@ -62,7 +62,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/get_current_simulation`
 - `/load_simulation`
 - `/menu`, `/help`, `/lang`, `/whats_new`
-- `/follow_league`, `/unfollow_league`, `/teams_tracker`, `/leaderboard`, `/league_graphs`
+- `/follow_league`, `/unfollow_league`, `/teams_tracker`, `/leaderboard`, `/league_graphs`, `/league_changes`
 - `/report_bug` _(reply-based — uses pending reply manager)_
 
 **Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/upload_drivers_photo`, `/upload_constructors_photo`
@@ -295,6 +295,7 @@ The table is **extensible** — new attributes can be added at any time without 
 
 - `leagues/{leagueCode}/league-standings.json` — header + `teams: [{ teamName, userName, position, totalScore, raceScores, raceBudgets, chipsUsed }]`. Used by `/leaderboard` and `/league_graphs`.
 - `leagues/{leagueCode}/teams-data.json` — header + `teams: [{ teamName, userName, position, budget, transfersRemaining, drivers, constructors }]` where each roster entry is `{ id, name, price, isCaptain, isMegaCaptain, isFinal }`. Used by `/teams_tracker` to load/manage followed team rosters from the league directly into the bot's cache.
+- `leagues/{leagueCode}/locked/matchday_{N}.json` — one blob per locked matchday written by the upstream `MODE=locked` scrape (fires ~1 minute after each session start: qualifying, race, and on sprint weekends the sprint race). Same per-team shape as `teams-data.json` plus a top-level `mode: 'locked'` discriminator and per-team `chipsUsed: [{ name, gameDayId }]`. Used by `/league_changes` (and, after Phase 4, `/live_score`).
 
 ### How It Works
 
@@ -326,6 +327,8 @@ The table is **extensible** — new attributes can be added at any time without 
 
    Chart rendering is delegated to [`quickchart-js`](https://quickchart.io) — each handler builds a Chart.js config, calls `chart.getShortUrl()`, and sends the URL via `bot.sendPhoto` (Telegram fetches the PNG itself, no native `canvas` dep). X-axis labels use the short race name (e.g. `Chinese GP`) — `matchday_N` is mapped to round `N` in the current Jolpica/Ergast season schedule (`fetchCurrentSeasonRaces`) and `raceName` is shortened (`Grand Prix` → `GP`); falls back to `R{N}` if the mapping can't be resolved. Chip → emoji mapping lives in `src/utils/chipEmojis.js`. The shared color palette and `buildRoundToRaceNameMap`/`matchdayNumber`/`getSortedMatchdayKeys` helpers are exported from `leagueGraphHandler.js` and reused by `leagueBudgetGraphHandler.js` and `leagueStandingsGraphHandler.js`.
 
+8. `/league_changes` (`src/commandsHandler/leagueChangesHandler.js`) renders a per-team diff between the **two latest locked snapshots** in `leagues/{code}/locked/`. Same 0/1/N league-selection flow as `/leaderboard` (callback type `LEAGUE_CHANGES_CALLBACK_TYPE`). For each team in the latest snapshot it joins on `userName` against the previous snapshot and emits lines for: drivers in/out, constructors in/out, captain change, mega-captain change, and any chip newly present in the latest `chipsUsed` (set difference). Teams with no diff are summarised in a `(N other team(s) had no changes)` tail line; brand-new teams are shown as `🆕 new team`. The latest matchday's roster is the **locked** one (Limitless mega-squad preserved), since the locked-snapshot scrape captures the state before Limitless auto-reverts post-race.
+
 The leaderboard is rendered compactly (position, team name, total score) with a header showing league name, member count, and fetch time. Teams from the blob are already sorted by `position`.
 
 ### Table Schema
@@ -347,6 +350,8 @@ The leaderboard is rendered compactly (position, team name, total score) with a 
 | `getUserLeague`    | `getUserLeague(chatId, leagueCode) → Promise<Object\|null>`                        | Point lookup for a specific league follow.                                                          |
 | `getLeagueData`       | `getLeagueData(leagueCode) → Promise<Object\|null>`                                | (in `azureStorageService.js`) Fetches `leagues/{code}/league-standings.json`. Returns `null` when the blob does not exist. |
 | `getLeagueTeamsData`  | `getLeagueTeamsData(leagueCode) → Promise<Object\|null>`                           | (in `azureStorageService.js`) Fetches `leagues/{code}/teams-data.json` (per-team budget, transfers, roster). Returns `null` when the blob does not exist. |
+| `listLockedMatchdays` | `listLockedMatchdays(leagueCode) → Promise<number[]>`                              | (in `azureStorageService.js`) Lists numeric matchday IDs under `leagues/{code}/locked/`. Sorted ascending. Empty array when no locked snapshot exists yet. |
+| `getLockedTeamsData`  | `getLockedTeamsData(leagueCode, matchdayId?) → Promise<Object\|null>`              | (in `azureStorageService.js`) Fetches `leagues/{code}/locked/matchday_{N}.json`. When `matchdayId` is omitted, auto-resolves to the latest available. Returns `null` when no snapshot exists. |
 
 ---
 

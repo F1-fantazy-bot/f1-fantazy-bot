@@ -35,6 +35,7 @@ exports.LEAGUE_CALLBACK_TYPE = 'LEAGUE';
 exports.LEAGUE_UNFOLLOW_CALLBACK_TYPE = 'LEAGUE_UNFOLLOW';
 exports.LEAGUE_GRAPH_CALLBACK_TYPE = 'LEAGUE_GRAPH';
 exports.LEAGUE_GRAPH_TYPE_CALLBACK_TYPE = 'LEAGUE_GRAPH_TYPE';
+exports.LEAGUE_CHANGES_CALLBACK_TYPE = 'LEAGUE_CHANGES';
 exports.LEAGUE_GRAPH_TYPES = {
   GAP: 'gap',
   BUDGET: 'budget',
@@ -98,6 +99,7 @@ exports.COMMAND_UNFOLLOW_LEAGUE = '/unfollow_league';
 exports.COMMAND_LEADERBOARD = '/leaderboard';
 exports.COMMAND_TEAMS_TRACKER = '/teams_tracker';
 exports.COMMAND_LEAGUE_GRAPHS = '/league_graphs';
+exports.COMMAND_LEAGUE_CHANGES = '/league_changes';
 exports.COMMAND_WHATS_NEW = '/whats_new';
 
 // Menu configuration for interactive menu command
@@ -332,6 +334,12 @@ exports.MENU_CATEGORIES = {
         title: '📊 Graphs',
         description:
           'Show league graphs: gap to leader, standings, or budget per race',
+      },
+      {
+        constant: exports.COMMAND_LEAGUE_CHANGES,
+        title: '🔄 League Changes',
+        description:
+          'Show what each league team changed between the last two race weekends',
       },
     ],
   },

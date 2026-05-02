@@ -464,6 +464,25 @@ const translations = {
     '🏆 Leaderboard': '🏆 טבלת ליגה',
     'View the leaderboard of a followed league':
       'צפה בטבלה של ליגה שאתה עוקב אחריה',
+    '🔄 League Changes': '🔄 שינויי ליגה',
+    'Show what each league team changed between the last two race weekends':
+      'הצג מה כל קבוצה בליגה שינתה בין שני סופי השבוע האחרונים',
+    'Which league changes do you want to see?':
+      'שינויים של איזו ליגה ברצונך לראות?',
+    'No locked-roster snapshots are available yet for this league. Wait until the next race weekend.':
+      'אין עדיין צילומי הרכב נעולים עבור הליגה הזו. נסה שוב אחרי סוף השבוע הבא.',
+    'Only one locked snapshot is available so far (matchday {MD}). At least two are needed to show changes.':
+      'יש רק צילום הרכב נעול אחד (סבב {MD}). דרושים לפחות שניים כדי להציג שינויים.',
+    '🔄 {LEAGUE} — matchday {PREV} → {LATEST}':
+      '🔄 {LEAGUE} — סבב {PREV} → {LATEST}',
+    '↪ Captain: {FROM} → {TO}': '↪ קפטן: {FROM} → {TO}',
+    '↪ Mega captain: {FROM} → {TO}': '↪ מגה קפטן: {FROM} → {TO}',
+    '↪ Chip: {CHIP}': "↪ צ'יפ: {CHIP}",
+    '🆕 new team': '🆕 קבוצה חדשה',
+    'No team changes between matchday {PREV} and {LATEST}.':
+      'אין שינויי קבוצות בין סבב {PREV} ל-{LATEST}.',
+    '({COUNT} other team(s) had no changes)':
+      '({COUNT} קבוצות נוספות ללא שינוי)',
     '🏁 League Management': '🏁 ניהול ליגות',
     'Follow and view F1 Fantasy leagues':
       'עקוב וצפה בליגות F1 Fantasy',
