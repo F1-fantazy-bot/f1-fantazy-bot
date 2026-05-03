@@ -26,6 +26,7 @@ const {
   LEAGUE_GRAPH_TYPE_CALLBACK_TYPE,
   LEAGUE_GRAPH_TYPES,
   LEAGUE_CHANGES_CALLBACK_TYPE,
+  LIVE_SCORE_CALLBACK_TYPE,
 } = require('./constants');
 
 const {
@@ -50,6 +51,9 @@ const {
 const {
   sendLeagueChanges,
 } = require('./commandsHandler/leagueChangesHandler');
+const {
+  handleLiveScoreCallback,
+} = require('./commandsHandler/liveScoreHandler');
 const {
   sendLeagueGraph,
   sendGraphTypePicker,
@@ -95,6 +99,8 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handleLeagueGraphTypeCallback(bot, query);
     case LEAGUE_CHANGES_CALLBACK_TYPE:
       return await handleLeagueChangesCallback(bot, query);
+    case LIVE_SCORE_CALLBACK_TYPE:
+      return await handleLiveScoreCallback(bot, query);
     default:
       await sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
   }

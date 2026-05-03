@@ -1,108 +1,50 @@
 const {
   getLiveScoreData,
   getLockedTeamsData,
-  listLockedMatchdays,
 } = require('../azureStorageService');
-const { currentTeamCache, resolveSelectedTeam } = require('../cache');
-const {
-  extractLeagueCode,
-  mapNameToCode,
-} = require('../utils/leagueTeamHelpers');
-const { sanitizeTeamName } = require('../utils/teamId');
+const { listUserLeagues } = require('../leagueRegistryService');
+const { getSelectedTeam } = require('../cache');
+const { mapNameToCode } = require('../utils/leagueTeamHelpers');
+const { sanitizeTeamName, buildTeamId } = require('../utils/teamId');
 const { t } = require('../i18n');
 const { formatDateTime, sendErrorMessage } = require('../utils');
+const {
+  COMMAND_FOLLOW_LEAGUE,
+  LIVE_SCORE_CALLBACK_TYPE,
+  LIVE_SCORE_ACTIONS,
+} = require('../constants');
 
 const SESSION_METRICS = ['POS', 'PG', 'OV', 'FL', 'DD', 'TW', 'FP'];
 const SESSION_ORDER = ['Sprint', 'Qualifying', 'Race'];
 
-/**
- * Resolve the user's real team for live scoring.
- *
- * Priority:
- *   1. League team → fetch the latest `leagues/{code}/locked/matchday_{N}.json`
- *      snapshot and read the **locked** roster (Limitless mega-squad +
- *      `isCaptain` / `isMegaCaptain` flags preserved). Source = 'locked'.
- *   2. Otherwise (screenshot team or league team without a locked snapshot
- *      yet) → use `currentTeamCache[chatId][teamId]`. Source = 'cache'.
- *
- * Returns `null` when no source has the team (e.g. user uploaded nothing
- * and no locked snapshot exists yet).
- *
- * @param {string|number} chatId
- * @param {string} teamId
- * @returns {Promise<{drivers: string[], constructors: string[],
- *   boostDriver: string|null, extraBoostDriver: string|null,
- *   source: 'locked'|'cache', matchdayId: number|null}|null>}
- */
-async function _lookupLockedTeam(leagueCode, sanitizedSlug) {
-  const matchdayIds = await listLockedMatchdays(leagueCode);
-  if (matchdayIds.length === 0) {
-    return null;
-  }
-
-  const latestMd = matchdayIds[matchdayIds.length - 1];
-  const snapshot = await getLockedTeamsData(leagueCode, latestMd);
-  if (!snapshot || !Array.isArray(snapshot.teams)) {
-    return null;
-  }
-
-  const match = snapshot.teams.find(
-    (team) => sanitizeTeamName(team.teamName) === sanitizedSlug,
-  );
-  if (!match) {
-    return null;
-  }
-
-  const driverEntries = Array.isArray(match.drivers) ? match.drivers : [];
-  const constructorEntries = Array.isArray(match.constructors)
-    ? match.constructors
-    : [];
-  const captain = driverEntries.find((d) => d?.isCaptain);
-  const megaCaptain = driverEntries.find((d) => d?.isMegaCaptain);
-
-  return {
-    drivers: driverEntries.map((d) => mapNameToCode(d.name)),
-    constructors: constructorEntries.map((c) => mapNameToCode(c.name)),
-    boostDriver: captain ? mapNameToCode(captain.name) : null,
-    extraBoostDriver: megaCaptain ? mapNameToCode(megaCaptain.name) : null,
-    source: 'locked',
-    matchdayId: snapshot.matchdayId ?? latestMd,
-  };
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
-async function resolveLiveScoreTeam(chatId, teamId) {
-  const leagueCode = extractLeagueCode(teamId);
-  if (leagueCode) {
-    const sanitizedSlug = teamId.slice(leagueCode.length + 1);
-    try {
-      const locked = await _lookupLockedTeam(leagueCode, sanitizedSlug);
-      if (locked) {
-        return locked;
-      }
-    } catch (err) {
-      // Best-effort: fall through to currentTeamCache when the locked
-      // snapshot path fails (missing blob, network, etc.). The caller
-      // surfaces a user-facing error only if BOTH paths fail.
-      console.error(
-        `Locked-snapshot lookup failed for ${leagueCode}/${teamId}:`,
-        err,
-      );
-    }
-  }
+/**
+ * Map a single locked-snapshot team entry to the `{drivers, constructors,
+ * boostDriver, extraBoostDriver}` shape consumed by
+ * `calculateLiveScoreBreakdown`. Names are mapped to bot codes via
+ * `mapNameToCode`; captain / mega-captain are identified by the
+ * per-driver `isCaptain` / `isMegaCaptain` flags.
+ */
+function mapLockedTeamForScoring(lockedTeam) {
+  const drivers = Array.isArray(lockedTeam?.drivers) ? lockedTeam.drivers : [];
+  const constructors = Array.isArray(lockedTeam?.constructors)
+    ? lockedTeam.constructors
+    : [];
+  const captain = drivers.find((d) => d?.isCaptain);
+  const megaCaptain = drivers.find((d) => d?.isMegaCaptain);
 
-  const cached = currentTeamCache[chatId]?.[teamId];
-  if (cached) {
-    return {
-      drivers: Array.isArray(cached.drivers) ? cached.drivers : [],
-      constructors: Array.isArray(cached.constructors) ? cached.constructors : [],
-      boostDriver: cached.boost ?? null,
-      extraBoostDriver: null,
-      source: 'cache',
-      matchdayId: null,
-    };
-  }
-
-  return null;
+  return {
+    drivers: drivers.map((d) => mapNameToCode(d.name)),
+    constructors: constructors.map((c) => mapNameToCode(c.name)),
+    boostDriver: captain ? mapNameToCode(captain.name) : null,
+    extraBoostDriver: megaCaptain ? mapNameToCode(megaCaptain.name) : null,
+  };
 }
 
 function formatSignedDelta(value) {
@@ -234,94 +176,370 @@ function calculateLiveScoreBreakdown(realTeam, liveScoreData) {
   };
 }
 
-async function handleLiveScoreCommand(bot, msg) {
-  const chatId = msg.chat.id;
+function callbackData(action, ...payload) {
+  return [LIVE_SCORE_CALLBACK_TYPE, action, ...payload].join(':');
+}
 
-  const teamId = await resolveSelectedTeam(bot, chatId);
-  if (!teamId) {
+function formatLiveScoreSummary({
+  leagueName,
+  matchdayId,
+  teamName,
+  liveScoreData,
+  breakdown,
+  chatId,
+}) {
+  const { totalPoints, totalPriceChange, driverBreakdown, constructorBreakdown, missingMembers } = breakdown;
+
+  const extractedAt = new Date(liveScoreData.extractedAt);
+  let formattedUpdate = String(liveScoreData.extractedAt || '-');
+  if (!Number.isNaN(extractedAt.getTime())) {
+    const { dateStr, timeStr } = formatDateTime(extractedAt, chatId);
+    formattedUpdate = `${dateStr}, ${timeStr}`;
+  }
+
+  const headerLeague = escapeHtml(leagueName);
+  const headerTeam = escapeHtml(teamName);
+  const messageParts = [
+    `<b>🏎️ ${t('Live Score', chatId)} — ${headerLeague} — ${t('md {N}', chatId, { N: matchdayId ?? '?' })} — ${headerTeam}</b>`,
+    `<b>${t('Updated At', chatId)}:</b> ${formattedUpdate}`,
+    `<b>${t('Total Live Points', chatId)}:</b> ${totalPoints.toFixed(2)}`,
+    `<b>${t('Total Live Price Change', chatId)}:</b> ${totalPriceChange.toFixed(2)}`,
+    '',
+    `<b>👤 ${t('Live Drivers', chatId)}</b>`,
+    joinMembersWithEmptyLine(driverBreakdown, chatId),
+    '',
+    '',
+    `<b>🛠️ ${t('Live Constructors', chatId)}</b>`,
+    joinMembersWithEmptyLine(constructorBreakdown, chatId),
+  ];
+
+  if (missingMembers.length > 0) {
+    messageParts.push(
+      '',
+      `⚠️ ${t('Missing live data for: {MEMBERS}', chatId, {
+        MEMBERS: missingMembers.join(', '),
+      })}`,
+    );
+  }
+
+  return messageParts.join('\n');
+}
+
+function formatAllTeamsLeaderboard({
+  leagueName,
+  leagueCode,
+  matchdayId,
+  rows,
+  liveScoreData,
+  chatId,
+  selectedTeamId,
+}) {
+  const extractedAt = new Date(liveScoreData.extractedAt);
+  let formattedUpdate = String(liveScoreData.extractedAt || '-');
+  if (!Number.isNaN(extractedAt.getTime())) {
+    const { dateStr, timeStr } = formatDateTime(extractedAt, chatId);
+    formattedUpdate = `${dateStr}, ${timeStr}`;
+  }
+
+  const allTeamsLabel = t('All teams', chatId);
+  const header = `<b>🏎️ ${t('Live Score', chatId)} — ${escapeHtml(leagueName)} — ${t('md {N}', chatId, { N: matchdayId ?? '?' })} — ${escapeHtml(allTeamsLabel)}</b>`;
+  const updatedLine = `<b>${t('Updated At', chatId)}:</b> ${formattedUpdate}`;
+
+  if (rows.length === 0) {
+    return [
+      header,
+      updatedLine,
+      '',
+      t('No teams in this league yet.', chatId),
+    ].join('\n');
+  }
+
+  const maxRank = rows.length;
+  const rankWidth = String(maxRank).length;
+
+  const lines = rows.map((row, idx) => {
+    const rank = String(idx + 1).padStart(rankWidth, ' ');
+    const teamId = buildTeamId(leagueCode, row.teamName || row.userName || 'team');
+    const isSelected = selectedTeamId && selectedTeamId === teamId;
+    const text = ` ${rank}. ${escapeHtml(row.teamName || row.userName || '—')} — ${row.totalPoints.toFixed(2)} ${t('pts', chatId)} | Δ ${formatSignedDelta(row.totalPriceChange.toFixed(2))}`;
+
+    return isSelected ? `<b>${text}</b>` : text;
+  });
+
+  return [header, updatedLine, '', ...lines].join('\n');
+}
+
+async function sendTeamPicker(bot, chatId, leagueCode, msg) {
+  let snapshot;
+  try {
+    snapshot = await getLockedTeamsData(leagueCode);
+  } catch (err) {
+    console.error('Error fetching locked snapshot for team picker:', err);
+    await bot.sendMessage(
+      chatId,
+      t('❌ Failed to load league data: {ERROR}', chatId, { ERROR: err.message }),
+    );
+
     return;
   }
 
-  const realTeam = await resolveLiveScoreTeam(chatId, teamId);
-  if (!realTeam) {
+  if (!snapshot || !Array.isArray(snapshot.teams) || snapshot.teams.length === 0) {
     await bot.sendMessage(
       chatId,
       t(
-        'No locked roster is available yet for {TEAM}. Either upload a current-team screenshot or wait for the next race weekend lock.',
+        'No locked roster is available yet for this league. Wait for the next session lock.',
         chatId,
-        { TEAM: teamId },
       ),
     );
 
     return;
   }
 
+  const teams = [...snapshot.teams].sort(
+    (a, b) => (a.position || Infinity) - (b.position || Infinity),
+  );
+
+  const allTeamsButton = [
+    {
+      text: `🏁 ${t('All teams', chatId)}`,
+      callback_data: callbackData(LIVE_SCORE_ACTIONS.ALL, leagueCode),
+    },
+  ];
+  const teamButtons = teams.map((team) => [
+    {
+      text: `${team.position ?? '?'}. ${team.teamName || team.userName || '—'}`,
+      callback_data: callbackData(
+        LIVE_SCORE_ACTIONS.TEAM,
+        leagueCode,
+        sanitizeTeamName(team.teamName || team.userName || 'team'),
+      ),
+    },
+  ]);
+
+  await bot.sendMessage(
+    chatId,
+    t("Which team's live score do you want to see?", chatId),
+    {
+      reply_to_message_id: msg?.message_id,
+      reply_markup: { inline_keyboard: [allTeamsButton, ...teamButtons] },
+    },
+  );
+}
+
+async function sendLiveScoreForTeam(bot, chatId, leagueCode, slug) {
+  let snapshot;
+  let liveScoreData;
   try {
-    const liveScoreData = await getLiveScoreData();
-    const {
-      totalPoints,
-      totalPriceChange,
-      driverBreakdown,
-      constructorBreakdown,
-      missingMembers,
-    } = calculateLiveScoreBreakdown(realTeam, liveScoreData);
-
-    const extractedAt = new Date(liveScoreData.extractedAt);
-    let formattedUpdate = String(liveScoreData.extractedAt || '-');
-    if (!Number.isNaN(extractedAt.getTime())) {
-      const { dateStr, timeStr } = formatDateTime(extractedAt, chatId);
-      formattedUpdate = `${dateStr}, ${timeStr}`;
-    }
-
-    const sourceLabel =
-      realTeam.source === 'locked'
-        ? t('locked snapshot · md {MD}', chatId, { MD: realTeam.matchdayId })
-        : t('current team', chatId);
-
-    const messageParts = [
-      `<b>🏎️ ${t('Live Score Summary', chatId)} (${teamId})</b>`,
-      `<i>${t('Source', chatId)}: ${sourceLabel}</i>`,
-      `<b>${t('Updated At', chatId)}:</b> ${formattedUpdate}`,
-      `<b>${t('Total Live Points', chatId)}:</b> ${totalPoints.toFixed(2)}`,
-      `<b>${t('Total Live Price Change', chatId)}:</b> ${totalPriceChange.toFixed(2)}`,
-      '',
-      `<b>👤 ${t('Live Drivers', chatId)}</b>`,
-      joinMembersWithEmptyLine(driverBreakdown, chatId),
-      '',
-      '',
-      `<b>🛠️ ${t('Live Constructors', chatId)}</b>`,
-      joinMembersWithEmptyLine(constructorBreakdown, chatId),
-    ];
-
-    if (missingMembers.length > 0) {
-      messageParts.push(
-        '',
-        `⚠️ ${t('Missing live data for: {MEMBERS}', chatId, {
-          MEMBERS: missingMembers.join(', '),
-        })}`,
-      );
-    }
-
-    const message = messageParts.join('\n');
-
-    await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+    [snapshot, liveScoreData] = await Promise.all([
+      getLockedTeamsData(leagueCode),
+      getLiveScoreData(),
+    ]);
   } catch (error) {
-    console.error('Error in handleLiveScoreCommand:', error);
+    console.error('Error fetching live score data:', error);
     await sendErrorMessage(bot, `Error fetching live score: ${error.message}`);
-
     await bot.sendMessage(
       chatId,
-      t('❌ Error fetching live score: {ERROR}', chatId, {
-        ERROR: error.message,
+      t('❌ Error fetching live score: {ERROR}', chatId, { ERROR: error.message }),
+    );
+
+    return;
+  }
+
+  if (!snapshot || !Array.isArray(snapshot.teams)) {
+    await bot.sendMessage(
+      chatId,
+      t(
+        'No locked roster is available yet for this league. Wait for the next session lock.',
+        chatId,
+      ),
+    );
+
+    return;
+  }
+
+  const match = snapshot.teams.find(
+    (team) => sanitizeTeamName(team.teamName || team.userName || 'team') === slug,
+  );
+  if (!match) {
+    await bot.sendMessage(
+      chatId,
+      t('Team {TEAM} not found in the latest locked snapshot.', chatId, {
+        TEAM: slug,
       }),
     );
+
+    return;
+  }
+
+  const realTeam = mapLockedTeamForScoring(match);
+  const breakdown = calculateLiveScoreBreakdown(realTeam, liveScoreData);
+  const message = formatLiveScoreSummary({
+    leagueName: snapshot.leagueName || leagueCode,
+    matchdayId: snapshot.matchdayId,
+    teamName: match.teamName || match.userName || '—',
+    liveScoreData,
+    breakdown,
+    chatId,
+  });
+
+  await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+}
+
+async function sendLiveScoreForAllTeams(bot, chatId, leagueCode) {
+  let snapshot;
+  let liveScoreData;
+  try {
+    [snapshot, liveScoreData] = await Promise.all([
+      getLockedTeamsData(leagueCode),
+      getLiveScoreData(),
+    ]);
+  } catch (error) {
+    console.error('Error fetching all-teams live score:', error);
+    await sendErrorMessage(bot, `Error fetching live score: ${error.message}`);
+    await bot.sendMessage(
+      chatId,
+      t('❌ Error fetching live score: {ERROR}', chatId, { ERROR: error.message }),
+    );
+
+    return;
+  }
+
+  if (!snapshot || !Array.isArray(snapshot.teams)) {
+    await bot.sendMessage(
+      chatId,
+      t(
+        'No locked roster is available yet for this league. Wait for the next session lock.',
+        chatId,
+      ),
+    );
+
+    return;
+  }
+
+  const rows = snapshot.teams.map((team) => {
+    const realTeam = mapLockedTeamForScoring(team);
+    const { totalPoints, totalPriceChange } = calculateLiveScoreBreakdown(
+      realTeam,
+      liveScoreData,
+    );
+
+    return {
+      teamName: team.teamName,
+      userName: team.userName,
+      position: team.position,
+      totalPoints,
+      totalPriceChange,
+    };
+  });
+
+  rows.sort((a, b) => {
+    if (b.totalPoints !== a.totalPoints) {
+      return b.totalPoints - a.totalPoints;
+    }
+
+    return b.totalPriceChange - a.totalPriceChange;
+  });
+
+  const message = formatAllTeamsLeaderboard({
+    leagueName: snapshot.leagueName || leagueCode,
+    leagueCode,
+    matchdayId: snapshot.matchdayId,
+    rows,
+    liveScoreData,
+    chatId,
+    selectedTeamId: getSelectedTeam(chatId),
+  });
+
+  await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+}
+
+async function handleLiveScoreCommand(bot, msg) {
+  const chatId = msg.chat.id;
+
+  let leagues;
+  try {
+    leagues = await listUserLeagues(chatId);
+  } catch (err) {
+    console.error('Error listing user leagues:', err);
+    await bot.sendMessage(
+      chatId,
+      t('❌ Failed to load your leagues: {ERROR}', chatId, { ERROR: err.message }),
+    );
+
+    return;
+  }
+
+  if (!leagues || leagues.length === 0) {
+    await bot.sendMessage(
+      chatId,
+      t(
+        'You are not following any league. Run {CMD} to follow one first.',
+        chatId,
+        { CMD: COMMAND_FOLLOW_LEAGUE },
+      ),
+    );
+
+    return;
+  }
+
+  if (leagues.length === 1) {
+    await sendTeamPicker(bot, chatId, leagues[0].leagueCode, msg);
+
+    return;
+  }
+
+  const keyboard = leagues.map((league) => [
+    {
+      text: league.leagueName || league.leagueCode,
+      callback_data: callbackData(LIVE_SCORE_ACTIONS.LEAGUE, league.leagueCode),
+    },
+  ]);
+
+  await bot.sendMessage(
+    chatId,
+    t('Which league live score do you want to see?', chatId),
+    {
+      reply_to_message_id: msg.message_id,
+      reply_markup: { inline_keyboard: keyboard },
+    },
+  );
+}
+
+async function handleLiveScoreCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const parts = (query.data || '').split(':');
+  // parts[0] = LIVE_SCORE_CALLBACK_TYPE
+  const action = parts[1];
+  const leagueCode = parts[2];
+
+  try {
+    if (action === LIVE_SCORE_ACTIONS.LEAGUE) {
+      await sendTeamPicker(bot, chatId, leagueCode, query.message);
+    } else if (action === LIVE_SCORE_ACTIONS.TEAM) {
+      const slug = parts.slice(3).join(':');
+      await sendLiveScoreForTeam(bot, chatId, leagueCode, slug);
+    } else if (action === LIVE_SCORE_ACTIONS.ALL) {
+      await sendLiveScoreForAllTeams(bot, chatId, leagueCode);
+    }
+  } finally {
+    try {
+      await bot.answerCallbackQuery(query.id);
+    } catch (err) {
+      console.error('Error answering live-score callback:', err);
+    }
   }
 }
 
 module.exports = {
   handleLiveScoreCommand,
+  handleLiveScoreCallback,
   calculateLiveScoreBreakdown,
   formatMemberLine,
   formatSessionBreakdown,
-  resolveLiveScoreTeam,
+  formatLiveScoreSummary,
+  formatAllTeamsLeaderboard,
+  mapLockedTeamForScoring,
+  sendTeamPicker,
+  sendLiveScoreForTeam,
+  sendLiveScoreForAllTeams,
 };

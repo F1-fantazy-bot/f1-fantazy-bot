@@ -36,6 +36,14 @@ exports.LEAGUE_UNFOLLOW_CALLBACK_TYPE = 'LEAGUE_UNFOLLOW';
 exports.LEAGUE_GRAPH_CALLBACK_TYPE = 'LEAGUE_GRAPH';
 exports.LEAGUE_GRAPH_TYPE_CALLBACK_TYPE = 'LEAGUE_GRAPH_TYPE';
 exports.LEAGUE_CHANGES_CALLBACK_TYPE = 'LEAGUE_CHANGES';
+// Kept short (2 chars) so the callback data `LS:T:{leagueCode}:{slug}`
+// stays under Telegram's 64-byte callback_data limit.
+exports.LIVE_SCORE_CALLBACK_TYPE = 'LS';
+exports.LIVE_SCORE_ACTIONS = {
+  LEAGUE: 'L',
+  TEAM: 'T',
+  ALL: 'A',
+};
 exports.LEAGUE_GRAPH_TYPES = {
   GAP: 'gap',
   BUDGET: 'budget',
