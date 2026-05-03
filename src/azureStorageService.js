@@ -453,6 +453,99 @@ async function getLeagueTeamsData(leagueCode) {
 }
 
 /**
+ * List the matchday IDs for which a locked-roster snapshot exists for a given
+ * league. Locked snapshots live at
+ *   leagues/{leagueCode}/locked/matchday_{N}.json
+ * and are written by the upstream f1-fantasy-api-data repo's MODE=locked
+ * scrape. Returns an ascending-sorted array of numeric matchday IDs, or an
+ * empty array when no locked snapshot exists yet (e.g. before the first
+ * post-quali scrape of the season).
+ * @param {string} leagueCode
+ * @returns {Promise<number[]>}
+ * @throws {Error} If the listing fails for reasons other than empty prefix.
+ */
+async function listLockedMatchdays(leagueCode) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const prefix = `leagues/${leagueCode}/locked/`;
+    const matchdayIds = [];
+
+    for await (const blob of containerClient.listBlobsFlat({ prefix })) {
+      const fileName = blob.name.substring(prefix.length);
+      const match = /^matchday_(\d+)\.json$/.exec(fileName);
+      if (!match) {
+        continue;
+      }
+      const id = Number(match[1]);
+      if (Number.isFinite(id)) {
+        matchdayIds.push(id);
+      }
+    }
+
+    matchdayIds.sort((a, b) => a - b);
+
+    return matchdayIds;
+  } catch (error) {
+    throw new Error(
+      `Failed to list locked matchdays for ${leagueCode}: ${error.message}`,
+    );
+  }
+}
+
+/**
+ * Get a locked-roster snapshot for a given league + matchday from Azure Blob
+ * Storage. Blob path:
+ *   leagues/{leagueCode}/locked/matchday_{matchdayId}.json
+ *
+ * When `matchdayId` is omitted, the latest available locked matchday is
+ * resolved via {@link listLockedMatchdays}. Returns `null` when no locked
+ * snapshot exists for the requested league (or matchday).
+ *
+ * @param {string} leagueCode
+ * @param {number|string} [matchdayId]
+ * @returns {Promise<Object|null>}
+ * @throws {Error} If the blob exists but cannot be retrieved/parsed.
+ */
+async function getLockedTeamsData(leagueCode, matchdayId) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    let resolvedMatchdayId = matchdayId;
+    if (resolvedMatchdayId === undefined || resolvedMatchdayId === null) {
+      const ids = await listLockedMatchdays(leagueCode);
+      if (ids.length === 0) {
+        return null;
+      }
+      resolvedMatchdayId = ids[ids.length - 1];
+    }
+
+    const blobName = `leagues/${leagueCode}/locked/matchday_${resolvedMatchdayId}.json`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const exists = await blockBlobClient.exists();
+    if (!exists) {
+      return null;
+    }
+
+    const downloadResponse = await blockBlobClient.download();
+    const jsonString = await streamToString(
+      downloadResponse.readableStreamBody,
+    );
+
+    return JSON.parse(jsonString);
+  } catch (error) {
+    throw new Error(
+      `Failed to get locked teams data for ${leagueCode}${matchdayId !== undefined && matchdayId !== null ? ` matchday ${matchdayId}` : ''}: ${error.message}`,
+    );
+  }
+}
+
+/**
  * Save a Teams-Tracker staging session for a user.
  * Allows the multi-step inline-keyboard flow to survive across servers.
  * @param {string|number} chatId
@@ -547,4 +640,6 @@ module.exports = {
   deleteTeamsTrackerSession,
   getLeagueData,
   getLeagueTeamsData,
+  listLockedMatchdays,
+  getLockedTeamsData,
 };
