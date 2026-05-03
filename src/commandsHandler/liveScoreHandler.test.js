@@ -2,6 +2,7 @@ const {
   handleLiveScoreCommand,
   handleLiveScoreCallback,
   calculateLiveScoreBreakdown,
+  deriveLiveScoreOptions,
   formatSessionBreakdown,
   formatLiveScoreSummary,
   formatAllTeamsLeaderboard,
@@ -80,6 +81,8 @@ describe('liveScoreHandler', () => {
         userName: 'Ron Cooper',
         position: 1,
         matchdayId: 4,
+        transfersRemaining: 0,
+        chipsUsed: [],
         drivers: [
           { name: 'M. Verstappen', isCaptain: false, isMegaCaptain: false },
           { name: 'L. Hamilton', isCaptain: true, isMegaCaptain: false },
@@ -94,6 +97,8 @@ describe('liveScoreHandler', () => {
         userName: 'Raviv',
         position: 2,
         matchdayId: 4,
+        transfersRemaining: 1,
+        chipsUsed: [{ name: 'Limitless', gameDayId: 2 }], // historical, no waiver this md
         drivers: [
           { name: 'M. Verstappen', isMegaCaptain: true },
           { name: 'L. Hamilton', isCaptain: false },
@@ -108,6 +113,8 @@ describe('liveScoreHandler', () => {
         userName: 'no-points-user',
         position: 3,
         matchdayId: 4,
+        transfersRemaining: -1,    // 1 excess transfer → -10 penalty
+        chipsUsed: [],
         drivers: [
           { name: 'L. Hamilton', isCaptain: true },
         ],
@@ -191,6 +198,208 @@ describe('liveScoreHandler', () => {
       );
 
       expect(result.totalPoints).toBe(30);
+    });
+
+    it('subtracts transferPenalty from the gross points', () => {
+      const result = calculateLiveScoreBreakdown(
+        {
+          drivers: ['VER'],
+          constructors: ['FER'],
+          boostDriver: null,
+          extraBoostDriver: null,
+        },
+        {
+          drivers: { VER: { TotalPoints: 10 } },
+          constructors: { FER: { TotalPoints: 30 } },
+        },
+        { transferPenalty: 10 },
+      );
+
+      expect(result.pointsBeforePenalty).toBe(40);
+      expect(result.transferPenalty).toBe(10);
+      expect(result.totalPoints).toBe(30);
+      expect(result.noNegativeApplied).toBe(false);
+    });
+
+    it('clamps negative member points to 0 when noNegativeActive', () => {
+      const result = calculateLiveScoreBreakdown(
+        {
+          drivers: ['VER'],
+          constructors: ['FER'],
+          boostDriver: null,
+          extraBoostDriver: null,
+        },
+        {
+          drivers: { VER: { TotalPoints: -5 } },
+          constructors: { FER: { TotalPoints: -6 } },
+        },
+        { noNegativeActive: true },
+      );
+
+      expect(result.pointsBeforePenalty).toBe(0);
+      expect(result.totalPoints).toBe(0);
+      expect(result.noNegativeApplied).toBe(true);
+      // Per-member breakdown reflects the clamp
+      expect(result.driverBreakdown[0].points).toBe(0);
+      expect(result.constructorBreakdown[0].points).toBe(0);
+    });
+
+    it('clamps negative captain BEFORE applying the multiplier', () => {
+      // Captain at -10 with x2 boost: without No Negative → -20.
+      // With No Negative → captain.points clamps to 0, then x2 → 0.
+      const result = calculateLiveScoreBreakdown(
+        {
+          drivers: ['VER'],
+          constructors: [],
+          boostDriver: 'VER',
+          extraBoostDriver: null,
+        },
+        { drivers: { VER: { TotalPoints: -10 } }, constructors: {} },
+        { noNegativeActive: true },
+      );
+
+      expect(result.totalPoints).toBe(0);
+    });
+
+    it('combines transferPenalty and noNegativeActive correctly', () => {
+      const result = calculateLiveScoreBreakdown(
+        {
+          drivers: ['VER'],
+          constructors: ['FER'],
+          boostDriver: null,
+          extraBoostDriver: null,
+        },
+        {
+          drivers: { VER: { TotalPoints: -3 } },
+          constructors: { FER: { TotalPoints: 30 } },
+        },
+        { noNegativeActive: true, transferPenalty: 10 },
+      );
+
+      // VER clamps to 0; FER stays 30; gross = 30; net after penalty = 20.
+      expect(result.pointsBeforePenalty).toBe(30);
+      expect(result.transferPenalty).toBe(10);
+      expect(result.totalPoints).toBe(20);
+      expect(result.noNegativeApplied).toBe(true);
+    });
+
+    it('treats negative transferPenalty inputs defensively as 0', () => {
+      const result = calculateLiveScoreBreakdown(
+        { drivers: [], constructors: [], boostDriver: null, extraBoostDriver: null },
+        { drivers: {}, constructors: {} },
+        { transferPenalty: -5 },
+      );
+
+      expect(result.transferPenalty).toBe(0);
+      expect(result.totalPoints).toBe(0);
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // deriveLiveScoreOptions
+  // -------------------------------------------------------------------
+  describe('deriveLiveScoreOptions', () => {
+    it('returns zero penalty and noNegativeActive=false for a clean team', () => {
+      const result = deriveLiveScoreOptions({
+        matchdayId: 4,
+        transfersRemaining: 0,
+        chipsUsed: [],
+      });
+
+      expect(result).toEqual({ noNegativeActive: false, transferPenalty: 0 });
+    });
+
+    it('charges 10 points per excess transfer when transfersRemaining < 0', () => {
+      const result = deriveLiveScoreOptions({
+        matchdayId: 4,
+        transfersRemaining: -2,
+        chipsUsed: [],
+      });
+
+      expect(result.transferPenalty).toBe(20);
+    });
+
+    it('does not charge a penalty when transfersRemaining >= 0', () => {
+      expect(deriveLiveScoreOptions({
+        matchdayId: 4,
+        transfersRemaining: 0,
+        chipsUsed: [],
+      }).transferPenalty).toBe(0);
+      expect(deriveLiveScoreOptions({
+        matchdayId: 4,
+        transfersRemaining: 3,
+        chipsUsed: [],
+      }).transferPenalty).toBe(0);
+    });
+
+    it('waives the penalty when Wildcard is active for THIS matchday', () => {
+      const result = deriveLiveScoreOptions({
+        matchdayId: 4,
+        transfersRemaining: -3,
+        chipsUsed: [{ name: 'Wildcard', gameDayId: 4 }],
+      });
+
+      expect(result.transferPenalty).toBe(0);
+    });
+
+    it('waives the penalty when Limitless is active for THIS matchday', () => {
+      const result = deriveLiveScoreOptions({
+        matchdayId: 4,
+        transfersRemaining: -1,
+        chipsUsed: [{ name: 'Limitless', gameDayId: 4 }],
+      });
+
+      expect(result.transferPenalty).toBe(0);
+    });
+
+    it('does NOT waive penalty when Wildcard was used in a previous matchday', () => {
+      const result = deriveLiveScoreOptions({
+        matchdayId: 4,
+        transfersRemaining: -1,
+        chipsUsed: [{ name: 'Wildcard', gameDayId: 2 }],
+      });
+
+      expect(result.transferPenalty).toBe(10);
+    });
+
+    it('flags noNegativeActive when No Negative is active for THIS matchday', () => {
+      const result = deriveLiveScoreOptions({
+        matchdayId: 4,
+        transfersRemaining: 0,
+        chipsUsed: [{ name: 'No Negative', gameDayId: 4 }],
+      });
+
+      expect(result.noNegativeActive).toBe(true);
+    });
+
+    it('does NOT flag noNegativeActive when No Negative was used in a previous matchday', () => {
+      const result = deriveLiveScoreOptions({
+        matchdayId: 4,
+        transfersRemaining: 0,
+        chipsUsed: [{ name: 'No Negative', gameDayId: 2 }],
+      });
+
+      expect(result.noNegativeActive).toBe(false);
+    });
+
+    it('combines penalty + No Negative independently', () => {
+      const result = deriveLiveScoreOptions({
+        matchdayId: 4,
+        transfersRemaining: -1,
+        chipsUsed: [{ name: 'No Negative', gameDayId: 4 }],
+      });
+
+      expect(result).toEqual({ noNegativeActive: true, transferPenalty: 10 });
+    });
+
+    it('treats missing/NaN transfersRemaining as 0', () => {
+      expect(deriveLiveScoreOptions({ matchdayId: 4, chipsUsed: [] })
+        .transferPenalty).toBe(0);
+      expect(deriveLiveScoreOptions({
+        matchdayId: 4,
+        transfersRemaining: 'not a number',
+        chipsUsed: [],
+      }).transferPenalty).toBe(0);
     });
   });
 
@@ -336,6 +545,65 @@ describe('liveScoreHandler', () => {
       );
     });
 
+    it('TEAM action → renders Transfer Penalty line for over-transferred team', async () => {
+      getLockedTeamsData.mockResolvedValueOnce(lockedSnapshot);
+      getLiveScoreData.mockResolvedValueOnce(liveScorePayload);
+
+      // "Empty" team has transfersRemaining=-1 → -10 penalty.
+      await handleLiveScoreCallback(mockBot, baseQuery('LS:T:ABC:Empty'));
+
+      const body = mockBot.sendMessage.mock.calls[0][1];
+      // gross = 40 (HAM*2), net = 30
+      expect(body).toContain('<b>Total Live Points:</b> 30.00');
+      expect(body).toContain('<b>Transfer Penalty:</b> -10.00');
+      expect(body).toContain('Pre-penalty: 40.00');
+    });
+
+    it('TEAM action → omits Transfer Penalty line when penalty is 0', async () => {
+      getLockedTeamsData.mockResolvedValueOnce(lockedSnapshot);
+      getLiveScoreData.mockResolvedValueOnce(liveScorePayload);
+
+      await handleLiveScoreCallback(mockBot, baseQuery('LS:T:ABC:Cooperon'));
+
+      const body = mockBot.sendMessage.mock.calls[0][1];
+      expect(body).toContain('<b>Total Live Points:</b> 116.00');
+      expect(body).not.toContain('Transfer Penalty');
+    });
+
+    it('TEAM action → renders the No Negative tag when chip is active this matchday', async () => {
+      const snapshotWithNoNeg = {
+        leagueCode: 'ABC', leagueName: 'Amba', matchdayId: 4,
+        teams: [
+          {
+            teamName: 'Hirschel',
+            userName: 'h',
+            position: 1,
+            matchdayId: 4,
+            transfersRemaining: 0,
+            chipsUsed: [{ name: 'No Negative', gameDayId: 4 }],
+            drivers: [
+              { name: 'L. Hamilton', isCaptain: true },
+            ],
+            constructors: [{ name: 'Audi' }], // hypothetical -7
+          },
+        ],
+      };
+      const liveScoreWithNeg = {
+        extractedAt: '2026-03-27T11:07:54.562Z',
+        drivers: { HAM: { TotalPoints: 20, PriceChange: 0 } },
+        constructors: { AUD: { TotalPoints: -7, PriceChange: 0 } },
+      };
+      getLockedTeamsData.mockResolvedValueOnce(snapshotWithNoNeg);
+      getLiveScoreData.mockResolvedValueOnce(liveScoreWithNeg);
+
+      await handleLiveScoreCallback(mockBot, baseQuery('LS:T:ABC:Hirschel'));
+
+      const body = mockBot.sendMessage.mock.calls[0][1];
+      // Without No Negative: 20*2 + (-7) = 33. With clamp: 20*2 + 0 = 40.
+      expect(body).toContain('<b>Total Live Points:</b> 40.00');
+      expect(body).toContain('🛡️ No Negative chip active');
+    });
+
     it('ALL action → renders sorted leaderboard (highest score first)', async () => {
       getLockedTeamsData.mockResolvedValueOnce(lockedSnapshot);
       getLiveScoreData.mockResolvedValueOnce(liveScorePayload);
@@ -347,8 +615,8 @@ describe('liveScoreHandler', () => {
       expect(body).toContain('🏎️ Live Score — Amba — md 4 — All teams');
       // Cooperon: HAM*2 + others = 116. Ravivmar: VER*3 + HAM + NOR*2 + LEC + PIA + FER + MER
       //   = 30 + 20 + 10 + 15 + 3 + 25 + 18 = 121.
-      // Empty: HAM*2 = 40.
-      // Sorted DESC: Ravivmar (121) → Cooperon (116) → Empty (40).
+      // Empty: HAM*2 = 40, with -1 transfersRemaining → -10 penalty → 30.
+      // Sorted DESC: Ravivmar (121) → Cooperon (116) → Empty (30).
       const ravivIdx = body.indexOf('Ravivmar');
       const cooperIdx = body.indexOf('Cooperon');
       const emptyIdx = body.indexOf('Empty');
@@ -357,7 +625,9 @@ describe('liveScoreHandler', () => {
       expect(cooperIdx).toBeLessThan(emptyIdx);
       expect(body).toContain(' 1. Ravivmar — 121.00 pts');
       expect(body).toContain(' 2. Cooperon — 116.00 pts');
-      expect(body).toContain(' 3. Empty — 40.00 pts');
+      // Empty has a transfer penalty → 30 net + † marker + footer note.
+      expect(body).toMatch(/ 3\. Empty — 30\.00 pts.*†/);
+      expect(body).toContain('† transfer penalty applied');
     });
 
     it('ALL action → bolds the user\'s selectedTeam row when it lives in this league', async () => {

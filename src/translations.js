@@ -478,6 +478,10 @@ const translations = {
     'No teams in this league yet.': 'אין עדיין קבוצות בליגה הזו.',
     'Team {TEAM} not found in the latest locked snapshot.':
       'הקבוצה {TEAM} לא נמצאה בצילום הנעול האחרון.',
+    'Transfer Penalty': 'קנס העברות',
+    'Pre-penalty': 'לפני קנס',
+    '🛡️ No Negative chip active': "🛡️ צ'יפ ללא נגטיב פעיל",
+    '† transfer penalty applied': '† הוחל קנס העברות',
     'Which league changes do you want to see?':
       'שינויים של איזו ליגה ברצונך לראות?',
     'No locked-roster snapshots are available yet for this league. Wait until the next race weekend.':

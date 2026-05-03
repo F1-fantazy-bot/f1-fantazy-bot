@@ -12,6 +12,7 @@ const {
   COMMAND_FOLLOW_LEAGUE,
   LIVE_SCORE_CALLBACK_TYPE,
   LIVE_SCORE_ACTIONS,
+  EXTRA_TRANSFER_PENALTY_POINTS,
 } = require('../constants');
 
 const SESSION_METRICS = ['POS', 'PG', 'OV', 'FL', 'DD', 'TW', 'FP'];
@@ -122,11 +123,22 @@ function getLiveMemberData(bucket = {}, code) {
   };
 }
 
-function calculateLiveScoreBreakdown(realTeam, liveScoreData) {
+function calculateLiveScoreBreakdown(realTeam, liveScoreData, options = {}) {
+  const noNegativeActive = Boolean(options.noNegativeActive);
+  const transferPenalty = Math.max(
+    0,
+    Number(options.transferPenalty) || 0,
+  );
   const driversData = liveScoreData.drivers || {};
   const constructorsData = liveScoreData.constructors || {};
   const boostDriver = realTeam.boostDriver;
   const extraBoostDriver = realTeam.extraBoostDriver;
+
+  // Apply No Negative clamp on the per-member scoring `points` so the
+  // captain / mega-captain multipliers (added below) never amplify a
+  // negative score that should have been zeroed out first.
+  const clampPoints = (raw) =>
+    noNegativeActive ? Math.max(0, raw) : raw;
 
   const driverBreakdown = realTeam.drivers.map((driverCode) => {
     const member = getLiveMemberData(driversData, driverCode);
@@ -134,19 +146,25 @@ function calculateLiveScoreBreakdown(realTeam, liveScoreData) {
     return {
       code: driverCode,
       ...member,
+      points: clampPoints(member.points),
       isBoost: boostDriver === driverCode,
       isExtraBoost: extraBoostDriver === driverCode,
     };
   });
 
-  const constructorBreakdown = realTeam.constructors.map((constructorCode) => ({
-    code: constructorCode,
-    ...getLiveMemberData(constructorsData, constructorCode),
-    isBoost: false,
-    isExtraBoost: false,
-  }));
+  const constructorBreakdown = realTeam.constructors.map((constructorCode) => {
+    const member = getLiveMemberData(constructorsData, constructorCode);
 
-  const totalPoints =
+    return {
+      code: constructorCode,
+      ...member,
+      points: clampPoints(member.points),
+      isBoost: false,
+      isExtraBoost: false,
+    };
+  });
+
+  const pointsBeforePenalty =
     driverBreakdown.reduce(
       (sum, driver) =>
         sum +
@@ -159,6 +177,8 @@ function calculateLiveScoreBreakdown(realTeam, liveScoreData) {
       0,
     ) + constructorBreakdown.reduce((sum, constructor) => sum + constructor.points, 0);
 
+  const totalPoints = pointsBeforePenalty - transferPenalty;
+
   const totalPriceChange =
     driverBreakdown.reduce((sum, driver) => sum + driver.priceChange, 0) +
     constructorBreakdown.reduce((sum, constructor) => sum + constructor.priceChange, 0);
@@ -169,11 +189,47 @@ function calculateLiveScoreBreakdown(realTeam, liveScoreData) {
 
   return {
     totalPoints,
+    pointsBeforePenalty,
+    transferPenalty,
+    noNegativeApplied: noNegativeActive,
     totalPriceChange,
     driverBreakdown,
     constructorBreakdown,
     missingMembers,
   };
+}
+
+/**
+ * Derive the live-score `options` for a team from its locked-snapshot
+ * entry. Inspects the team's own `chipsUsed` and `transfersRemaining`:
+ *   - Wildcard / Limitless active for THIS matchday → transfer penalty waived.
+ *   - No Negative active for THIS matchday → flag noNegativeActive.
+ *   - Otherwise → 10 pts × |min(transfersRemaining, 0)| transfer penalty.
+ *
+ * "Active for this matchday" means the chip's `gameDayId` equals the
+ * snapshot's `matchdayId`. (`gameDayId` is misleadingly named — its
+ * value is the matchday the chip was activated for; see Phase 6.)
+ */
+function deriveLiveScoreOptions(lockedTeam) {
+  const matchdayId = lockedTeam?.matchdayId;
+  const chipsThisMatch = (
+    Array.isArray(lockedTeam?.chipsUsed) ? lockedTeam.chipsUsed : []
+  ).filter((c) => c && c.gameDayId === matchdayId);
+  const noNegativeActive = chipsThisMatch.some(
+    (c) => c.name === 'No Negative',
+  );
+  const wildcardOrLimitless = chipsThisMatch.some(
+    (c) => c.name === 'Wildcard' || c.name === 'Limitless',
+  );
+  const transfersRemainingRaw = Number(lockedTeam?.transfersRemaining);
+  const overTransfers = Number.isFinite(transfersRemainingRaw)
+    ? Math.max(0, -transfersRemainingRaw)
+    : 0;
+  const transferPenalty = wildcardOrLimitless
+    ? 0
+    : overTransfers * EXTRA_TRANSFER_PENALTY_POINTS;
+
+  return { noNegativeActive, transferPenalty };
 }
 
 function callbackData(action, ...payload) {
@@ -188,7 +244,16 @@ function formatLiveScoreSummary({
   breakdown,
   chatId,
 }) {
-  const { totalPoints, totalPriceChange, driverBreakdown, constructorBreakdown, missingMembers } = breakdown;
+  const {
+    totalPoints,
+    pointsBeforePenalty,
+    transferPenalty,
+    noNegativeApplied,
+    totalPriceChange,
+    driverBreakdown,
+    constructorBreakdown,
+    missingMembers,
+  } = breakdown;
 
   const extractedAt = new Date(liveScoreData.extractedAt);
   let formattedUpdate = String(liveScoreData.extractedAt || '-');
@@ -203,7 +268,23 @@ function formatLiveScoreSummary({
     `<b>🏎️ ${t('Live Score', chatId)} — ${headerLeague} — ${t('md {N}', chatId, { N: matchdayId ?? '?' })} — ${headerTeam}</b>`,
     `<b>${t('Updated At', chatId)}:</b> ${formattedUpdate}`,
     `<b>${t('Total Live Points', chatId)}:</b> ${totalPoints.toFixed(2)}`,
+  ];
+
+  if (transferPenalty > 0) {
+    messageParts.push(
+      `<b>${t('Transfer Penalty', chatId)}:</b> -${transferPenalty.toFixed(2)} (${t('Pre-penalty', chatId)}: ${pointsBeforePenalty.toFixed(2)})`,
+    );
+  }
+
+  messageParts.push(
     `<b>${t('Total Live Price Change', chatId)}:</b> ${totalPriceChange.toFixed(2)}`,
+  );
+
+  if (noNegativeApplied) {
+    messageParts.push(`<i>🛡️ ${t('No Negative chip active', chatId)}</i>`);
+  }
+
+  messageParts.push(
     '',
     `<b>👤 ${t('Live Drivers', chatId)}</b>`,
     joinMembersWithEmptyLine(driverBreakdown, chatId),
@@ -211,7 +292,7 @@ function formatLiveScoreSummary({
     '',
     `<b>🛠️ ${t('Live Constructors', chatId)}</b>`,
     joinMembersWithEmptyLine(constructorBreakdown, chatId),
-  ];
+  );
 
   if (missingMembers.length > 0) {
     messageParts.push(
@@ -261,12 +342,17 @@ function formatAllTeamsLeaderboard({
     const rank = String(idx + 1).padStart(rankWidth, ' ');
     const teamId = buildTeamId(leagueCode, row.teamName || row.userName || 'team');
     const isSelected = selectedTeamId && selectedTeamId === teamId;
-    const text = ` ${rank}. ${escapeHtml(row.teamName || row.userName || '—')} — ${row.totalPoints.toFixed(2)} ${t('pts', chatId)} | Δ ${formatSignedDelta(row.totalPriceChange.toFixed(2))}`;
+    const penaltyMarker = row.transferPenalty > 0 ? ' †' : '';
+    const text = ` ${rank}. ${escapeHtml(row.teamName || row.userName || '—')} — ${row.totalPoints.toFixed(2)} ${t('pts', chatId)} | Δ ${formatSignedDelta(row.totalPriceChange.toFixed(2))}${penaltyMarker}`;
 
     return isSelected ? `<b>${text}</b>` : text;
   });
 
-  return [header, updatedLine, '', ...lines].join('\n');
+  const tail = rows.some((row) => row.transferPenalty > 0)
+    ? ['', `<i>${t('† transfer penalty applied', chatId)}</i>`]
+    : [];
+
+  return [header, updatedLine, '', ...lines, ...tail].join('\n');
 }
 
 async function sendTeamPicker(bot, chatId, leagueCode, msg) {
@@ -372,7 +458,8 @@ async function sendLiveScoreForTeam(bot, chatId, leagueCode, slug) {
   }
 
   const realTeam = mapLockedTeamForScoring(match);
-  const breakdown = calculateLiveScoreBreakdown(realTeam, liveScoreData);
+  const options = deriveLiveScoreOptions(match);
+  const breakdown = calculateLiveScoreBreakdown(realTeam, liveScoreData, options);
   const message = formatLiveScoreSummary({
     leagueName: snapshot.leagueName || leagueCode,
     matchdayId: snapshot.matchdayId,
@@ -418,10 +505,9 @@ async function sendLiveScoreForAllTeams(bot, chatId, leagueCode) {
 
   const rows = snapshot.teams.map((team) => {
     const realTeam = mapLockedTeamForScoring(team);
-    const { totalPoints, totalPriceChange } = calculateLiveScoreBreakdown(
-      realTeam,
-      liveScoreData,
-    );
+    const options = deriveLiveScoreOptions(team);
+    const { totalPoints, totalPriceChange, transferPenalty } =
+      calculateLiveScoreBreakdown(realTeam, liveScoreData, options);
 
     return {
       teamName: team.teamName,
@@ -429,6 +515,7 @@ async function sendLiveScoreForAllTeams(bot, chatId, leagueCode) {
       position: team.position,
       totalPoints,
       totalPriceChange,
+      transferPenalty,
     };
   });
 
@@ -534,6 +621,7 @@ module.exports = {
   handleLiveScoreCommand,
   handleLiveScoreCallback,
   calculateLiveScoreBreakdown,
+  deriveLiveScoreOptions,
   formatMemberLine,
   formatSessionBreakdown,
   formatLiveScoreSummary,

@@ -66,6 +66,12 @@ exports.MAX_FOLLOWED_LEAGUE_TEAMS = 6;
 
 exports.MAX_TELEGRAM_MESSAGE_LENGTH = 4096;
 exports.BEST_TEAMS_RESULT_COUNT = 15;
+// Points deducted per transfer beyond the user's free-transfer budget.
+// Same rule the live F1 Fantasy app applies, waived when Wildcard or
+// Limitless is active for that matchday. Used by both
+// `bestTeamsCalculator.js` (hypothetical scoring) and
+// `liveScoreHandler.js` (real-time scoring).
+exports.EXTRA_TRANSFER_PENALTY_POINTS = 10;
 
 exports.COMMAND_BEST_TEAMS = '/best_teams';
 exports.COMMAND_CURRENT_TEAM_INFO = '/current_team_info';
