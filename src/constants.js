@@ -35,6 +35,15 @@ exports.LEAGUE_CALLBACK_TYPE = 'LEAGUE';
 exports.LEAGUE_UNFOLLOW_CALLBACK_TYPE = 'LEAGUE_UNFOLLOW';
 exports.LEAGUE_GRAPH_CALLBACK_TYPE = 'LEAGUE_GRAPH';
 exports.LEAGUE_GRAPH_TYPE_CALLBACK_TYPE = 'LEAGUE_GRAPH_TYPE';
+exports.LEAGUE_CHANGES_CALLBACK_TYPE = 'LEAGUE_CHANGES';
+// Kept short (2 chars) so the callback data `LS:T:{leagueCode}:{slug}`
+// stays under Telegram's 64-byte callback_data limit.
+exports.LIVE_SCORE_CALLBACK_TYPE = 'LS';
+exports.LIVE_SCORE_ACTIONS = {
+  LEAGUE: 'L',
+  TEAM: 'T',
+  ALL: 'A',
+};
 exports.LEAGUE_GRAPH_TYPES = {
   GAP: 'gap',
   BUDGET: 'budget',
@@ -57,6 +66,12 @@ exports.MAX_FOLLOWED_LEAGUE_TEAMS = 6;
 
 exports.MAX_TELEGRAM_MESSAGE_LENGTH = 4096;
 exports.BEST_TEAMS_RESULT_COUNT = 15;
+// Points deducted per transfer beyond the user's free-transfer budget.
+// Same rule the live F1 Fantasy app applies, waived when Wildcard or
+// Limitless is active for that matchday. Used by both
+// `bestTeamsCalculator.js` (hypothetical scoring) and
+// `liveScoreHandler.js` (real-time scoring).
+exports.EXTRA_TRANSFER_PENALTY_POINTS = 10;
 
 exports.COMMAND_BEST_TEAMS = '/best_teams';
 exports.COMMAND_CURRENT_TEAM_INFO = '/current_team_info';
@@ -98,6 +113,7 @@ exports.COMMAND_UNFOLLOW_LEAGUE = '/unfollow_league';
 exports.COMMAND_LEADERBOARD = '/leaderboard';
 exports.COMMAND_TEAMS_TRACKER = '/teams_tracker';
 exports.COMMAND_LEAGUE_GRAPHS = '/league_graphs';
+exports.COMMAND_LEAGUE_CHANGES = '/league_changes';
 exports.COMMAND_WHATS_NEW = '/whats_new';
 
 // Menu configuration for interactive menu command
@@ -332,6 +348,12 @@ exports.MENU_CATEGORIES = {
         title: '📊 Graphs',
         description:
           'Show league graphs: gap to leader, standings, or budget per race',
+      },
+      {
+        constant: exports.COMMAND_LEAGUE_CHANGES,
+        title: '🔄 League Changes',
+        description:
+          'Show what each league team changed between the last two race weekends',
       },
     ],
   },

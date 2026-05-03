@@ -42,6 +42,7 @@ const {
   handleLeaderboardCommand,
   handleTeamsTrackerCommand,
   handleLeagueGraphsCommand,
+  handleLeagueChangesCommand,
   handleWhatsNewCommand,
 } = require('./commandsHandler');
 
@@ -87,6 +88,7 @@ const {
   COMMAND_LEADERBOARD,
   COMMAND_TEAMS_TRACKER,
   COMMAND_LEAGUE_GRAPHS,
+  COMMAND_LEAGUE_CHANGES,
   COMMAND_WHATS_NEW,
 } = require('./constants');
 
@@ -184,6 +186,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleTeamsTrackerCommand(bot, msg);
     case msg.text === COMMAND_LEAGUE_GRAPHS:
       return await handleLeagueGraphsCommand(bot, msg);
+    case msg.text === COMMAND_LEAGUE_CHANGES:
+      return await handleLeagueChangesCommand(bot, msg);
     case msg.text === COMMAND_WHATS_NEW:
       return await handleWhatsNewCommand(bot, msg);
     default:

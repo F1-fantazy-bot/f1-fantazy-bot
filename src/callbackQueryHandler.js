@@ -25,6 +25,8 @@ const {
   LEAGUE_GRAPH_CALLBACK_TYPE,
   LEAGUE_GRAPH_TYPE_CALLBACK_TYPE,
   LEAGUE_GRAPH_TYPES,
+  LEAGUE_CHANGES_CALLBACK_TYPE,
+  LIVE_SCORE_CALLBACK_TYPE,
 } = require('./constants');
 
 const {
@@ -46,6 +48,12 @@ const {
 const {
   sendLeaderboard,
 } = require('./commandsHandler/leaderboardHandler');
+const {
+  sendLeagueChanges,
+} = require('./commandsHandler/leagueChangesHandler');
+const {
+  handleLiveScoreCallback,
+} = require('./commandsHandler/liveScoreHandler');
 const {
   sendLeagueGraph,
   sendGraphTypePicker,
@@ -89,6 +97,10 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handleLeagueGraphCallback(bot, query);
     case LEAGUE_GRAPH_TYPE_CALLBACK_TYPE:
       return await handleLeagueGraphTypeCallback(bot, query);
+    case LEAGUE_CHANGES_CALLBACK_TYPE:
+      return await handleLeagueChangesCallback(bot, query);
+    case LIVE_SCORE_CALLBACK_TYPE:
+      return await handleLiveScoreCallback(bot, query);
     default:
       await sendLogMessage(bot, `Unknown callback type: ${callbackType}`);
   }
@@ -360,6 +372,14 @@ async function handleLeagueCallback(bot, query) {
   const leagueCode = query.data.split(':')[1];
 
   await sendLeaderboard(bot, chatId, leagueCode);
+  await bot.answerCallbackQuery(query.id);
+}
+
+async function handleLeagueChangesCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const leagueCode = query.data.split(':')[1];
+
+  await sendLeagueChanges(bot, chatId, leagueCode);
   await bot.answerCallbackQuery(query.id);
 }
 

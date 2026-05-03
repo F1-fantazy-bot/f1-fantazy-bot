@@ -3,6 +3,7 @@ const {
   WILDCARD_CHIP,
   LIMITLESS_CHIP,
   BEST_TEAMS_RESULT_COUNT,
+  EXTRA_TRANSFER_PENALTY_POINTS,
 } = require('./constants');
 const {
   calculateTeamInfo,
@@ -151,8 +152,10 @@ exports.calculateBestTeams = function (
         ).length;
         const transfers_needed = transfers_drivers + transfers_cons;
 
-        // Penalty: transfers beyond freeTransfers incur 10 points each.
-        const penalty = Math.max(0, transfers_needed - freeTransfers) * 10;
+        // Penalty: transfers beyond freeTransfers incur a fixed cost each.
+        const penalty =
+          Math.max(0, transfers_needed - freeTransfers) *
+          EXTRA_TRANSFER_PENALTY_POINTS;
 
         // Calculate projected points:
         // (total driver points with boost bonus) + (total constructors points) - penalty.

@@ -51,6 +51,9 @@ const {
   handleTeamsTrackerCommand,
 } = require('./teamsTrackerHandler');
 const { handleLeagueGraphsCommand } = require('./leagueGraphHandler');
+const {
+  handleLeagueChangesCommand,
+} = require('./leagueChangesHandler');
 const { handleWhatsNewCommand } = require('./whatsNewHandler');
 
 module.exports = {
@@ -96,5 +99,6 @@ module.exports = {
   handleLeaderboardCommand,
   handleTeamsTrackerCommand,
   handleLeagueGraphsCommand,
+  handleLeagueChangesCommand,
   handleWhatsNewCommand,
 };
