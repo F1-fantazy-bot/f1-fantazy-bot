@@ -476,16 +476,18 @@ const translations = {
       'שינויים של איזו ליגה ברצונך לראות?',
     'No locked-roster snapshots are available yet for this league. Wait until the next race weekend.':
       'אין עדיין צילומי הרכב נעולים עבור הליגה הזו. נסה שוב אחרי סוף השבוע הבא.',
-    'Only one locked snapshot is available so far (matchday {MD}). At least two are needed to show changes.':
-      'יש רק צילום הרכב נעול אחד (סבב {MD}). דרושים לפחות שניים כדי להציג שינויים.',
-    '🔄 {LEAGUE} — matchday {PREV} → {LATEST}':
-      '🔄 {LEAGUE} — סבב {PREV} → {LATEST}',
+    'League data is not yet available. Wait for the next weekly refresh.':
+      'נתוני הליגה עדיין לא זמינים. נסה שוב אחרי הריענון השבועי הבא.',
+    'The latest locked snapshot is for matchday {LOCKED_MD} but the weekly snapshot is for matchday {TEAMS_MD}. Wait for the next session lock.':
+      'הצילום הנעול האחרון הוא של סבב {LOCKED_MD} אך הצילום השבועי הוא של סבב {TEAMS_MD}. חכה לנעילה הבאה.',
+    '🔄 {LEAGUE} — matchday {N} (planning → locked)':
+      '🔄 {LEAGUE} — סבב {N} (תכנון → נעול)',
     '↪ Captain: {FROM} → {TO}': '↪ קפטן: {FROM} → {TO}',
     '↪ Mega captain: {FROM} → {TO}': '↪ מגה קפטן: {FROM} → {TO}',
     '↪ Chip: {CHIP}': "↪ צ'יפ: {CHIP}",
     '🆕 new team': '🆕 קבוצה חדשה',
-    'No team changes between matchday {PREV} and {LATEST}.':
-      'אין שינויי קבוצות בין סבב {PREV} ל-{LATEST}.',
+    'No team changes for matchday {N}.':
+      'אין שינויי קבוצות עבור סבב {N}.',
     '({COUNT} other team(s) had no changes)':
       '({COUNT} קבוצות נוספות ללא שינוי)',
     '🏁 League Management': '🏁 ניהול ליגות',

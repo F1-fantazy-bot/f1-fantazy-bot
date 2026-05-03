@@ -22,13 +22,13 @@ jest.mock('../leagueRegistryService', () => ({
 
 jest.mock('../azureStorageService', () => ({
   getLockedTeamsData: jest.fn(),
-  listLockedMatchdays: jest.fn(),
+  getLeagueTeamsData: jest.fn(),
 }));
 
 const { listUserLeagues } = require('../leagueRegistryService');
 const {
   getLockedTeamsData,
-  listLockedMatchdays,
+  getLeagueTeamsData,
 } = require('../azureStorageService');
 
 describe('leagueChangesHandler', () => {
@@ -48,6 +48,7 @@ describe('leagueChangesHandler', () => {
       teamName: 'A',
       userName: 'u1',
       position: 1,
+      matchdayId: 4,
       drivers: [
         { name: 'Verstappen', isCaptain: true, isMegaCaptain: false },
         { name: 'Norris', isCaptain: false, isMegaCaptain: false },
@@ -133,10 +134,48 @@ describe('leagueChangesHandler', () => {
       );
     });
 
-    it('only shows newly-activated chips (set diff)', () => {
-      const prev = mkTeam({ chipsUsed: [{ name: 'Wildcard' }] });
+    it('shows only chips activated for the current matchday (gameDayId === matchdayId)', () => {
+      const prev = mkTeam({
+        chipsUsed: [{ name: 'Wildcard', gameDayId: 1 }],
+      });
       const latest = mkTeam({
-        chipsUsed: [{ name: 'Wildcard' }, { name: 'Limitless' }],
+        matchdayId: 4,
+        // Limitless was activated for md=2 (historical), Extra DRS Boost
+        // was activated for md=4 (current week). Only the latter renders.
+        chipsUsed: [
+          { name: 'Wildcard', gameDayId: 1 },
+          { name: 'Limitless', gameDayId: 2 },
+          { name: 'Extra DRS Boost', gameDayId: 4 },
+        ],
+      });
+      const result = diffTeam(latest, prev, chatId);
+
+      const text = result.lines.join('\n');
+      expect(text).toContain('Chip: Extra DRS Boost');
+      expect(text).not.toContain('Chip: Wildcard');
+      expect(text).not.toContain('Chip: Limitless');
+    });
+
+    it('shows no chip line when no chip was activated this matchday', () => {
+      const prev = mkTeam();
+      const latest = mkTeam({
+        matchdayId: 4,
+        chipsUsed: [
+          { name: 'Wildcard', gameDayId: 1 },
+          { name: 'Limitless', gameDayId: 2 },
+        ],
+      });
+      const result = diffTeam(latest, prev, chatId);
+
+      // Roster is identical; only historical chips → no diff at all.
+      expect(result.hasChanges).toBe(false);
+    });
+
+    it('treats chip entries without gameDayId as historical (filtered out)', () => {
+      const prev = mkTeam();
+      const latest = mkTeam({
+        matchdayId: 4,
+        chipsUsed: [{ name: 'Wildcard' }, { name: 'Limitless', gameDayId: 4 }],
       });
       const result = diffTeam(latest, prev, chatId);
 
@@ -174,12 +213,13 @@ describe('leagueChangesHandler', () => {
       teams,
     });
 
-    it('renders header with both matchday IDs', () => {
-      const prev = mkSnapshot(3, [
+    it('renders header with the single matchday ID', () => {
+      const prev = mkSnapshot(4, [
         {
           teamName: 'A',
           userName: 'u1',
           position: 1,
+          matchdayId: 4,
           drivers: [{ name: 'X', isCaptain: true }],
           constructors: [],
           chipsUsed: [],
@@ -190,6 +230,7 @@ describe('leagueChangesHandler', () => {
           teamName: 'A',
           userName: 'u1',
           position: 1,
+          matchdayId: 4,
           drivers: [{ name: 'Y', isCaptain: true }],
           constructors: [],
           chipsUsed: [],
@@ -197,18 +238,19 @@ describe('leagueChangesHandler', () => {
       ]);
       const out = formatLeagueChanges(latest, prev, chatId);
 
-      expect(out).toContain('🔄 Amba — matchday 3 → 4');
+      expect(out).toContain('🔄 Amba — matchday 4 (planning → locked)');
       expect(out).toContain('🥇 <b>A</b>');
       expect(out).toContain('-X');
       expect(out).toContain('+Y');
     });
 
     it('matches teams across snapshots by userName, not position', () => {
-      const prev = mkSnapshot(3, [
+      const prev = mkSnapshot(4, [
         {
           teamName: 'OldName',
           userName: 'u1',
           position: 5,
+          matchdayId: 4,
           drivers: [{ name: 'X', isCaptain: true }],
           constructors: [],
           chipsUsed: [],
@@ -219,6 +261,7 @@ describe('leagueChangesHandler', () => {
           teamName: 'NewName',
           userName: 'u1',
           position: 1,
+          matchdayId: 4,
           drivers: [{ name: 'Y', isCaptain: true }],
           constructors: [],
           chipsUsed: [],
@@ -233,12 +276,13 @@ describe('leagueChangesHandler', () => {
     });
 
     it('marks teams that did not exist in previous as new', () => {
-      const prev = mkSnapshot(3, []);
+      const prev = mkSnapshot(4, []);
       const latest = mkSnapshot(4, [
         {
           teamName: 'NewTeam',
           userName: 'newU',
           position: 1,
+          matchdayId: 4,
           drivers: [{ name: 'X' }],
           constructors: [],
           chipsUsed: [],
@@ -254,11 +298,12 @@ describe('leagueChangesHandler', () => {
         teamName: n,
         userName: n,
         position: parseInt(n.replace('t', ''), 10),
+        matchdayId: 4,
         drivers: [{ name: 'D', isCaptain: true }],
         constructors: [{ name: 'C' }],
         chipsUsed: [],
       });
-      const prev = mkSnapshot(3, ['t1', 't2', 't3'].map(team));
+      const prev = mkSnapshot(4, ['t1', 't2', 't3'].map(team));
       const latestTeams = ['t1', 't2', 't3'].map(team);
       latestTeams[0] = {
         ...latestTeams[0],
@@ -277,23 +322,24 @@ describe('leagueChangesHandler', () => {
         teamName: 'A',
         userName: 'u1',
         position: 1,
+        matchdayId: 4,
         drivers: [{ name: 'V', isCaptain: true }],
         constructors: [{ name: 'F' }],
         chipsUsed: [],
       };
       const out = formatLeagueChanges(
         mkSnapshot(4, [team]),
-        mkSnapshot(3, [team]),
+        mkSnapshot(4, [team]),
         chatId,
       );
 
-      expect(out).toContain('No team changes between matchday 3 and 4.');
+      expect(out).toContain('No team changes for matchday 4.');
     });
 
     it('escapes HTML in the league name', () => {
       const out = formatLeagueChanges(
         { mode: 'locked', leagueCode: 'X', leagueName: '<bad>', matchdayId: 4, teams: [] },
-        { mode: 'locked', leagueCode: 'X', leagueName: '<bad>', matchdayId: 3, teams: [] },
+        { leagueCode: 'X', leagueName: '<bad>', matchdayId: 4, teams: [] },
         chatId,
       );
 
@@ -306,8 +352,9 @@ describe('leagueChangesHandler', () => {
   // sendLeagueChanges
   // -------------------------------------------------------------------
   describe('sendLeagueChanges', () => {
-    it('messages "no snapshots" when none exist', async () => {
-      listLockedMatchdays.mockResolvedValueOnce([]);
+    it('messages "no snapshots" when no locked snapshot exists', async () => {
+      getLockedTeamsData.mockResolvedValueOnce(null);
+      getLeagueTeamsData.mockResolvedValueOnce({ matchdayId: 4, teams: [] });
 
       await sendLeagueChanges(botMock, chatId, 'ABC');
 
@@ -315,67 +362,80 @@ describe('leagueChangesHandler', () => {
         chatId,
         expect.stringContaining('No locked-roster snapshots'),
       );
-      expect(getLockedTeamsData).not.toHaveBeenCalled();
     });
 
-    it('messages "only one" when exactly one snapshot exists', async () => {
-      listLockedMatchdays.mockResolvedValueOnce([4]);
+    it('messages "league data not yet available" when teams-data is missing', async () => {
+      getLockedTeamsData.mockResolvedValueOnce({ matchdayId: 4, teams: [] });
+      getLeagueTeamsData.mockResolvedValueOnce(null);
 
       await sendLeagueChanges(botMock, chatId, 'ABC');
 
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         chatId,
-        expect.stringContaining('Only one locked snapshot'),
+        expect.stringContaining('League data is not yet available'),
       );
-      expect(getLockedTeamsData).not.toHaveBeenCalled();
     });
 
-    it('fetches the two latest snapshots and renders the diff', async () => {
-      listLockedMatchdays.mockResolvedValueOnce([2, 3, 4]);
-      const prev = {
-        leagueCode: 'ABC', leagueName: 'Amba', matchdayId: 3,
+    it('messages "wait for next session lock" when matchdayIds mismatch', async () => {
+      getLockedTeamsData.mockResolvedValueOnce({ matchdayId: 3, teams: [] });
+      getLeagueTeamsData.mockResolvedValueOnce({ matchdayId: 4, teams: [] });
+
+      await sendLeagueChanges(botMock, chatId, 'ABC');
+
+      const body = botMock.sendMessage.mock.calls[0][1];
+      expect(body).toContain('locked snapshot is for matchday 3');
+      expect(body).toContain('weekly snapshot is for matchday 4');
+      expect(body).toContain('next session lock');
+    });
+
+    it('messages "wait for next session lock" when teams-data has null matchdayId', async () => {
+      getLockedTeamsData.mockResolvedValueOnce({ matchdayId: 4, teams: [] });
+      getLeagueTeamsData.mockResolvedValueOnce({ matchdayId: null, teams: [] });
+
+      await sendLeagueChanges(botMock, chatId, 'ABC');
+
+      const body = botMock.sendMessage.mock.calls[0][1];
+      expect(body).toContain('next session lock');
+    });
+
+    it('fetches latest locked + teams-data and renders the diff', async () => {
+      const teamsData = {
+        leagueCode: 'ABC', leagueName: 'Amba', matchdayId: 4,
         teams: [{
           teamName: 'A', userName: 'u', position: 1,
-          drivers: [{ name: 'X', isCaptain: true }], constructors: [], chipsUsed: [],
+          matchdayId: 4,
+          drivers: [{ name: 'X', isCaptain: true }],
+          constructors: [],
         }],
       };
       const latest = {
         leagueCode: 'ABC', leagueName: 'Amba', matchdayId: 4,
         teams: [{
           teamName: 'A', userName: 'u', position: 1,
-          drivers: [{ name: 'Y', isCaptain: true }], constructors: [], chipsUsed: [],
+          matchdayId: 4,
+          drivers: [{ name: 'Y', isCaptain: true }],
+          constructors: [],
+          chipsUsed: [{ name: 'Wildcard', gameDayId: 4 }],
         }],
       };
-      getLockedTeamsData
-        .mockImplementation((_lc, mdid) => Promise.resolve(mdid === 4 ? latest : prev));
+      getLockedTeamsData.mockResolvedValueOnce(latest);
+      getLeagueTeamsData.mockResolvedValueOnce(teamsData);
 
       await sendLeagueChanges(botMock, chatId, 'ABC');
 
-      expect(getLockedTeamsData).toHaveBeenCalledWith('ABC', 4);
-      expect(getLockedTeamsData).toHaveBeenCalledWith('ABC', 3);
+      expect(getLockedTeamsData).toHaveBeenCalledWith('ABC');
+      expect(getLeagueTeamsData).toHaveBeenCalledWith('ABC');
       const [, body, opts] = botMock.sendMessage.mock.calls[0];
-      expect(body).toContain('🔄 Amba — matchday 3 → 4');
+      expect(body).toContain('🔄 Amba — matchday 4 (planning → locked)');
       expect(body).toContain('-X');
       expect(body).toContain('+Y');
+      expect(body).toContain('Chip: Wildcard');
       expect(opts).toEqual({ parse_mode: 'HTML' });
     });
 
-    it('falls back to "no snapshots" when one of the two blobs is missing', async () => {
-      listLockedMatchdays.mockResolvedValueOnce([3, 4]);
-      getLockedTeamsData
-        .mockResolvedValueOnce({ matchdayId: 4, teams: [] })
-        .mockResolvedValueOnce(null);
-
-      await sendLeagueChanges(botMock, chatId, 'ABC');
-
-      expect(botMock.sendMessage).toHaveBeenLastCalledWith(
-        chatId,
-        expect.stringContaining('No locked-roster snapshots'),
-      );
-    });
-
-    it('reports listing errors gracefully', async () => {
-      listLockedMatchdays.mockRejectedValueOnce(new Error('boom'));
+    it('reports fetch errors gracefully', async () => {
+      getLockedTeamsData.mockRejectedValueOnce(new Error('boom'));
+      getLeagueTeamsData.mockResolvedValueOnce({ matchdayId: 4, teams: [] });
 
       await sendLeagueChanges(botMock, chatId, 'ABC');
 
@@ -407,11 +467,12 @@ describe('leagueChangesHandler', () => {
       listUserLeagues.mockResolvedValueOnce([
         { leagueCode: 'ABC', leagueName: 'Amba' },
       ]);
-      listLockedMatchdays.mockResolvedValueOnce([]);
+      getLockedTeamsData.mockResolvedValueOnce(null);
+      getLeagueTeamsData.mockResolvedValueOnce({ matchdayId: 4, teams: [] });
 
       await handleLeagueChangesCommand(botMock, msg);
 
-      expect(listLockedMatchdays).toHaveBeenCalledWith('ABC');
+      expect(getLockedTeamsData).toHaveBeenCalledWith('ABC');
     });
 
     it('shows an inline-keyboard picker for multiple leagues', async () => {

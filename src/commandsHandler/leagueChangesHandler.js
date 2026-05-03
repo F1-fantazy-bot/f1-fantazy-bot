@@ -2,7 +2,7 @@ const { t } = require('../i18n');
 const { listUserLeagues } = require('../leagueRegistryService');
 const {
   getLockedTeamsData,
-  listLockedMatchdays,
+  getLeagueTeamsData,
 } = require('../azureStorageService');
 const {
   COMMAND_FOLLOW_LEAGUE,
@@ -37,14 +37,23 @@ function pickCaptainName(team, key) {
   return match?.name || null;
 }
 
-function findChipDelta(latestChips, previousChips) {
-  const previousNames = new Set(
-    (Array.isArray(previousChips) ? previousChips : []).map((c) => c?.name),
-  );
+function findChipsForCurrentMatchday(latestTeam) {
+  const matchdayId = latestTeam?.matchdayId;
+  if (matchdayId === undefined || matchdayId === null) {
+    return [];
+  }
+  const chips = Array.isArray(latestTeam?.chipsUsed)
+    ? latestTeam.chipsUsed
+    : [];
 
-  return (Array.isArray(latestChips) ? latestChips : [])
+  // The field is misleadingly named `gameDayId` in F1 Fantasy's API
+  // (`<chip>takengd`), but the value is the matchday ID where the chip
+  // was activated. So a chip belongs to this matchday iff its
+  // `gameDayId` equals the snapshot's `matchdayId`.
+  return chips
+    .filter((c) => c && c.gameDayId === matchdayId)
     .map((c) => c?.name)
-    .filter((name) => name && !previousNames.has(name));
+    .filter(Boolean);
 }
 
 /**
@@ -121,7 +130,7 @@ function diffTeam(latestTeam, previousTeam, chatId) {
     );
   }
 
-  const newChips = findChipDelta(latestTeam.chipsUsed, previousTeam.chipsUsed);
+  const newChips = findChipsForCurrentMatchday(latestTeam);
   for (const chipName of newChips) {
     lines.push(
       t('↪ Chip: {CHIP}', chatId, { CHIP: escapeHtml(chipName) }),
@@ -133,8 +142,8 @@ function diffTeam(latestTeam, previousTeam, chatId) {
 
 /**
  * Build the rendered HTML message.
- * @param {Object} latest  parsed locked-snapshot blob (the newer one)
- * @param {Object} previous  parsed locked-snapshot blob (the older one)
+ * @param {Object} latest  parsed locked-snapshot blob (after-state)
+ * @param {Object} previous  parsed teams-data blob (before-state, same matchday)
  * @param {number|string} chatId
  */
 function formatLeagueChanges(latest, previous, chatId) {
@@ -164,19 +173,17 @@ function formatLeagueChanges(latest, previous, chatId) {
     blocks.push([headerName, ...lines].join('\n'));
   }
 
-  const header = t('🔄 {LEAGUE} — matchday {PREV} → {LATEST}', chatId, {
+  const header = t('🔄 {LEAGUE} — matchday {N} (planning → locked)', chatId, {
     LEAGUE: escapeHtml(latest.leagueName || latest.leagueCode),
-    PREV: previous.matchdayId ?? '?',
-    LATEST: latest.matchdayId ?? '?',
+    N: latest.matchdayId ?? '?',
   });
 
   if (blocks.length === 0) {
     return [
       header,
       '',
-      t('No team changes between matchday {PREV} and {LATEST}.', chatId, {
-        PREV: previous.matchdayId ?? '?',
-        LATEST: latest.matchdayId ?? '?',
+      t('No team changes for matchday {N}.', chatId, {
+        N: latest.matchdayId ?? '?',
       }),
     ].join('\n');
   }
@@ -190,58 +197,15 @@ function formatLeagueChanges(latest, previous, chatId) {
 }
 
 async function sendLeagueChanges(bot, chatId, leagueCode) {
-  let matchdayIds;
-  try {
-    matchdayIds = await listLockedMatchdays(leagueCode);
-  } catch (err) {
-    console.error('Error listing locked matchdays:', err);
-    await bot.sendMessage(
-      chatId,
-      t('❌ Failed to load league data: {ERROR}', chatId, {
-        ERROR: err.message,
-      }),
-    );
-
-    return;
-  }
-
-  if (!matchdayIds || matchdayIds.length === 0) {
-    await bot.sendMessage(
-      chatId,
-      t(
-        'No locked-roster snapshots are available yet for this league. Wait until the next race weekend.',
-        chatId,
-      ),
-    );
-
-    return;
-  }
-
-  if (matchdayIds.length === 1) {
-    await bot.sendMessage(
-      chatId,
-      t(
-        'Only one locked snapshot is available so far (matchday {MD}). At least two are needed to show changes.',
-        chatId,
-        { MD: matchdayIds[0] },
-      ),
-    );
-
-    return;
-  }
-
-  const latestId = matchdayIds[matchdayIds.length - 1];
-  const previousId = matchdayIds[matchdayIds.length - 2];
-
   let latest;
-  let previous;
+  let teamsData;
   try {
-    [latest, previous] = await Promise.all([
-      getLockedTeamsData(leagueCode, latestId),
-      getLockedTeamsData(leagueCode, previousId),
+    [latest, teamsData] = await Promise.all([
+      getLockedTeamsData(leagueCode),
+      getLeagueTeamsData(leagueCode),
     ]);
   } catch (err) {
-    console.error('Error fetching locked snapshots:', err);
+    console.error('Error fetching league snapshots:', err);
     await bot.sendMessage(
       chatId,
       t('❌ Failed to load league data: {ERROR}', chatId, {
@@ -252,12 +216,46 @@ async function sendLeagueChanges(bot, chatId, leagueCode) {
     return;
   }
 
-  if (!latest || !previous) {
+  if (!latest) {
     await bot.sendMessage(
       chatId,
       t(
         'No locked-roster snapshots are available yet for this league. Wait until the next race weekend.',
         chatId,
+      ),
+    );
+
+    return;
+  }
+
+  if (!teamsData) {
+    await bot.sendMessage(
+      chatId,
+      t(
+        'League data is not yet available. Wait for the next weekly refresh.',
+        chatId,
+      ),
+    );
+
+    return;
+  }
+
+  if (
+    latest.matchdayId === undefined ||
+    latest.matchdayId === null ||
+    teamsData.matchdayId === undefined ||
+    teamsData.matchdayId === null ||
+    latest.matchdayId !== teamsData.matchdayId
+  ) {
+    await bot.sendMessage(
+      chatId,
+      t(
+        'The latest locked snapshot is for matchday {LOCKED_MD} but the weekly snapshot is for matchday {TEAMS_MD}. Wait for the next session lock.',
+        chatId,
+        {
+          LOCKED_MD: latest.matchdayId ?? '?',
+          TEAMS_MD: teamsData.matchdayId ?? '?',
+        },
       ),
     );
 
@@ -266,7 +264,7 @@ async function sendLeagueChanges(bot, chatId, leagueCode) {
 
   await bot.sendMessage(
     chatId,
-    formatLeagueChanges(latest, previous, chatId),
+    formatLeagueChanges(latest, teamsData, chatId),
     { parse_mode: 'HTML' },
   );
 }
