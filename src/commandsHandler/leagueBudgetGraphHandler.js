@@ -5,6 +5,7 @@ const { getLeagueData } = require('../azureStorageService');
 const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 const { getSelectedTeam } = require('../cache');
 const { buildTeamId } = require('../utils/teamId');
+const { filterExcludedGraphTeams } = require('../utils/leagueGraphFilter');
 const {
   buildRoundToRaceNameMap,
   matchdayNumber,
@@ -50,7 +51,7 @@ function buildBudgetChartConfig(leagueData, options = {}) {
   const roundToRaceName = options.roundToRaceName || {};
   const selectedTeamId = options.selectedTeamId || null;
 
-  const teams = Array.isArray(leagueData?.teams) ? [...leagueData.teams] : [];
+  const teams = filterExcludedGraphTeams(leagueData?.teams);
   const matchdayKeys = getSortedBudgetMatchdayKeys(teams);
 
   // Sort legend/series order by each team's most recent recorded budget

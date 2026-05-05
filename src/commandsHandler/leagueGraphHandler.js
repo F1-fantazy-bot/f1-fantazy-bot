@@ -7,6 +7,7 @@ const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 const { getChipEmoji } = require('../utils/chipEmojis');
 const { getSelectedTeam } = require('../cache');
 const { buildTeamId } = require('../utils/teamId');
+const { filterExcludedGraphTeams } = require('../utils/leagueGraphFilter');
 const {
   LEAGUE_GRAPH_CALLBACK_TYPE,
   LEAGUE_GRAPH_TYPE_CALLBACK_TYPE,
@@ -103,7 +104,7 @@ function buildChartConfig(leagueData, options = {}) {
   const roundToRaceName = options.roundToRaceName || {};
   const selectedTeamId = options.selectedTeamId || null;
 
-  const teams = Array.isArray(leagueData?.teams) ? [...leagueData.teams] : [];
+  const teams = filterExcludedGraphTeams(leagueData?.teams);
   teams.sort((a, b) => (a.position || 0) - (b.position || 0));
 
   const matchdayKeys = getSortedMatchdayKeys(teams);
