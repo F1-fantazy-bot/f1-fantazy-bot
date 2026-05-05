@@ -49,6 +49,13 @@ exports.LEAGUE_GRAPH_TYPES = {
   BUDGET: 'budget',
   STANDINGS: 'standings',
 };
+// Teams whose `teamName` (case-insensitive, trimmed) should be excluded from
+// league graph rendering. Matched values themselves are also normalized
+// (lowercased + trimmed) when checked. Only `teamName` is checked — `userName`
+// is intentionally ignored. Used by graph handlers only — leaderboard,
+// /league_changes, /live_score and /teams_tracker still include every real
+// participant.
+exports.EXCLUDED_GRAPH_TEAM_NAMES = ['the best bot'];
 // Kept short (2 chars) so the callback data `TT:<action>:<leagueCode>:<position>`
 // stays under the 64-byte Telegram limit.
 exports.TEAMS_TRACKER_CALLBACK_TYPE = 'TT';

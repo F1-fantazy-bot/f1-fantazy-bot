@@ -352,6 +352,29 @@ describe('leagueGraphHandler', () => {
       expect(config.options.scales.y.ticks.font.size).toBe(13);
       expect(config.data.datasets[0].datalabels.font.size).toBe(12);
     });
+
+    it('excludes teams flagged by the graph filter (e.g. "The Best Bot")', () => {
+      const data = {
+        ...FIXTURE,
+        teams: [
+          ...FIXTURE.teams,
+          {
+            teamName: 'The Best Bot',
+            userName: 'doronkilzi',
+            position: 4,
+            totalScore: 9999,
+            raceScores: { matchday_1: 999, matchday_2: 999, matchday_3: 999 },
+            chipsUsed: [],
+          },
+        ],
+      };
+      const config = buildChartConfig(data);
+      const labels = config.data.datasets.map((d) => d.label);
+      expect(labels).not.toContain('The Best Bot');
+      expect(labels).toContain('Cooperon');
+      expect(labels).toContain('dorsegal1');
+      expect(labels).toContain('Kilzid');
+    });
   });
 
   describe('handleLeagueGraphsCommand', () => {

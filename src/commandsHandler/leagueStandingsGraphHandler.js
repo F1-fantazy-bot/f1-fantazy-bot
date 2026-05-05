@@ -6,6 +6,7 @@ const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 const { getChipEmoji } = require('../utils/chipEmojis');
 const { getSelectedTeam } = require('../cache');
 const { buildTeamId } = require('../utils/teamId');
+const { filterExcludedGraphTeams } = require('../utils/leagueGraphFilter');
 const {
   buildRoundToRaceNameMap,
   matchdayNumber,
@@ -73,7 +74,7 @@ function buildStandingsChartConfig(leagueData, options = {}) {
   const roundToRaceName = options.roundToRaceName || {};
   const selectedTeamId = options.selectedTeamId || null;
 
-  const teams = Array.isArray(leagueData?.teams) ? [...leagueData.teams] : [];
+  const teams = filterExcludedGraphTeams(leagueData?.teams);
   const matchdayKeys = getSortedMatchdayKeys(teams);
 
   const ranksPerTeam = computeRankPerMatchday(teams, matchdayKeys);

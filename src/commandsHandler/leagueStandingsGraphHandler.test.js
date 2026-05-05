@@ -264,6 +264,33 @@ describe('leagueStandingsGraphHandler', () => {
       const config = buildStandingsChartConfig(FIXTURE);
       expect(config.options.scales.y.title.text).toBe('Standing');
     });
+
+    it('excludes teams flagged by the graph filter (e.g. "The Best Bot")', () => {
+      const data = {
+        ...FIXTURE,
+        teams: [
+          ...FIXTURE.teams,
+          {
+            teamName: 'The Best Bot',
+            userName: 'doronkilzi',
+            position: 4,
+            raceScores: {
+              matchday_1: 200,
+              matchday_2: 200,
+              matchday_3: 200,
+              matchday_4: 200,
+            },
+            chipsUsed: [],
+          },
+        ],
+      };
+      const config = buildStandingsChartConfig(data);
+      const labels = config.data.datasets.map((d) => d.label);
+      expect(labels).not.toContain('The Best Bot');
+      expect(labels).toContain('Cooperon');
+      expect(labels).toContain('dorsegal1');
+      expect(labels).toContain('Kilzid');
+    });
   });
 
   describe('sendLeagueStandingsGraph', () => {

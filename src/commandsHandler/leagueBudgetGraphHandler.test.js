@@ -298,6 +298,32 @@ describe('leagueBudgetGraphHandler', () => {
       const config = buildBudgetChartConfig(FIXTURE);
       expect(config.options.scales.y.title.text).toBe('Budget ($M)');
     });
+
+    it('excludes teams flagged by the graph filter (e.g. "The Best Bot")', () => {
+      const data = {
+        ...FIXTURE,
+        teams: [
+          ...FIXTURE.teams,
+          {
+            teamName: 'The Best Bot',
+            userName: 'doronkilzi',
+            position: 4,
+            raceBudgets: {
+              matchday_1: 100,
+              matchday_2: 200,
+              matchday_3: 300,
+              matchday_4: 400,
+            },
+          },
+        ],
+      };
+      const config = buildBudgetChartConfig(data);
+      const labels = config.data.datasets.map((d) => d.label);
+      expect(labels).not.toContain('The Best Bot');
+      expect(labels).toContain('Cooperon');
+      expect(labels).toContain('dorsegal1');
+      expect(labels).toContain('Kilzid');
+    });
   });
 
   describe('sendLeagueBudgetGraph', () => {
