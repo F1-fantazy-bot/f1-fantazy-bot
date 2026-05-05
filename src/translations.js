@@ -464,6 +464,42 @@ const translations = {
     '🏆 Leaderboard': '🏆 טבלת ליגה',
     'View the leaderboard of a followed league':
       'צפה בטבלה של ליגה שאתה עוקב אחריה',
+    '🔄 League Changes': '🔄 שינויי ליגה',
+    'Show what each league team changed between the last two race weekends':
+      'הצג מה כל קבוצה בליגה שינתה בין שני סופי השבוע האחרונים',
+    'Which league live score do you want to see?':
+      'ניקוד חי של איזו ליגה ברצונך לראות?',
+    "Which team's live score do you want to see?":
+      'ניקוד חי של איזו קבוצה ברצונך לראות?',
+    'All teams': 'כל הקבוצות',
+    'md {N}': 'סבב {N}',
+    'No locked roster is available yet for this league. Wait for the next session lock.':
+      'אין עדיין הרכב נעול עבור הליגה הזו. חכה לנעילה הבאה.',
+    'No teams in this league yet.': 'אין עדיין קבוצות בליגה הזו.',
+    'Team {TEAM} not found in the latest locked snapshot.':
+      'הקבוצה {TEAM} לא נמצאה בצילום הנעול האחרון.',
+    'Transfer Penalty': 'קנס העברות',
+    'Pre-penalty': 'לפני קנס',
+    '🛡️ No Negative chip active': "🛡️ צ'יפ ללא נגטיב פעיל",
+    '† transfer penalty applied': '† הוחל קנס העברות',
+    'Which league changes do you want to see?':
+      'שינויים של איזו ליגה ברצונך לראות?',
+    'No locked-roster snapshots are available yet for this league. Wait until the next race weekend.':
+      'אין עדיין צילומי הרכב נעולים עבור הליגה הזו. נסה שוב אחרי סוף השבוע הבא.',
+    'League data is not yet available. Wait for the next weekly refresh.':
+      'נתוני הליגה עדיין לא זמינים. נסה שוב אחרי הריענון השבועי הבא.',
+    'The latest locked snapshot is for matchday {LOCKED_MD} but the weekly snapshot is for matchday {TEAMS_MD}. Wait for the next session lock.':
+      'הצילום הנעול האחרון הוא של סבב {LOCKED_MD} אך הצילום השבועי הוא של סבב {TEAMS_MD}. חכה לנעילה הבאה.',
+    '🔄 {LEAGUE} — matchday {N} (planning → locked)':
+      '🔄 {LEAGUE} — סבב {N} (תכנון → נעול)',
+    '↪ Captain: {FROM} → {TO}': '↪ קפטן: {FROM} → {TO}',
+    '↪ Mega captain: {FROM} → {TO}': '↪ מגה קפטן: {FROM} → {TO}',
+    '↪ Chip: {CHIP}': "↪ צ'יפ: {CHIP}",
+    '🆕 new team': '🆕 קבוצה חדשה',
+    'No team changes for matchday {N}.':
+      'אין שינויי קבוצות עבור סבב {N}.',
+    '({COUNT} other team(s) had no changes)':
+      '({COUNT} קבוצות נוספות ללא שינוי)',
     '🏁 League Management': '🏁 ניהול ליגות',
     'Follow and view F1 Fantasy leagues':
       'עקוב וצפה בליגות F1 Fantasy',
