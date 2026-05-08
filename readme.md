@@ -93,14 +93,12 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
    AZURE_STORAGE_CONNECTION_STRING=your_azure_storage_connection_string
    AZURE_STORAGE_CONTAINER_NAME=your_azure_storage_container_name
 
-   # Azure Cost Management (Optional - for billing stats)
+   # Azure Management API
    AZURE_SUBSCRIPTION_ID=your_azure_subscription_id
    AZURE_CLIENT_ID=your_azure_service_principal_client_id
    AZURE_CLIENT_SECRET=your_azure_service_principal_client_secret
    AZURE_TENANT_ID=your_azure_tenant_id
-
-   # External Services
-   AZURE_LOGICAPP_TRIGGER_URL=your_scraping_trigger_url
+   AZURE_RESOURCE_GROUP=your_azure_resource_group
    ```
 
    **Getting the required credentials:**
@@ -111,7 +109,7 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
 
    - **Azure Storage**: Create a storage account in Azure and get the connection string from the portal. Create a container for the bot's data storage.
 
-   - **Azure Cost Management**: Create a service principal in Azure with Cost Management Reader permissions. Get the client ID, client secret, tenant ID, and subscription ID from the Azure portal.
+   - **Azure Management API**: Create a service principal in Azure for local development with permissions to read billing data and run Logic App triggers. Get the client ID, client secret, tenant ID, and subscription ID from the Azure portal. `AZURE_RESOURCE_GROUP` is optional and defaults to `f1-fantazy-bot`.
 
 4. **Run the bot**
 
@@ -178,6 +176,10 @@ All users can access these commands:
 Restricted to authorized administrators:
 
 - **`/trigger_scraping`** - Trigger web scraping for latest F1 Fantasy data
+- **`/trigger_api_data`** - Trigger API data refresh
+- **`/trigger_api_data_locked`** - Trigger locked API data refresh
+- **`/trigger_next_race_info`** - Run the next race info scheduler
+- **`/trigger_live_score_scheduler`** - Run the live score scheduler logic
 - **`/billing_stats`** - View current month Azure billing statistics with service breakdown
 - **`/get_botfather_commands`** - Get commands formatted for BotFather setup
 - **`/version`** - Display commit ID, commit message, and link for the deployed version
@@ -230,7 +232,7 @@ Enter numbers when prompted by various commands for:
 
 - **`@azure/storage-blob`**: Azure Blob Storage integration for data persistence
 - **`@azure/arm-costmanagement`**: Azure Cost Management integration for billing analytics
-- **`@azure/identity`**: Azure authentication for cost management services
+- **`@azure/identity`**: Azure authentication for Cost Management and Logic App trigger operations
 - **`openai`**: Azure OpenAI integration for image processing and data extraction
 - **`dotenv`**: Environment variable management
 - **`jest`**: Testing framework

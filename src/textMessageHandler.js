@@ -11,7 +11,11 @@ const {
   displayHelpMessage,
   handleGetCurrentSimulation,
   handleLoadSimulation,
-  handleScrapingTrigger,
+  handleTriggerScrapingCommand,
+  handleTriggerApiDataCommand,
+  handleTriggerApiDataLockedCommand,
+  handleTriggerNextRaceInfoCommand,
+  handleTriggerLiveScoreSchedulerCommand,
   handleGetBotfatherCommands,
   handleNextRaceInfoCommand,
   handleNextRacesCommand,
@@ -56,6 +60,10 @@ const {
   COMMAND_RESET_CACHE,
   COMMAND_HELP,
   COMMAND_TRIGGER_SCRAPING,
+  COMMAND_TRIGGER_API_DATA,
+  COMMAND_TRIGGER_API_DATA_LOCKED,
+  COMMAND_TRIGGER_NEXT_RACE_INFO,
+  COMMAND_TRIGGER_LIVE_SCORE_SCHEDULER,
   COMMAND_LOAD_SIMULATION,
   COMMAND_GET_CURRENT_SIMULATION,
   COMMAND_GET_BOTFATHER_COMMANDS,
@@ -133,7 +141,15 @@ exports.handleTextMessage = async function (bot, msg) {
     case msg.text === COMMAND_GET_CURRENT_SIMULATION:
       return await handleGetCurrentSimulation(bot, msg);
     case msg.text === COMMAND_TRIGGER_SCRAPING:
-      return await handleScrapingTrigger(bot, msg);
+      return await handleTriggerScrapingCommand(bot, msg);
+    case msg.text === COMMAND_TRIGGER_API_DATA:
+      return await handleTriggerApiDataCommand(bot, msg);
+    case msg.text === COMMAND_TRIGGER_API_DATA_LOCKED:
+      return await handleTriggerApiDataLockedCommand(bot, msg);
+    case msg.text === COMMAND_TRIGGER_NEXT_RACE_INFO:
+      return await handleTriggerNextRaceInfoCommand(bot, msg);
+    case msg.text === COMMAND_TRIGGER_LIVE_SCORE_SCHEDULER:
+      return await handleTriggerLiveScoreSchedulerCommand(bot, msg);
     case msg.text === COMMAND_GET_BOTFATHER_COMMANDS:
       return await handleGetBotfatherCommands(bot, msg);
     case msg.text === COMMAND_NEXT_RACE_INFO:

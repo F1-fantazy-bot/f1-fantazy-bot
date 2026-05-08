@@ -24,10 +24,6 @@ const {
 } = require('../prompts');
 const { t, getLocale } = require('../i18n');
 const { userCache } = require('../cache');
-const {
-  getSecret,
-  SCRAPER_RUNNER_URL_SECRET,
-} = require('../keyVaultService');
 
 const normalizePrice = function (value) {
   return Math.round(value * 10) / 10;
@@ -357,43 +353,6 @@ exports.calculateTeamInfo = function (team, drivers, constructors) {
 };
 
 exports.normalizePrice = normalizePrice;
-
-exports.triggerScraping = async function () {
-  let url;
-  try {
-    url = await getSecret(SCRAPER_RUNNER_URL_SECRET);
-  } catch (error) {
-    return {
-      success: false,
-      error: `Failed to read scraping trigger URL from Key Vault: ${error.message}`,
-    };
-  }
-
-  if (!url) {
-    return {
-      success: false,
-      error: 'Scraping trigger URL is not configured.',
-    };
-  }
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}',
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
-};
 
 exports.isAdminMessage = function (msg) {
   if (!msg || !msg.chat || !msg.chat.id) {

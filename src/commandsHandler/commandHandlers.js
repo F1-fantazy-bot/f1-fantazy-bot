@@ -7,6 +7,10 @@ const {
   COMMAND_RESET_CACHE,
   COMMAND_HELP,
   COMMAND_TRIGGER_SCRAPING,
+  COMMAND_TRIGGER_API_DATA,
+  COMMAND_TRIGGER_API_DATA_LOCKED,
+  COMMAND_TRIGGER_NEXT_RACE_INFO,
+  COMMAND_TRIGGER_LIVE_SCORE_SCHEDULER,
   COMMAND_LOAD_SIMULATION,
   COMMAND_GET_CURRENT_SIMULATION,
   COMMAND_GET_BOTFATHER_COMMANDS,
@@ -56,7 +60,13 @@ const { handleNextRaceWeatherCommand } = require('./nextRaceWeatherHandler');
 const { handleNextRacesCommand } = require('./nextRacesHandler');
 const { sendPrintableCache } = require('./printCacheHandler');
 const { resetCacheForChat } = require('./resetCacheHandler');
-const { handleScrapingTrigger } = require('./scrapingTriggerHandler');
+const {
+  handleTriggerScrapingCommand,
+  handleTriggerApiDataCommand,
+  handleTriggerApiDataLockedCommand,
+  handleTriggerNextRaceInfoCommand,
+  handleTriggerLiveScoreSchedulerCommand,
+} = require('./manualTriggersHandler');
 const { handleBillingStats } = require('./billingStatsHandler');
 const { handleVersionCommand } = require('./versionHandler');
 const { displayMenuMessage } = require('./menuHandler');
@@ -106,7 +116,12 @@ const COMMAND_HANDLERS = {
   [COMMAND_PRINT_CACHE]: sendPrintableCache,
   [COMMAND_RESET_CACHE]: resetCacheForChat,
   [COMMAND_HELP]: displayHelpMessage,
-  [COMMAND_TRIGGER_SCRAPING]: handleScrapingTrigger,
+  [COMMAND_TRIGGER_SCRAPING]: handleTriggerScrapingCommand,
+  [COMMAND_TRIGGER_API_DATA]: handleTriggerApiDataCommand,
+  [COMMAND_TRIGGER_API_DATA_LOCKED]: handleTriggerApiDataLockedCommand,
+  [COMMAND_TRIGGER_NEXT_RACE_INFO]: handleTriggerNextRaceInfoCommand,
+  [COMMAND_TRIGGER_LIVE_SCORE_SCHEDULER]:
+    handleTriggerLiveScoreSchedulerCommand,
   [COMMAND_LOAD_SIMULATION]: handleLoadSimulation,
   [COMMAND_GET_CURRENT_SIMULATION]: handleGetCurrentSimulation,
   [COMMAND_GET_BOTFATHER_COMMANDS]: handleGetBotfatherCommands,
