@@ -37,8 +37,11 @@ jest.mock('./printCacheHandler', () => ({
 jest.mock('./resetCacheHandler', () => ({
   resetCacheForChat: jest.fn(),
 }));
-jest.mock('./scrapingTriggerHandler', () => ({
-  handleScrapingTrigger: jest.fn(),
+jest.mock('./manualTriggersHandler', () => ({
+  handleTriggerApiDataCommand: jest.fn(),
+  handleTriggerApiDataLockedCommand: jest.fn(),
+  handleTriggerNextRaceInfoCommand: jest.fn(),
+  handleTriggerLiveScoreSchedulerCommand: jest.fn(),
 }));
 jest.mock('./billingStatsHandler', () => ({
   handleBillingStats: jest.fn(),
@@ -142,6 +145,12 @@ describe('Menu Handler', () => {
                 expect.objectContaining({
                   text: '👤 Admin Commands',
                   callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.CATEGORY}:admin_commands`,
+                }),
+              ]),
+              expect.arrayContaining([
+                expect.objectContaining({
+                  text: '⚙️ Manual Triggers',
+                  callback_data: `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.CATEGORY}:manual_triggers`,
                 }),
               ]),
             ]),
@@ -373,20 +382,34 @@ describe('Menu Handler', () => {
       expect(hasLoadSimulation).toBe(false);
     });
 
-    it('should include admin commands for admin users in category view', async () => {
+    it('should include manual triggers for admin users in category view', async () => {
       isAdminMessage.mockReturnValue(true);
-      mockQuery.data = `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.CATEGORY}:admin_commands`;
+      mockQuery.data = `${MENU_CALLBACK_TYPE}:${MENU_ACTIONS.CATEGORY}:manual_triggers`;
 
       await handleMenuCallback(mockBot, mockQuery);
 
       const editCall = mockBot.editMessageText.mock.calls[0][1];
       const keyboard = editCall.reply_markup.inline_keyboard;
 
-      // Admin category should include admin-only commands such as Trigger Scraping
+      // Manual triggers category should include admin-only trigger commands
       const hasTriggerScraping = keyboard.some((row) =>
         row.some((button) => button.text === '🔄 Trigger Scraping')
       );
       expect(hasTriggerScraping).toBe(true);
+    });
+
+    it('should not show manual triggers category for regular users', async () => {
+      isAdminMessage.mockReturnValue(false);
+
+      await displayMenuMessage(mockBot, mockMsg);
+
+      const sendCall = mockBot.sendMessage.mock.calls[0][2];
+      const keyboard = sendCall.reply_markup.inline_keyboard;
+      const hasManualTriggers = keyboard.some((row) =>
+        row.some((button) => button.text === '⚙️ Manual Triggers')
+      );
+
+      expect(hasManualTriggers).toBe(false);
     });
   });
 });

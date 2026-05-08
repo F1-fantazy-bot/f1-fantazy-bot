@@ -7,6 +7,10 @@ const {
   COMMAND_RESET_CACHE,
   COMMAND_HELP,
   COMMAND_TRIGGER_SCRAPING,
+  COMMAND_TRIGGER_API_DATA,
+  COMMAND_TRIGGER_API_DATA_LOCKED,
+  COMMAND_TRIGGER_NEXT_RACE_INFO,
+  COMMAND_TRIGGER_LIVE_SCORE_SCHEDULER,
   COMMAND_LOAD_SIMULATION,
   COMMAND_GET_CURRENT_SIMULATION,
   COMMAND_GET_BOTFATHER_COMMANDS,
@@ -59,8 +63,12 @@ const {
   handleLoadSimulation,
 } = require('./commandsHandler/loadSimulationHandler');
 const {
-  handleScrapingTrigger,
-} = require('./commandsHandler/scrapingTriggerHandler');
+  handleTriggerScrapingCommand,
+  handleTriggerApiDataCommand,
+  handleTriggerApiDataLockedCommand,
+  handleTriggerNextRaceInfoCommand,
+  handleTriggerLiveScoreSchedulerCommand,
+} = require('./commandsHandler/manualTriggersHandler');
 const {
   handleGetBotfatherCommands,
 } = require('./commandsHandler/getBotfatherCommandsHandler');
@@ -119,7 +127,7 @@ jest.mock('./commandsHandler/resetCacheHandler');
 jest.mock('./commandsHandler/helpHandler');
 jest.mock('./commandsHandler/getCurrentSimulationHandler');
 jest.mock('./commandsHandler/loadSimulationHandler');
-jest.mock('./commandsHandler/scrapingTriggerHandler');
+jest.mock('./commandsHandler/manualTriggersHandler');
 jest.mock('./commandsHandler/getBotfatherCommandsHandler');
 jest.mock('./commandsHandler/nextRaceInfoHandler');
 jest.mock('./commandsHandler/nextRacesHandler');
@@ -360,7 +368,7 @@ describe('handleTextMessage', () => {
       expect(handleJsonMessage).not.toHaveBeenCalled();
     });
 
-    it('should route /trigger_scraping command to handleScrapingTrigger', async () => {
+    it('should route /trigger_scraping command to handleTriggerScrapingCommand', async () => {
       const msgMock = {
         chat: { id: KILZI_CHAT_ID },
         text: COMMAND_TRIGGER_SCRAPING,
@@ -368,8 +376,36 @@ describe('handleTextMessage', () => {
 
       await handleTextMessage(botMock, msgMock);
 
-      expect(handleScrapingTrigger).toHaveBeenCalledWith(botMock, msgMock);
+      expect(handleTriggerScrapingCommand).toHaveBeenCalledWith(
+        botMock,
+        msgMock,
+      );
       expect(handleJsonMessage).not.toHaveBeenCalled();
+    });
+
+    it('should route manual trigger commands to their handlers', async () => {
+      const cases = [
+        [COMMAND_TRIGGER_API_DATA, handleTriggerApiDataCommand],
+        [COMMAND_TRIGGER_API_DATA_LOCKED, handleTriggerApiDataLockedCommand],
+        [COMMAND_TRIGGER_NEXT_RACE_INFO, handleTriggerNextRaceInfoCommand],
+        [
+          COMMAND_TRIGGER_LIVE_SCORE_SCHEDULER,
+          handleTriggerLiveScoreSchedulerCommand,
+        ],
+      ];
+
+      for (const [command, handler] of cases) {
+        jest.clearAllMocks();
+        const msgMock = {
+          chat: { id: KILZI_CHAT_ID },
+          text: command,
+        };
+
+        await handleTextMessage(botMock, msgMock);
+
+        expect(handler).toHaveBeenCalledWith(botMock, msgMock);
+        expect(handleJsonMessage).not.toHaveBeenCalled();
+      }
     });
 
     it('should route /get_botfather_commands command to handleGetBotfatherCommands', async () => {

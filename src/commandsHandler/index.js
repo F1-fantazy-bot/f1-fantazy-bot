@@ -14,7 +14,13 @@ const { handleNextRacesCommand } = require('./nextRacesHandler');
 const { handleNumberMessage } = require('./numberInputHandler');
 const { sendPrintableCache } = require('./printCacheHandler');
 const { resetCacheForChat } = require('./resetCacheHandler');
-const { handleScrapingTrigger } = require('./scrapingTriggerHandler');
+const {
+  handleTriggerScrapingCommand,
+  handleTriggerApiDataCommand,
+  handleTriggerApiDataLockedCommand,
+  handleTriggerNextRaceInfoCommand,
+  handleTriggerLiveScoreSchedulerCommand,
+} = require('./manualTriggersHandler');
 const { handleBillingStats } = require('./billingStatsHandler');
 const { displayMenuMessage } = require('./menuHandler');
 const { handleVersionCommand } = require('./versionHandler');
@@ -72,7 +78,11 @@ module.exports = {
   handleNumberMessage,
   sendPrintableCache,
   resetCacheForChat,
-  handleScrapingTrigger,
+  handleTriggerScrapingCommand,
+  handleTriggerApiDataCommand,
+  handleTriggerApiDataLockedCommand,
+  handleTriggerNextRaceInfoCommand,
+  handleTriggerLiveScoreSchedulerCommand,
   handleBillingStats,
   displayMenuMessage,
   handleVersionCommand,

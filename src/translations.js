@@ -266,6 +266,40 @@ const translations = {
     '🔄 Trigger Scraping': '🔄 הפעל סריקה',
     'Trigger web scraping for latest F1 Fantasy data':
       'הפעל סריקת רשת לקבלת נתוני F1 Fantasy העדכניים',
+    '⚙️ Manual Triggers': '⚙️ הפעלות ידניות',
+    'Start Logic App jobs manually.': 'הפעל ידנית משימות Logic App.',
+    '📊 Trigger API Data': '📊 הפעל נתוני API',
+    'Trigger the weekly API data refresh runner':
+      'הפעל את רענון נתוני ה-API השבועי',
+    '🔒 Trigger API Data Locked': '🔒 הפעל נתוני API נעולים',
+    'Trigger the locked league snapshot runner':
+      'הפעל את יצירת צילומי הליגות הנעולים',
+    '🏁 Run Next Race Info Scheduler': '🏁 הרץ מתזמן מידע על המרוץ הבא',
+    'Run the next-race info scheduler Logic App':
+      'הרץ את Logic App של מתזמן מידע המרוץ הבא',
+    '🔴 Run Live Score Scheduler': '🔴 הרץ מתזמן ניקוד חי',
+    'Run the live-score scheduler Logic App; it may start or stop ACI based on the race window':
+      'הרץ את Logic App של מתזמן הניקוד החי; הוא עשוי להפעיל או לעצור ACI לפי חלון המרוץ',
+    'Sorry, only admins can trigger manual jobs.':
+      'מצטער, רק מנהלים יכולים להפעיל משימות ידניות.',
+    'API data trigger started successfully.':
+      'הפעלת נתוני API התחילה בהצלחה.',
+    'Failed to trigger API data: {ERROR}':
+      'הפעלת נתוני API נכשלה: {ERROR}',
+    'API data locked trigger started successfully.':
+      'הפעלת נתוני API נעולים התחילה בהצלחה.',
+    'Failed to trigger API data locked: {ERROR}':
+      'הפעלת נתוני API נעולים נכשלה: {ERROR}',
+    'Next race info scheduler started successfully.':
+      'מתזמן מידע המרוץ הבא התחיל בהצלחה.',
+    'Failed to run next race info scheduler: {ERROR}':
+      'הרצת מתזמן מידע המרוץ הבא נכשלה: {ERROR}',
+    'Live score scheduler started successfully.':
+      'מתזמן הניקוד החי התחיל בהצלחה.',
+    'Failed to run live score scheduler: {ERROR}':
+      'הרצת מתזמן הניקוד החי נכשלה: {ERROR}',
+    'Failed to trigger manual job: {ERROR}':
+      'הפעלת המשימה הידנית נכשלה: {ERROR}',
     '🤖 BotFather Commands': '🤖 פקודות BotFather',
     'Get commands for BotFather setup': 'קבל פקודות להגדרת BotFather',
     '💰 Billing Stats': '💰 סטטיסטיקת חיוב',

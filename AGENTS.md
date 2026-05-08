@@ -65,7 +65,7 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
 - `/follow_league`, `/unfollow_league`, `/teams_tracker`, `/leaderboard`, `/league_graphs`, `/league_changes`
 - `/report_bug` _(reply-based — uses pending reply manager)_
 
-**Admin-only:** `/trigger_scraping`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/upload_drivers_photo`, `/upload_constructors_photo`
+**Admin-only:** `/trigger_scraping`, `/trigger_api_data`, `/trigger_api_data_locked`, `/trigger_next_race_info`, `/trigger_live_score_scheduler`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/upload_drivers_photo`, `/upload_constructors_photo`
 
 ### Announcements file (`/whats_new`)
 
@@ -81,8 +81,8 @@ Required environment variables (see `readme.md` for full list):
 - Azure OpenAI: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPEN_AI_MODEL`
 - Azure Storage: `AZURE_STORAGE_CONNECTION_STRING`, `AZURE_STORAGE_CONTAINER_NAME`
   - **Note:** `AZURE_STORAGE_CONNECTION_STRING` is also used by the Pending Reply Manager and User Registry Service for Azure Table Storage (no additional env var needed).
-- Optional billing data: `AZURE_SUBSCRIPTION_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`
-- Scraping trigger: `AZURE_LOGICAPP_TRIGGER_URL`
+- Azure Management API for billing and manual Logic App triggers: `AZURE_SUBSCRIPTION_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`
+  - `AZURE_RESOURCE_GROUP` is optional and defaults to `f1-fantazy-bot`.
 
 Start the bot with `npm start` (polling in dev) or configure webhook as needed for production.
 

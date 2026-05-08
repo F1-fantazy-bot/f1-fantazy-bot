@@ -87,6 +87,11 @@ exports.COMMAND_PRINT_CACHE = '/print_cache';
 exports.COMMAND_RESET_CACHE = '/reset_cache';
 exports.COMMAND_HELP = '/help';
 exports.COMMAND_TRIGGER_SCRAPING = '/trigger_scraping';
+exports.COMMAND_TRIGGER_API_DATA = '/trigger_api_data';
+exports.COMMAND_TRIGGER_API_DATA_LOCKED = '/trigger_api_data_locked';
+exports.COMMAND_TRIGGER_NEXT_RACE_INFO = '/trigger_next_race_info';
+exports.COMMAND_TRIGGER_LIVE_SCORE_SCHEDULER =
+  '/trigger_live_score_scheduler';
 exports.COMMAND_LOAD_SIMULATION = '/load_simulation';
 exports.COMMAND_GET_CURRENT_SIMULATION = '/get_current_simulation';
 exports.COMMAND_GET_BOTFATHER_COMMANDS = '/get_botfather_commands';
@@ -273,11 +278,6 @@ exports.MENU_CATEGORIES = {
     adminOnly: true,
     commands: [
       {
-        constant: exports.COMMAND_TRIGGER_SCRAPING,
-        title: '🔄 Trigger Scraping',
-        description: 'Trigger web scraping for latest F1 Fantasy data',
-      },
-      {
         constant: exports.COMMAND_GET_BOTFATHER_COMMANDS,
         title: '🤖 BotFather Commands',
         description: 'Get commands for BotFather setup',
@@ -321,6 +321,40 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_UPLOAD_CONSTRUCTORS_PHOTO,
         title: '📤 Upload Constructors Photo',
         description: 'Upload a constructors screenshot for cache extraction',
+      },
+    ],
+  },
+  MANUAL_TRIGGERS: {
+    id: 'manual_triggers',
+    title: '⚙️ Manual Triggers',
+    description: 'Start Logic App jobs manually.',
+    adminOnly: true,
+    commands: [
+      {
+        constant: exports.COMMAND_TRIGGER_SCRAPING,
+        title: '🔄 Trigger Scraping',
+        description: 'Trigger web scraping for latest F1 Fantasy data',
+      },
+      {
+        constant: exports.COMMAND_TRIGGER_API_DATA,
+        title: '📊 Trigger API Data',
+        description: 'Trigger the weekly API data refresh runner',
+      },
+      {
+        constant: exports.COMMAND_TRIGGER_API_DATA_LOCKED,
+        title: '🔒 Trigger API Data Locked',
+        description: 'Trigger the locked league snapshot runner',
+      },
+      {
+        constant: exports.COMMAND_TRIGGER_NEXT_RACE_INFO,
+        title: '🏁 Run Next Race Info Scheduler',
+        description: 'Run the next-race info scheduler Logic App',
+      },
+      {
+        constant: exports.COMMAND_TRIGGER_LIVE_SCORE_SCHEDULER,
+        title: '🔴 Run Live Score Scheduler',
+        description:
+          'Run the live-score scheduler Logic App; it may start or stop ACI based on the race window',
       },
     ],
   },
