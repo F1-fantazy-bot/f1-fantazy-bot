@@ -5,7 +5,6 @@ const {
   sanitizeIdSegment,
   sanitizeTeamName,
   buildLeagueTeamId,
-  buildLegacyLeagueTeamId,
 } = require('./teamId');
 const {
   currentTeamCache,
@@ -222,17 +221,6 @@ async function removeFollowedTeam(
   return { removed: true, fallbackSelectedTeam };
 }
 
-/**
- * @deprecated Used only by the lazy migration in `cacheInitializer.js` to
- * detect old-format teamIds (`{leagueCode}_{sanitizedTeamName}`). Once
- * migration is removed in PR B this function goes away.
- */
-function extractLeagueCode(teamId) {
-  const separatorIdx = teamId.indexOf('_');
-
-  return separatorIdx === -1 ? null : teamId.substring(0, separatorIdx);
-}
-
 function buildLeagueNameMap(leagues) {
   const map = {};
   for (const league of leagues || []) {
@@ -262,11 +250,9 @@ module.exports = {
   refreshLeagueTeamsData,
   followLeagueTeam,
   removeFollowedTeam,
-  extractLeagueCode,
   buildLeagueNameMap,
   buildTeamLabel,
   sanitizeIdSegment,
   sanitizeTeamName,
   buildLeagueTeamId,
-  buildLegacyLeagueTeamId,
 };
