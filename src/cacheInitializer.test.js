@@ -15,8 +15,10 @@ const {
   getNextRaceInfoData,
   getLeagueTeamsData,
   saveUserTeam,
+  deleteUserTeam,
 } = require('./azureStorageService');
-const { listAllUsers } = require('./userRegistryService');
+const { listAllUsers, updateUserAttributes } = require('./userRegistryService');
+const { listUserLeagues } = require('./leagueRegistryService');
 const {
   initializeCaches,
   loadSimulationData,
@@ -40,10 +42,16 @@ jest.mock('./azureStorageService', () => ({
   getNextRaceInfoData: jest.fn(),
   getLeagueTeamsData: jest.fn(),
   saveUserTeam: jest.fn(),
+  deleteUserTeam: jest.fn(),
 }));
 
 jest.mock('./userRegistryService', () => ({
   listAllUsers: jest.fn(),
+  updateUserAttributes: jest.fn(),
+}));
+
+jest.mock('./leagueRegistryService', () => ({
+  listUserLeagues: jest.fn(),
 }));
 
 jest.mock('./raceScheduleService', () => ({
@@ -305,22 +313,36 @@ describe('cacheInitializer', () => {
     beforeEach(() => {
       getLeagueTeamsData.mockReset();
       saveUserTeam.mockReset().mockResolvedValue(undefined);
+      deleteUserTeam.mockReset().mockResolvedValue(undefined);
+      updateUserAttributes.mockReset().mockResolvedValue(undefined);
+      listUserLeagues.mockReset().mockResolvedValue([]);
+      Object.keys(userCache).forEach((k) => delete userCache[k]);
     });
 
-    it('refreshes league-sourced teams (ids containing "_") from the latest league blob', async () => {
+    it('refreshes new-format teams (sanitizedUserName_teamNo) from the latest league blob', async () => {
+      // Already in new format — leagueCode prefix doesn't appear in
+      // listUserLeagues, so migration is skipped.
       currentTeamCache[111] = {
         T1: { drivers: ['OLD'], constructors: ['OLD'] },
-        'ABC_My-Team': { drivers: ['STALE'], constructors: ['STALE'] },
+        'My-Team-Owner_1': { drivers: ['STALE'], constructors: ['STALE'] },
       };
       currentTeamCache[222] = {
-        ABC_Other: { drivers: ['STALE'], constructors: ['STALE'] },
+        'Other-Owner_1': { drivers: ['STALE'], constructors: ['STALE'] },
       };
+
+      // Both chatIds are members of league "ABC" so the refresh loop will
+      // find their teams there.
+      listUserLeagues.mockResolvedValue([
+        { leagueCode: 'ABC', leagueName: 'League ABC' },
+      ]);
 
       getLeagueTeamsData.mockResolvedValue({
         leagueName: 'League ABC',
         teams: [
           {
             teamName: 'My Team',
+            userName: 'My Team Owner',
+            teamNo: 1,
             position: 1,
             budget: 100,
             transfersRemaining: 2,
@@ -332,6 +354,8 @@ describe('cacheInitializer', () => {
           },
           {
             teamName: 'Other',
+            userName: 'Other Owner',
+            teamNo: 1,
             position: 2,
             budget: 90,
             transfersRemaining: 1,
@@ -349,7 +373,7 @@ describe('cacheInitializer', () => {
         constructors: ['OLD'],
       });
       // League-sourced teams are rebuilt with mapped codes
-      expect(currentTeamCache[111]['ABC_My-Team']).toEqual(
+      expect(currentTeamCache[111]['My-Team-Owner_1']).toEqual(
         expect.objectContaining({
           drivers: ['VER', 'NOR'],
           constructors: ['RED'],
@@ -357,18 +381,13 @@ describe('cacheInitializer', () => {
           freeTransfers: 2,
         }),
       );
-      expect(currentTeamCache[222].ABC_Other).toEqual(
+      expect(currentTeamCache[222]['Other-Owner_1']).toEqual(
         expect.objectContaining({
           drivers: ['BEA'],
           constructors: ['VRB'],
           boost: 'BEA',
         }),
       );
-      // League blob fetched once per league (cached within the function)
-      expect(getLeagueTeamsData).toHaveBeenCalledTimes(1);
-      expect(getLeagueTeamsData).toHaveBeenCalledWith('ABC');
-      // Persisted back to storage with silent: true so the per-team success
-      // log doesn't spam the log channel during startup.
       expect(saveUserTeam).toHaveBeenCalledTimes(2);
       expect(saveUserTeam).toHaveBeenCalledWith(
         mockBot,
@@ -379,8 +398,148 @@ describe('cacheInitializer', () => {
       );
     });
 
+    it('migrates legacy-format teamIds to {sanitizedUserName}_{teamNo}', async () => {
+      // Legacy id `ABC_My-Team` with user following league ABC → migration
+      // path is taken. teamNo is present in the league blob, so the
+      // migration completes.
+      currentTeamCache[111] = {
+        'ABC_My-Team': { drivers: ['STALE'], constructors: ['STALE'] },
+      };
+      userCache['111'] = {
+        selectedTeam: 'ABC_My-Team',
+        selectedBestTeamByTeam: {
+          'ABC_My-Team': {
+            drivers: ['x'],
+            constructors: ['y'],
+            boostDriver: 'x',
+          },
+        },
+      };
+
+      listUserLeagues.mockResolvedValue([
+        { leagueCode: 'ABC', leagueName: 'League ABC' },
+      ]);
+
+      getLeagueTeamsData.mockResolvedValue({
+        leagueName: 'League ABC',
+        teams: [
+          {
+            teamName: 'My Team',
+            userName: 'My Team Owner',
+            teamNo: 1,
+            position: 1,
+            budget: 100,
+            transfersRemaining: 2,
+            drivers: [{ name: 'M. Verstappen', price: 30, isCaptain: true }],
+            constructors: [{ name: 'Red Bull Racing', price: 20 }],
+          },
+        ],
+      });
+
+      await refreshLeagueSourcedTeams(mockBot);
+
+      // Old id removed, new id present
+      expect(currentTeamCache[111]['ABC_My-Team']).toBeUndefined();
+      expect(currentTeamCache[111]['My-Team-Owner_1']).toEqual(
+        expect.objectContaining({
+          drivers: ['VER'],
+          constructors: ['RED'],
+          boost: 'VER',
+        }),
+      );
+      // userCache.selectedTeam was renamed
+      expect(userCache['111'].selectedTeam).toBe('My-Team-Owner_1');
+      // selectedBestTeamByTeam key was renamed
+      expect(
+        userCache['111'].selectedBestTeamByTeam['My-Team-Owner_1'],
+      ).toBeDefined();
+      expect(
+        userCache['111'].selectedBestTeamByTeam['ABC_My-Team'],
+      ).toBeUndefined();
+      // Old blob deleted
+      expect(deleteUserTeam).toHaveBeenCalledWith(
+        mockBot,
+        '111',
+        'ABC_My-Team',
+        { silent: true },
+      );
+      // Migrated attributes persisted via Azure Table merge
+      expect(updateUserAttributes).toHaveBeenCalledWith(
+        '111',
+        expect.objectContaining({ selectedTeam: 'My-Team-Owner_1' }),
+      );
+    });
+
+    it('dedups when the same fantasy team is followed via multiple leagues', async () => {
+      // User had `ABC_Kilzid` AND `XYZ_Kilzid` — both refer to the same
+      // F1 Fantasy team. After migration only one entry remains.
+      currentTeamCache[111] = {
+        'ABC_Kilzid': { drivers: ['STALE1'] },
+        'XYZ_Kilzid': { drivers: ['STALE2'] },
+      };
+      listUserLeagues.mockResolvedValue([
+        { leagueCode: 'ABC', leagueName: 'League ABC' },
+        { leagueCode: 'XYZ', leagueName: 'League XYZ' },
+      ]);
+      getLeagueTeamsData.mockImplementation((code) => {
+        const team = {
+          teamName: 'Kilzid',
+          userName: 'Doron Kilzi',
+          teamNo: 1,
+          position: 1,
+          budget: 100,
+          transfersRemaining: 1,
+          drivers: [{ name: 'O. Bearman', price: 10, isCaptain: true }],
+          constructors: [{ name: 'Racing Bulls', price: 5 }],
+        };
+
+        return Promise.resolve({ leagueCode: code, teams: [team] });
+      });
+
+      await refreshLeagueSourcedTeams(mockBot);
+
+      const cacheForUser = currentTeamCache[111];
+      expect(Object.keys(cacheForUser)).toEqual(['Doron-Kilzi_1']);
+      expect(cacheForUser['Doron-Kilzi_1']).toBeDefined();
+    });
+
+    it('leaves legacy ids alone when the upstream blob has no teamNo yet', async () => {
+      // Pre-PR-#18 data — userName present but teamNo missing. We refresh
+      // in place under the legacy id and retry migration on next startup.
+      currentTeamCache[111] = {
+        'ABC_My-Team': { drivers: ['STALE'] },
+      };
+      listUserLeagues.mockResolvedValue([
+        { leagueCode: 'ABC', leagueName: 'League ABC' },
+      ]);
+      getLeagueTeamsData.mockResolvedValue({
+        teams: [
+          {
+            teamName: 'My Team',
+            userName: 'My Team Owner',
+            // no teamNo
+            position: 1,
+            budget: 100,
+            transfersRemaining: 2,
+            drivers: [{ name: 'M. Verstappen', price: 30, isCaptain: true }],
+            constructors: [{ name: 'Red Bull Racing', price: 20 }],
+          },
+        ],
+      });
+
+      await refreshLeagueSourcedTeams(mockBot);
+
+      // Old id still present (refreshed in place)
+      expect(currentTeamCache[111]['ABC_My-Team']).toEqual(
+        expect.objectContaining({ drivers: ['VER'], boost: 'VER' }),
+      );
+      expect(currentTeamCache[111]['My-Team-Owner_undefined']).toBeUndefined();
+      expect(deleteUserTeam).not.toHaveBeenCalled();
+    });
+
     it('is a no-op for users with only T1/T2/T3 style ids', async () => {
       currentTeamCache[111] = { T1: { drivers: ['OLD'] } };
+      listUserLeagues.mockResolvedValue([]);
 
       await refreshLeagueSourcedTeams(mockBot);
 
@@ -391,13 +550,18 @@ describe('cacheInitializer', () => {
 
     it('leaves cached data untouched when the team is missing in the league blob', async () => {
       currentTeamCache[111] = {
-        ABC_Gone: { drivers: ['STALE'] },
+        'Gone-Owner_1': { drivers: ['STALE'] },
       };
+      listUserLeagues.mockResolvedValue([
+        { leagueCode: 'ABC', leagueName: 'League ABC' },
+      ]);
       getLeagueTeamsData.mockResolvedValue({ teams: [] });
 
       await refreshLeagueSourcedTeams(mockBot);
 
-      expect(currentTeamCache[111].ABC_Gone).toEqual({ drivers: ['STALE'] });
+      expect(currentTeamCache[111]['Gone-Owner_1']).toEqual({
+        drivers: ['STALE'],
+      });
       expect(saveUserTeam).not.toHaveBeenCalled();
     });
   });

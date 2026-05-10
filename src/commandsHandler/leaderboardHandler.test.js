@@ -79,16 +79,16 @@ describe('leaderboardHandler', () => {
       expect(output).toContain('No teams in this league yet.');
     });
 
-    it('bolds the selected team row', () => {
-      getSelectedTeam.mockReturnValue('ABC_A');
+    it('bolds the selected team row (by fantasy id)', () => {
+      getSelectedTeam.mockReturnValue('userA_1');
 
       const output = formatLeaderboard(
         {
           leagueName: 'Amba',
           leagueCode: 'ABC',
           teams: [
-            { teamName: 'A', totalScore: 900, position: 1 },
-            { teamName: 'B', totalScore: 800, position: 2 },
+            { teamName: 'A', userName: 'userA', teamNo: 1, totalScore: 900, position: 1 },
+            { teamName: 'B', userName: 'userB', teamNo: 1, totalScore: 800, position: 2 },
           ],
         },
         1,
@@ -96,6 +96,42 @@ describe('leaderboardHandler', () => {
 
       expect(output).toContain('<b> 1. A — 900</b>');
       expect(output).toContain(' 2. B — 800');
+    });
+
+    it('bolds across leagues by fantasy id (cross-league)', () => {
+      // Selected id was picked from a different league; same fantasy team
+      // appears in this one too. It still bolds.
+      getSelectedTeam.mockReturnValue('userA_1');
+
+      const output = formatLeaderboard(
+        {
+          leagueName: 'Other',
+          leagueCode: 'XYZ',
+          teams: [
+            { teamName: 'A renamed', userName: 'userA', teamNo: 1, totalScore: 700, position: 1 },
+          ],
+        },
+        1,
+      );
+
+      expect(output).toContain('<b> 1. A renamed — 700</b>');
+    });
+
+    it('does not bold rows missing userName or teamNo', () => {
+      getSelectedTeam.mockReturnValue('userA_1');
+
+      const output = formatLeaderboard(
+        {
+          leagueName: 'Amba',
+          leagueCode: 'ABC',
+          teams: [
+            { teamName: 'A', userName: 'userA', totalScore: 900, position: 1 },
+          ],
+        },
+        1,
+      );
+
+      expect(output).not.toContain('<b>');
     });
   });
 

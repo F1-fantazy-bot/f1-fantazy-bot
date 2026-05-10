@@ -5,7 +5,10 @@ const {
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getSelectedTeam } = require('../cache');
 const { mapNameToCode } = require('../utils/leagueTeamHelpers');
-const { sanitizeTeamName, buildTeamId } = require('../utils/teamId');
+const {
+  sanitizeTeamName,
+  buildLeagueTeamId,
+} = require('../utils/teamId');
 const { t } = require('../i18n');
 const { formatDateTime, sendErrorMessage } = require('../utils');
 const {
@@ -308,7 +311,6 @@ function formatLiveScoreSummary({
 
 function formatAllTeamsLeaderboard({
   leagueName,
-  leagueCode,
   matchdayId,
   rows,
   liveScoreData,
@@ -340,8 +342,8 @@ function formatAllTeamsLeaderboard({
 
   const lines = rows.map((row, idx) => {
     const rank = String(idx + 1).padStart(rankWidth, ' ');
-    const teamId = buildTeamId(leagueCode, row.teamName || row.userName || 'team');
-    const isSelected = selectedTeamId && selectedTeamId === teamId;
+    const teamId = buildLeagueTeamId(row.userName, row.teamNo);
+    const isSelected = !!teamId && teamId === selectedTeamId;
     const penaltyMarker = row.transferPenalty > 0 ? ' †' : '';
     const text = ` ${rank}. ${escapeHtml(row.teamName || row.userName || '—')} — ${row.totalPoints.toFixed(2)} ${t('pts', chatId)} | Δ ${formatSignedDelta(row.totalPriceChange.toFixed(2))}${penaltyMarker}`;
 
@@ -512,6 +514,7 @@ async function sendLiveScoreForAllTeams(bot, chatId, leagueCode) {
     return {
       teamName: team.teamName,
       userName: team.userName,
+      teamNo: team.teamNo,
       position: team.position,
       totalPoints,
       totalPriceChange,
@@ -529,7 +532,6 @@ async function sendLiveScoreForAllTeams(bot, chatId, leagueCode) {
 
   const message = formatAllTeamsLeaderboard({
     leagueName: snapshot.leagueName || leagueCode,
-    leagueCode,
     matchdayId: snapshot.matchdayId,
     rows,
     liveScoreData,

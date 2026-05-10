@@ -391,9 +391,9 @@ The nickname system allows admins to assign custom display names to users that r
 The bot supports **multiple teams per user**. Teams are keyed by a `teamId` string inside each chat's nested caches. Two `teamId` formats are in use:
 
 - **Screenshot flow:** `T1`, `T2`, `T3` — extracted from the colored-square icon in the team photo by `EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT`.
-- **League flow:** `{leagueCode}_{sanitizedTeamName}` — created via `/teams_tracker`. `sanitizedTeamName` strips unsafe characters (only word chars and `-` survive) and is truncated to 40 chars to keep the blob path (`user-teams/{chatId}_{teamId}.json`) and callback data short.
+- **League flow:** `{sanitize(userName)}_{teamNo}` (e.g. `Doron-Kilzi_1`) — derived from the F1 Fantasy account login + the team number (1/2/3) within that account. **League-agnostic by design**: the same F1 Fantasy team has the same id in every league it appears in. `userName` is sanitized to be blob-path-safe (only word chars and `-` survive; truncated to 40 chars) and joined with `teamNo` by a literal `_`. Built via `buildLeagueTeamId(userName, teamNo)` in `src/utils/teamId.js`.
 
-Picking a team from a league **adds it** to the user's followed league teams (up to `MAX_FOLLOWED_LEAGUE_TEAMS = 6`, in `constants.js`). The two sources still cannot coexist:
+Picking a team from a league **adds it** to the user's followed league teams (up to `MAX_FOLLOWED_LEAGUE_TEAMS = 6`, in `constants.js`). The cap counts **distinct fantasy teams**, not raw selection rows — selecting the same `Kilzid_1` from two leagues in `/teams_tracker` counts as one slot. The two sources still cannot coexist:
 
 - **Following a league team** wipes any screenshot teams (`T1`/`T2`/`T3`) first.
 - **Uploading/assigning a screenshot team** wipes any followed league teams first.
@@ -404,15 +404,21 @@ Cross-source wiping is centralized in `src/utils/teamSourceSwitcher.js` (`ensure
 
 Each team has its own cached data, chip selection, and best-teams calculation. A `selectedTeam` preference determines which team context commands operate on.
 
+### Cross-league active team
+
+Because the league teamId is `{sanitize(userName)}_{teamNo}`, every consumer of `getSelectedTeam(chatId)` — graphs, leaderboard, `/best_teams`, `/current_team_info`, `/chips`, `/select_team`, `/live_score`, etc. — automatically treats the user's active team as **the same team across every league it appears in**. The 3 `/league_graphs` charts thicken the active team's line in every league it shows up in; `/leaderboard` bolds its row in every league; `/select_team` lists fantasy teams (not per-league entries).
+
+In Teams Tracker, selections are **visually synced across leagues**: toggling `Kilzid_1` ON in League A automatically shows ✅ for `Kilzid_1` in League B if that team also appears there, because both rows resolve to the same fantasy id. The session payload (`session.selected[]`) carries `{ leagueCode, position, teamId }` tuples — one per (league, row) appearance — so the UI stays visually consistent while the persisted follow state collapses to one entry per fantasy id.
+
 ### Cache Structure
 
 Team-related caches are **nested by team ID** under each `chatId`:
 
 ```javascript
 // Per-user, per-team caches
-currentTeamCache[chatId][teamId]; // e.g., { T1: { drivers, constructors, ... }, T2: { ... } }
-bestTeamsCache[chatId][teamId]; // e.g., { T1: { currentTeam, bestTeams }, T2: { ... } }
-selectedChipCache[chatId][teamId]; // e.g., { T1: 'EXTRA_BOOST', T2: 'WILDCARD' }
+currentTeamCache[chatId][teamId]; // e.g., { T1: { drivers, constructors, ... }, 'Doron-Kilzi_1': { ... } }
+bestTeamsCache[chatId][teamId]; // e.g., { 'Doron-Kilzi_1': { currentTeam, bestTeams }, T2: { ... } }
+selectedChipCache[chatId][teamId]; // e.g., { 'Doron-Kilzi_1': 'EXTRA_BOOST', T2: 'WILDCARD' }
 
 // Per-user caches (shared across all teams — NOT nested by team ID)
 driversCache[chatId]; // driver data shared across teams
@@ -420,6 +426,18 @@ constructorsCache[chatId]; // constructor data shared across teams
 ```
 
 Best-team ranking preferences are stored per team in `userCache[chatId].bestTeamBudgetChangePointsPerMillion`.
+
+### Lazy migration from legacy league teamIds
+
+Production has historical data keyed by the legacy `{leagueCode}_{sanitizeIdSegment(teamName)}` format (e.g. `C8EFGOXCB04_Kilzid`). On every cold start, `refreshLeagueSourcedTeams` in `cacheInitializer.js` detects entries in legacy format (heuristic: the prefix before the first `_` matches one of the user's followed `leagueCode`s, looked up via `listUserLeagues(chatId)`) and rewrites them in place:
+
+1. Save a new blob `user-teams/{chatId}_{newTeamId}.json` with refreshed roster.
+2. Move `currentTeamCache`, `bestTeamsCache`, `selectedChipCache` entries to the new key (dedup on collision when the same fantasy team was followed via multiple leagues).
+3. Rewrite `userCache[chatId].selectedTeam` and rename keys inside `selectedBestTeamByTeam`.
+4. Delete the legacy blob.
+5. Persist updated user attributes via a single `updateUserAttributes` call.
+
+Failures keep the legacy entry in place and retry on the next startup. Once production is fully migrated, the migration block in `refreshLeagueSourcedTeams` and the `buildLegacyLeagueTeamId` / `extractLeagueCode` helpers are removed in a follow-up PR (`feature/doronkilzi/remove-fantasy-id-migration`).
 
 ### Best-Team Ranking
 

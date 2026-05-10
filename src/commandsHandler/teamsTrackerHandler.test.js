@@ -122,6 +122,55 @@ describe('handleTeamsTrackerCommand', () => {
     const editCalls = bot.editMessageText.mock.calls;
     expect(editCalls.some((call) => call[1].message_id === 99)).toBe(true);
   });
+
+  it('seeds the same fantasy team in every followed league it appears in (visual sync)', async () => {
+    // The user follows one team (Doron-Kilzi_1) that exists in two leagues.
+    // Seeding should produce one entry per (leagueCode, position) match —
+    // both leagues get a ✅ for this team in the toggle UI.
+    cache.currentTeamCache[1] = {
+      'Doron-Kilzi_1': { drivers: [] },
+    };
+    listUserLeagues.mockResolvedValue([
+      { leagueCode: 'L1', leagueName: 'One' },
+      { leagueCode: 'L2', leagueName: 'Two' },
+    ]);
+    azureStorageService.getLeagueTeamsData.mockImplementation((code) =>
+      Promise.resolve({
+        leagueCode: code,
+        teams: [
+          {
+            teamName: 'Kilzid',
+            userName: 'Doron Kilzi',
+            teamNo: 1,
+            position: code === 'L1' ? 2 : 5,
+          },
+        ],
+      }),
+    );
+
+    const bot = makeBot();
+    await handleTeamsTrackerCommand(bot, { chat: { id: 1 } });
+
+    const saved =
+      azureStorageService.saveTeamsTrackerSession.mock.calls[0][1];
+    expect(saved.selected).toHaveLength(2);
+    expect(saved.selected).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          leagueCode: 'L1',
+          position: 2,
+          teamId: 'Doron-Kilzi_1',
+        }),
+        expect.objectContaining({
+          leagueCode: 'L2',
+          position: 5,
+          teamId: 'Doron-Kilzi_1',
+        }),
+      ]),
+    );
+    // The fantasy id appears once in initiallyFollowed (dedup'd).
+    expect(saved.initiallyFollowed).toEqual(['Doron-Kilzi_1']);
+  });
 });
 
 describe('handleTeamsTrackerCallback', () => {
@@ -236,14 +285,20 @@ describe('handleTeamsTrackerCallback', () => {
       .mockResolvedValue(sessionFixture());
     azureStorageService.getLeagueTeamsData.mockResolvedValue({
       leagueCode: 'L1',
-      teams: [{ position: 3, teamName: 'Gamma' }],
+      teams: [
+        { position: 3, teamName: 'Gamma', userName: 'Gamma Owner', teamNo: 1 },
+      ],
     });
     const bot = makeBot();
     await handleTeamsTrackerCallback(bot, queryFixture('TT:T:L1:3'));
     const saved = azureStorageService.saveTeamsTrackerSession.mock.calls[0][1];
     expect(saved.selected).toHaveLength(1);
-    expect(saved.selected[0]).toEqual({ leagueCode: 'L1', position: 3 });
-    expect(saved.addOrder).toContain('L1_Gamma');
+    expect(saved.selected[0]).toEqual({
+      leagueCode: 'L1',
+      position: 3,
+      teamId: 'Gamma-Owner_1',
+    });
+    expect(saved.addOrder).toContain('Gamma-Owner_1');
   });
 
   it('cancel deletes session and edits message', async () => {
@@ -259,68 +314,96 @@ describe('handleTeamsTrackerCallback', () => {
   });
 
   it('save keeps prevActive when still in the final selection', async () => {
-    cache.userCache[String(CHAT_ID)] = { selectedTeam: 'L1_Keep' };
-    cache.currentTeamCache[CHAT_ID] = { L1_Keep: { drivers: [] } };
+    cache.userCache[String(CHAT_ID)] = { selectedTeam: 'Keep-Owner_1' };
+    cache.currentTeamCache[CHAT_ID] = { 'Keep-Owner_1': { drivers: [] } };
     azureStorageService.getTeamsTrackerSession = jest
       .fn()
       .mockResolvedValue(
         sessionFixture({
-          selected: [{ leagueCode: 'L1', position: 5 }],
-          initiallyFollowed: ['L1_Keep'],
+          selected: [
+            { leagueCode: 'L1', position: 5, teamId: 'Keep-Owner_1' },
+          ],
+          initiallyFollowed: ['Keep-Owner_1'],
           addOrder: [],
         }),
       );
     azureStorageService.getLeagueTeamsData.mockResolvedValue({
       leagueCode: 'L1',
-      teams: [{ position: 5, teamName: 'Keep', budget: 100 }],
+      teams: [
+        {
+          position: 5,
+          teamName: 'Keep',
+          userName: 'Keep Owner',
+          teamNo: 1,
+          budget: 100,
+        },
+      ],
     });
     const bot = makeBot();
     await handleTeamsTrackerCallback(bot, queryFixture('TT:S'));
     expect(updateUserAttributes).toHaveBeenCalledWith(
       CHAT_ID,
-      expect.objectContaining({ selectedTeam: 'L1_Keep' }),
+      expect.objectContaining({ selectedTeam: 'Keep-Owner_1' }),
     );
   });
 
   it('save falls back to first addOrder entry when prevActive was removed', async () => {
-    cache.userCache[String(CHAT_ID)] = { selectedTeam: 'L1_Old' };
-    cache.currentTeamCache[CHAT_ID] = { L1_Old: { drivers: [] } };
+    cache.userCache[String(CHAT_ID)] = { selectedTeam: 'Old-Owner_1' };
+    cache.currentTeamCache[CHAT_ID] = { 'Old-Owner_1': { drivers: [] } };
     azureStorageService.getTeamsTrackerSession = jest
       .fn()
       .mockResolvedValue(
         sessionFixture({
-          selected: [{ leagueCode: 'L1', position: 2 }],
-          initiallyFollowed: ['L1_Old'],
-          addOrder: ['L1_NewTeam'],
+          selected: [
+            { leagueCode: 'L1', position: 2, teamId: 'NewTeam-Owner_1' },
+          ],
+          initiallyFollowed: ['Old-Owner_1'],
+          addOrder: ['NewTeam-Owner_1'],
         }),
       );
     azureStorageService.getLeagueTeamsData.mockResolvedValue({
       leagueCode: 'L1',
-      teams: [{ position: 2, teamName: 'NewTeam', budget: 100 }],
+      teams: [
+        {
+          position: 2,
+          teamName: 'NewTeam',
+          userName: 'NewTeam Owner',
+          teamNo: 1,
+          budget: 100,
+        },
+      ],
     });
     const bot = makeBot();
     await handleTeamsTrackerCallback(bot, queryFixture('TT:S'));
     expect(updateUserAttributes).toHaveBeenCalledWith(
       CHAT_ID,
-      expect.objectContaining({ selectedTeam: 'L1_NewTeam' }),
+      expect.objectContaining({ selectedTeam: 'NewTeam-Owner_1' }),
     );
   });
 
   it('save clears selectedTeam when final selection is empty', async () => {
-    cache.userCache[String(CHAT_ID)] = { selectedTeam: 'L1_Old' };
-    cache.currentTeamCache[CHAT_ID] = { L1_Old: { drivers: [] } };
+    cache.userCache[String(CHAT_ID)] = { selectedTeam: 'Old-Owner_1' };
+    cache.currentTeamCache[CHAT_ID] = { 'Old-Owner_1': { drivers: [] } };
     azureStorageService.getTeamsTrackerSession = jest
       .fn()
       .mockResolvedValue(
         sessionFixture({
           selected: [],
-          initiallyFollowed: ['L1_Old'],
+          initiallyFollowed: ['Old-Owner_1'],
           addOrder: [],
         }),
       );
     azureStorageService.getLeagueTeamsData.mockResolvedValue({
       leagueCode: 'L1',
-      teams: [{ position: 1, teamName: 'Old', budget: 100 }],
+      teams: [
+        {
+          position: 1,
+          teamName: 'Old',
+          userName: 'Old Owner',
+          teamNo: 1,
+          budget: 100,
+        },
+      ],
     });
     const bot = makeBot();
     await handleTeamsTrackerCallback(bot, queryFixture('TT:S'));
@@ -336,13 +419,23 @@ describe('handleTeamsTrackerCallback', () => {
       .fn()
       .mockResolvedValue(
         sessionFixture({
-          selected: [{ leagueCode: 'L1', position: 1 }],
+          selected: [
+            { leagueCode: 'L1', position: 1, teamId: 'Alpha-Owner_1' },
+          ],
           initiallyFollowed: [],
         }),
       );
     azureStorageService.getLeagueTeamsData.mockResolvedValue({
       leagueCode: 'L1',
-      teams: [{ position: 1, teamName: 'Alpha', budget: 100 }],
+      teams: [
+        {
+          position: 1,
+          teamName: 'Alpha',
+          userName: 'Alpha Owner',
+          teamNo: 1,
+          budget: 100,
+        },
+      ],
     });
     const bot = makeBot();
     await handleTeamsTrackerCallback(bot, queryFixture('TT:S'));

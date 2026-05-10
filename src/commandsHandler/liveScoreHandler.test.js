@@ -79,6 +79,7 @@ describe('liveScoreHandler', () => {
       {
         teamName: 'Cooperon',
         userName: 'Ron Cooper',
+        teamNo: 1,
         position: 1,
         matchdayId: 4,
         transfersRemaining: 0,
@@ -95,6 +96,7 @@ describe('liveScoreHandler', () => {
       {
         teamName: 'Ravivmar',
         userName: 'Raviv',
+        teamNo: 1,
         position: 2,
         matchdayId: 4,
         transfersRemaining: 1,
@@ -111,6 +113,7 @@ describe('liveScoreHandler', () => {
       {
         teamName: 'Empty',
         userName: 'no-points-user',
+        teamNo: 1,
         position: 3,
         matchdayId: 4,
         transfersRemaining: -1,    // 1 excess transfer → -10 penalty
@@ -631,8 +634,8 @@ describe('liveScoreHandler', () => {
     });
 
     it('ALL action → bolds the user\'s selectedTeam row when it lives in this league', async () => {
-      // user's selectedTeam is the team-id form for Cooperon
-      getSelectedTeam.mockReturnValue('ABC_Cooperon');
+      // user's selectedTeam is the fantasy-id form for Cooperon
+      getSelectedTeam.mockReturnValue('Ron-Cooper_1');
       getLockedTeamsData.mockResolvedValueOnce(lockedSnapshot);
       getLiveScoreData.mockResolvedValueOnce(liveScorePayload);
 

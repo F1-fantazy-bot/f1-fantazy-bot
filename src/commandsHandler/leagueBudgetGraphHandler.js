@@ -4,7 +4,7 @@ const { sendErrorMessage } = require('../utils');
 const { getLeagueData } = require('../azureStorageService');
 const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 const { getSelectedTeam } = require('../cache');
-const { buildTeamId } = require('../utils/teamId');
+const { buildLeagueTeamId } = require('../utils/teamId');
 const { filterExcludedGraphTeams } = require('../utils/leagueGraphFilter');
 const {
   buildRoundToRaceNameMap,
@@ -100,11 +100,8 @@ function buildBudgetChartConfig(leagueData, options = {}) {
 
   const datasets = teams.map((team, idx) => {
     const color = TEAM_COLOR_PALETTE[idx % TEAM_COLOR_PALETTE.length];
-    const teamId = buildTeamId(
-      leagueData?.leagueCode,
-      team.teamName || team.userName || 'team',
-    );
-    const isSelectedTeam = teamId === selectedTeamId;
+    const teamId = buildLeagueTeamId(team.userName, team.teamNo);
+    const isSelectedTeam = !!teamId && teamId === selectedTeamId;
 
     const data = matchdayKeys.map((key) => {
       const raw = Number(team?.raceBudgets?.[key]);
