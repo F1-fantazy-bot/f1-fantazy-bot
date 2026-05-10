@@ -27,15 +27,28 @@ jest.mock('../cache', () => ({
   getSelectedTeam: jest.fn(),
 }));
 
+jest.mock('../utils/activeTeamIdentity', () => {
+  const actual = jest.requireActual('../utils/activeTeamIdentity');
+
+  return {
+    ...actual,
+    resolveActiveTeamFantasyId: jest.fn(),
+  };
+});
+
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
 const { getSelectedTeam } = require('../cache');
+const {
+  resolveActiveTeamFantasyId,
+} = require('../utils/activeTeamIdentity');
 
 describe('leaderboardHandler', () => {
   let botMock;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    resolveActiveTeamFantasyId.mockResolvedValue(null);
     botMock = { sendMessage: jest.fn().mockResolvedValue() };
   });
 
@@ -79,7 +92,7 @@ describe('leaderboardHandler', () => {
       expect(output).toContain('No teams in this league yet.');
     });
 
-    it('bolds the selected team row', () => {
+    it('bolds the selected team row (same-league fallback via getSelectedTeam)', () => {
       getSelectedTeam.mockReturnValue('ABC_A');
 
       const output = formatLeaderboard(
@@ -96,6 +109,62 @@ describe('leaderboardHandler', () => {
 
       expect(output).toContain('<b> 1. A — 900</b>');
       expect(output).toContain(' 2. B — 800');
+    });
+
+    it('bolds the row matching an explicit same-league highlight teamId', () => {
+      const output = formatLeaderboard(
+        {
+          leagueName: 'Amba',
+          leagueCode: 'ABC',
+          teams: [
+            { teamName: 'A', totalScore: 900, position: 1, userName: 'u1', teamNo: 1 },
+            { teamName: 'B', totalScore: 800, position: 2, userName: 'u2', teamNo: 1 },
+          ],
+        },
+        1,
+        { teamId: 'ABC_A', fantasyId: null },
+      );
+
+      expect(output).toContain('<b> 1. A — 900</b>');
+      expect(output).toContain(' 2. B — 800');
+    });
+
+    it('bolds the row matching cross-league via fantasyId (userName_teamNo)', () => {
+      // Active team is `OTHER_SomeOtherName` in another league, but the
+      // same F1 Fantasy account (`u2_2`) also has a team in this league.
+      const output = formatLeaderboard(
+        {
+          leagueName: 'Amba',
+          leagueCode: 'ABC',
+          teams: [
+            { teamName: 'A', totalScore: 900, position: 1, userName: 'u1', teamNo: 1 },
+            { teamName: 'B', totalScore: 800, position: 2, userName: 'u2', teamNo: 2 },
+          ],
+        },
+        1,
+        { teamId: 'OTHER_SomeOtherName', fantasyId: 'u2_2' },
+      );
+
+      expect(output).toContain(' 1. A — 900');
+      expect(output).not.toContain('<b> 1. A — 900</b>');
+      expect(output).toContain('<b> 2. B — 800 (-100)</b>');
+    });
+
+    it('does not bold any row when no team matches (old blob without teamNo)', () => {
+      const output = formatLeaderboard(
+        {
+          leagueName: 'Amba',
+          leagueCode: 'ABC',
+          teams: [
+            { teamName: 'A', totalScore: 900, position: 1, userName: 'u1' },
+            { teamName: 'B', totalScore: 800, position: 2, userName: 'u2' },
+          ],
+        },
+        1,
+        { teamId: 'OTHER_SomeOtherName', fantasyId: 'u2_2' },
+      );
+
+      expect(output).not.toContain('<b>');
     });
   });
 
@@ -185,6 +254,30 @@ describe('leaderboardHandler', () => {
         '❌ Failed to load league data: boom',
       );
       consoleSpy.mockRestore();
+    });
+
+    it('bolds the cross-league counterpart via resolved fantasyId', async () => {
+      resolveActiveTeamFantasyId.mockResolvedValueOnce({
+        teamId: 'OTHER_DifferentName',
+        fantasyId: 'u2_2',
+      });
+      getLeagueData.mockResolvedValueOnce({
+        leagueName: 'Amba',
+        leagueCode: 'ABC',
+        memberCount: 2,
+        fetchedAt: 't',
+        teams: [
+          { teamName: 'A', totalScore: 900, position: 1, userName: 'u1', teamNo: 1 },
+          { teamName: 'B', totalScore: 800, position: 2, userName: 'u2', teamNo: 2 },
+        ],
+      });
+
+      await sendLeaderboard(botMock, 1, 'ABC');
+
+      const [, body, opts] = botMock.sendMessage.mock.calls[0];
+      expect(opts).toEqual({ parse_mode: 'HTML' });
+      expect(body).toContain('<b> 2. B — 800 (-100)</b>');
+      expect(body).not.toContain('<b> 1. A');
     });
   });
 });

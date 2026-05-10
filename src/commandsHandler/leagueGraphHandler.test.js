@@ -29,6 +29,15 @@ jest.mock('../cache', () => ({
   getSelectedTeam: jest.fn(),
 }));
 
+jest.mock('../utils/activeTeamIdentity', () => {
+  const actual = jest.requireActual('../utils/activeTeamIdentity');
+
+  return {
+    ...actual,
+    resolveActiveTeamFantasyId: jest.fn(),
+  };
+});
+
 // Mock quickchart-js so tests never touch the network.
 // Names must be prefixed with `mock` to be accessible inside jest.mock factories.
 const mockGetShortUrl = jest.fn();
@@ -64,6 +73,9 @@ const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
 const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 const { getSelectedTeam } = require('../cache');
+const {
+  resolveActiveTeamFantasyId,
+} = require('../utils/activeTeamIdentity');
 
 const {
   handleLeagueGraphsCommand,
@@ -131,6 +143,7 @@ describe('leagueGraphHandler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     getSelectedTeam.mockReturnValue(null);
+    resolveActiveTeamFantasyId.mockResolvedValue(null);
     botMock = {
       sendMessage: jest.fn().mockResolvedValue(),
       sendPhoto: jest.fn().mockResolvedValue(),
@@ -331,14 +344,50 @@ describe('leagueGraphHandler', () => {
     });
 
     it('highlights the selected team with a thicker line and larger points', () => {
-      const selectedTeamId = 'C8EFGOXCB04_Cooperon';
-      const config = buildChartConfig(FIXTURE, { selectedTeamId });
+      const config = buildChartConfig(FIXTURE, {
+        highlight: { teamId: 'C8EFGOXCB04_Cooperon', fantasyId: null },
+      });
 
       expect(config.data.datasets[0].label).toBe('Cooperon');
       expect(config.data.datasets[0].borderWidth).toBe(6);
       expect(config.data.datasets[1].borderWidth).toBe(3);
       expect(config.data.datasets[0].pointRadius).toEqual([7, 12, 12]);
       expect(config.data.datasets[1].pointRadius).toEqual([4, 4, 9]);
+    });
+
+    it('highlights cross-league by fantasyId when teamId does not match', () => {
+      // Active team is `OTHER_Cooperon` (different league), but the user
+      // running the same account name + teamNo also has a team here.
+      const data = {
+        ...FIXTURE,
+        teams: FIXTURE.teams.map((team) =>
+          team.teamName === 'Cooperon'
+            ? { ...team, userName: 'Ron', teamNo: 1 }
+            : { ...team, teamNo: 1 },
+        ),
+      };
+      const config = buildChartConfig(data, {
+        highlight: { teamId: 'OTHER_Cooperon', fantasyId: 'Ron_1' },
+      });
+
+      const cooperon = config.data.datasets.find((d) => d.label === 'Cooperon');
+      const others = config.data.datasets.filter((d) => d.label !== 'Cooperon');
+      expect(cooperon.borderWidth).toBe(6);
+      for (const d of others) {
+        expect(d.borderWidth).toBe(3);
+      }
+    });
+
+    it('does not cross-highlight when teamNo is missing on the team row (old blob)', () => {
+      // Same fixture; no teamNo persisted yet on any team. Same-league
+      // teamId is for a different league → nothing should highlight.
+      const config = buildChartConfig(FIXTURE, {
+        highlight: { teamId: 'OTHER_Cooperon', fantasyId: 'Ron Cooper_1' },
+      });
+
+      for (const d of config.data.datasets) {
+        expect(d.borderWidth).toBe(3);
+      }
     });
 
     it('uses larger font sizes for high-resolution rendering readability', () => {
@@ -524,8 +573,11 @@ describe('leagueGraphHandler', () => {
       consoleSpy.mockRestore();
     });
 
-    it('passes selectedTeamId into chart config so selected series is highlighted', async () => {
-      getSelectedTeam.mockReturnValue('C8EFGOXCB04_Cooperon');
+    it('passes resolved highlight into chart config so selected series is highlighted', async () => {
+      resolveActiveTeamFantasyId.mockResolvedValueOnce({
+        teamId: 'C8EFGOXCB04_Cooperon',
+        fantasyId: 'Ron Cooper_1',
+      });
       getLeagueData.mockResolvedValueOnce(FIXTURE);
       fetchCurrentSeasonRaces.mockResolvedValueOnce({
         MRData: { RaceTable: { Races: [] } },

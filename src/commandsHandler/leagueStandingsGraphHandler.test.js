@@ -25,6 +25,15 @@ jest.mock('../cache', () => ({
   getSelectedTeam: jest.fn(),
 }));
 
+jest.mock('../utils/activeTeamIdentity', () => {
+  const actual = jest.requireActual('../utils/activeTeamIdentity');
+
+  return {
+    ...actual,
+    resolveActiveTeamFantasyId: jest.fn(),
+  };
+});
+
 const mockGetShortUrl = jest.fn();
 const mockSetConfig = jest.fn();
 const mockSetWidth = jest.fn();
@@ -57,6 +66,9 @@ jest.mock('quickchart-js', () => {
 const { getLeagueData } = require('../azureStorageService');
 const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 const { getSelectedTeam } = require('../cache');
+const {
+  resolveActiveTeamFantasyId,
+} = require('../utils/activeTeamIdentity');
 
 const {
   sendLeagueStandingsGraph,
@@ -118,6 +130,7 @@ describe('leagueStandingsGraphHandler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     getSelectedTeam.mockReturnValue(null);
+    resolveActiveTeamFantasyId.mockResolvedValue(null);
     botMock = {
       sendMessage: jest.fn().mockResolvedValue(),
       sendPhoto: jest.fn().mockResolvedValue(),
@@ -230,11 +243,43 @@ describe('leagueStandingsGraphHandler', () => {
     });
 
     it('highlights the selected team with a thicker line', () => {
-      const selectedTeamId = 'C8EFGOXCB04_Cooperon';
-      const config = buildStandingsChartConfig(FIXTURE, { selectedTeamId });
+      const config = buildStandingsChartConfig(FIXTURE, {
+        highlight: { teamId: 'C8EFGOXCB04_Cooperon', fantasyId: null },
+      });
       expect(config.data.datasets[0].label).toBe('Cooperon');
       expect(config.data.datasets[0].borderWidth).toBe(6);
       expect(config.data.datasets[1].borderWidth).toBe(3);
+    });
+
+    it('highlights cross-league by fantasyId when teamId does not match', () => {
+      const data = {
+        ...FIXTURE,
+        teams: FIXTURE.teams.map((team) =>
+          team.teamName === 'Cooperon'
+            ? { ...team, userName: 'Ron', teamNo: 1 }
+            : { ...team, teamNo: 1 },
+        ),
+      };
+      const config = buildStandingsChartConfig(data, {
+        highlight: { teamId: 'OTHER_Cooperon', fantasyId: 'Ron_1' },
+      });
+
+      const cooperon = config.data.datasets.find((d) => d.label === 'Cooperon');
+      const others = config.data.datasets.filter((d) => d.label !== 'Cooperon');
+      expect(cooperon.borderWidth).toBe(6);
+      for (const d of others) {
+        expect(d.borderWidth).toBe(3);
+      }
+    });
+
+    it('does not cross-highlight when teamNo is missing on the team row (old blob)', () => {
+      const config = buildStandingsChartConfig(FIXTURE, {
+        highlight: { teamId: 'OTHER_Cooperon', fantasyId: 'Ron Cooper_1' },
+      });
+
+      for (const d of config.data.datasets) {
+        expect(d.borderWidth).toBe(3);
+      }
     });
 
     it('orders legend by current-race rank, with no-data teams at the bottom', () => {
@@ -341,8 +386,11 @@ describe('leagueStandingsGraphHandler', () => {
       );
     });
 
-    it('passes selectedTeamId into chart config so selected series is highlighted', async () => {
-      getSelectedTeam.mockReturnValue('C8EFGOXCB04_Cooperon');
+    it('passes resolved highlight into chart config so selected series is highlighted', async () => {
+      resolveActiveTeamFantasyId.mockResolvedValueOnce({
+        teamId: 'C8EFGOXCB04_Cooperon',
+        fantasyId: 'Ron Cooper_1',
+      });
       getLeagueData.mockResolvedValueOnce(FIXTURE);
       fetchCurrentSeasonRaces.mockResolvedValueOnce({
         MRData: { RaceTable: { Races: [] } },

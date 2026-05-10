@@ -4,9 +4,11 @@ const { sendErrorMessage } = require('../utils');
 const { getLeagueData } = require('../azureStorageService');
 const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 const { getChipEmoji } = require('../utils/chipEmojis');
-const { getSelectedTeam } = require('../cache');
-const { buildTeamId } = require('../utils/teamId');
 const { filterExcludedGraphTeams } = require('../utils/leagueGraphFilter');
+const {
+  resolveActiveTeamFantasyId,
+  isHighlightedTeam,
+} = require('../utils/activeTeamIdentity');
 const {
   buildRoundToRaceNameMap,
   matchdayNumber,
@@ -67,12 +69,12 @@ function computeRankPerMatchday(teams, matchdayKeys) {
  * @param {Object} leagueData - parsed `league-standings.json`.
  * @param {Object} [options]
  * @param {Record<number,string>} [options.roundToRaceName]
- * @param {string|null} [options.selectedTeamId]
+ * @param {{teamId?: string, fantasyId?: string}|null} [options.highlight]
  * @returns {Object} Chart.js config.
  */
 function buildStandingsChartConfig(leagueData, options = {}) {
   const roundToRaceName = options.roundToRaceName || {};
-  const selectedTeamId = options.selectedTeamId || null;
+  const highlight = options.highlight || null;
 
   const teams = filterExcludedGraphTeams(leagueData?.teams);
   const matchdayKeys = getSortedMatchdayKeys(teams);
@@ -119,11 +121,11 @@ function buildStandingsChartConfig(leagueData, options = {}) {
 
   const datasets = indexed.map(({ team, idx: origIdx }, legendIdx) => {
     const color = TEAM_COLOR_PALETTE[legendIdx % TEAM_COLOR_PALETTE.length];
-    const teamId = buildTeamId(
+    const isSelectedTeam = isHighlightedTeam(
+      team,
       leagueData?.leagueCode,
-      team.teamName || team.userName || 'team',
+      highlight,
     );
-    const isSelectedTeam = teamId === selectedTeamId;
 
     const data = ranksPerTeam[origIdx].slice();
 
@@ -290,10 +292,10 @@ async function sendLeagueStandingsGraph(bot, chatId, leagueCode) {
     );
   }
 
-  const selectedTeamId = getSelectedTeam(chatId);
+  const highlight = await resolveActiveTeamFantasyId(chatId);
   const config = buildStandingsChartConfig(leagueData, {
     roundToRaceName,
-    selectedTeamId,
+    highlight,
   });
 
   const chart = new QuickChart();

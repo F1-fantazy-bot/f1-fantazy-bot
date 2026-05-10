@@ -5,9 +5,11 @@ const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
 const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 const { getChipEmoji } = require('../utils/chipEmojis');
-const { getSelectedTeam } = require('../cache');
-const { buildTeamId } = require('../utils/teamId');
 const { filterExcludedGraphTeams } = require('../utils/leagueGraphFilter');
+const {
+  resolveActiveTeamFantasyId,
+  isHighlightedTeam,
+} = require('../utils/activeTeamIdentity');
 const {
   LEAGUE_GRAPH_CALLBACK_TYPE,
   LEAGUE_GRAPH_TYPE_CALLBACK_TYPE,
@@ -102,7 +104,7 @@ function buildRoundToRaceNameMap(seasonData) {
  */
 function buildChartConfig(leagueData, options = {}) {
   const roundToRaceName = options.roundToRaceName || {};
-  const selectedTeamId = options.selectedTeamId || null;
+  const highlight = options.highlight || null;
 
   const teams = filterExcludedGraphTeams(leagueData?.teams);
   teams.sort((a, b) => (a.position || 0) - (b.position || 0));
@@ -146,11 +148,11 @@ function buildChartConfig(leagueData, options = {}) {
 
   const datasets = teams.map((team, idx) => {
     const color = TEAM_COLOR_PALETTE[idx % TEAM_COLOR_PALETTE.length];
-    const teamId = buildTeamId(
+    const isSelectedTeam = isHighlightedTeam(
+      team,
       leagueData?.leagueCode,
-      team.teamName || team.userName || 'team',
+      highlight,
     );
-    const isSelectedTeam = teamId === selectedTeamId;
     const cumulative = cumulativeByTeam[idx];
     // Gap to leader at each step: leader is 0, everyone else is <= 0.
     const data = cumulative.map((value, i) => value - leaderPerStep[i]);
@@ -307,10 +309,10 @@ async function sendLeagueGraph(bot, chatId, leagueCode) {
     console.error('Error fetching season schedule for graph labels:', err);
   }
 
-  const selectedTeamId = getSelectedTeam(chatId);
+  const highlight = await resolveActiveTeamFantasyId(chatId);
   const config = buildChartConfig(leagueData, {
     roundToRaceName,
-    selectedTeamId,
+    highlight,
   });
 
   const chart = new QuickChart();

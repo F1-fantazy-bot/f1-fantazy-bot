@@ -2,7 +2,10 @@ const { t } = require('../i18n');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
 const { getSelectedTeam } = require('../cache');
-const { buildTeamId } = require('../utils/teamId');
+const {
+  resolveActiveTeamFantasyId,
+  isHighlightedTeam,
+} = require('../utils/activeTeamIdentity');
 const {
   LEAGUE_CALLBACK_TYPE,
   COMMAND_FOLLOW_LEAGUE,
@@ -19,14 +22,25 @@ function escapeHtml(value) {
  * Render a compact leaderboard message from the blob payload.
  * Format: header with league name + member count + fetchedAt,
  * followed by `position. teamName — totalScore` lines sorted by position.
+ *
+ * Bolds the user's active team. The optional `highlight` parameter
+ * (`{ teamId, fantasyId }`) lets callers pre-resolve cross-league
+ * identification so the same team is bolded in every league it appears
+ * in. When omitted, the function falls back to the same-league-only
+ * behavior driven by `getSelectedTeam(chatId)`.
+ *
  * @param {Object} leagueData
  * @param {number|string} chatId
+ * @param {{teamId?: string|null, fantasyId?: string|null}|null} [highlight]
  * @returns {string}
  */
-function formatLeaderboard(leagueData, chatId) {
+function formatLeaderboard(leagueData, chatId, highlight) {
   const teams = Array.isArray(leagueData.teams) ? [...leagueData.teams] : [];
   teams.sort((a, b) => (a.position || 0) - (b.position || 0));
-  const selectedTeamId = getSelectedTeam(chatId);
+  const effectiveHighlight =
+    highlight === undefined
+      ? { teamId: getSelectedTeam(chatId), fantasyId: null }
+      : highlight;
 
   const header =
     `🏆 ${escapeHtml(leagueData.leagueName || leagueData.leagueCode)}\n` +
@@ -49,12 +63,10 @@ function formatLeaderboard(leagueData, chatId) {
     const gapSuffix =
       idx === 0 ? '' : ` (${escapeHtml(score - leaderScore)})`;
     const line = ` ${pos}. ${name} — ${escapeHtml(score)}${gapSuffix}`;
-    const teamId = buildTeamId(
-      leagueData.leagueCode,
-      team.teamName || team.userName || 'team',
-    );
 
-    return teamId === selectedTeamId ? `<b>${line}</b>` : line;
+    return isHighlightedTeam(team, leagueData.leagueCode, effectiveHighlight)
+      ? `<b>${line}</b>`
+      : line;
   });
 
   return `${header}\n\n${lines.join('\n')}`;
@@ -88,9 +100,13 @@ async function sendLeaderboard(bot, chatId, leagueCode) {
     return;
   }
 
-  await bot.sendMessage(chatId, formatLeaderboard(leagueData, chatId), {
-    parse_mode: 'HTML',
-  });
+  const highlight = await resolveActiveTeamFantasyId(chatId);
+
+  await bot.sendMessage(
+    chatId,
+    formatLeaderboard(leagueData, chatId, highlight),
+    { parse_mode: 'HTML' },
+  );
 }
 
 async function handleLeaderboardCommand(bot, msg) {

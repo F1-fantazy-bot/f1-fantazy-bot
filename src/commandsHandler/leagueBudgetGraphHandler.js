@@ -3,9 +3,11 @@ const { t } = require('../i18n');
 const { sendErrorMessage } = require('../utils');
 const { getLeagueData } = require('../azureStorageService');
 const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
-const { getSelectedTeam } = require('../cache');
-const { buildTeamId } = require('../utils/teamId');
 const { filterExcludedGraphTeams } = require('../utils/leagueGraphFilter');
+const {
+  resolveActiveTeamFantasyId,
+  isHighlightedTeam,
+} = require('../utils/activeTeamIdentity');
 const {
   buildRoundToRaceNameMap,
   matchdayNumber,
@@ -44,12 +46,12 @@ function getSortedBudgetMatchdayKeys(teams) {
  * @param {Object} leagueData - parsed `league-standings.json`.
  * @param {Object} [options]
  * @param {Record<number,string>} [options.roundToRaceName] - round -> short race name.
- * @param {string|null} [options.selectedTeamId] - highlighted team id.
+ * @param {{teamId?: string, fantasyId?: string}|null} [options.highlight] - the user's active team.
  * @returns {Object} Chart.js config.
  */
 function buildBudgetChartConfig(leagueData, options = {}) {
   const roundToRaceName = options.roundToRaceName || {};
-  const selectedTeamId = options.selectedTeamId || null;
+  const highlight = options.highlight || null;
 
   const teams = filterExcludedGraphTeams(leagueData?.teams);
   const matchdayKeys = getSortedBudgetMatchdayKeys(teams);
@@ -100,11 +102,11 @@ function buildBudgetChartConfig(leagueData, options = {}) {
 
   const datasets = teams.map((team, idx) => {
     const color = TEAM_COLOR_PALETTE[idx % TEAM_COLOR_PALETTE.length];
-    const teamId = buildTeamId(
+    const isSelectedTeam = isHighlightedTeam(
+      team,
       leagueData?.leagueCode,
-      team.teamName || team.userName || 'team',
+      highlight,
     );
-    const isSelectedTeam = teamId === selectedTeamId;
 
     const data = matchdayKeys.map((key) => {
       const raw = Number(team?.raceBudgets?.[key]);
@@ -227,10 +229,10 @@ async function sendLeagueBudgetGraph(bot, chatId, leagueCode) {
     console.error('Error fetching season schedule for budget graph labels:', err);
   }
 
-  const selectedTeamId = getSelectedTeam(chatId);
+  const highlight = await resolveActiveTeamFantasyId(chatId);
   const config = buildBudgetChartConfig(leagueData, {
     roundToRaceName,
-    selectedTeamId,
+    highlight,
   });
 
   const chart = new QuickChart();
