@@ -53,11 +53,15 @@ async function touchSession(chatId, session) {
 }
 
 /**
- * Build the currently-followed state as an array of {leagueCode, position}.
- * The new league teamId (`{sanitize(userName)}_{teamNo}`) is league-agnostic,
- * so a single followed team may map to MULTIPLE (leagueCode, position)
- * entries — one per followed league where the same F1 Fantasy team appears.
- * Seeding each match enables per-league visual sync in the toggle UI.
+ * Build the currently-followed state as an array of `{leagueCode, teamId}`.
+ * The league teamId (`{sanitize(userName)}_{teamNo}`) is league-agnostic,
+ * so a single followed team may map to MULTIPLE entries — one per followed
+ * league where the same F1 Fantasy team appears. Seeding each match
+ * enables per-league visual sync in the toggle UI.
+ *
+ * Position is NOT included — it's looked up fresh from the league data at
+ * render time. Storing it would re-introduce the tied-position bug because
+ * two distinct teams in a league can share a position.
  */
 async function seedFollowedSelection(chatId) {
   const followed = new Set(getUserLeagueTeamIds(chatId));
@@ -82,7 +86,6 @@ async function seedFollowedSelection(chatId) {
       if (candidateTeamId && followed.has(candidateTeamId)) {
         seeded.push({
           leagueCode: league.leagueCode,
-          position: team.position,
           teamId: candidateTeamId,
         });
       }
@@ -92,17 +95,15 @@ async function seedFollowedSelection(chatId) {
   return seeded;
 }
 
-async function resolveTeamIdByPosition(leagueCode, position) {
-  const data = await loadLeagueTeamsData(leagueCode);
-  const match = data?.teams?.find((team) => team.position === position);
+/**
+ * True when this fantasy team is staged in the session (independent of
+ * which league row it was selected via — visual sync). Compares only on
+ * the canonical `teamId`, which sidesteps tied-position ambiguity entirely.
+ */
+function isSelected(session, teamId) {
+  if (!teamId) {return false;}
 
-  return match ? buildLeagueTeamId(match.userName, match.teamNo) : null;
-}
-
-function isSelected(session, leagueCode, position) {
-  return session.selected.some(
-    (sel) => sel.leagueCode === leagueCode && sel.position === position,
-  );
+  return session.selected.some((sel) => sel.teamId === teamId);
 }
 
 function pushAddOrderIfNew(session, teamId) {
@@ -117,19 +118,15 @@ function pushAddOrderIfNew(session, teamId) {
 
 /**
  * Count the number of DISTINCT followed F1-Fantasy teams currently staged
- * in the session. Multiple `(leagueCode, position)` entries pointing at the
- * same `teamId` (visual sync — same team in multiple leagues) collapse to a
- * single slot for the cap.
+ * in the session. Multiple entries pointing at the same `teamId` (visual
+ * sync — same team in multiple leagues) collapse to a single slot for the
+ * cap.
  */
 function countSelected(session) {
   const ids = new Set();
   for (const sel of session.selected) {
     if (sel.teamId) {
       ids.add(sel.teamId);
-    } else {
-      // No teamId resolved (rare — row without userName/teamNo). Falls back
-      // to counting the raw entry.
-      ids.add(`${sel.leagueCode}::${sel.position}`);
     }
   }
 
@@ -137,11 +134,11 @@ function countSelected(session) {
 }
 
 /**
- * Find every `(leagueCode, position)` in the user's followed leagues whose
- * team resolves to the given fantasy teamId. Used to expand a single toggle
- * action into all cross-league appearances (visual sync).
+ * Find every leagueCode in the user's followed leagues where the given
+ * fantasy teamId appears. Used to expand a single toggle action into all
+ * cross-league appearances (visual sync).
  */
-async function findFantasyTeamPositions(chatId, fantasyTeamId) {
+async function findFantasyTeamLeagues(chatId, fantasyTeamId) {
   if (!fantasyTeamId) {return [];}
   const leagues = await listUserLeagues(chatId);
   const out = [];
@@ -155,10 +152,12 @@ async function findFantasyTeamPositions(chatId, fantasyTeamId) {
     }
     if (!data || !Array.isArray(data.teams)) {continue;}
 
-    for (const team of data.teams) {
-      if (buildLeagueTeamId(team.userName, team.teamNo) === fantasyTeamId) {
-        out.push({ leagueCode: league.leagueCode, position: team.position });
-      }
+    const appears = data.teams.some(
+      (team) =>
+        buildLeagueTeamId(team.userName, team.teamNo) === fantasyTeamId,
+    );
+    if (appears) {
+      out.push(league.leagueCode);
     }
   }
 
@@ -205,21 +204,29 @@ async function buildTeamsKeyboard(chatId, session, leagueCode, multiLeague) {
       ? [...data.teams].sort((a, b) => (a.position || 0) - (b.position || 0))
       : [];
 
-  const rows = teams.map((team) => {
-    const checked = isSelected(session, leagueCode, team.position);
-    const prefix = checked ? '✅' : '⬜';
+  const rows = teams
+    .map((team) => {
+      const teamId = buildLeagueTeamId(team.userName, team.teamNo);
+      if (!teamId) {
+        // Row missing userName/teamNo — can't be followed reliably. Hide
+        // it rather than render an un-toggleable button.
+        return null;
+      }
+      const checked = isSelected(session, teamId);
+      const prefix = checked ? '✅' : '⬜';
 
-    return [
-      {
-        text: `${prefix} ${team.position}. ${team.teamName}`,
-        callback_data: cb(
-          TEAMS_TRACKER_ACTIONS.TOGGLE,
-          leagueCode,
-          String(team.position),
-        ),
-      },
-    ];
-  });
+      return [
+        {
+          text: `${prefix} ${team.position}. ${team.teamName}`,
+          callback_data: cb(
+            TEAMS_TRACKER_ACTIONS.TOGGLE,
+            leagueCode,
+            teamId,
+          ),
+        },
+      ];
+    })
+    .filter((row) => row !== null);
 
   const bottom = [];
   if (multiLeague) {
@@ -321,9 +328,8 @@ async function handleTeamsTrackerCommand(bot, msg) {
       messageId: null,
       currentView: multiLeague ? VIEW.LEAGUES : VIEW.TEAMS,
       currentLeagueCode: singleLeagueCode,
-      selected: seeded.map(({ leagueCode, position, teamId }) => ({
+      selected: seeded.map(({ leagueCode, teamId }) => ({
         leagueCode,
-        position,
         teamId,
       })),
       initiallyFollowed: Array.from(
@@ -417,43 +423,44 @@ async function applySave(bot, chatId, session) {
     }
   }
 
-  // For each staged (leagueCode, position), resolve to the canonical
-  // fantasy teamId. Dedup across leagues — the same fantasy team selected
-  // via 2 leagues collapses to 1 final follow.
+  // For each staged entry, find the matching roster row by canonical
+  // teamId — NOT by position (positions are not unique within a league
+  // when teams are tied). Dedup across leagues — the same fantasy team
+  // selected via 2 leagues collapses to 1 final follow.
   const finalSelections = [];
   const finalSelectionByTeamId = new Map();
   let droppedStale = 0;
 
   for (const sel of session.selected) {
+    if (!sel.teamId) {
+      // Legacy entry from a pre-fix session blob — can't resolve.
+      droppedStale += 1;
+      continue;
+    }
+    if (finalSelectionByTeamId.has(sel.teamId)) {
+      // Duplicate via visual sync — keep the first occurrence.
+      continue;
+    }
     const roster = leagueRosterByCode[sel.leagueCode];
     if (!roster || !Array.isArray(roster.teams)) {
       droppedStale += 1;
       continue;
     }
-    const match = roster.teams.find((team) => team.position === sel.position);
+    const match = roster.teams.find(
+      (team) =>
+        buildLeagueTeamId(team.userName, team.teamNo) === sel.teamId,
+    );
     if (!match) {
       droppedStale += 1;
       continue;
     }
-    const teamId = buildLeagueTeamId(match.userName, match.teamNo);
-    if (!teamId) {
-      // Row missing userName/teamNo (legacy upstream data). Cannot create
-      // a stable id — skip and count as stale.
-      droppedStale += 1;
-      continue;
-    }
-    if (finalSelectionByTeamId.has(teamId)) {
-      // Duplicate via visual sync — keep the first occurrence.
-      continue;
-    }
     const entry = {
       leagueCode: sel.leagueCode,
-      position: sel.position,
-      teamId,
+      teamId: sel.teamId,
       leagueTeam: match,
     };
     finalSelections.push(entry);
-    finalSelectionByTeamId.set(teamId, entry);
+    finalSelectionByTeamId.set(sel.teamId, entry);
   }
 
   const finalTeamIds = new Set(finalSelections.map((sel) => sel.teamId));
@@ -617,42 +624,30 @@ async function handleTeamsTrackerCallback(bot, query) {
     }
 
     if (action === TEAMS_TRACKER_ACTIONS.TOGGLE) {
-      const [leagueCode, positionStr] = payload;
-      const position = Number(positionStr);
-      const currentlySelected = isSelected(session, leagueCode, position);
+      const [leagueCode, teamId] = payload;
+      if (!teamId) {
+        // Defensive: callbacks from a pre-fix session may carry a numeric
+        // position string instead of a teamId. Treat as expired.
+        await respondExpired(bot, query);
 
-      // Resolve the F1 Fantasy team id once so all visual-sync work below
-      // operates on the canonical identity.
-      const teamId = await resolveTeamIdByPosition(leagueCode, position);
+        return;
+      }
+
+      const currentlySelected = isSelected(session, teamId);
 
       if (currentlySelected) {
-        // Remove every (leagueCode, position) staged for this fantasy team
-        // across all leagues (visual sync). If the row had no resolvable
-        // teamId, just remove the single entry by position.
-        if (teamId) {
-          session.selected = session.selected.filter(
-            (sel) => sel.teamId !== teamId,
-          );
-          session.addOrder = (session.addOrder || []).filter(
-            (id) => id !== teamId,
-          );
-        } else {
-          session.selected = session.selected.filter(
-            (sel) =>
-              !(sel.leagueCode === leagueCode && sel.position === position),
-          );
-        }
+        // Remove every entry staged for this fantasy team across all
+        // leagues (visual sync).
+        session.selected = session.selected.filter(
+          (sel) => sel.teamId !== teamId,
+        );
+        session.addOrder = (session.addOrder || []).filter(
+          (id) => id !== teamId,
+        );
       } else {
-        // Enforce the cap on DISTINCT fantasy teams. A toggle that adds a
-        // team already in the staged set (same fantasyId, different league
-        // row) doesn't grow the count and is allowed even at the cap.
-        const wouldExceedCap =
-          teamId
-            ? !session.selected.some((sel) => sel.teamId === teamId) &&
-              countSelected(session) >= MAX_FOLLOWED_LEAGUE_TEAMS
-            : countSelected(session) >= MAX_FOLLOWED_LEAGUE_TEAMS;
-
-        if (wouldExceedCap) {
+        // Enforce the cap on DISTINCT fantasy teams. A team already in
+        // the staged set wouldn't grow the count and is allowed.
+        if (countSelected(session) >= MAX_FOLLOWED_LEAGUE_TEAMS) {
           await safeAnswerCallbackQuery(bot, query.id, {
             text: t(
               'You can follow at most {MAX} teams. Deselect one first.',
@@ -664,31 +659,22 @@ async function handleTeamsTrackerCallback(bot, query) {
           return;
         }
 
-        if (teamId) {
-          // Add this (leagueCode, position) plus every other league row
-          // matching the same fantasy team (visual sync). Skip entries
-          // already present.
-          const positions = await findFantasyTeamPositions(chatId, teamId);
-          for (const p of positions) {
-            const exists = session.selected.some(
-              (sel) =>
-                sel.leagueCode === p.leagueCode &&
-                sel.position === p.position,
-            );
-            if (!exists) {
-              session.selected.push({
-                leagueCode: p.leagueCode,
-                position: p.position,
-                teamId,
-              });
-            }
-          }
-          pushAddOrderIfNew(session, teamId);
-        } else {
-          // Fallback for rows without a resolvable fantasyId — store the
-          // raw (leagueCode, position) only.
-          session.selected.push({ leagueCode, position, teamId: null });
+        // Add an entry for every followed league where this fantasy team
+        // appears (visual sync). Fall back to just the league it was
+        // toggled from when lookup fails for any reason.
+        let leagues = await findFantasyTeamLeagues(chatId, teamId);
+        if (leagues.length === 0) {
+          leagues = [leagueCode];
         }
+        for (const lc of leagues) {
+          const exists = session.selected.some(
+            (sel) => sel.leagueCode === lc && sel.teamId === teamId,
+          );
+          if (!exists) {
+            session.selected.push({ leagueCode: lc, teamId });
+          }
+        }
+        pushAddOrderIfNew(session, teamId);
       }
 
       await touchSession(chatId, session);
