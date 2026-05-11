@@ -200,9 +200,11 @@ async function saveUserTeam(bot, chatId, teamId, teamData, options = {}) {
  * @param {Object} bot - The Telegram bot instance
  * @param {string} chatId - The chat ID of the user
  * @param {string} teamId - The team identifier (e.g., 'T1', 'T2', 'T3')
+ * @param {Object} [options]
+ * @param {boolean} [options.silent=false] - When true, suppress the success log message.
  * @throws {Error} If the data cannot be deleted
  */
-async function deleteUserTeam(bot, chatId, teamId) {
+async function deleteUserTeam(bot, chatId, teamId, options = {}) {
   try {
     if (!containerClient) {
       initializeAzureStorage();
@@ -212,12 +214,14 @@ async function deleteUserTeam(bot, chatId, teamId) {
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
     await blockBlobClient.deleteIfExists();
 
-    const displayName = getDisplayName(chatId);
+    if (!options.silent) {
+      const displayName = getDisplayName(chatId);
 
-    await sendLogMessage(
-      bot,
-      `Successfully deleted team data for ${displayName} (${chatId}) team ${teamId}`,
-    );
+      await sendLogMessage(
+        bot,
+        `Successfully deleted team data for ${displayName} (${chatId}) team ${teamId}`,
+      );
+    }
   } catch (error) {
     throw new Error(
       `Failed to delete user team for ${chatId}_${teamId}: ${error.message}`,

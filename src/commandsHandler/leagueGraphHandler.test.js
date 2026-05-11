@@ -86,6 +86,7 @@ const FIXTURE = {
     {
       teamName: 'dorsegal1',
       userName: 'Dor Segal',
+      teamNo: 1,
       position: 2,
       totalScore: 984,
       raceScores: {
@@ -98,6 +99,7 @@ const FIXTURE = {
     {
       teamName: 'Cooperon',
       userName: 'Ron Cooper',
+      teamNo: 1,
       position: 1,
       totalScore: 976,
       raceScores: {
@@ -113,6 +115,7 @@ const FIXTURE = {
     {
       teamName: 'Kilzid',
       userName: 'Doron Kilzi',
+      teamNo: 1,
       position: 3,
       totalScore: 965,
       raceScores: {
@@ -331,7 +334,7 @@ describe('leagueGraphHandler', () => {
     });
 
     it('highlights the selected team with a thicker line and larger points', () => {
-      const selectedTeamId = 'C8EFGOXCB04_Cooperon';
+      const selectedTeamId = 'Ron-Cooper_1';
       const config = buildChartConfig(FIXTURE, { selectedTeamId });
 
       expect(config.data.datasets[0].label).toBe('Cooperon');
@@ -339,6 +342,30 @@ describe('leagueGraphHandler', () => {
       expect(config.data.datasets[1].borderWidth).toBe(3);
       expect(config.data.datasets[0].pointRadius).toEqual([7, 12, 12]);
       expect(config.data.datasets[1].pointRadius).toEqual([4, 4, 9]);
+    });
+
+    it('uses the same fantasy id regardless of leagueCode (cross-league)', () => {
+      // Different league code in the data; the same selectedTeamId still
+      // matches because it is keyed by userName + teamNo, not leagueCode.
+      const dataInOtherLeague = { ...FIXTURE, leagueCode: 'ANOTHER_LEAGUE' };
+      const selectedTeamId = 'Ron-Cooper_1';
+      const config = buildChartConfig(dataInOtherLeague, { selectedTeamId });
+      const cooperon = config.data.datasets.find((d) => d.label === 'Cooperon');
+      expect(cooperon.borderWidth).toBe(6);
+    });
+
+    it('does not highlight rows missing userName/teamNo', () => {
+      const data = {
+        ...FIXTURE,
+        teams: FIXTURE.teams.map((team) =>
+          team.teamName === 'Cooperon' ? { ...team, teamNo: undefined } : team,
+        ),
+      };
+      const config = buildChartConfig(data, {
+        selectedTeamId: 'Ron-Cooper_1',
+      });
+      const cooperon = config.data.datasets.find((d) => d.label === 'Cooperon');
+      expect(cooperon.borderWidth).toBe(3);
     });
 
     it('uses larger font sizes for high-resolution rendering readability', () => {
@@ -525,7 +552,7 @@ describe('leagueGraphHandler', () => {
     });
 
     it('passes selectedTeamId into chart config so selected series is highlighted', async () => {
-      getSelectedTeam.mockReturnValue('C8EFGOXCB04_Cooperon');
+      getSelectedTeam.mockReturnValue('Ron-Cooper_1');
       getLeagueData.mockResolvedValueOnce(FIXTURE);
       fetchCurrentSeasonRaces.mockResolvedValueOnce({
         MRData: { RaceTable: { Races: [] } },

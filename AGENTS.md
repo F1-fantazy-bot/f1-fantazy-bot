@@ -313,11 +313,11 @@ The table is **extensible** — new attributes can be added at any time without 
    - Bottom row: `💾 Save ({N}/{MAX})`, `✖ Cancel`, and `⬅ Back` (only when there are >1 leagues).
    Seeded from currently-followed teams on open, so toggles reflect today's state. Save/Cancel delete the session blob. League `teams-data.json` is fetched via `getLeagueTeamsData(leagueCode)` and cached in memory per leagueCode (`leagueTeamsDataCache`).
 
-   **Session lifecycle.** The staging state is stored in Azure Blob Storage at `teams-tracker-sessions/{chatId}.json` with shape `{ chatId, messageId, currentView, currentLeagueCode, selected:[{leagueCode, position}], initiallyFollowed:[teamId], addOrder:[teamId], updatedAt }` and survives across servers. Every `TT:*` callback verifies `query.message.message_id === session.messageId` AND `now - updatedAt <= TEAMS_TRACKER_SESSION_TTL_MS` (30 min). Mismatch or expiry → `show_alert` "This Teams Tracker view has expired…" + delete session; do not mutate state. Reopening `/teams_tracker` overwrites any existing session (re-seeded) and best-effort-edits the old message with an "expired" notice.
+   **Session lifecycle.** The staging state is stored in Azure Blob Storage at `teams-tracker-sessions/{chatId}.json` with shape `{ chatId, messageId, currentView, currentLeagueCode, selected:[{leagueCode, teamId}], initiallyFollowed:[teamId], addOrder:[teamId], updatedAt }` and survives across servers. Every `TT:*` callback verifies `query.message.message_id === session.messageId` AND `now - updatedAt <= TEAMS_TRACKER_SESSION_TTL_MS` (30 min). Mismatch or expiry → `show_alert` "This Teams Tracker view has expired…" + delete session; do not mutate state. Reopening `/teams_tracker` overwrites any existing session (re-seeded) and best-effort-edits the old message with an "expired" notice.
 
    **Save logic (deterministic active-team resolution).** At save, each touched league's `teams-data.json` is re-fetched (drops stale positions with a `⚠️ {N} team(s) could not be added` warning). For the final set of followed teamIds: if previous `selectedTeam` still exists in the set → keep it; else first entry of `addOrder` still followed; else first remaining followed team; else clear. Cross-source rule: if save produces ≥1 league team, screenshot teams (`T1`/`T2`/`T3`) are wiped first via `ensureSourceIsLeague`. Persistence is a single `updateUserAttributes({ selectedTeam, selectedBestTeamByTeam })` call.
 
-   **Callback types.** `TEAMS_TRACKER_CALLBACK_TYPE = 'TT'` with actions `TEAMS_TRACKER_ACTIONS = { OPEN_LEAGUE:'L', TOGGLE:'T', BACK:'B', SAVE:'S', CANCEL:'C' }`. Payload formats: `TT:L:{leagueCode}`, `TT:T:{leagueCode}:{position}`, `TT:B`, `TT:S`, `TT:C`. The short (2-char) type + single-char action names keep the worst-case payload (`TT:T:{leagueCode}_{position}`) well under Telegram's 64-byte `callback_data` limit.
+   **Callback types.** `TEAMS_TRACKER_CALLBACK_TYPE = 'TT'` with actions `TEAMS_TRACKER_ACTIONS = { OPEN_LEAGUE:'L', TOGGLE:'T', BACK:'B', SAVE:'S', CANCEL:'C' }`. Payload formats: `TT:L:{leagueCode}`, `TT:T:{leagueCode}:{teamId}`, `TT:B`, `TT:S`, `TT:C`. The TOGGLE payload uses the canonical fantasy `teamId` (`{sanitize(userName)}_{teamNo}`) rather than a row position — this disambiguates rows tied at the same league position (without it, two teams sharing position 5 would be indistinguishable). Worst-case payload size: `TT:T:` (5) + leagueCode (~11) + `:` + teamId (≤42) ≈ 59 chars, under Telegram's 64-byte `callback_data` limit.
 
    **Shared helpers.** The league-team read/write logic lives in `src/utils/leagueTeamHelpers.js` (`mapLeagueTeamToBotTeam`, `loadLeagueTeamsData`, `refreshLeagueTeamsData`, `followLeagueTeam`, `removeFollowedTeam`, `extractLeagueCode`, `buildLeagueNameMap`, `buildTeamLabel`). `followLeagueTeam` does **not** mutate `selectedTeam` — Teams Tracker save owns active-team resolution end-to-end. `removeFollowedTeam(chatId, teamId, { mutateSelectedTeam = true })` exposes a flag used by save to defer active-team mutation.
 7. `/league_graphs` opens a two-step flow that renders per-league charts. Same 0/1/N league-selection flow as `/leaderboard` (callback type `LEAGUE_GRAPH_CALLBACK_TYPE`), followed by a graph-type picker (callback type `LEAGUE_GRAPH_TYPE_CALLBACK_TYPE`, payload `LEAGUE_GRAPH_TYPE:<gap|standings|budget>:<leagueCode>`). Three graph types are available:
@@ -391,9 +391,9 @@ The nickname system allows admins to assign custom display names to users that r
 The bot supports **multiple teams per user**. Teams are keyed by a `teamId` string inside each chat's nested caches. Two `teamId` formats are in use:
 
 - **Screenshot flow:** `T1`, `T2`, `T3` — extracted from the colored-square icon in the team photo by `EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT`.
-- **League flow:** `{leagueCode}_{sanitizedTeamName}` — created via `/teams_tracker`. `sanitizedTeamName` strips unsafe characters (only word chars and `-` survive) and is truncated to 40 chars to keep the blob path (`user-teams/{chatId}_{teamId}.json`) and callback data short.
+- **League flow:** `{sanitize(userName)}_{teamNo}` (e.g. `Doron-Kilzi_1`) — derived from the F1 Fantasy account login + the team number (1/2/3) within that account. **League-agnostic by design**: the same F1 Fantasy team has the same id in every league it appears in. `userName` is sanitized to be blob-path-safe (only word chars and `-` survive; truncated to 40 chars) and joined with `teamNo` by a literal `_`. Built via `buildLeagueTeamId(userName, teamNo)` in `src/utils/teamId.js`.
 
-Picking a team from a league **adds it** to the user's followed league teams (up to `MAX_FOLLOWED_LEAGUE_TEAMS = 6`, in `constants.js`). The two sources still cannot coexist:
+Picking a team from a league **adds it** to the user's followed league teams (up to `MAX_FOLLOWED_LEAGUE_TEAMS = 6`, in `constants.js`). The cap counts **distinct fantasy teams**, not raw selection rows — selecting the same `Kilzid_1` from two leagues in `/teams_tracker` counts as one slot. The two sources still cannot coexist:
 
 - **Following a league team** wipes any screenshot teams (`T1`/`T2`/`T3`) first.
 - **Uploading/assigning a screenshot team** wipes any followed league teams first.
@@ -404,15 +404,21 @@ Cross-source wiping is centralized in `src/utils/teamSourceSwitcher.js` (`ensure
 
 Each team has its own cached data, chip selection, and best-teams calculation. A `selectedTeam` preference determines which team context commands operate on.
 
+### Cross-league active team
+
+Because the league teamId is `{sanitize(userName)}_{teamNo}`, every consumer of `getSelectedTeam(chatId)` — graphs, leaderboard, `/best_teams`, `/current_team_info`, `/chips`, `/select_team`, `/live_score`, etc. — automatically treats the user's active team as **the same team across every league it appears in**. The 3 `/league_graphs` charts thicken the active team's line in every league it shows up in; `/leaderboard` bolds its row in every league; `/select_team` lists fantasy teams (not per-league entries).
+
+In Teams Tracker, selections are **visually synced across leagues**: toggling `Kilzid_1` ON in League A automatically shows ✅ for `Kilzid_1` in League B if that team also appears there, because both rows resolve to the same fantasy id. The session payload (`session.selected[]`) carries `{ leagueCode, teamId }` entries — one per league where the followed fantasy team appears — so the UI stays visually consistent while the persisted follow state collapses to one entry per fantasy id. Position is intentionally NOT stored — it's looked up fresh from `loadLeagueTeamsData` at render time, which sidesteps the tied-position ambiguity (two teams in the same league can share a position).
+
 ### Cache Structure
 
 Team-related caches are **nested by team ID** under each `chatId`:
 
 ```javascript
 // Per-user, per-team caches
-currentTeamCache[chatId][teamId]; // e.g., { T1: { drivers, constructors, ... }, T2: { ... } }
-bestTeamsCache[chatId][teamId]; // e.g., { T1: { currentTeam, bestTeams }, T2: { ... } }
-selectedChipCache[chatId][teamId]; // e.g., { T1: 'EXTRA_BOOST', T2: 'WILDCARD' }
+currentTeamCache[chatId][teamId]; // e.g., { T1: { drivers, constructors, ... }, 'Doron-Kilzi_1': { ... } }
+bestTeamsCache[chatId][teamId]; // e.g., { 'Doron-Kilzi_1': { currentTeam, bestTeams }, T2: { ... } }
+selectedChipCache[chatId][teamId]; // e.g., { 'Doron-Kilzi_1': 'EXTRA_BOOST', T2: 'WILDCARD' }
 
 // Per-user caches (shared across all teams — NOT nested by team ID)
 driversCache[chatId]; // driver data shared across teams
@@ -420,6 +426,18 @@ constructorsCache[chatId]; // constructor data shared across teams
 ```
 
 Best-team ranking preferences are stored per team in `userCache[chatId].bestTeamBudgetChangePointsPerMillion`.
+
+### Lazy migration from legacy league teamIds
+
+Production has historical data keyed by the legacy `{leagueCode}_{sanitizeIdSegment(teamName)}` format (e.g. `C8EFGOXCB04_Kilzid`). On every cold start, `refreshLeagueSourcedTeams` in `cacheInitializer.js` detects entries in legacy format (heuristic: the prefix before the first `_` matches one of the user's followed `leagueCode`s, looked up via `listUserLeagues(chatId)`) and rewrites them in place:
+
+1. Save a new blob `user-teams/{chatId}_{newTeamId}.json` with refreshed roster.
+2. Move `currentTeamCache`, `bestTeamsCache`, `selectedChipCache` entries to the new key (dedup on collision when the same fantasy team was followed via multiple leagues).
+3. Rewrite `userCache[chatId].selectedTeam` and rename keys inside `selectedBestTeamByTeam`.
+4. Delete the legacy blob.
+5. Persist updated user attributes via a single `updateUserAttributes` call.
+
+Failures keep the legacy entry in place and retry on the next startup. Once production is fully migrated, the migration block in `refreshLeagueSourcedTeams` and the `buildLegacyLeagueTeamId` / `extractLeagueCode` helpers are removed in a follow-up PR (`feature/doronkilzi/remove-fantasy-id-migration`).
 
 ### Best-Team Ranking
 

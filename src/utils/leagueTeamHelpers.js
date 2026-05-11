@@ -1,7 +1,12 @@
 const azureStorageService = require('../azureStorageService');
 const { updateUserAttributes } = require('../userRegistryService');
 const { sendLogMessage } = require('./utils');
-const { sanitizeTeamName, buildTeamId } = require('./teamId');
+const {
+  sanitizeIdSegment,
+  sanitizeTeamName,
+  buildLeagueTeamId,
+  buildLegacyLeagueTeamId,
+} = require('./teamId');
 const {
   currentTeamCache,
   bestTeamsCache,
@@ -60,6 +65,14 @@ function mapLeagueTeamToBotTeam(leagueTeam) {
     boost,
     freeTransfers,
     costCapRemaining,
+    // Display + identity metadata. Optional fields the consumers can use to
+    // render friendly labels without re-loading the league blob. Older
+    // cached teams may not have these populated until the next refresh.
+    ...(leagueTeam.teamName ? { teamName: leagueTeam.teamName } : {}),
+    ...(leagueTeam.userName ? { userName: leagueTeam.userName } : {}),
+    ...(leagueTeam.teamNo !== undefined && leagueTeam.teamNo !== null
+      ? { teamNo: leagueTeam.teamNo }
+      : {}),
   };
 }
 
@@ -209,6 +222,11 @@ async function removeFollowedTeam(
   return { removed: true, fallbackSelectedTeam };
 }
 
+/**
+ * @deprecated Used only by the lazy migration in `cacheInitializer.js` to
+ * detect old-format teamIds (`{leagueCode}_{sanitizedTeamName}`). Once
+ * migration is removed in PR B this function goes away.
+ */
 function extractLeagueCode(teamId) {
   const separatorIdx = teamId.indexOf('_');
 
@@ -224,17 +242,17 @@ function buildLeagueNameMap(leagues) {
   return map;
 }
 
-function buildTeamLabel(chatId, teamId, leagueNameByCode) {
-  const leagueCode = extractLeagueCode(teamId);
-  const leagueLabel =
-    (leagueCode && leagueNameByCode[leagueCode]) || leagueCode || '';
+/**
+ * Display label for a followed team. Prefers cached `teamName` when present
+ * (populated by `mapLeagueTeamToBotTeam` for any team refreshed since the
+ * cross-league refactor). Falls back to the teamId itself. No longer
+ * appends a league suffix — fantasy ids are league-agnostic, so a single
+ * team may belong to multiple leagues.
+ */
+function buildTeamLabel(chatId, teamId) {
   const teamData = currentTeamCache[chatId]?.[teamId];
-  const fallbackName = leagueCode
-    ? teamId.substring(leagueCode.length + 1)
-    : teamId;
-  const teamName = teamData?.teamName || fallbackName;
 
-  return leagueLabel ? `${teamName} — ${leagueLabel}` : teamName;
+  return teamData?.teamName || teamId;
 }
 
 module.exports = {
@@ -247,6 +265,8 @@ module.exports = {
   extractLeagueCode,
   buildLeagueNameMap,
   buildTeamLabel,
+  sanitizeIdSegment,
   sanitizeTeamName,
-  buildTeamId,
+  buildLeagueTeamId,
+  buildLegacyLeagueTeamId,
 };

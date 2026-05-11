@@ -6,7 +6,7 @@ const { getLeagueData } = require('../azureStorageService');
 const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 const { getChipEmoji } = require('../utils/chipEmojis');
 const { getSelectedTeam } = require('../cache');
-const { buildTeamId } = require('../utils/teamId');
+const { buildLeagueTeamId } = require('../utils/teamId');
 const { filterExcludedGraphTeams } = require('../utils/leagueGraphFilter');
 const {
   LEAGUE_GRAPH_CALLBACK_TYPE,
@@ -146,11 +146,8 @@ function buildChartConfig(leagueData, options = {}) {
 
   const datasets = teams.map((team, idx) => {
     const color = TEAM_COLOR_PALETTE[idx % TEAM_COLOR_PALETTE.length];
-    const teamId = buildTeamId(
-      leagueData?.leagueCode,
-      team.teamName || team.userName || 'team',
-    );
-    const isSelectedTeam = teamId === selectedTeamId;
+    const teamId = buildLeagueTeamId(team.userName, team.teamNo);
+    const isSelectedTeam = !!teamId && teamId === selectedTeamId;
     const cumulative = cumulativeByTeam[idx];
     // Gap to leader at each step: leader is 0, everyone else is <= 0.
     const data = cumulative.map((value, i) => value - leaderPerStep[i]);

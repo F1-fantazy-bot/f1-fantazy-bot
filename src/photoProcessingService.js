@@ -6,6 +6,7 @@ const {
   constructorsCache,
   driversCache,
   getPrintableCache,
+  getTeamDisplayName,
   bestTeamsCache,
   userCache,
   clearSelectedBestTeam,
@@ -162,7 +163,9 @@ async function storeInCache(bot, chatId, type, extractedData, fileUniqueId) {
     await sendMessageToUser(
       bot,
       chatId,
-      t('🔄 Active team auto-switched to {TEAM}.', chatId, { TEAM: teamId }),
+      t('🔄 Active team auto-switched to {TEAM}.', chatId, {
+        TEAM: getTeamDisplayName(chatId, teamId),
+      }),
       { errorMessageToLog: 'Error sending auto-switch message' },
     );
 

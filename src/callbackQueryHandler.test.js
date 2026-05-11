@@ -77,6 +77,7 @@ jest.mock('./cache', () => ({
   userCache: {},
   selectedChipCache: {},
   getPrintableCache: jest.fn(() => 'printable cache'),
+  getTeamDisplayName: jest.fn((_chatId, teamId) => teamId),
   normalizeBestTeamBudgetChangePointsPerMillion: jest.fn(() => ({})),
   clearSelectedBestTeam: jest.fn(() => ({})),
   clearAllSelectedBestTeams: jest.fn(() => ({})),

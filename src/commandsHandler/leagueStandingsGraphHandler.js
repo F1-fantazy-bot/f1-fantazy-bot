@@ -5,7 +5,7 @@ const { getLeagueData } = require('../azureStorageService');
 const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 const { getChipEmoji } = require('../utils/chipEmojis');
 const { getSelectedTeam } = require('../cache');
-const { buildTeamId } = require('../utils/teamId');
+const { buildLeagueTeamId } = require('../utils/teamId');
 const { filterExcludedGraphTeams } = require('../utils/leagueGraphFilter');
 const {
   buildRoundToRaceNameMap,
@@ -119,11 +119,8 @@ function buildStandingsChartConfig(leagueData, options = {}) {
 
   const datasets = indexed.map(({ team, idx: origIdx }, legendIdx) => {
     const color = TEAM_COLOR_PALETTE[legendIdx % TEAM_COLOR_PALETTE.length];
-    const teamId = buildTeamId(
-      leagueData?.leagueCode,
-      team.teamName || team.userName || 'team',
-    );
-    const isSelectedTeam = teamId === selectedTeamId;
+    const teamId = buildLeagueTeamId(team.userName, team.teamNo);
+    const isSelectedTeam = !!teamId && teamId === selectedTeamId;
 
     const data = ranksPerTeam[origIdx].slice();
 

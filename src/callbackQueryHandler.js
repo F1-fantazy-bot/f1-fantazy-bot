@@ -3,6 +3,7 @@ const { updateUserAttributes } = require('./userRegistryService');
 const {
   currentTeamCache,
   getPrintableCache,
+  getTeamDisplayName,
   bestTeamsCache,
   userCache,
   normalizeBestTeamBudgetChangePointsPerMillion,
@@ -281,7 +282,9 @@ async function handleTeamCallback(bot, query) {
 
   // Edit message to confirm
   await bot.editMessageText(
-    t('Active team switched to {TEAM}.', chatId, { TEAM: teamId }),
+    t('Active team switched to {TEAM}.', chatId, {
+      TEAM: getTeamDisplayName(chatId, teamId),
+    }),
     { chat_id: chatId, message_id: messageId },
   );
   await bot.answerCallbackQuery(query.id);
@@ -341,7 +344,9 @@ async function handleTeamAssignCallback(bot, query) {
 
   // Edit message to confirm
   await bot.editMessageText(
-    t('Selected Team: {TEAM}', chatId, { TEAM: teamId }),
+    t('Selected Team: {TEAM}', chatId, {
+      TEAM: getTeamDisplayName(chatId, teamId),
+    }),
     { chat_id: chatId, message_id: messageId },
   );
 
@@ -349,7 +354,9 @@ async function handleTeamAssignCallback(bot, query) {
   await sendMessageToUser(
     bot,
     chatId,
-    t('🔄 Active team auto-switched to {TEAM}.', chatId, { TEAM: teamId }),
+    t('🔄 Active team auto-switched to {TEAM}.', chatId, {
+      TEAM: getTeamDisplayName(chatId, teamId),
+    }),
     { errorMessageToLog: 'Error sending auto-switch message' },
   );
 
