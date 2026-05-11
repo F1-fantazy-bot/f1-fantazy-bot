@@ -182,6 +182,23 @@ exports.getUserScreenshotTeamIds = function (chatId) {
     .filter((teamId) => !exports.isLeagueTeamId(teamId));
 };
 
+/**
+ * Friendly display name for a teamId — for use in user-facing messages.
+ * Returns the cached `teamName` for league teams (populated by
+ * `mapLeagueTeamToBotTeam` since the league teamId became league-agnostic),
+ * falling back to the raw teamId for screenshot teams (`T1`/`T2`/`T3`)
+ * where the bare id IS the conventional label.
+ *
+ * @param {number|string} chatId
+ * @param {string|null|undefined} teamId
+ * @returns {string|null}
+ */
+exports.getTeamDisplayName = function (chatId, teamId) {
+  if (!teamId) {return null;}
+
+  return currentTeamCache[chatId]?.[teamId]?.teamName || teamId;
+};
+
 exports.getBestTeamBudgetChangePointsPerMillion = function (chatId, teamId) {
   const key = String(chatId);
   const bestTeamBudgetChangePointsPerMillion =

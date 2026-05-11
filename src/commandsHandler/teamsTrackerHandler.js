@@ -4,9 +4,9 @@ const { listUserLeagues } = require('../leagueRegistryService');
 const { updateUserAttributes } = require('../userRegistryService');
 const { ensureSourceIsLeague } = require('../utils/teamSourceSwitcher');
 const {
-  currentTeamCache,
   userCache,
   getSelectedTeam,
+  getTeamDisplayName,
   getUserLeagueTeamIds,
   serializeSelectedBestTeamByTeam,
   normalizeSelectedBestTeamByTeam,
@@ -695,8 +695,7 @@ async function handleTeamsTrackerCallback(bot, query) {
         );
       } else {
         const activeLabel = result.nextActive
-          ? currentTeamCache[chatId]?.[result.nextActive]?.teamName ||
-            result.nextActive
+          ? getTeamDisplayName(chatId, result.nextActive)
           : t('no active team', chatId);
         confirmation = t(
           '✅ Teams tracker updated. Following {N}/{MAX}. Active team: {TEAM}.',

@@ -7,6 +7,7 @@ const {
   getPrintableCache,
   getSelectedTeam,
   getUserTeamIds,
+  getTeamDisplayName,
   resolveSelectedTeam,
   getBestTeamBudgetChangePointsPerMillion,
   normalizeBestTeamBudgetChangePointsPerMillion,
@@ -409,6 +410,38 @@ describe('cache', () => {
         T3: { drivers: ['HAM'] },
       };
       expect(getUserTeamIds(chatId)).toEqual(['T1', 'T3']);
+    });
+  });
+
+  describe('getTeamDisplayName', () => {
+    const chatId = '77777';
+
+    afterEach(() => {
+      delete currentTeamCache[chatId];
+    });
+
+    it('returns the cached teamName when present (league team)', () => {
+      currentTeamCache[chatId] = {
+        'Dor-Segal_1': { drivers: ['VER'], teamName: 'dorsegal1' },
+      };
+      expect(getTeamDisplayName(chatId, 'Dor-Segal_1')).toBe('dorsegal1');
+    });
+
+    it('falls back to the raw teamId when no teamName cached (screenshot team)', () => {
+      currentTeamCache[chatId] = {
+        T1: { drivers: ['VER'] },
+      };
+      expect(getTeamDisplayName(chatId, 'T1')).toBe('T1');
+    });
+
+    it('falls back to the raw teamId when no cache entry at all', () => {
+      expect(getTeamDisplayName(chatId, 'Unknown_1')).toBe('Unknown_1');
+    });
+
+    it('returns null when teamId is falsy', () => {
+      expect(getTeamDisplayName(chatId, null)).toBeNull();
+      expect(getTeamDisplayName(chatId, '')).toBeNull();
+      expect(getTeamDisplayName(chatId, undefined)).toBeNull();
     });
   });
 
