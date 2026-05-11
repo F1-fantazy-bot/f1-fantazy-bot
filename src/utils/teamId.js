@@ -1,7 +1,6 @@
 /**
  * Sanitize a value so it can be safely embedded into an id segment / blob path.
- * Keeps the result short and readable. Generalized from the previous
- * `sanitizeTeamName` — works for any string (team names, user names, etc.).
+ * Keeps the result short and readable.
  */
 function sanitizeIdSegment(value) {
   const base = String(value || 'team')
@@ -37,20 +36,6 @@ function buildLeagueTeamId(userName, teamNo) {
   return `${sanitizeIdSegment(userName)}_${teamNo}`;
 }
 
-/**
- * Legacy league-team id builder, kept ONLY so the cacheInitializer
- * migration path can detect and rewrite old blobs/cache entries.
- * Removed in the follow-up PR after production has fully migrated.
- *
- * Old format: `{leagueCode}_{sanitizeIdSegment(teamName)}` — encodes the
- * league, so the same F1 Fantasy team in two leagues had two distinct ids.
- *
- * @deprecated Use `buildLeagueTeamId(userName, teamNo)` for new code.
- */
-function buildLegacyLeagueTeamId(leagueCode, teamName) {
-  return `${leagueCode}_${sanitizeIdSegment(teamName)}`;
-}
-
 // Back-compat alias — some call sites still use the old function name to
 // sanitize team names for display/callback-payload purposes (not id
 // construction). Safe to keep.
@@ -60,6 +45,5 @@ module.exports = {
   sanitizeIdSegment,
   sanitizeTeamName,
   buildLeagueTeamId,
-  buildLegacyLeagueTeamId,
 };
 

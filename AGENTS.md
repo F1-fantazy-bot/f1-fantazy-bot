@@ -427,18 +427,6 @@ constructorsCache[chatId]; // constructor data shared across teams
 
 Best-team ranking preferences are stored per team in `userCache[chatId].bestTeamBudgetChangePointsPerMillion`.
 
-### Lazy migration from legacy league teamIds
-
-Production has historical data keyed by the legacy `{leagueCode}_{sanitizeIdSegment(teamName)}` format (e.g. `C8EFGOXCB04_Kilzid`). On every cold start, `refreshLeagueSourcedTeams` in `cacheInitializer.js` detects entries in legacy format (heuristic: the prefix before the first `_` matches one of the user's followed `leagueCode`s, looked up via `listUserLeagues(chatId)`) and rewrites them in place:
-
-1. Save a new blob `user-teams/{chatId}_{newTeamId}.json` with refreshed roster.
-2. Move `currentTeamCache`, `bestTeamsCache`, `selectedChipCache` entries to the new key (dedup on collision when the same fantasy team was followed via multiple leagues).
-3. Rewrite `userCache[chatId].selectedTeam` and rename keys inside `selectedBestTeamByTeam`.
-4. Delete the legacy blob.
-5. Persist updated user attributes via a single `updateUserAttributes` call.
-
-Failures keep the legacy entry in place and retry on the next startup. Once production is fully migrated, the migration block in `refreshLeagueSourcedTeams` and the `buildLegacyLeagueTeamId` / `extractLeagueCode` helpers are removed in a follow-up PR (`feature/doronkilzi/remove-fantasy-id-migration`).
-
 ### Best-Team Ranking
 
 `/set_best_team_ranking` lets the user choose how much expected budget change should influence `/best_teams` ordering. The calculator ranks teams using projected points plus a hidden budget-change bonus:
