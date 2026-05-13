@@ -8,18 +8,23 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "start": "node src/bot.js"
+    "start": "node src/bot.js",
+    "dev:agent": "node scripts/dev-agent-server.js",
+    "dev:web": "npm --prefix web run dev",
+    "dev": "concurrently -n agent,web -c yellow.bold,cyan.bold --kill-others-on-fail \"npm:dev:agent\" \"npm:dev:web\""
   },
   "keywords": [],
   "author": "Doron Kilzi",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@ai-sdk/azure": "^3.0.64",
     "@azure/arm-costmanagement": "^1.0.0-beta.1",
     "@azure/data-tables": "^13.3.2",
     "@azure/identity": "^4.10.0",
     "@azure/keyvault-secrets": "^4.11.1",
     "@azure/storage-blob": "^12.27.0",
+    "@copilotkit/runtime": "^1.57.1",
     "dotenv": "^16.4.7",
     "node-telegram-bot-api": "^0.66.0",
     "openai": "^4.93.0",
@@ -27,6 +32,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.24.0",
+    "concurrently": "^9.2.1",
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",

@@ -2,6 +2,8 @@
 
 A Telegram bot designed to help users manage their F1 Fantasy teams, providing tools for team optimization, budget tracking, and staying updated with race data. The bot integrates with Azure services for data persistence and AI-powered image processing capabilities.
 
+A **web-chat agent** (preview) provides a second channel for the same functionality — a Vite + React + CopilotKit chat UI talking to a CopilotKit v2 `BuiltInAgent` running on Azure OpenAI. The Telegram bot is unaffected; both surfaces call the same business logic via pure cores in `src/cores/`. See [`AGENTS.md` → Agent (Web Chat)](AGENTS.md#agent-web-chat) for the full architecture.
+
 ## Features
 
 ### F1 Fantasy Team Management
@@ -54,6 +56,13 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
 - **Service Analytics**: Detailed breakdown by Azure service (Functions, Storage, OpenAI, etc.)
 - **Admin-Only Access**: Secure access to sensitive billing information
 
+### Web-Chat Agent (Preview)
+
+- **Second channel** for the bot: a Vite + React + CopilotKit chat UI talking to a CopilotKit v2 `BuiltInAgent` running on Azure OpenAI
+- **Same business logic** as the Telegram bot — both surfaces call pure cores in `src/cores/`
+- **Generative UI**: tool results render as tailored React components (e.g. `<NextRacesTable />`) rather than plain text
+- Currently ships one tool (`get_next_races`); more capabilities land phase by phase
+
 ### Bot Administration
 
 - **BotFather Integration**: Generate command lists for easy bot setup
@@ -99,6 +108,11 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
    AZURE_CLIENT_SECRET=your_azure_service_principal_client_secret
    AZURE_TENANT_ID=your_azure_tenant_id
    AZURE_RESOURCE_GROUP=your_azure_resource_group
+
+   # Web-Chat Agent (only needed if you run `npm run dev` / `npm run dev:agent`)
+   # The Telegram chatId the agent acts as in v1 single-user mode.
+   # Defaults to KILZI_CHAT_ID if omitted in scripts/dev-agent-server.js.
+   AGENT_HARDCODED_CHAT_ID=your_telegram_chat_id
    ```
 
    **Getting the required credentials:**
@@ -118,6 +132,19 @@ A Telegram bot designed to help users manage their F1 Fantasy teams, providing t
    ```
 
    The bot will start in polling mode for local development.
+
+5. **(Optional) Run the web-chat agent**
+
+   ```bash
+   cd web && npm install && cd ..
+   npm run dev
+   ```
+
+   This boots two processes under one terminal via `concurrently`:
+   - Agent backend on `http://localhost:7071/api/agent/copilotkit` (a thin Node HTTP wrapper around the same handler that `agentWebhook/` exposes to Azure Functions — no Azure Functions Core Tools required)
+   - Vite frontend on `http://localhost:5173/` (or `:5174` if `:5173` is busy)
+
+   Open the Vite URL and ask the agent a question (e.g. _"What are the next races in USA?"_). See [`AGENTS.md` → Agent (Web Chat)](AGENTS.md#agent-web-chat) for the full architecture and the pattern for adding new tools.
 
 ## Available Commands and Inputs
 
@@ -233,15 +260,26 @@ Enter numbers when prompted by various commands for:
 - **`@azure/storage-blob`**: Azure Blob Storage integration for data persistence
 - **`@azure/arm-costmanagement`**: Azure Cost Management integration for billing analytics
 - **`@azure/identity`**: Azure authentication for Cost Management and Logic App trigger operations
-- **`openai`**: Azure OpenAI integration for image processing and data extraction
+- **`openai`**: Azure OpenAI integration for image processing and data extraction (Telegram bot path)
+- **`@copilotkit/runtime`** + **`@ai-sdk/azure`**: Web-chat agent runtime — `BuiltInAgent` over Azure OpenAI chat completions
 - **`dotenv`**: Environment variable management
 - **`jest`**: Testing framework
+
+### Frontend Dependencies (`web/`)
+
+The web frontend keeps its own `package.json` so its deps don't pollute the backend bundle.
+
+- **`@copilotkit/react-core`** + **`@copilotkit/react-ui`**: `<CopilotChat />` + `useCopilotAction({ render })` for per-tool generative UI
+- **`react`** + **`react-dom`**: UI library
+- **`vite`** + **`@vitejs/plugin-react`**: dev server + build
+- **`typescript`**: TS toolchain
 
 ### Development Tools
 
 - **ESLint**: Code linting and formatting
 - **Husky**: Git hooks for code quality
 - **Jest**: Unit testing with coverage reports
+- **concurrently** (dev): runs the agent + frontend dev servers in parallel under `npm run dev`
 
 ### Deployment Options
 
@@ -266,7 +304,7 @@ For detailed steps on setting up Azure Functions and integrating GitHub Actions,
 ```
 f1-fantazy-bot/
 ├── src/
-│   ├── bot.js                     # Main bot entry point
+│   ├── bot.js                     # Main Telegram bot entry point
 │   ├── messageHandler.js          # Message routing logic
 │   ├── textMessageHandler.js      # Text command processing
 │   ├── photoMessageHandler.js     # Image processing logic
@@ -276,9 +314,14 @@ f1-fantazy-bot/
 │   ├── azureBillingService.js     # Azure Cost Management integration
 │   ├── jsonDataExtraction.js      # AI-powered data extraction
 │   ├── constants.js               # Application constants
-│   ├── commandsHandler/           # Individual command implementations
+│   ├── commandsHandler/           # Individual command implementations (Telegram)
+│   ├── cores/                     # Pure logic cores (shared by Telegram and the agent)
+│   ├── agent/                     # Web-chat agent: identity, prompt, tools, runtime
 │   └── utils/                     # Utility functions
-├── telegramWebhook/               # Azure Functions webhook handler
+├── telegramWebhook/               # Azure Functions handler for the Telegram bot
+├── agentWebhook/                  # Azure Functions handler for the web-chat agent
+├── web/                           # Vite + React + CopilotKit frontend
+├── scripts/                       # Dev-only helpers (e.g. local agent server)
 ├── docs/                          # Project documentation
 ├── package.json                   # Project dependencies and scripts
 └── .env                          # Environment variables (create this)
@@ -286,8 +329,11 @@ f1-fantazy-bot/
 
 ## Available Scripts
 
-- **`npm start`** - Start the bot in development mode
+- **`npm start`** - Start the Telegram bot in polling mode (local development)
 - **`npm test`** - Run unit tests
 - **`npm run test:coverage`** - Run tests with coverage report
 - **`npm run lint`** - Check code style and quality
 - **`npm run lint:fix`** - Automatically fix linting issues
+- **`npm run dev:agent`** - Start the web-chat agent backend on `:7071`
+- **`npm run dev:web`** - Start the Vite frontend (defaults to `:5173`)
+- **`npm run dev`** - Start both the agent backend and Vite frontend at once (via `concurrently`)

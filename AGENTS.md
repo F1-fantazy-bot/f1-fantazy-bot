@@ -1,6 +1,11 @@
 # F1 Fantasy Bot – Agent Handbook
 
-This repository contains a Telegram bot that helps manage F1 Fantasy teams. The codebase is Node.js/JavaScript, heavily tested with Jest, and organized around command handlers that power Telegram commands, natural-language prompts, and inline menus.
+This repository powers an F1 Fantasy assistant on **two channels**:
+
+1. The original **Telegram bot** (long-running surface; see most of this handbook).
+2. A new **web-chat agent** (Vite + React + CopilotKit on the frontend, CopilotKit v2 `BuiltInAgent` running on Azure OpenAI on the backend; see [Agent (Web Chat)](#agent-web-chat)).
+
+Both surfaces share the same business logic via **pure cores** in `src/cores/`. The codebase is Node.js/JavaScript, heavily tested with Jest, and organized around command handlers that power Telegram commands, natural-language prompts, and inline menus. The web-chat agent reaches the same logic through tool calls.
 
 ---
 
@@ -23,6 +28,8 @@ This repository contains a Telegram bot that helps manage F1 Fantasy teams. The 
   - `src/azureStorageService.js` and `src/azureBillingService.js` wrap Azure integrations.
 - **Internationalization:** `src/i18n.js` and `src/translations.js` provide language support (English/Hebrew) used throughout handlers.
 - **AI Assist:** `src/prompts.js` defines system prompts. `/ask`-style natural language queries are handled by `src/commandsHandler/askHandler.js`, which leverages Azure OpenAI to map free-text requests into command sequences.
+- **Logic Cores:** `src/cores/` holds **pure** business-logic functions that take inputs and return structured JSON. They do not depend on `bot`, `t()`, or `sendMessage`. Each Telegram handler is being progressively refactored into `(pure core in src/cores/) + (thin Telegram adapter)`. The same core is consumed by the web-chat agent's tools — so a question like "best teams with VER but no ALO" runs through the same calculator as the `/best_teams` command. **Refactor rule:** existing handler tests must keep passing unchanged after the extraction; if they don't, fix the refactor, not the test. Phase 1 has extracted only `nextRacesCore.js`; more will land as future phases ship.
+- **Agent (Web Chat):** `src/agent/`, `agentWebhook/`, and `web/` together implement a second user-facing surface. Identity is resolved from the `AGENT_HARDCODED_CHAT_ID` env var (v1) so all tool calls operate as that user against the same caches/blobs as the Telegram bot. See the [Agent (Web Chat)](#agent-web-chat) section for the full architecture, the cores↔tools pattern, and how to add a new tool with a matching React component.
 
 ---
 
@@ -83,10 +90,19 @@ Required environment variables (see `readme.md` for full list):
   - **Note:** `AZURE_STORAGE_CONNECTION_STRING` is also used by the Pending Reply Manager and User Registry Service for Azure Table Storage (no additional env var needed).
 - Azure Management API for billing and manual Logic App triggers: `AZURE_SUBSCRIPTION_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`
   - `AZURE_RESOURCE_GROUP` is optional and defaults to `f1-fantazy-bot`.
+- Agent (web chat) only: `AGENT_HARDCODED_CHAT_ID` — the Telegram chatId the agent acts as for v1 (single-user mode). Read by `src/agent/identity.js`; the LLM never sees this value. Required by `agentWebhook/` and by `scripts/dev-agent-server.js`.
 
 Start the bot with `npm start` (polling in dev) or configure webhook as needed for production.
 
-**Cold-Start Initialization:** `src/bot.js` stores the `initializeCaches()` promise as `cacheReady` and exports it. The Azure Function webhook (`telegramWebhook/index.js`) awaits `bot.cacheReady` before calling `bot.processUpdate(update)`. On a cold start the first request waits for caches to be ready; on warm invocations the resolved promise returns instantly. In polling dev mode `cacheReady` is unused — the natural polling delay avoids the race.
+Start the web-chat agent locally with `npm run dev` (boots both the agent dev server on `:7071` and the Vite frontend on `:5173/:5174` under one terminal, via `concurrently`). Or run them separately: `npm run dev:agent` / `npm run dev:web`. See [Agent (Web Chat) → Local dev](#local-dev-workflow) for details.
+
+**Cold-Start Initialization (Telegram):** `src/bot.js` stores the `initializeCaches()` promise as `cacheReady` and exports it. The Azure Function webhook (`telegramWebhook/index.js`) awaits `bot.cacheReady` before calling `bot.processUpdate(update)`. On a cold start the first request waits for caches to be ready; on warm invocations the resolved promise returns instantly. In polling dev mode `cacheReady` is unused — the natural polling delay avoids the race.
+
+**Cold-Start Initialization (Agent):** the agent's only Phase 1 tool (`get_next_races`) hits the external Ergast/Jolpica API directly and does NOT depend on the in-memory caches — `agentWebhook/index.js` deliberately does not `await bot.cacheReady`. Phase 2 introduces cache-dependent tools (best teams) and will add the cache bootstrap at that point.
+
+**Deployment targets:**
+- The Telegram bot is deployed as the existing Azure Function App via the `telegramWebhook/` function.
+- The web-chat agent is intended to be deployed to a **separate Azure Function App** via the `agentWebhook/` function — keeping it independent for deploy, scale, and failure-isolation reasons (an agent rollout cannot break the Telegram bot). The frontend (`web/`) is intended for Azure Static Web Apps. As of Phase 1 the agent code is built and verified locally; Azure provisioning is still pending.
 
 ---
 
@@ -517,6 +533,208 @@ Blob naming includes the team ID:
 | `src/prompts.js`                           | `teamId` extraction in current team photo prompt                                                    |
 | `src/constants.js`                         | `COMMAND_SELECT_TEAM`, `TEAM_CALLBACK_TYPE`, `TEAM_ASSIGN_CALLBACK_TYPE`                            |
 | `src/commandsHandler/selectTeamHandler.js` | `/select_team` command handler                                                                      |
+
+---
+
+## Agent (Web Chat)
+
+A second user-facing surface that runs the same business logic as the Telegram bot through tool calls. Architecture, code layout, and the patterns for adding new capabilities live in this section.
+
+### Architecture
+
+```
+Browser (Vite + React + CopilotKit)
+   ┌─────────────────────────────────────────────┐
+   │ <CopilotKit runtimeUrl={…}>                 │
+   │   <CopilotChat />                           │
+   │   useCopilotAction({                        │
+   │     name: 'get_next_races',                 │
+   │     available: 'frontend',                  │  ← render-only
+   │     render: ({ status, result }) => …       │     for backend tools
+   │   });                                       │
+   └─────────────────────────────────────────────┘
+                │  HTTPS · CopilotKit data-stream protocol
+                ▼
+   ┌─────────────────────────────────────────────┐
+   │ agentWebhook/  (Azure Function, separate    │
+   │   App from telegramWebhook)                 │
+   │ • Bridges Azure Functions v3 (context, req) │
+   │   onto a Web Request, returns Web Response  │
+   │ • Tolerates BOTH Uint8Array AND string body │
+   │   chunks (the response stream emits both)   │
+   │ • Permissive dev CORS; tightened in prod    │
+   └─────────────────────────────────────────────┘
+                │
+                ▼
+   ┌─────────────────────────────────────────────┐
+   │ src/agent/runtime.js                        │
+   │ • createCopilotRuntimeHandler({             │
+   │     runtime, basePath, mode: 'single-route',│
+   │     cors: true,                             │
+   │   })  from '@copilotkit/runtime/v2'         │
+   │ • CopilotRuntime({ agents: { default } })   │
+   │ • BuiltInAgent({ model, prompt, tools,      │
+   │     maxSteps: 5 })                          │
+   │ • Model: @ai-sdk/azure → azure.chat(deploy) │
+   │   built with useDeploymentBasedUrls: true   │
+   │   for both *.openai.azure.com and           │
+   │   *.services.ai.azure.com endpoints.        │
+   └─────────────────────────────────────────────┘
+                │
+                ▼ tool execute
+   ┌─────────────────────────────────────────────┐
+   │ src/cores/*  (pure functions)               │
+   │ • Same module imported by refactored        │
+   │   Telegram handlers — single source of      │
+   │   truth for business logic.                 │
+   └─────────────────────────────────────────────┘
+```
+
+### Why this stack
+
+| Decision | Why |
+|---|---|
+| **CopilotKit v2** (`@copilotkit/runtime/v2`) | Rich React chat components with `useCopilotAction({ render })` for per-tool generative UI; runs tool execution server-side via `BuiltInAgent`. |
+| **Vercel AI SDK** under the hood (not the `openai` SDK directly) | CopilotKit v2 ignores bare `actions:` on `CopilotRuntime` — it requires an `agents:` map. `BuiltInAgent` uses AI SDK's `streamText` internally. We accepted this even though we initially planned to reuse the existing `openai`-SDK pattern. |
+| **`@ai-sdk/azure`** with `useDeploymentBasedUrls: true` | Stock `@ai-sdk/openai` builds URLs as `/openai/responses` — wrong for Azure. The Azure provider knows the `/openai/deployments/{model}/chat/completions?api-version=…` shape. Pass `baseURL: '${endpoint}/openai'` so it works for both `*.openai.azure.com` (classic) and `*.services.ai.azure.com` (Azure AI Foundry) hosts. Use `azure.chat(deploymentId)` — `azure(deploymentId)` returns the `/responses` API model and 404s on most deployments. |
+| **Zod** for tool parameters | Required by `defineTool` (Standard Schema V1). Already a transitive dep through `@copilotkit/runtime`. |
+| **Single-route mode** on the runtime handler | The default `multi-route` mode would force the frontend to address per-route URLs; single-route keeps the frontend pointed at `{basePath}` with a JSON envelope. Side effect: `GET /threads?agentId=…` returns 405 in single-route — these errors in the browser console are harmless and represent chat-history persistence we haven't enabled. |
+| **Separate Azure Function App** for the agent | Independent deploy/scale/failure-isolation from the Telegram bot. An agent rollout cannot break Telegram. The agent re-initialises any state it needs on cold start. |
+
+### Code layout
+
+```
+f1-fantazy-bot/
+├── src/
+│   ├── cores/
+│   │   └── nextRacesCore.js          # pure: getNextRaces() → {season, races, counts}
+│   ├── agent/
+│   │   ├── identity.js               # AGENT_HARDCODED_CHAT_ID (LLM never sees it)
+│   │   ├── systemPrompt.js           # English-only v1; built once at startup
+│   │   ├── tools.js                  # defineTool({ name, description, parameters: z.object({…}), execute })
+│   │   └── runtime.js                # BuiltInAgent + CopilotRuntime + createCopilotRuntimeHandler
+│   └── commandsHandler/
+│       └── nextRacesHandler.js       # refactored: thin Telegram adapter over the core
+├── agentWebhook/
+│   ├── function.json                 # httpTrigger, route `agent/{*restOfPath}`
+│   └── index.js                      # Azure Functions v3 ↔ Web Request bridge
+├── web/                              # Vite + React + TS + @copilotkit/react-ui
+│   ├── src/
+│   │   ├── App.tsx                   # <CopilotKit runtimeUrl=…> + <CopilotChat />
+│   │   └── components/
+│   │       └── NextRacesTable.tsx    # useCopilotAction({ available: 'frontend', render })
+│   ├── package.json
+│   └── …                             # own package.json — frontend deps don't pollute the backend
+└── scripts/
+    └── dev-agent-server.js           # local Node HTTP wrapper around agentWebhook (no `func` CLI needed)
+```
+
+### Tool definitions
+
+Tools live in `src/agent/tools.js` and use `defineTool` from `@copilotkit/runtime/v2`:
+
+```js
+const { defineTool } = require('@copilotkit/runtime/v2');
+const z = require('zod');
+const { getNextRaces } = require('../cores/nextRacesCore');
+
+const tools = [
+  defineTool({
+    name: 'get_next_races',
+    description: 'Get the list of upcoming F1 races for the current season. Returns season, an array of race objects, and counts {total, sprint}.',
+    parameters: z.object({}),         // empty schema is fine for no-arg tools
+    execute: async () => getNextRaces(),
+  }),
+];
+```
+
+The `execute` handler MUST call into a pure core in `src/cores/*` — handlers must not import `bot`, `t()`, or anything Telegram-specific. The chatId, when needed, comes from `getAgentChatId()` in `src/agent/identity.js` (passed by the runtime context, never from LLM-controlled arguments).
+
+### Rich UI render registration
+
+Each tool that needs a custom React rendering registers a frontend "render" via `useCopilotAction`:
+
+```jsx
+useCopilotAction({
+  name: 'get_next_races',
+  description: '…',
+  parameters: [],
+  available: 'frontend',              // ← MANDATORY for render-only backend tools
+  render: ({ status, result }) => {
+    if (status === 'inProgress' || status === 'executing') return <Spinner />;
+    const parsed = typeof result === 'string' ? safeParse(result) : result;
+    return <NextRacesTable result={parsed} />;
+  },
+});
+```
+
+> **Pitfall (don't repeat):** without `available: 'frontend'`, CopilotKit's `getActionConfig` throws `Invalid action configuration` and the whole React tree crashes blank. The marker tells CopilotKit "this is render-only for a backend-executed tool".
+
+### Identity model (v1)
+
+- `AGENT_HARDCODED_CHAT_ID` env var is the only identity. `src/agent/identity.js` reads it once and exposes `getAgentChatId()`.
+- The LLM **never** sees or controls this value. Tool handlers receive it from the runtime context, not from LLM-controlled arguments — this avoids prompt-injection escalating to "act as another user".
+- Future phases will replace this with proper auth (token / bot login).
+
+### Cores ↔ Telegram-adapter pattern
+
+This is the cross-phase invariant. For every capability that needs to be on **both** surfaces:
+
+1. Extract the pure logic into `src/cores/<feature>Core.js` — returns structured JSON, no `bot`, no `t()`, no `sendMessage`.
+2. Refactor the existing Telegram handler in `src/commandsHandler/<feature>Handler.js` into a thin adapter: call the core, format the result for Telegram, `bot.sendMessage`. **External behavior must stay byte-identical** — existing handler tests must keep passing unchanged. If a test breaks, the refactor changed behavior; fix the refactor, not the test.
+3. Wrap the same core in an agent tool via `defineTool` in `src/agent/tools.js`.
+4. If the agent should render the result as a custom component, add a `<FooComponent />` in `web/src/components/` and register it via `useCopilotAction({ name, available: 'frontend', render })`.
+
+### Local dev workflow
+
+```bash
+# .env must already include AZURE_OPENAI_ENDPOINT/AZURE_OPENAI_API_KEY/AZURE_OPEN_AI_MODEL
+# AGENT_HARDCODED_CHAT_ID is set by scripts/dev-agent-server.js to KILZI_CHAT_ID
+# if absent.
+
+npm install
+cd web && npm install && cd ..
+
+npm run dev          # both at once via `concurrently`
+# or:
+npm run dev:agent    # only agent dev server on :7071
+npm run dev:web      # only Vite frontend on :5173/:5174
+```
+
+`scripts/dev-agent-server.js` is the dev wrapper around `agentWebhook/index.js` — it loads `.env`, wraps the same handler in a plain Node HTTP server, and lets us exercise the full pipeline without installing Azure Functions Core Tools (`func`).
+
+### Adding a new tool (checklist)
+
+1. **Extract the core** at `src/cores/<feature>Core.js`. Pure function, structured JSON return.
+2. **Refactor the matching Telegram handler** to call the core. Run `npx jest <handler>.test.js` — must pass unchanged.
+3. **Add the tool** to `src/agent/tools.js` via `defineTool({ name, description, parameters: z.object({…}), execute })`. The `execute` handler calls the core. If `chatId` is needed, use `getAgentChatId()` from `src/agent/identity.js`.
+4. **Update the system prompt** in `src/agent/systemPrompt.js` if the new tool requires guidance (e.g., "if the user names a team, first call `list_user_teams` to resolve the teamId").
+5. **Build the React component** at `web/src/components/<Feature>.tsx`. Define it inside a `useCopilotAction({ name, available: 'frontend', render })` hook (the hook must run inside a component mounted under `<CopilotKit>`).
+6. **Wire the hook** by importing and calling it from `web/src/App.tsx` (or wherever the `<AgentActions />` component lives).
+7. **Tests:** unit-test the core in `src/cores/<feature>Core.test.js`. Unit-test the tool's JSON shape if non-trivial. Re-run the full Telegram suite — must stay green.
+8. **Verify in-browser with Playwright MCP.** The browser is the source of truth for UI changes — every UI change must be Playwright-verified before declaring "done".
+
+### Known issues / deferred
+
+- **405s on `/threads?agentId=default`** in the browser console are CopilotKit polling for chat-history persistence routes that don't exist in single-route mode. Harmless; deferred until persistence is wired (Phase 6).
+- **SSE streaming on Azure Functions Consumption plan** is unverified — locally the bridge buffers the full response. If streaming flushing turns out to be flaky on Consumption, fall back to non-streaming JSON or upgrade to Premium. Phase 6 hardening item.
+- **CORS** is currently permissive (`Access-Control-Allow-Origin: *`). Phase 6 locks it down to the production Static Web App origin.
+- **Hebrew localisation** of agent outputs is out of v1 scope. The Telegram bot stays bilingual.
+
+### Key files
+
+| File | Role |
+|---|---|
+| `src/cores/<feature>Core.js` | Pure logic core, returned JSON only. |
+| `src/agent/identity.js` | Reads `AGENT_HARDCODED_CHAT_ID`, exposes `getAgentChatId()`. |
+| `src/agent/systemPrompt.js` | Minimal English system prompt; extended per phase. |
+| `src/agent/tools.js` | Tool catalogue (`defineTool` array). |
+| `src/agent/runtime.js` | Builds Azure model → `BuiltInAgent` → `CopilotRuntime` → `createCopilotRuntimeHandler`. Caches the handler per process. |
+| `agentWebhook/function.json` | Azure Functions httpTrigger config (route `agent/{*restOfPath}`). |
+| `agentWebhook/index.js` | Bridges Azure Functions v3 (context, req) onto a Web Request; handles OPTIONS preflight + CORS; tolerant of both `Uint8Array` and string body chunks. |
+| `web/src/App.tsx` | Mounts `<CopilotKit>` + `<CopilotChat />`; reads `VITE_AGENT_API_URL`. |
+| `web/src/components/*.tsx` | Per-tool render components, each registered via `useCopilotAction({ available: 'frontend', render })`. |
+| `scripts/dev-agent-server.js` | Local dev wrapper around `agentWebhook/index.js`. Not deployed. |
 
 ---
 
