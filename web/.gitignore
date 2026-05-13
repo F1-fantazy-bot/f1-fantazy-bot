@@ -1,0 +1,14 @@
+# Node
+node_modules
+dist
+.DS_Store
+
+# Vite
+*.local
+
+# Editor
+.vscode
+.idea
+
+# TypeScript
+*.tsbuildinfo

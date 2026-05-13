@@ -2,11 +2,8 @@ const { sendErrorMessage } = require('../utils');
 const { formatDateTime } = require('../utils/utils');
 const { t } = require('../i18n');
 const { MAX_TELEGRAM_MESSAGE_LENGTH } = require('../constants');
-const {
-  buildDate,
-  fetchCurrentSeasonRaces,
-  filterUpcomingRaces,
-} = require('../raceScheduleService');
+const { buildDate } = require('../raceScheduleService');
+const { getNextRaces } = require('../cores/nextRacesCore');
 
 const SESSION_CONFIG = [
   { key: 'FirstPractice', label: 'FP1' },
@@ -138,11 +135,7 @@ function buildRaceBlock(race, chatId) {
 
 async function handleNextRacesCommand(bot, chatId) {
   try {
-    const data = await fetchCurrentSeasonRaces();
-    const races = data?.MRData?.RaceTable?.Races || [];
-    const season = data?.MRData?.RaceTable?.season;
-
-    const upcomingRaces = filterUpcomingRaces(races);
+    const { season, races: upcomingRaces, counts } = await getNextRaces();
 
     if (upcomingRaces.length === 0) {
       await bot
@@ -164,10 +157,8 @@ async function handleNextRacesCommand(bot, chatId) {
     const raceBlocks = upcomingRaces.map(
       (race) => buildRaceBlock(race, chatId).text,
     );
-    const totalUpcomingRaces = upcomingRaces.length;
-    const sprintRacesCount = upcomingRaces.filter((race) =>
-      Boolean(race.Sprint),
-    ).length;
+    const totalUpcomingRaces = counts.total;
+    const sprintRacesCount = counts.sprint;
 
     const buildSummaryLine = () => {
       const raceSummary =
