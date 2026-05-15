@@ -73,6 +73,16 @@ function buildAgent(cfg) {
     // final assistant message in one run. Without this it stops after
     // emitting the tool call and never synthesises a reply.
     maxSteps: AGENT_MAX_STEPS,
+    // CopilotKit's `useLazyToolRenderer` only renders `toolCalls[0]` of
+    // an assistant message (see node_modules/.../use-lazy-tool-renderer.tsx
+    // line 15). When Azure OpenAI emits PARALLEL tool calls in one
+    // message (default behaviour), only the first tool's React render
+    // hook fires — the rest are silently dropped from the UI. Forcing
+    // sequential tool calls makes each tool call land in its own
+    // assistant message, so each gets its own rich UI render.
+    providerOptions: {
+      openai: { parallelToolCalls: false },
+    },
   });
 }
 

@@ -31,6 +31,20 @@ function mapNameToCode(name) {
 
 /**
  * Map one league team entry (from teams-data.json) to the bot's team cache shape.
+ *
+ * `costCapRemaining` is derived from `leagueTeam.budget` — which is the
+ * user's cost cap going into the upcoming matchday (`team_info.maxTeambal`
+ * from the upstream F1 Fantasy API). See the companion scraper PR
+ * f1-fantasy-api-data#19 for the field's definition.
+ *
+ * Transition / backwards-compat: before that scraper PR shipped, `budget`
+ * on cached blobs carried `team_info.teamVal` (the team's current value,
+ * i.e. the sum of driver + constructor prices). Reading those stale
+ * blobs through this mapper trivially yields `costCapRemaining =
+ * teamVal − Σ_prices ≈ 0` — the same value the bot reported in
+ * production before the cap-cap fix landed. No regression during the
+ * deployment window; the moment the next scrape repopulates a blob the
+ * mapper starts emitting correct values for that team.
  */
 function mapLeagueTeamToBotTeam(leagueTeam) {
   const drivers = Array.isArray(leagueTeam.drivers) ? leagueTeam.drivers : [];
@@ -47,10 +61,10 @@ function mapLeagueTeamToBotTeam(leagueTeam) {
     drivers[0];
   const boost = captain ? mapNameToCode(captain.name) : null;
 
-  const budget = Number(leagueTeam.budget);
-  const costCapRemaining = Number.isFinite(budget)
-    ? Math.round((budget - sumPrices(drivers) - sumPrices(constructors)) * 100) /
-      100
+  const teamValue = sumPrices(drivers) + sumPrices(constructors);
+  const cap = Number(leagueTeam.budget);
+  const costCapRemaining = Number.isFinite(cap)
+    ? Math.max(0, Math.round((cap - teamValue) * 100) / 100)
     : 0;
 
   const transfersRemainingRaw = Number(leagueTeam.transfersRemaining);

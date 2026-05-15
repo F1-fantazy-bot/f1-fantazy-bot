@@ -28,7 +28,7 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
   - `src/azureStorageService.js` and `src/azureBillingService.js` wrap Azure integrations.
 - **Internationalization:** `src/i18n.js` and `src/translations.js` provide language support (English/Hebrew) used throughout handlers.
 - **AI Assist:** `src/prompts.js` defines system prompts. `/ask`-style natural language queries are handled by `src/commandsHandler/askHandler.js`, which leverages Azure OpenAI to map free-text requests into command sequences.
-- **Logic Cores:** `src/cores/` holds **pure** business-logic functions that take inputs and return structured JSON. They do not depend on `bot`, `t()`, or `sendMessage`. Each Telegram handler is being progressively refactored into `(pure core in src/cores/) + (thin Telegram adapter)`. The same core is consumed by the web-chat agent's tools — so a question like "best teams with VER but no ALO" runs through the same calculator as the `/best_teams` command. **Refactor rule:** existing handler tests must keep passing unchanged after the extraction; if they don't, fix the refactor, not the test. Phase 1 has extracted only `nextRacesCore.js`; more will land as future phases ship.
+- **Logic Cores:** `src/cores/` holds **pure** business-logic functions that take inputs and return structured JSON. They do not depend on `bot`, `t()`, or `sendMessage`. Each Telegram handler is being progressively refactored into `(pure core in src/cores/) + (thin Telegram adapter)`. The same core is consumed by the web-chat agent's tools — so a question like "best teams with VER but no ALO" runs through the same calculator as the `/best_teams` command. **Refactor rule:** existing handler tests must keep passing unchanged after the extraction; if they don't, fix the refactor, not the test. Phases 1–2 have extracted `nextRacesCore.js`, `bestTeamsCore.js`, and `userTeamsCore.js`; more will land as future phases ship.
 - **Agent (Web Chat):** `src/agent/`, `agentWebhook/`, and `web/` together implement a second user-facing surface. Identity is resolved from the `AGENT_HARDCODED_CHAT_ID` env var (v1) so all tool calls operate as that user against the same caches/blobs as the Telegram bot. See the [Agent (Web Chat)](#agent-web-chat) section for the full architecture, the cores↔tools pattern, and how to add a new tool with a matching React component.
 
 ---
@@ -310,7 +310,7 @@ The table is **extensible** — new attributes can be added at any time without 
 `src/leagueRegistryService.js` tracks league follows in an Azure Table Storage table (`UserLeagues`). Data is produced by the sibling repo `f1-fantasy-api-data`, which writes two blobs per league to Azure Blob Storage in the same container (`AZURE_STORAGE_CONTAINER_NAME`) used by the bot:
 
 - `leagues/{leagueCode}/league-standings.json` — header + `teams: [{ teamName, userName, position, totalScore, raceScores, raceBudgets, chipsUsed }]`. Used by `/leaderboard` and `/league_graphs`.
-- `leagues/{leagueCode}/teams-data.json` — header + `teams: [{ teamName, userName, position, budget, transfersRemaining, drivers, constructors }]` where each roster entry is `{ id, name, price, isCaptain, isMegaCaptain, isFinal }`. Used by `/teams_tracker` to load/manage followed team rosters from the league directly into the bot's cache.
+- `leagues/{leagueCode}/teams-data.json` — header + `teams: [{ teamName, userName, position, budget, transfersRemaining, drivers, constructors }]` where each roster entry is `{ id, name, price, isCaptain, isMegaCaptain, isFinal }`. Used by `/teams_tracker` to load/manage followed team rosters from the league directly into the bot's cache. `budget` is the user's cost cap going into the upcoming matchday (`team_info.maxTeambal` from upstream — see f1-fantasy-api-data PR #19). The bot's `mapLeagueTeamToBotTeam` derives `costCapRemaining = max(0, budget − Σ_prices)`. Blobs written before that PR shipped carried `budget = team_info.teamVal` (≈ Σ_prices) which trivially yields `costCapRemaining = 0` through the same formula — same as production today, no regression during the deployment transition.
 - `leagues/{leagueCode}/locked/matchday_{N}.json` — one blob per locked matchday written by the upstream `MODE=locked` scrape (fires ~1 minute after each session start: qualifying, race, and on sprint weekends the sprint race). Same per-team shape as `teams-data.json` plus a top-level `mode: 'locked'` discriminator and per-team `chipsUsed: [{ name, gameDayId }]`. Used by `/league_changes` and `/live_score`.
 
 ### How It Works
@@ -540,6 +540,12 @@ Blob naming includes the team ID:
 
 A second user-facing surface that runs the same business logic as the Telegram bot through tool calls. Architecture, code layout, and the patterns for adding new capabilities live in this section.
 
+Phase-2 capabilities (shipped):
+
+- `get_next_races` — upcoming races for the season (Phase 1).
+- `list_user_teams` — the user's tracked teams (teamId + friendly teamName).
+- `get_best_teams` — top scoring fantasy combinations with optional must-include / must-exclude filters on drivers and constructors (the marquee "best teams for X with Verstappen but no Alonso" question runs here).
+
 ### Architecture
 
 ```
@@ -599,6 +605,7 @@ Browser (Vite + React + CopilotKit)
 | **`@ai-sdk/azure`** with `useDeploymentBasedUrls: true` | Stock `@ai-sdk/openai` builds URLs as `/openai/responses` — wrong for Azure. The Azure provider knows the `/openai/deployments/{model}/chat/completions?api-version=…` shape. Pass `baseURL: '${endpoint}/openai'` so it works for both `*.openai.azure.com` (classic) and `*.services.ai.azure.com` (Azure AI Foundry) hosts. Use `azure.chat(deploymentId)` — `azure(deploymentId)` returns the `/responses` API model and 404s on most deployments. |
 | **Zod** for tool parameters | Required by `defineTool` (Standard Schema V1). Already a transitive dep through `@copilotkit/runtime`. |
 | **Single-route mode** on the runtime handler | The default `multi-route` mode would force the frontend to address per-route URLs; single-route keeps the frontend pointed at `{basePath}` with a JSON envelope. Side effect: `GET /threads?agentId=…` returns 405 in single-route — these errors in the browser console are harmless and represent chat-history persistence we haven't enabled. |
+| **`parallelToolCalls: false`** on the agent's `providerOptions.openai` | CopilotKit's `useLazyToolRenderer` (`node_modules/@copilotkit/react-core/src/hooks/use-lazy-tool-renderer.tsx` line 15) only ever renders `message.toolCalls[0]`. When Azure OpenAI emits two tool calls in the SAME assistant message (its default behaviour for independent tool calls), only the first React component renders and the rest are silently dropped. Forcing sequential calls makes each tool land in its own assistant message, so each gets its own rich UI render. |
 | **Separate Azure Function App** for the agent | Independent deploy/scale/failure-isolation from the Telegram bot. An agent rollout cannot break Telegram. The agent re-initialises any state it needs on cold start. |
 
 ### Code layout
@@ -607,14 +614,19 @@ Browser (Vite + React + CopilotKit)
 f1-fantazy-bot/
 ├── src/
 │   ├── cores/
-│   │   └── nextRacesCore.js          # pure: getNextRaces() → {season, races, counts}
+│   │   ├── nextRacesCore.js          # pure: getNextRaces() → {season, races, counts}
+│   │   ├── bestTeamsCore.js          # pure: computeBestTeams({chatId, teamId?, teamName?, rankBy?, mustInclude*, mustExclude*})
+│   │   └── userTeamsCore.js          # pure: listUserTeams({chatId}) → [{teamId, teamName, ...}]
 │   ├── agent/
 │   │   ├── identity.js               # AGENT_HARDCODED_CHAT_ID (LLM never sees it)
 │   │   ├── systemPrompt.js           # English-only v1; built once at startup
 │   │   ├── tools.js                  # defineTool({ name, description, parameters: z.object({…}), execute })
+│   │   ├── cacheBootstrap.js         # ensureCacheReady() — lazy initializeCaches(noopBot) for agent process
 │   │   └── runtime.js                # BuiltInAgent + CopilotRuntime + createCopilotRuntimeHandler
+│   ├── bestTeamsCalculator.js        # exports an optional `options` arg: filters + rankBy + resultCount
 │   └── commandsHandler/
-│       └── nextRacesHandler.js       # refactored: thin Telegram adapter over the core
+│       ├── nextRacesHandler.js       # refactored: thin Telegram adapter over the core
+│       └── bestTeamsHandler.js       # refactored: thin Telegram adapter over the core
 ├── agentWebhook/
 │   ├── function.json                 # httpTrigger, route `agent/{*restOfPath}`
 │   └── index.js                      # Azure Functions v3 ↔ Web Request bridge
@@ -622,12 +634,34 @@ f1-fantazy-bot/
 │   ├── src/
 │   │   ├── App.tsx                   # <CopilotKit runtimeUrl=…> + <CopilotChat />
 │   │   └── components/
-│   │       └── NextRacesTable.tsx    # useCopilotAction({ available: 'frontend', render })
+│   │       ├── NextRacesTable.tsx    # useCopilotAction({ name: 'get_next_races', available: 'frontend', render })
+│   │       ├── BestTeamsTable.tsx    # useCopilotAction({ name: 'get_best_teams', available: 'frontend', render })
+│   │       └── UserTeamsList.tsx     # useCopilotAction({ name: 'list_user_teams', available: 'frontend', render })
 │   ├── package.json
 │   └── …                             # own package.json — frontend deps don't pollute the backend
 └── scripts/
     └── dev-agent-server.js           # local Node HTTP wrapper around agentWebhook (no `func` CLI needed)
 ```
+
+### Cache bootstrap (cross-process)
+
+The Telegram bot's `src/bot.js` runs `initializeCaches(bot)` at startup so every command handler can read from `driversCache`, `currentTeamCache`, etc. The agent runs in a **separate process** (its own Azure Function App) and therefore has its own empty in-memory caches — they MUST be populated before any tool that reads them can run.
+
+`src/agent/cacheBootstrap.js` exports `ensureCacheReady()`: it lazily calls `initializeCaches(noopBot)` once per process, where `noopBot` is `{ sendMessage: async () => undefined }` so the bot-side `sendLogMessage`/`sendErrorMessage`/`sendMessageToAdmins` calls become no-ops (the agent process has no Telegram token). The promise is cached for reuse; on failure it resets so the next tool call retries from scratch (transient Azure errors don't brick the agent for the lifetime of the process).
+
+Tools that need caches MUST `await ensureCacheReady()` before reading from `currentTeamCache`/`driversCache`/etc.:
+
+```js
+execute: async (args) => {
+  await ensureCacheReady();
+  const chatId = getAgentChatId();
+  return await computeBestTeams({ chatId, ...args });
+},
+```
+
+Tools that don't need caches (e.g. `get_next_races` calls Ergast directly) can skip the await.
+
+> **Caveat:** `initializeCaches` also runs `refreshLeagueSourcedTeams`, which can `saveUserTeam` back to Azure Storage. The agent process needs the same Azure Storage credentials the bot does, and league refreshes happen idempotently on both sides — this is intentional but worth knowing during deployment.
 
 ### Tool definitions
 
@@ -670,6 +704,8 @@ useCopilotAction({
 
 > **Pitfall (don't repeat):** without `available: 'frontend'`, CopilotKit's `getActionConfig` throws `Invalid action configuration` and the whole React tree crashes blank. The marker tells CopilotKit "this is render-only for a backend-executed tool".
 
+> **Pitfall (Phase 2):** if you don't disable parallel tool calls (`providerOptions: { openai: { parallelToolCalls: false } }` on the `BuiltInAgent`), Azure OpenAI is free to emit multiple tools in the SAME assistant message — and CopilotKit's `useLazyToolRenderer` only renders `toolCalls[0]`. You'll see ONE of N tool results render and the rest silently disappear from the UI (the LLM's text reply will still describe them correctly, just no rich component). Fix: keep parallel calls disabled in `src/agent/runtime.js`.
+
 ### Identity model (v1)
 
 - `AGENT_HARDCODED_CHAT_ID` env var is the only identity. `src/agent/identity.js` reads it once and exposes `getAgentChatId()`.
@@ -707,9 +743,9 @@ npm run dev:web      # only Vite frontend on :5173/:5174
 
 1. **Extract the core** at `src/cores/<feature>Core.js`. Pure function, structured JSON return.
 2. **Refactor the matching Telegram handler** to call the core. Run `npx jest <handler>.test.js` — must pass unchanged.
-3. **Add the tool** to `src/agent/tools.js` via `defineTool({ name, description, parameters: z.object({…}), execute })`. The `execute` handler calls the core. If `chatId` is needed, use `getAgentChatId()` from `src/agent/identity.js`.
-4. **Update the system prompt** in `src/agent/systemPrompt.js` if the new tool requires guidance (e.g., "if the user names a team, first call `list_user_teams` to resolve the teamId").
-5. **Build the React component** at `web/src/components/<Feature>.tsx`. Define it inside a `useCopilotAction({ name, available: 'frontend', render })` hook (the hook must run inside a component mounted under `<CopilotKit>`).
+3. **Add the tool** to `src/agent/tools.js` via `defineTool({ name, description, parameters: z.object({…}), execute })`. The `execute` handler calls the core. If `chatId` is needed, use `getAgentChatId()` from `src/agent/identity.js`. **If the core reads from `currentTeamCache`/`driversCache`/etc, `await ensureCacheReady()` first** (see [Cache bootstrap](#cache-bootstrap-cross-process)).
+4. **Update the system prompt** in `src/agent/systemPrompt.js` if the new tool requires guidance (e.g. "if the user names a team in a 'best teams' question, call get_best_teams directly with `teamName` — don't pre-call list_user_teams; the multi-step routing costs latency and only one rich UI component can render per assistant turn").
+5. **Build the React component** at `web/src/components/<Feature>.tsx`. Define it inside a `useCopilotAction({ name, available: 'frontend', render })` hook (the hook must run inside a component mounted under `<CopilotKit>`). Match `name` exactly to the backend tool's name; for `available: 'frontend'` actions the `parameters` array is metadata-only — keep it as `[]` to avoid TypeScript / shape-matching issues with CopilotKit's frontend tooling.
 6. **Wire the hook** by importing and calling it from `web/src/App.tsx` (or wherever the `<AgentActions />` component lives).
 7. **Tests:** unit-test the core in `src/cores/<feature>Core.test.js`. Unit-test the tool's JSON shape if non-trivial. Re-run the full Telegram suite — must stay green.
 8. **Verify in-browser with Playwright MCP.** The browser is the source of truth for UI changes — every UI change must be Playwright-verified before declaring "done".
@@ -720,20 +756,27 @@ npm run dev:web      # only Vite frontend on :5173/:5174
 - **SSE streaming on Azure Functions Consumption plan** is unverified — locally the bridge buffers the full response. If streaming flushing turns out to be flaky on Consumption, fall back to non-streaming JSON or upgrade to Premium. Phase 6 hardening item.
 - **CORS** is currently permissive (`Access-Control-Allow-Origin: *`). Phase 6 locks it down to the production Static Web App origin.
 - **Hebrew localisation** of agent outputs is out of v1 scope. The Telegram bot stays bilingual.
+- **Multi-tool-call rendering**: CopilotKit's `useLazyToolRenderer` only renders `message.toolCalls[0]`. We force sequential tool calls via `parallelToolCalls: false`. If a future tool needs to fan out (e.g., "best teams for every team I track"), it has to do so server-side inside one `execute` and return a list — the LLM cannot emit N parallel tool calls and expect N React renders.
 
 ### Key files
 
 | File | Role |
 |---|---|
 | `src/cores/<feature>Core.js` | Pure logic core, returned JSON only. |
+| `src/cores/bestTeamsCore.js` | `computeBestTeams({chatId, teamId?, teamName?, rankBy?, mustInclude*, mustExclude*})` — status-tagged result, normalises codes via `NAME_TO_CODE_MAPPING`, returns `unknown_filter` when a name can't be resolved. |
+| `src/cores/userTeamsCore.js` | `listUserTeams({chatId})` — array of `{teamId, teamName, isLeague, isSelected, chip, …}`. |
+| `src/bestTeamsCalculator.js` | Accepts an optional 5th `options` arg with `mustInclude*`/`mustExclude*` filters, `rankBy: null \| 'points' \| 'points_per_million' \| 'budget_adjusted'`, and `resultCount`. Empty/absent options preserve legacy 4-arg behaviour byte-for-byte. |
 | `src/agent/identity.js` | Reads `AGENT_HARDCODED_CHAT_ID`, exposes `getAgentChatId()`. |
-| `src/agent/systemPrompt.js` | Minimal English system prompt; extended per phase. |
+| `src/agent/cacheBootstrap.js` | `ensureCacheReady()` — lazy `initializeCaches(noopBot)` for the agent process; resets on failure for retry-on-next-call. |
+| `src/agent/systemPrompt.js` | English system prompt; extended per phase. |
 | `src/agent/tools.js` | Tool catalogue (`defineTool` array). |
-| `src/agent/runtime.js` | Builds Azure model → `BuiltInAgent` → `CopilotRuntime` → `createCopilotRuntimeHandler`. Caches the handler per process. |
+| `src/agent/runtime.js` | Builds Azure model → `BuiltInAgent` (with `parallelToolCalls: false`) → `CopilotRuntime` → `createCopilotRuntimeHandler`. Caches the handler per process. |
 | `agentWebhook/function.json` | Azure Functions httpTrigger config (route `agent/{*restOfPath}`). |
 | `agentWebhook/index.js` | Bridges Azure Functions v3 (context, req) onto a Web Request; handles OPTIONS preflight + CORS; tolerant of both `Uint8Array` and string body chunks. |
 | `web/src/App.tsx` | Mounts `<CopilotKit>` + `<CopilotChat />`; reads `VITE_AGENT_API_URL`. |
-| `web/src/components/*.tsx` | Per-tool render components, each registered via `useCopilotAction({ available: 'frontend', render })`. |
+| `web/src/components/NextRacesTable.tsx` | `get_next_races` rich render. |
+| `web/src/components/BestTeamsTable.tsx` | `get_best_teams` rich render (top-10 table, captain badge, must-include highlights, penalty markers). |
+| `web/src/components/UserTeamsList.tsx` | `list_user_teams` rich render (card grid). |
 | `scripts/dev-agent-server.js` | Local dev wrapper around `agentWebhook/index.js`. Not deployed. |
 
 ---
