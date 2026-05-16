@@ -5,12 +5,12 @@ user-facing surface for the Telegram bot, plus the cost-cap data fix
 that fell out of Phase 2. It's structured so anyone can pick up where
 we left off without prior context.
 
-**Current state (2026-05-15):** Phase 1 shipped + merged to `main`
-(PR #180). Phase 2 + the cost-cap fix are open as two coordinated PRs
+**Current state (2026-05-16):** Phases 1 and 2 are both shipped and
+merged to `main`. The cost-cap data-source fix is also merged
 ([f1-fantasy-api-data#19](https://github.com/F1-fantazy-bot/f1-fantasy-api-data/pull/19)
-and [f1-fantazy-bot#181](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/181));
-both are review-ready and waiting on the operator. Phases 3–6 are
-planned but not started.
+and [f1-fantazy-bot#181](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/181)).
+**Phase 3 is the next natural step** and is unblocked — see the
+phase-3 section below. Phases 4–6 are planned but not started.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -86,21 +86,21 @@ until ready. The agent is fully functional locally via `npm run dev`.
 
 ---
 
-## Phase 2 — Best teams + filtering (the headline feature) — 🟡 OPEN as PR #181
+## Phase 2 — Best teams + filtering (the headline feature) — ✅ MERGED (PR #181, commit `983c714`)
 
 **Goal:** the marquee user request works:
 _"Best teams for kilzid3 with Verstappen but no Alonso."_
 Result renders as a rich `<BestTeamsTable />` with each team's roster,
 captain, projected points, and filter highlights.
 
-**Branch:** `feature/doronkilzi/agent-best-teams`
 **PR:** [#181](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/181)
-**Status:** open, review-ready. **754/754 tests, lint clean,
-Playwright-verified end-to-end.** Depends on (sequenced with) the
+(merged 2026-05-16 as commit `983c714`).
+**Status:** ✅ **MERGED to `main`.** 754/754 tests passed, lint clean,
+Playwright-verified end-to-end before merge. Shipped together with the
 companion cost-cap fix in
 [f1-fantasy-api-data#19](https://github.com/F1-fantazy-bot/f1-fantasy-api-data/pull/19).
 
-**What shipped on the branch:**
+**What shipped:**
 
 1. ✅ `src/bestTeamsCalculator.js` — optional 5th `options` arg with `mustInclude{Drivers,Constructors}` / `mustExclude{Drivers,Constructors}` filters (applied BEFORE the top-K slice so candidates outside the legacy top-K don't get lost), `rankBy: null | 'points' | 'budget_adjusted' | 'points_per_million'`, and `resultCount`. Empty/absent options preserve legacy 4-arg behaviour **byte-for-byte** — the existing 11 `bestTeamsHandler.test.js` cases pass unchanged because the refactored Telegram handler calls the calculator with the historical 4 positional args.
 2. ✅ `src/cores/bestTeamsCore.js` — `computeBestTeams({chatId, teamId?, teamName?, rankBy?, mustInclude*, mustExclude*})` with status-tagged result: `no_teams | unknown_team | ambiguous_team | missing_cache | missing_remaining_race_count | unknown_filter | ok`. Driver / constructor codes normalised through `NAME_TO_CODE_MAPPING` (the LLM can pass `'VER'` or `'m. verstappen'` interchangeably). Unresolved names surface as `unknown_filter` so the LLM can ask for clarification — no silent drops.
@@ -123,7 +123,7 @@ companion cost-cap fix in
 - Telegram `/best_teams` → identical to pre-refactor (all 11 existing tests pass byte-for-byte).
 - `npm test` → 754/754 green.
 
-### Phase 2 companion: cost-cap data fix — 🟡 OPEN as f1-fantasy-api-data#19
+### Phase 2 companion: cost-cap data fix — ✅ MERGED (f1-fantasy-api-data#19, commit `79c504e`)
 
 The new `<UserTeamsList />` UI surfaced a pre-existing bug: every league
 team showed `costCapRemaining: 0`. Root cause: `teams-data.json#budget`
@@ -137,18 +137,18 @@ We considered three approaches and landed on **fix at the data source**:
 2. ~~Bot-only with additive `maxTeambal` field on the scraper.~~ Rejected after consumer audit: nothing semantically depends on the old `budget = teamVal` (only one informational `console.log` line in the scraper itself + the bot's mapper). Carrying two fields where one will do adds noise.
 3. **✅ Rename `budget` to mean the cap.** The scraper now writes `team_info.maxTeambal` as `budget` on each team row in `teams-data.json` (and locked snapshots). The old semantic is retired.
 
-**PR A — [f1-fantasy-api-data#19](https://github.com/F1-fantazy-bot/f1-fantasy-api-data/pull/19)** (branch `feature/doronkilzi/teams-data-maxteambal`): 3 commits — 2 prettier-reformat + 1 functional (`feat: redefine teams-data.json#budget as the user's cost cap`).
+**Scraper PR — [f1-fantasy-api-data#19](https://github.com/F1-fantazy-bot/f1-fantasy-api-data/pull/19)** (merged as commit `79c504e`): 3 commits — 2 prettier-reformat + 1 functional (`feat: redefine teams-data.json#budget as the user's cost cap`).
 
 - `src/budget.js`: `extractStartBudget` deleted; `extractBudget` returns `maxTeambal`.
 - `src/fetchLeagueData.js`: single `budget` variable carries the cap. Reused for both `teamsComposition` row and `raceBudgets[matchday_N]` entry.
 - `src/fetchLockedLeagueData.js`: call site unchanged; helper just returns the right thing.
 - `AGENTS.md` redefined.
 
-**PR B — [f1-fantazy-bot#181](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/181)** (this branch, this plan): the mapper now reads `leagueTeam.budget` as the cap unconditionally (one `Number(leagueTeam.budget)` read). No additive field, no shim.
+**Bot PR — [f1-fantazy-bot#181](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/181)**: the mapper now reads `leagueTeam.budget` as the cap unconditionally (one `Number(leagueTeam.budget)` read). No additive field, no shim.
 
-**Transition risk: zero.** Stale blobs (written before PR A merges) carry `budget = teamVal`. The mapper subtracts `Σ_prices` from `budget` and gets `teamVal − Σ_prices ≈ 0` — exactly the value the bot reported in production today. No regression at any point during the deployment window. The moment the next scrape repopulates a blob, that team's cap-remaining becomes correct.
+**Transition window (now closed):** between scraper merge and the next scrape, stale blobs carried `budget = teamVal`. The mapper computed `teamVal − Σ_prices ≈ 0` — exactly the value the bot reported in production before the fix, so no regression at any point. Once the post-merge scrape repopulated the blobs, all teams started showing correct cap-remaining.
 
-**Live verification** (after a local scrape with the renamed scraper, against fresh blobs in Azure):
+**Live verification (post-merge, against fresh blobs in Azure):**
 
 | Team      | budget written | cap remaining (UI) | F1 Fantasy site |
 | --------- | -------------- | ------------------ | --------------- |
@@ -159,14 +159,6 @@ We considered three approaches and landed on **fix at the data source**:
 | Cooperon  | 111.6          | **0.9**            | 0.9 ✓           |
 
 All five exact-match the F1 Fantasy site.
-
-### How to finish Phase 2 / cost-cap fix (operator handoff)
-
-1. **Review and merge** [f1-fantasy-api-data#19](https://github.com/F1-fantazy-bot/f1-fantasy-api-data/pull/19).
-2. **Trigger** `deploy-aci.yml` `workflow_dispatch` in the f1-fantasy-api-data repo (or wait for Monday 03:00 UTC — the scheduler will pick up the new image).
-3. **Verify** one blob in Azure now has the new shape (e.g. via `az storage blob download --container-name f1-fantasy-scraper-json --name leagues/<code>/teams-data.json -f /tmp/td.json && jq '.teams[0]' /tmp/td.json` — `budget` should be a sensible cap value, e.g. ≥ team value).
-4. **Review and merge** [f1-fantazy-bot#181](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/181).
-5. (No follow-up cleanup PR needed — the rename collapses everything into a single clean field.)
 
 ---
 
@@ -333,9 +325,8 @@ The full per-tool checklist (including the **cache bootstrap** and
 
 1. **Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)"** end-to-end. It has the architecture, dev workflow, every gotcha we hit, and the **"Adding a new tool" checklist** that every phase below 3 follows.
 2. **Boot the dev environment** to confirm everything works: `npm install`, `cd web && npm install && cd ..`, then `npm run dev`. Open `http://localhost:5173/` and try _"Best teams for Kilzid 3 with Verstappen but no Alonso"_ — if it renders `<BestTeamsTable />` with 10 rows you're good.
-3. **Finish Phase 2 / cost-cap rollout** (see the operator-handoff steps above) — merge PR #19 then PR #181.
-4. **Pick the next phase.** Phase 3 is the natural next step. Spin up a feature branch `feature/<you>/agent-phase3` and follow the tasks listed above. Use Phase 2's commits + PR as the template for shape, commit-message style, and test scope.
-5. **Run the rubber-duck agent** on your plan before implementing each phase — Phase 1 and Phase 2 each caught real design flaws this way that would have been expensive to fix mid-implementation.
+3. **Pick the next phase.** Phase 3 (cross-league / followed teams) is the natural next step and is unblocked. Spin up a feature branch `feature/<you>/agent-phase3` and follow the tasks in the Phase 3 section above. Use Phase 2's commits + PR ([#181](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/181)) as the template for shape, commit-message style, and test scope.
+4. **Run the rubber-duck agent** on your plan before implementing each phase — Phase 1 and Phase 2 each caught real design flaws this way that would have been expensive to fix mid-implementation.
 
 Per-step approval policy (from the team rules): commits, pushes, and PR
 creates are **separate approval points**. Don't chain them.
