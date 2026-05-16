@@ -13,6 +13,7 @@ const {
   sharedKey,
   remainingRaceCountCache,
   userCache,
+  pricesCache,
 } = require('../cache');
 
 const { computeBestTeams, normalizeCode } = require('./bestTeamsCore');
@@ -46,6 +47,9 @@ function clearCaches() {
   delete selectedChipCache[KILZI_CHAT_ID];
   delete remainingRaceCountCache[sharedKey];
   delete userCache[String(KILZI_CHAT_ID)];
+  pricesCache.drivers = {};
+  pricesCache.constructors = {};
+  pricesCache.metadata = null;
 }
 
 describe('normalizeCode', () => {
@@ -204,6 +208,31 @@ describe('computeBestTeams', () => {
     expect(mockCalculateBestTeams).toHaveBeenCalledTimes(1);
     // Telegram path must call calculator with exactly 4 positional args.
     expect(mockCalculateBestTeams.mock.calls[0]).toHaveLength(4);
+  });
+
+  it('passes canonical prices over chat-specific imported prices', async () => {
+    seedValidCache({
+      drivers: { VER: { price: 1, expectedPoints: 25 } },
+      constructors: { RED: { price: 2, expectedPoints: 30 } },
+      currentTeam: {
+        drivers: ['VER'],
+        constructors: ['RED'],
+        boost: 'VER',
+        freeTransfers: 2,
+        costCapRemaining: 5,
+      },
+    });
+    pricesCache.drivers = { VER: 31.4 };
+    pricesCache.constructors = { RED: 21.3 };
+    mockCalculateBestTeams.mockReturnValue([]);
+
+    await computeBestTeams({ chatId: KILZI_CHAT_ID });
+
+    expect(mockCalculateBestTeams.mock.calls[0][0]).toEqual({
+      Drivers: { VER: { price: 31.4, expectedPoints: 25 } },
+      Constructors: { RED: { price: 21.3, expectedPoints: 30 } },
+      CurrentTeam: currentTeamCache[KILZI_CHAT_ID][TEAM_ID],
+    });
   });
 
   it('returns teamName from cache when status is ok', async () => {

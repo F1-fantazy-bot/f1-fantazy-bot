@@ -7,8 +7,6 @@
 
 const { calculateBestTeams } = require('../bestTeamsCalculator');
 const {
-  driversCache,
-  constructorsCache,
   currentTeamCache,
   selectedChipCache,
   sharedKey,
@@ -16,6 +14,8 @@ const {
   getSelectedTeam,
   getUserTeamIds,
   getBestTeamBudgetChangePointsPerMillion,
+  getDriversForChat,
+  getConstructorsForChat,
 } = require('../cache');
 const { NAME_TO_CODE_MAPPING } = require('../constants');
 
@@ -161,9 +161,8 @@ async function computeBestTeams({
   }
   const { teamId } = pick;
 
-  const drivers = driversCache[chatId] || driversCache[sharedKey];
-  const constructors =
-    constructorsCache[chatId] || constructorsCache[sharedKey];
+  const drivers = getDriversForChat(chatId);
+  const constructors = getConstructorsForChat(chatId);
   const currentTeam = currentTeamCache[chatId]?.[teamId];
 
   if (!drivers || !constructors || !currentTeam) {
@@ -243,4 +242,3 @@ module.exports = {
   normalizeCode,
   resolveCodes,
 };
-

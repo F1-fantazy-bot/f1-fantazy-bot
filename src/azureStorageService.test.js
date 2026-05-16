@@ -103,6 +103,25 @@ describe('azureStorageService', () => {
     });
   });
 
+  describe('getPricesData', () => {
+    it('should fetch and parse prices data', async () => {
+      const mockData = {
+        fetchedAt: '2026-05-15T12:00:00.000Z',
+        matchdayId: 5,
+        drivers: [{ id: '1', name: 'M. Verstappen', price: 31.4 }],
+        constructors: [{ id: '28', name: 'Mercedes', price: 16.4 }],
+      };
+
+      mockDownload.mockResolvedValueOnce({
+        readableStreamBody: createMockStream(mockData),
+      });
+
+      const result = await azureStorageService.getPricesData();
+      expect(result).toEqual(mockData);
+      expect(mockDownload).toHaveBeenCalled();
+    });
+  });
+
   describe('getLiveScoreData', () => {
     it('should fetch and parse live score data from the live-score container', async () => {
       const mockData = {

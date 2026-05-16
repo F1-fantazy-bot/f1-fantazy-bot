@@ -63,6 +63,30 @@ async function getFantasyData() {
 }
 
 /**
+ * Get the canonical F1 Fantasy prices from Azure Storage.
+ * @returns {Promise<Object>} Parsed prices data
+ * @throws {Error} If the data cannot be retrieved or parsed
+ */
+async function getPricesData() {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = 'prices.json';
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    const downloadResponse = await blockBlobClient.download();
+    const jsonString = await streamToString(
+      downloadResponse.readableStreamBody,
+    );
+
+    return JSON.parse(jsonString);
+  } catch (error) {
+    throw new Error(`Failed to get prices data: ${error.message}`);
+  }
+}
+
+/**
  * Get the next race info data from Azure Storage
  * @returns {Promise<Object>} The parsed next race info data
  * @throws {Error} If the data cannot be retrieved or parsed
@@ -629,6 +653,7 @@ async function deleteTeamsTrackerSession(chatId) {
 
 module.exports = {
   getFantasyData,
+  getPricesData,
   getUserTeam,
   saveUserTeam,
   deleteUserTeam,

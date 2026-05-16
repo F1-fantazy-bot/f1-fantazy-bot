@@ -1,13 +1,13 @@
 const { validateJsonData } = require('../utils');
 const { calculateBestTeams } = require('../bestTeamsCalculator');
 const {
-  driversCache,
-  constructorsCache,
   currentTeamCache,
   selectedChipCache,
   sharedKey,
   resolveSelectedTeam,
   remainingRaceCountCache,
+  getDriversForChat,
+  getConstructorsForChat,
 } = require('../cache');
 const { t } = require('../i18n');
 const {
@@ -86,8 +86,8 @@ async function handleBestTeamScenariosMessage(bot, chatId) {
     return;
   }
 
-  const drivers = driversCache[chatId] || driversCache[sharedKey];
-  const constructors = constructorsCache[chatId] || constructorsCache[sharedKey];
+  const drivers = getDriversForChat(chatId);
+  const constructors = getConstructorsForChat(chatId);
   const currentTeam = currentTeamCache[chatId]?.[teamId];
 
   if (!drivers || !constructors || !currentTeam) {

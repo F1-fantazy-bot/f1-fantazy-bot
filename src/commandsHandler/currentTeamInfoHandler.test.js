@@ -15,6 +15,7 @@ const {
   sharedKey,
   remainingRaceCountCache,
   userCache,
+  pricesCache,
 } = require('../cache');
 
 const { calcCurrentTeamInfo } = require('./currentTeamInfoHandler');
@@ -37,6 +38,9 @@ describe('calcCurrentTeamInfo', () => {
     delete currentTeamCache[KILZI_CHAT_ID];
     delete remainingRaceCountCache[sharedKey];
     delete userCache[String(KILZI_CHAT_ID)];
+    pricesCache.drivers = {};
+    pricesCache.constructors = {};
+    pricesCache.metadata = null;
   });
 
   it('should send missing cache message if drivers cache is missing', async () => {
@@ -195,6 +199,40 @@ describe('calcCurrentTeamInfo', () => {
     );
     const sentMessage = botMock.sendMessage.mock.calls[0][1];
     expect(sentMessage).not.toContain('*Budget-Adjusted Points:*');
+  });
+
+  it('should calculate current team info with canonical prices', async () => {
+    driversCache[KILZI_CHAT_ID] = {
+      VER: { price: 1, expectedPoints: 30, expectedPriceChange: 1 },
+    };
+    constructorsCache[KILZI_CHAT_ID] = {
+      RED: { price: 2, expectedPoints: 30, expectedPriceChange: 1 },
+    };
+    pricesCache.drivers = { VER: 31.4 };
+    pricesCache.constructors = { RED: 21.3 };
+    currentTeamCache[KILZI_CHAT_ID] = {
+      [TEAM_ID]: {
+        drivers: ['VER'],
+        constructors: ['RED'],
+        costCapRemaining: 3,
+      },
+    };
+
+    mockCalculateTeamInfo.mockReturnValue({
+      totalPrice: 52.7,
+      costCapRemaining: 3,
+      overallBudget: 55.7,
+      teamExpectedPoints: 60,
+      teamPriceChange: 2,
+    });
+
+    await calcCurrentTeamInfo(botMock, KILZI_CHAT_ID);
+
+    expect(mockCalculateTeamInfo).toHaveBeenCalledWith(
+      currentTeamCache[KILZI_CHAT_ID][TEAM_ID],
+      { VER: { price: 31.4, expectedPoints: 30, expectedPriceChange: 1 } },
+      { RED: { price: 21.3, expectedPoints: 30, expectedPriceChange: 1 } },
+    );
   });
 
   it('should format numbers correctly with two decimal places', async () => {

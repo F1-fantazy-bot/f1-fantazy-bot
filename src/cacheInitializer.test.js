@@ -8,9 +8,11 @@ const {
   nextRaceInfoCache,
   remainingRaceCountCache,
   userCache,
+  pricesCache,
 } = require('./cache');
 const {
   getFantasyData,
+  getPricesData,
   listAllUserTeamData,
   getNextRaceInfoData,
   getLeagueTeamsData,
@@ -37,6 +39,7 @@ jest.mock('./utils', () => ({
 
 jest.mock('./azureStorageService', () => ({
   getFantasyData: jest.fn(),
+  getPricesData: jest.fn(),
   listAllUserTeamData: jest.fn(),
   getNextRaceInfoData: jest.fn(),
   getLeagueTeamsData: jest.fn(),
@@ -72,6 +75,19 @@ describe('cacheInitializer', () => {
     Constructors: [
       { CN: 'RBR', price: 20.0 },
       { CN: 'MER', price: 15.0 },
+    ],
+  };
+
+  const mockPricesData = {
+    fetchedAt: '2026-05-15T12:00:00.000Z',
+    matchdayId: 5,
+    drivers: [
+      { id: '1', name: 'M. Verstappen', price: 31.4 },
+      { id: '44', name: 'L. Hamilton', price: 24.2 },
+    ],
+    constructors: [
+      { id: '28', name: 'Red Bull Racing', price: 21.3 },
+      { id: '29', name: 'Mercedes', price: 16.4 },
     ],
   };
 
@@ -127,10 +143,14 @@ describe('cacheInitializer', () => {
       (key) => delete remainingRaceCountCache[key]
     );
     Object.keys(userCache).forEach((key) => delete userCache[key]);
+    pricesCache.drivers = {};
+    pricesCache.constructors = {};
+    pricesCache.metadata = null;
 
     // Setup mock implementations
     validateJsonData.mockResolvedValue(true);
     getFantasyData.mockResolvedValue(mockFantasyData);
+    getPricesData.mockResolvedValue(mockPricesData);
     listAllUserTeamData.mockResolvedValue(mockUserTeams);
     listAllUsers.mockResolvedValue(mockUsers);
     getNextRaceInfoData.mockResolvedValue({
@@ -145,6 +165,7 @@ describe('cacheInitializer', () => {
 
     // Verify Azure Storage was queried
     expect(getFantasyData).toHaveBeenCalled();
+    expect(getPricesData).toHaveBeenCalled();
     expect(listAllUserTeamData).toHaveBeenCalled();
     expect(listAllUsers).toHaveBeenCalled();
     expect(getNextRaceInfoData).toHaveBeenCalled();
@@ -175,14 +196,22 @@ describe('cacheInitializer', () => {
 
     // Verify drivers were cached correctly
     expect(driversCache[sharedKey]).toEqual({
-      VER: mockFantasyData.Drivers[0],
-      HAM: mockFantasyData.Drivers[1],
+      VER: { ...mockFantasyData.Drivers[0], price: 31.4 },
+      HAM: { ...mockFantasyData.Drivers[1], price: 24.2 },
     });
 
     // Verify constructors were cached correctly
     expect(constructorsCache[sharedKey]).toEqual({
       RBR: mockFantasyData.Constructors[0],
-      MER: mockFantasyData.Constructors[1],
+      MER: { ...mockFantasyData.Constructors[1], price: 16.4 },
+    });
+    expect(pricesCache).toEqual({
+      drivers: { VER: 31.4, HAM: 24.2 },
+      constructors: { RED: 21.3, MER: 16.4 },
+      metadata: {
+        fetchedAt: mockPricesData.fetchedAt,
+        matchdayId: mockPricesData.matchdayId,
+      },
     });
 
     // Verify user teams were cached correctly
@@ -286,15 +315,41 @@ describe('cacheInitializer', () => {
 
     // Verify drivers were cached correctly
     expect(driversCache[sharedKey]).toEqual({
-      VER: mockFantasyData.Drivers[0],
-      HAM: mockFantasyData.Drivers[1],
+      VER: { ...mockFantasyData.Drivers[0], price: 31.4 },
+      HAM: { ...mockFantasyData.Drivers[1], price: 24.2 },
     });
 
     // Verify constructors were cached correctly
     expect(constructorsCache[sharedKey]).toEqual({
       RBR: mockFantasyData.Constructors[0],
+      MER: { ...mockFantasyData.Constructors[1], price: 16.4 },
+    });
+  });
+
+  it('falls back to simulation prices when prices data cannot be loaded', async () => {
+    getPricesData.mockRejectedValue(new Error('blob missing'));
+
+    await loadSimulationData(mockBot);
+
+    expect(driversCache[sharedKey]).toEqual({
+      VER: mockFantasyData.Drivers[0],
+      HAM: mockFantasyData.Drivers[1],
+    });
+    expect(constructorsCache[sharedKey]).toEqual({
+      RBR: mockFantasyData.Constructors[0],
       MER: mockFantasyData.Constructors[1],
     });
+    expect(pricesCache).toEqual({
+      drivers: {},
+      constructors: {},
+      metadata: null,
+    });
+    expect(utils.sendErrorMessage).toHaveBeenCalledWith(
+      mockBot,
+      expect.stringContaining(
+        'Failed to load prices data; falling back to simulation prices: blob missing',
+      ),
+    );
   });
 
   it('should throw error if simulation data validation fails', async () => {
