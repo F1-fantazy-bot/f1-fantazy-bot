@@ -18,6 +18,14 @@ exports.driversCache = {};
 // In-memory cache for constructors by chat id
 exports.constructorsCache = {};
 
+// Canonical prices, keyed by bot code.
+// Shape: { drivers: { VER: 30.4 }, constructors: { MER: 30.5 }, metadata: { ... } }
+exports.pricesCache = {
+  drivers: {},
+  constructors: {},
+  metadata: null,
+};
+
 // In-memory cache for current team by chat id
 // Structure: currentTeamCache[chatId] = { T1: { drivers, ... }, T2: { drivers, ... } }
 exports.currentTeamCache = {};
@@ -275,6 +283,63 @@ exports.clearAllSelectedBestTeams = function (chatId) {
   userCache[key].selectedBestTeamByTeam = {};
 
   return userCache[key].selectedBestTeamByTeam;
+};
+
+function overlayCanonicalPrices(itemsByCode, pricesByCode) {
+  if (!itemsByCode) {
+    return itemsByCode;
+  }
+
+  const priceEntries = Object.entries(pricesByCode || {});
+  if (priceEntries.length === 0) {
+    return itemsByCode;
+  }
+
+  let changed = false;
+  const overlaid = Object.fromEntries(
+    Object.entries(itemsByCode).map(([code, item]) => {
+      const price = pricesByCode[code];
+      if (!Number.isFinite(price)) {
+        return [code, item];
+      }
+
+      changed = true;
+
+      return [code, { ...item, price }];
+    }),
+  );
+
+  return changed ? overlaid : itemsByCode;
+}
+
+exports.setPrices = function ({
+  drivers = {},
+  constructors = {},
+  metadata = null,
+} = {}) {
+  exports.pricesCache.drivers = drivers;
+  exports.pricesCache.constructors = constructors;
+  exports.pricesCache.metadata = metadata;
+};
+
+exports.clearPrices = function () {
+  exports.setPrices();
+};
+
+exports.getDriversForChat = function (chatId) {
+  const drivers = exports.driversCache[chatId] || exports.driversCache[exports.sharedKey];
+
+  return overlayCanonicalPrices(drivers, exports.pricesCache.drivers);
+};
+
+exports.getConstructorsForChat = function (chatId) {
+  const constructors =
+    exports.constructorsCache[chatId] || exports.constructorsCache[exports.sharedKey];
+
+  return overlayCanonicalPrices(
+    constructors,
+    exports.pricesCache.constructors,
+  );
 };
 
 /**

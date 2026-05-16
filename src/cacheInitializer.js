@@ -9,6 +9,8 @@ const {
   remainingRaceCountCache,
   normalizeBestTeamBudgetChangePointsPerMillion,
   normalizeSelectedBestTeamByTeam,
+  setPrices,
+  clearPrices,
 } = require('./cache');
 const {
   sendLogMessage,
@@ -23,6 +25,7 @@ const {
 } = require('./constants');
 const {
   getFantasyData,
+  getPricesData,
   listAllUserTeamData,
   getNextRaceInfoData,
   getLeagueTeamsData,
@@ -33,6 +36,7 @@ const { fetchRemainingRaceCount } = require('./raceScheduleService');
 const { listUserLeagues } = require('./leagueRegistryService');
 const { buildLeagueTeamId } = require('./utils/teamId');
 const { mapLeagueTeamToBotTeam } = require('./utils/leagueTeamHelpers');
+const { applyPrices } = require('./priceData');
 
 /**
  * Initialize all application caches with data from Azure Storage
@@ -183,6 +187,42 @@ async function loadSimulationData(bot) {
     }
   });
 
+  try {
+    const pricesData = await getPricesData();
+    const pricedData = applyPrices(
+      {
+        drivers: driversCache[sharedKey],
+        constructors: constructorsCache[sharedKey],
+      },
+      pricesData,
+    );
+
+    driversCache[sharedKey] = pricedData.drivers;
+    constructorsCache[sharedKey] = pricedData.constructors;
+    setPrices({
+      drivers: pricedData.priceMaps.drivers,
+      constructors: pricedData.priceMaps.constructors,
+      metadata: {
+        fetchedAt: pricesData.fetchedAt || null,
+        matchdayId: pricesData.matchdayId || null,
+      },
+    });
+
+    await sendLogMessage(
+      bot,
+      `Prices data loaded successfully${
+        pricesData?.matchdayId ? ` for matchday ${pricesData.matchdayId}` : ''
+      }`,
+    );
+    await reportPriceDataGaps(bot, pricedData.report);
+  } catch (error) {
+    clearPrices();
+    await sendErrorMessage(
+      bot,
+      `Failed to load prices data; falling back to simulation prices: ${error.message}`,
+    );
+  }
+
   // Log any missing mappings
   if (notFounds.drivers.length > 0) {
     const message = `
@@ -203,6 +243,47 @@ Constructors not found in mapping: ${notFounds.constructors.join(', ')}
     await sendErrorMessage(bot, message);
     await sendMessageToAdmins(bot, message);
   }
+}
+
+async function reportPriceDataGaps(bot, report) {
+  const messages = [];
+  const addMessage = (label, values) => {
+    if (values.length > 0) {
+      messages.push(`${label}: ${values.join(', ')}`);
+    }
+  };
+
+  addMessage('Driver prices not mapped from prices.json', report.drivers.unmapped);
+  addMessage('Driver prices invalid in prices.json', report.drivers.invalid);
+  addMessage(
+    'Drivers missing from prices.json, using fallback prices',
+    report.drivers.missing,
+  );
+  addMessage(
+    'Constructor prices not mapped from prices.json',
+    report.constructors.unmapped,
+  );
+  addMessage(
+    'Constructor prices invalid in prices.json',
+    report.constructors.invalid,
+  );
+  addMessage(
+    'Constructors missing from prices.json, using fallback prices',
+    report.constructors.missing,
+  );
+
+  if (messages.length === 0) {
+    return;
+  }
+
+  await sendErrorMessage(
+    bot,
+    `
+🔴🔴🔴
+Price data gaps:
+${messages.join('\n')}
+🔴🔴🔴`,
+  );
 }
 
 /**

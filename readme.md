@@ -13,11 +13,11 @@ A **web-chat agent** (preview) provides a second channel for the same functional
 - **Natural Language Commands**: Send any text and the bot will interpret it using AI to run the matching commands. Send `.` to open the menu.
 ### Team Optimization & Analysis
 
-- **Best Teams Calculator**: Calculate and display the best possible fantasy teams based on cached data
+- **Best Teams Calculator**: Calculate and display the best possible fantasy teams based on cached team data, projections, and the latest prices
 - **Best-Team Ranking Preference**: Tune how much expected budget changes should affect best-team ranking via `/set_best_team_ranking`
   - Non-default ranking modes also show `Budget-Adjusted Points` in `/best_teams` output so users can see the impact of the selected ranking mode
 - **Budget & Team Info**: Display current team information, including budget details and composition
-- **Team Simulations**: Load and view fantasy team simulations for strategic planning
+- **Team Simulations**: Load and view fantasy team projections for strategic planning; latest prices are applied when available
 
 ### Chip Management
 
@@ -41,7 +41,7 @@ A **web-chat agent** (preview) provides a second channel for the same functional
   - Circuit image of the track
 - **Next Race Weather**: Detailed hourly weather forecast for qualifying, race and sprint sessions
 - **Automated Data Updates**: Trigger web scraping for the latest F1 Fantasy data (admin feature)
-- **Real-time Updates**: Stay current with the latest fantasy prices and availability
+- **Price Updates**: Use the latest global F1 Fantasy prices, with simulation/imported prices as fallback
 
 ### League Leaderboards
 
@@ -182,9 +182,9 @@ All users can access these commands:
 
 #### Team Management
 
-- **`/best_teams`** - Calculate and display the best possible teams based on your cached data
+- **`/best_teams`** - Calculate and display the best possible teams based on your cached data, projections, and the latest prices
 - **`/set_best_team_ranking`** - Set how expected budget changes affect best-team ranking suggestions
-- **`/current_team_info`** - Calculate current team info and budget based on your cached data
+- **`/current_team_info`** - Calculate current team info and budget using cached roster data and the latest prices
 - **`/chips`** - Choose a chip to use for the current race (Extra Boost, Wildcard, Limitless)
 
 #### Analysis & Stats
@@ -197,7 +197,7 @@ All users can access these commands:
 
 - **`/print_cache`** - Show the currently cached drivers, constructors, and current team
 - **`/reset_cache`** - Clear all cached data for this chat
-- **`/load_simulation`** - Load the latest simulation data
+- **`/load_simulation`** - Load the latest simulation/projection data and apply the latest prices
 ### Admin Commands
 
 Restricted to authorized administrators:

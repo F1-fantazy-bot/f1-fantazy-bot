@@ -2,8 +2,6 @@ const { calculateChangesToTeam } = require('../bestTeamsCalculator');
 const { updateUserAttributes } = require('../userRegistryService');
 const {
   bestTeamsCache,
-  driversCache,
-  constructorsCache,
   selectedChipCache,
   sharedKey,
   resolveSelectedTeam,
@@ -11,6 +9,8 @@ const {
   remainingRaceCountCache,
   setSelectedBestTeam,
   serializeSelectedBestTeamByTeam,
+  getDriversForChat,
+  getConstructorsForChat,
 } = require('../cache');
 const { COMMAND_BEST_TEAMS } = require('../constants');
 const { t } = require('../i18n');
@@ -62,8 +62,8 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
 
       // Build cachedJsonData object
       const cachedJsonData = {
-        Drivers: driversCache[chatId] || driversCache[sharedKey],
-        Constructors: constructorsCache[chatId] || constructorsCache[sharedKey],
+        Drivers: getDriversForChat(chatId),
+        Constructors: getConstructorsForChat(chatId),
         CurrentTeam: currentTeam,
       };
       const changesToTeam = calculateChangesToTeam(

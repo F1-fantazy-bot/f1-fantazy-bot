@@ -1,12 +1,12 @@
 const { calculateTeamInfo, calculateBudgetAdjustedPoints } = require('../utils');
 const {
-  driversCache,
-  constructorsCache,
   currentTeamCache,
   sharedKey,
   resolveSelectedTeam,
   getBestTeamBudgetChangePointsPerMillion,
   remainingRaceCountCache,
+  getDriversForChat,
+  getConstructorsForChat,
 } = require('../cache');
 const { t } = require('../i18n');
 
@@ -16,9 +16,8 @@ async function calcCurrentTeamInfo(bot, chatId) {
     return;
   }
 
-  const drivers = driversCache[chatId] || driversCache[sharedKey];
-  const constructors =
-    constructorsCache[chatId] || constructorsCache[sharedKey];
+  const drivers = getDriversForChat(chatId);
+  const constructors = getConstructorsForChat(chatId);
   const currentTeam = currentTeamCache[chatId]?.[teamId];
 
   if (!drivers || !constructors || !currentTeam) {

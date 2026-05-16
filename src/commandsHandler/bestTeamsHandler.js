@@ -1,11 +1,10 @@
 const { validateJsonData } = require('../utils');
 const {
   bestTeamsCache,
-  driversCache,
-  constructorsCache,
   currentTeamCache,
-  sharedKey,
   resolveSelectedTeam,
+  getDriversForChat,
+  getConstructorsForChat,
 } = require('../cache');
 const { t } = require('../i18n');
 const { computeBestTeams } = require('../cores/bestTeamsCore');
@@ -17,9 +16,8 @@ async function handleBestTeamsMessage(bot, chatId) {
   }
 
   // Try to fetch cached data for this chat
-  const drivers = driversCache[chatId] || driversCache[sharedKey];
-  const constructors =
-    constructorsCache[chatId] || constructorsCache[sharedKey];
+  const drivers = getDriversForChat(chatId);
+  const constructors = getConstructorsForChat(chatId);
   const currentTeam = currentTeamCache[chatId]?.[teamId];
 
   if (!drivers || !constructors || !currentTeam) {
