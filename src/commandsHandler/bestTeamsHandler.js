@@ -1,17 +1,14 @@
 const { validateJsonData } = require('../utils');
-const { calculateBestTeams } = require('../bestTeamsCalculator');
 const {
   bestTeamsCache,
   driversCache,
   constructorsCache,
   currentTeamCache,
-  selectedChipCache,
   sharedKey,
   resolveSelectedTeam,
-  getBestTeamBudgetChangePointsPerMillion,
-  remainingRaceCountCache,
 } = require('../cache');
 const { t } = require('../i18n');
+const { computeBestTeams } = require('../cores/bestTeamsCore');
 
 async function handleBestTeamsMessage(bot, chatId) {
   const teamId = await resolveSelectedTeam(bot, chatId);
@@ -41,15 +38,12 @@ async function handleBestTeamsMessage(bot, chatId) {
     return;
   }
 
-  // Build cachedJsonData object
-  const cachedJsonData = {
-    Drivers: drivers,
-    Constructors: constructors,
-    CurrentTeam: currentTeam,
-  };
-
+  // `validateJsonData` is intentionally side-effecty: it sends a user-facing
+  // "Invalid JSON" message via `bot.sendMessage` when the cached data is
+  // malformed. Keep calling it here so the Telegram surface keeps the same
+  // observable behaviour. The agent's core does its own pure validation.
   if (
-    !validateJsonData(
+    !(await validateJsonData(
       bot,
       {
         Drivers: Object.values(drivers),
@@ -57,18 +51,13 @@ async function handleBestTeamsMessage(bot, chatId) {
         CurrentTeam: currentTeam,
       },
       chatId,
-    )
+    ))
   ) {
     return;
   }
-  const budgetChangePointsPerMillion =
-    getBestTeamBudgetChangePointsPerMillion(chatId, teamId);
-  const remainingRaceCount = remainingRaceCountCache[sharedKey];
 
-  if (
-    budgetChangePointsPerMillion > 0 &&
-    !Number.isFinite(remainingRaceCount)
-  ) {
+  const result = await computeBestTeams({ chatId, teamId });
+  if (result.status === 'missing_remaining_race_count') {
     await bot
       .sendMessage(
         chatId,
@@ -78,23 +67,27 @@ async function handleBestTeamsMessage(bot, chatId) {
         ),
       )
       .catch((err) =>
-        console.error('Error sending remaining race count unavailable message:', err),
+        console.error(
+          'Error sending remaining race count unavailable message:',
+          err,
+        ),
       );
 
     return;
   }
 
-  const bestTeams = calculateBestTeams(
-    cachedJsonData,
-    selectedChipCache[chatId]?.[teamId],
-    budgetChangePointsPerMillion,
-    Number.isFinite(remainingRaceCount) ? remainingRaceCount : 0,
-  );
+  // Any other non-ok status here would only fire if cache state changed
+  // between our pre-checks above and the core's checks — defensive guard.
+  if (result.status !== 'ok') {
+    return;
+  }
+
+  const { bestTeams, budgetChangePointsPerMillion } = result;
   if (!bestTeamsCache[chatId]) {
     bestTeamsCache[chatId] = {};
   }
   bestTeamsCache[chatId][teamId] = {
-    currentTeam: cachedJsonData.CurrentTeam,
+    currentTeam,
     bestTeams,
   };
 

@@ -11,12 +11,31 @@ const {
   calculateBudgetAdjustedPoints,
 } = require('./utils');
 
+// eslint-disable-next-line max-params
 exports.calculateBestTeams = function (
   cachedJsonData,
   selectedChip,
   budgetChangePointsPerMillion = 0,
   remainingRaceCount = 0,
+  options = {},
 ) {
+  // `options` is consumed by callers that want to re-rank / filter / cap the
+  // top-K list (notably the web-chat agent). Keys (all optional):
+  //   mustIncludeDrivers, mustExcludeDrivers,
+  //   mustIncludeConstructors, mustExcludeConstructors: arrays of codes (e.g. 'VER').
+  //   rankBy: null | 'points' | 'budget_adjusted' | 'points_per_million'.
+  //     null preserves legacy ranking (`ranking_score`, then `projected_points`).
+  //   resultCount: number — defaults to BEST_TEAMS_RESULT_COUNT.
+  // When `options` is omitted/empty, behaviour matches the legacy 4-arg call
+  // byte-for-byte (the Telegram bot relies on this).
+  const {
+    mustIncludeDrivers = [],
+    mustExcludeDrivers = [],
+    mustIncludeConstructors = [],
+    mustExcludeConstructors = [],
+    rankBy = null,
+    resultCount = BEST_TEAMS_RESULT_COUNT,
+  } = options;
   // Data for drivers
   const drivers_dict = cachedJsonData.Drivers;
 
@@ -194,15 +213,62 @@ exports.calculateBestTeams = function (
     }
   }
 
-  // Sort the teams by ranking score in descending order and keep a fixed number of results
-  teams.sort((a, b) => {
-    if (b.ranking_score !== a.ranking_score) {
-      return b.ranking_score - a.ranking_score;
-    }
+  // Sort the teams by the requested ranking, then keep the configured number
+  // of results. `rankBy === null` preserves the legacy behaviour exactly
+  // (the Telegram bot path) — `ranking_score` is the budget-adjusted value
+  // (or `projected_points` when budgetChangePointsPerMillion === 0).
+  if (rankBy === 'points') {
+    teams.sort((a, b) => b.projected_points - a.projected_points);
+  } else if (rankBy === 'points_per_million') {
+    const ppm = (team) =>
+      team.total_price > 0 ? team.projected_points / team.total_price : 0;
+    teams.sort((a, b) => ppm(b) - ppm(a));
+  } else if (rankBy === 'budget_adjusted') {
+    teams.sort((a, b) => b.ranking_score - a.ranking_score);
+  } else {
+    teams.sort((a, b) => {
+      if (b.ranking_score !== a.ranking_score) {
+        return b.ranking_score - a.ranking_score;
+      }
 
-    return b.projected_points - a.projected_points;
-  });
-  const top_teams = teams.slice(0, BEST_TEAMS_RESULT_COUNT);
+      return b.projected_points - a.projected_points;
+    });
+  }
+
+  // Apply optional must-include / must-exclude filters BEFORE slicing the
+  // top-K. Filtering after slice would lose teams that rank just below
+  // the original top-K cut and only become visible after filtering.
+  let candidateTeams = teams;
+  if (
+    mustIncludeDrivers.length ||
+    mustExcludeDrivers.length ||
+    mustIncludeConstructors.length ||
+    mustExcludeConstructors.length
+  ) {
+    const includeDrivers = new Set(mustIncludeDrivers);
+    const excludeDrivers = new Set(mustExcludeDrivers);
+    const includeConstructors = new Set(mustIncludeConstructors);
+    const excludeConstructors = new Set(mustExcludeConstructors);
+    candidateTeams = teams.filter((team) => {
+      const driverSet = new Set(team.drivers);
+      const consSet = new Set(team.constructors);
+      for (const code of includeDrivers) {
+        if (!driverSet.has(code)) {return false;}
+      }
+      for (const code of excludeDrivers) {
+        if (driverSet.has(code)) {return false;}
+      }
+      for (const code of includeConstructors) {
+        if (!consSet.has(code)) {return false;}
+      }
+      for (const code of excludeConstructors) {
+        if (consSet.has(code)) {return false;}
+      }
+
+      return true;
+    });
+  }
+  const top_teams = candidateTeams.slice(0, resultCount);
 
   // If LIMITLESS_CHIP is selected, set expected_price_change to current team's expected price change
   if (selectedChip === LIMITLESS_CHIP) {

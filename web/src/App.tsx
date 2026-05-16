@@ -2,6 +2,8 @@ import { CopilotKit } from '@copilotkit/react-core';
 import { CopilotChat } from '@copilotkit/react-ui';
 import '@copilotkit/react-ui/styles.css';
 import { useNextRacesAction } from './components/NextRacesTable';
+import { useBestTeamsAction } from './components/BestTeamsTable';
+import { useUserTeamsAction } from './components/UserTeamsList';
 
 const RUNTIME_URL =
   (import.meta.env.VITE_AGENT_API_URL as string | undefined) ??
@@ -9,6 +11,8 @@ const RUNTIME_URL =
 
 function AgentActions() {
   useNextRacesAction();
+  useUserTeamsAction();
+  useBestTeamsAction();
   return null;
 }
 
@@ -17,16 +21,17 @@ export default function App() {
     <div className="app-shell">
       <h1 className="app-header">F1 Fantasy Agent</h1>
       <p className="app-subheader">
-        Ask about upcoming races. The Telegram bot is unaffected.
+        Ask about upcoming races or your best teams. The Telegram bot is unaffected.
       </p>
       <CopilotKit runtimeUrl={RUNTIME_URL}>
         <AgentActions />
         <div className="chat-wrapper">
           <CopilotChat
-            instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions about upcoming races; the user will see rich UI components automatically when you call them."
+            instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them."
             labels={{
               title: 'F1 Fantasy Agent',
-              initial: 'Hi! Ask me about upcoming F1 races.',
+              initial:
+                'Hi! Try: "best teams for kilzid3 with Verstappen but no Alonso".',
             }}
           />
         </div>

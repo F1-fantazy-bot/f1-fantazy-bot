@@ -61,7 +61,7 @@ A **web-chat agent** (preview) provides a second channel for the same functional
 - **Second channel** for the bot: a Vite + React + CopilotKit chat UI talking to a CopilotKit v2 `BuiltInAgent` running on Azure OpenAI
 - **Same business logic** as the Telegram bot — both surfaces call pure cores in `src/cores/`
 - **Generative UI**: tool results render as tailored React components (e.g. `<NextRacesTable />`) rather than plain text
-- Currently ships one tool (`get_next_races`); more capabilities land phase by phase
+- Currently ships three tools (`get_next_races`, `list_user_teams`, `get_best_teams` with must-include / must-exclude filters); more capabilities land phase by phase
 
 ### Bot Administration
 
@@ -144,7 +144,7 @@ A **web-chat agent** (preview) provides a second channel for the same functional
    - Agent backend on `http://localhost:7071/api/agent/copilotkit` (a thin Node HTTP wrapper around the same handler that `agentWebhook/` exposes to Azure Functions — no Azure Functions Core Tools required)
    - Vite frontend on `http://localhost:5173/` (or `:5174` if `:5173` is busy)
 
-   Open the Vite URL and ask the agent a question (e.g. _"What are the next races in USA?"_). See [`AGENTS.md` → Agent (Web Chat)](AGENTS.md#agent-web-chat) for the full architecture and the pattern for adding new tools.
+   Open the Vite URL and ask the agent a question (e.g. _"What are the next races in USA?"_ or _"Best teams for kilzid3 with Verstappen but no Alonso"_). See [`AGENTS.md` → Agent (Web Chat)](AGENTS.md#agent-web-chat) for the full architecture and the pattern for adding new tools.
 
 ## Available Commands and Inputs
 
