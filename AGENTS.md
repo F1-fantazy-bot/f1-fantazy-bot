@@ -28,7 +28,7 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
   - `src/azureStorageService.js` and `src/azureBillingService.js` wrap Azure integrations.
 - **Internationalization:** `src/i18n.js` and `src/translations.js` provide language support (English/Hebrew) used throughout handlers.
 - **AI Assist:** `src/prompts.js` defines system prompts. `/ask`-style natural language queries are handled by `src/commandsHandler/askHandler.js`, which leverages Azure OpenAI to map free-text requests into command sequences.
-- **Logic Cores:** `src/cores/` holds **pure** business-logic functions that take inputs and return structured JSON. They do not depend on `bot`, `t()`, or `sendMessage`. Each Telegram handler is being progressively refactored into `(pure core in src/cores/) + (thin Telegram adapter)`. The same core is consumed by the web-chat agent's tools — so a question like "best teams with VER but no ALO" runs through the same calculator as the `/best_teams` command. **Refactor rule:** existing handler tests must keep passing unchanged after the extraction; if they don't, fix the refactor, not the test. Phases 1–2 have extracted `nextRacesCore.js`, `bestTeamsCore.js`, and `userTeamsCore.js`; more will land as future phases ship.
+- **Logic Cores:** `src/cores/` holds **pure** business-logic functions that take inputs and return structured JSON. They do not depend on `bot`, `t()`, or `sendMessage`. Each Telegram handler is being progressively refactored into `(pure core in src/cores/) + (thin Telegram adapter)`. The same core is consumed by the web-chat agent's tools — so a question like "best teams with VER but no ALO" runs through the same calculator as the `/best_teams` command. **Refactor rule:** existing handler tests must keep passing unchanged after the extraction; if they don't, fix the refactor, not the test. Cores extracted so far: `nextRacesCore`, `bestTeamsCore`, `userTeamsCore`, `followedTeamsCore`, `leaderboardCore`, `bestTeamScenariosCore`, `nextRaceInfoCore`, `raceWeatherCore`, `deadlineCore`. Cores that need side effects (e.g. weather fetch logging) accept optional `onFetch`/`onError` callbacks — the Telegram adapter wires them to bot-side helpers; the agent path omits them.
 - **Agent (Web Chat):** `src/agent/`, `agentWebhook/`, and `web/` together implement a second user-facing surface. Identity is resolved from the `AGENT_HARDCODED_CHAT_ID` env var (v1) so all tool calls operate as that user against the same caches/blobs as the Telegram bot. See the [Agent (Web Chat)](#agent-web-chat) section for the full architecture, the cores↔tools pattern, and how to add a new tool with a matching React component.
 
 ---
@@ -543,7 +543,7 @@ Blob naming includes the team ID:
 
 A second user-facing surface that runs the same business logic as the Telegram bot through tool calls. Architecture, code layout, and the patterns for adding new capabilities live in this section.
 
-Phase-3 capabilities (shipped):
+Phase-4 capabilities (shipped):
 
 - `get_next_races` — upcoming races for the season (Phase 1).
 - `list_user_teams` — the user's tracked teams (teamId + friendly teamName) (Phase 2).
@@ -552,6 +552,9 @@ Phase-3 capabilities (shipped):
 - `list_followed_teams` — the user's followed league teams enriched with the leagues each team appears in + position in each (Phase 3).
 - `list_user_leagues` — the private leagues the user has followed via `/follow_league` (Phase 3).
 - `get_leaderboard` — standings for one of the user's followed leagues (Phase 3). Returns status-tagged result (`ok` / `not_followed` / `not_found` / `invalid_input`) plus `selectedTeamId` for client-side highlighting.
+- `get_next_race_info` — full info on the next race: circuit, location, weekend format (regular/sprint), session timestamps, historical stats, multi-language track history, and opportunistic weather snapshot. Reads `nextRaceInfoCache[sharedKey]` + `weatherForecastCache`; on cache miss the core calls `getWeatherForecast` directly (Phase 4).
+- `get_race_weather` — per-session hourly weather forecast (up to 3 hours per session, filtered to drop hours already in the past) for the next race weekend (Phase 4).
+- `get_deadline` — next team-lock deadline (start of the first locking session: sprint on sprint weekends, qualifying otherwise). Returns absolute timestamps (`sessionStartsAt`, `nowIso`) — the web UI's `<DeadlineCountdown />` ticks client-side with skew compensation so the server's clock stays the source of truth (Phase 4).
 
 **Multi-team "every team I track" pattern.** When the user asks a multi-team
 question like _"best teams by points-per-million for every team I track"_,
@@ -631,7 +634,13 @@ f1-fantazy-bot/
 │   ├── cores/
 │   │   ├── nextRacesCore.js          # pure: getNextRaces() → {season, races, counts}
 │   │   ├── bestTeamsCore.js          # pure: computeBestTeams({chatId, teamId?, teamName?, rankBy?, mustInclude*, mustExclude*})
-│   │   └── userTeamsCore.js          # pure: listUserTeams({chatId}) → [{teamId, teamName, ...}]
+│   │   ├── userTeamsCore.js          # pure: listUserTeams({chatId}) → [{teamId, teamName, ...}]
+│   │   ├── followedTeamsCore.js      # pure: listFollowedTeams({chatId}) — status-tagged
+│   │   ├── leaderboardCore.js        # pure: getLeaderboard({chatId, leagueCode}) — status-tagged
+│   │   ├── bestTeamScenariosCore.js  # pure: computeBestTeamScenarios({chatId, teamId?, teamName?}) — 4×4 matrix
+│   │   ├── nextRaceInfoCore.js       # pure: getNextRaceInfo({onFetch?, onError?}) — cache + opportunistic weather
+│   │   ├── raceWeatherCore.js        # pure: getRaceWeather({now?, onFetch?, onError?}) — hourly forecasts
+│   │   └── deadlineCore.js           # pure: getDeadlineSnapshot({now?}) — absolute timestamps for client-side countdown
 │   ├── agent/
 │   │   ├── identity.js               # AGENT_HARDCODED_CHAT_ID (LLM never sees it)
 │   │   ├── systemPrompt.js           # English-only v1; built once at startup
@@ -641,6 +650,9 @@ f1-fantazy-bot/
 │   ├── bestTeamsCalculator.js        # exports an optional `options` arg: filters + rankBy + resultCount
 │   └── commandsHandler/
 │       ├── nextRacesHandler.js       # refactored: thin Telegram adapter over the core
+│       ├── nextRaceInfoHandler.js    # refactored: thin Telegram adapter over nextRaceInfoCore
+│       ├── nextRaceWeatherHandler.js # refactored: thin Telegram adapter over raceWeatherCore
+│       ├── deadlineHandler.js        # untouched — deadlineCore is additive (agent-only entry point)
 │       └── bestTeamsHandler.js       # refactored: thin Telegram adapter over the core
 ├── agentWebhook/
 │   ├── function.json                 # httpTrigger, route `agent/{*restOfPath}`
@@ -654,7 +666,10 @@ f1-fantazy-bot/
 │   │       ├── UserTeamsList.tsx     # useCopilotAction({ name: 'list_user_teams', available: 'frontend', render })
 │   │       ├── FollowedTeamsGrid.tsx # useCopilotAction({ name: 'list_followed_teams', available: 'frontend', render })
 │   │       ├── LeaderboardTable.tsx  # useCopilotAction({ name: 'get_leaderboard', available: 'frontend', render })
-│   │       └── BestTeamScenariosMatrix.tsx # useCopilotAction({ name: 'get_best_team_scenarios', available: 'frontend', render })
+│   │       ├── BestTeamScenariosMatrix.tsx # useCopilotAction({ name: 'get_best_team_scenarios', available: 'frontend', render })
+│   │       ├── RaceInfoCard.tsx      # useCopilotAction({ name: 'get_next_race_info', available: 'frontend', render })
+│   │       ├── WeatherForecast.tsx   # useCopilotAction({ name: 'get_race_weather', available: 'frontend', render })
+│   │       └── DeadlineCountdown.tsx # useCopilotAction({ name: 'get_deadline', available: 'frontend', render })
 │   ├── package.json
 │   └── …                             # own package.json — frontend deps don't pollute the backend
 └── scripts/
@@ -801,6 +816,12 @@ npm run dev:web      # only Vite frontend on :5173/:5174
 | `web/src/components/FollowedTeamsGrid.tsx` | `list_followed_teams` rich render — card per team with `leagueName: position` chips, active-team highlight. |
 | `web/src/components/LeaderboardTable.tsx` | `get_leaderboard` rich render — sortable standings table with the user's row highlighted; status fallbacks for `not_followed` / `not_found`. |
 | `web/src/components/BestTeamScenariosMatrix.tsx` | `get_best_team_scenarios` rich render — 4 ppm sections × 4 chip rows showing projected points, Δ price change, and 🟢/🟡 chip recommendation dots mirroring `/best_team_scenarios`. |
+| `src/cores/nextRaceInfoCore.js` | `getNextRaceInfo({onFetch?, onError?})` — reads `nextRaceInfoCache[sharedKey]` + opportunistic `weatherForecastCache`; on cache miss fetches live weather via `getWeatherForecast` and populates the cache. Callbacks let the Telegram adapter wire `sendLogMessage`/`sendErrorMessage`; the agent omits them. |
+| `src/cores/raceWeatherCore.js` | `getRaceWeather({now?, onFetch?, onError?})` — hourly forecasts per session (3 hours starting at each session start, filtered by `nowRounded`). `now` injection keeps tests deterministic. |
+| `src/cores/deadlineCore.js` | `getDeadlineSnapshot({now?})` — `{status, raceName, sessionType, sessionLabel, sessionStartsAt, nowIso, alreadyStarted}`. Server returns absolute timestamps; the React `<DeadlineCountdown />` ticks client-side with skew compensation. Additive — `deadlineHandler.js` (with its existing pure helpers) is untouched. |
+| `web/src/components/RaceInfoCard.tsx` | `get_next_race_info` rich render — header + circuit image + schedule (quali/race/+sprint pair) + weather chips + historical results table + track history. |
+| `web/src/components/WeatherForecast.tsx` | `get_race_weather` rich render — per-session card with hourly chips: temp, rain %/mm, wind, humidity, cloud cover. |
+| `web/src/components/DeadlineCountdown.tsx` | `get_deadline` rich render — live ticking countdown (days/hours/min/sec) anchored to server clock via `nowIso` skew; stops ticking once deadline passes; collapses to "already started" state when applicable. |
 | `scripts/dev-agent-server.js` | Local dev wrapper around `agentWebhook/index.js`. Not deployed. |
 
 ---

@@ -7,6 +7,9 @@ import { useBestTeamScenariosAction } from './components/BestTeamScenariosMatrix
 import { useUserTeamsAction } from './components/UserTeamsList';
 import { useFollowedTeamsAction } from './components/FollowedTeamsGrid';
 import { useLeaderboardAction } from './components/LeaderboardTable';
+import { useRaceInfoAction } from './components/RaceInfoCard';
+import { useWeatherForecastAction } from './components/WeatherForecast';
+import { useDeadlineCountdownAction } from './components/DeadlineCountdown';
 
 const RUNTIME_URL =
   (import.meta.env.VITE_AGENT_API_URL as string | undefined) ??
@@ -19,6 +22,9 @@ function AgentActions() {
   useLeaderboardAction();
   useBestTeamsAction();
   useBestTeamScenariosAction();
+  useRaceInfoAction();
+  useWeatherForecastAction();
+  useDeadlineCountdownAction();
   return null;
 }
 
