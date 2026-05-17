@@ -23,7 +23,7 @@ exports.calculateBestTeams = function (
   // top-K list (notably the web-chat agent). Keys (all optional):
   //   mustIncludeDrivers, mustExcludeDrivers,
   //   mustIncludeConstructors, mustExcludeConstructors: arrays of codes (e.g. 'VER').
-  //   rankBy: null | 'points' | 'budget_adjusted' | 'points_per_million'.
+  //   rankBy: null | 'points' | 'budget_adjusted'.
   //     null preserves legacy ranking (`ranking_score`, then `projected_points`).
   //   resultCount: number — defaults to BEST_TEAMS_RESULT_COUNT.
   // When `options` is omitted/empty, behaviour matches the legacy 4-arg call
@@ -219,10 +219,6 @@ exports.calculateBestTeams = function (
   // (or `projected_points` when budgetChangePointsPerMillion === 0).
   if (rankBy === 'points') {
     teams.sort((a, b) => b.projected_points - a.projected_points);
-  } else if (rankBy === 'points_per_million') {
-    const ppm = (team) =>
-      team.total_price > 0 ? team.projected_points / team.total_price : 0;
-    teams.sort((a, b) => ppm(b) - ppm(a));
   } else if (rankBy === 'budget_adjusted') {
     teams.sort((a, b) => b.ranking_score - a.ranking_score);
   } else {

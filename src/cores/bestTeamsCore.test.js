@@ -186,7 +186,7 @@ describe('computeBestTeams', () => {
       mustExcludeDrivers: ['ALO'],
       mustIncludeConstructors: ['MCL'],
       mustExcludeConstructors: ['FER'],
-      rankBy: 'points_per_million',
+      rankBy: 'budget_adjusted',
       resultCount: 5,
     });
     expect(mockCalculateBestTeams).toHaveBeenCalledTimes(1);
@@ -196,7 +196,7 @@ describe('computeBestTeams', () => {
       mustExcludeDrivers: ['ALO'],
       mustIncludeConstructors: ['MCL'],
       mustExcludeConstructors: ['FER'],
-      rankBy: 'points_per_million',
+      rankBy: 'budget_adjusted',
       resultCount: 5,
     });
   });

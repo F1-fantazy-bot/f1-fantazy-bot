@@ -92,18 +92,6 @@ describe('calculateBestTeams options', () => {
     }
   });
 
-  it('rankBy: "points_per_million" sorts by points/price', () => {
-    const result = calculateBestTeams(mockJsonData, undefined, 0, 0, {
-      rankBy: 'points_per_million',
-    });
-    expect(result.length).toBeGreaterThan(1);
-    for (let i = 1; i < result.length; i++) {
-      const prev = result[i - 1].projected_points / result[i - 1].total_price;
-      const curr = result[i].projected_points / result[i].total_price;
-      expect(prev).toBeGreaterThanOrEqual(curr);
-    }
-  });
-
   it('rankBy: "budget_adjusted" sorts by budget_adjusted_points', () => {
     const result = calculateBestTeams(mockJsonData, undefined, 1.5, 10, {
       rankBy: 'budget_adjusted',
