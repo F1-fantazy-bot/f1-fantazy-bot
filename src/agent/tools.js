@@ -23,6 +23,12 @@ const { getLeaderboard } = require('../cores/leaderboardCore');
 const { getNextRaceInfo } = require('../cores/nextRaceInfoCore');
 const { getRaceWeather } = require('../cores/raceWeatherCore');
 const { getDeadlineSnapshot } = require('../cores/deadlineCore');
+const { getCurrentTeam } = require('../cores/currentTeamCore');
+const {
+  getLiveScoreForTeam,
+  getLiveScoreLeaderboard,
+  listLeagueTeams,
+} = require('../cores/liveScoreCore');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getAgentChatId } = require('./identity');
 const { ensureCacheReady } = require('./cacheBootstrap');
@@ -280,6 +286,130 @@ const tools = [
     execute: async () => {
       // No cache needed — fetchNextRace pulls fresh from the schedule service.
       return await getDeadlineSnapshot();
+    },
+  }),
+
+  defineTool({
+    name: 'get_current_team',
+    description:
+      "Get the user's CURRENT saved/selected F1 Fantasy roster — what they currently HAVE, not what they should have or what's best. Returns { status, teamId, teamName, chip, drivers, constructors, boostDriver, extraBoostDriver, freeTransfers, teamInfo: { totalPrice, costCapRemaining, overallBudget, teamExpectedPoints, teamPriceChange }, budgetChangePointsPerMillion, budgetAdjustedPoints }. status=`no_teams` means the user hasn't uploaded a team yet. status=`ambiguous_team` means they have multiple teams and no selection — surface the candidates and ask which team to focus on. status=`unknown_team` means the supplied teamId/teamName didn't match. status=`missing_cache` means drivers or constructors data is missing. NEVER call this when the user asks for projected/best/future/recommended/optimized teams — use `get_best_teams` or `get_best_team_scenarios` instead.",
+    parameters: z.object({
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          'Canonical team identifier returned by list_user_teams / list_followed_teams. Preferred over teamName.',
+        ),
+      teamName: z
+        .string()
+        .optional()
+        .describe(
+          'Exact teamName. Used only when teamId is not provided.',
+        ),
+    }),
+    execute: async (args) => {
+      await ensureCacheReady();
+      const chatId = getAgentChatId();
+
+      return await getCurrentTeam({
+        chatId,
+        teamId: args.teamId,
+        teamName: args.teamName,
+      });
+    },
+  }),
+
+  defineTool({
+    name: 'list_league_teams',
+    description:
+      'List ALL teams in one of the user\'s followed leagues (the league\'s full roster, NOT just the teams the user tracks). Use this when you need to surface the picker for "which team in this league" before calling get_live_score_for_team. Returns { status, leagueCode, leagueName, matchdayId, teams: [{ teamId, teamName, userName, teamNo, position, isSelected }] } sorted by position ascending. `isSelected: true` marks the user\'s own team in this league. Statuses: ok / not_followed / not_found / invalid_input. Pass EITHER `leagueCode` OR `leagueName` (display name, case-insensitive substring match).',
+    parameters: z.object({
+      leagueCode: z.string().optional(),
+      leagueName: z.string().optional(),
+    }),
+    execute: async (args) => {
+      await ensureCacheReady();
+      const chatId = getAgentChatId();
+
+      return await listLeagueTeams({
+        chatId,
+        leagueCode: args.leagueCode,
+        leagueName: args.leagueName,
+      });
+    },
+  }),
+
+  defineTool({
+    name: 'get_live_score_for_team',
+    description:
+      'Get the live-score breakdown for ONE team in one of the user\'s followed leagues (per-driver / per-constructor points with captain/mega-captain multipliers, transfer penalty, and chip effects). **REQUIRES the user to have already chosen both a league AND a team** — do NOT call this tool until you have both. The clarify-and-focus pattern is: ask which league first, then ask which team in that league, then call this tool ONCE with leagueName + teamName. Pass EITHER `leagueCode` (canonical) OR `leagueName` (display name — the tool resolves it against the user\'s followed leagues). Identify the team via `teamId` (canonical, from list_followed_teams) or `teamName` (display name from the league\'s roster). Returns { status, leagueCode, leagueName, matchdayId, extractedAt, teamId, teamName, breakdown: { totalPoints, pointsBeforePenalty, transferPenalty, noNegativeApplied, totalPriceChange, driverBreakdown: [{ code, points, priceChange, details, isBoost, isExtraBoost, missing }], constructorBreakdown: [...], missingMembers } }. Statuses: ok / not_followed / not_found / team_not_found (includes `availableTeams` for asking the user) / invalid_input.',
+    parameters: z.object({
+      leagueCode: z
+        .string()
+        .optional()
+        .describe(
+          'Canonical league code. Provide this if you already have it; otherwise use leagueName.',
+        ),
+      leagueName: z
+        .string()
+        .optional()
+        .describe(
+          'League display name as the user typed it (case-insensitive substring match against the user\'s followed leagues).',
+        ),
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          'Canonical team identifier from list_followed_teams. Preferred over teamName.',
+        ),
+      teamName: z
+        .string()
+        .optional()
+        .describe(
+          'Team name as shown in the league\'s roster. Used only when teamId is not provided.',
+        ),
+    }),
+    execute: async (args) => {
+      await ensureCacheReady();
+      const chatId = getAgentChatId();
+
+      return await getLiveScoreForTeam({
+        chatId,
+        leagueCode: args.leagueCode,
+        leagueName: args.leagueName,
+        teamId: args.teamId,
+        teamName: args.teamName,
+      });
+    },
+  }),
+
+  defineTool({
+    name: 'get_live_score_leaderboard',
+    description:
+      'Get the live-score leaderboard for ALL teams in one of the user\'s followed leagues, sorted by current live points (tie-break: total live price change). The user\'s own team row is marked with `isSelected: true` so the frontend can highlight it. Pass EITHER `leagueCode` (canonical) OR `leagueName` (display name — the tool resolves it against the user\'s followed leagues). Use for "compare live scores in [league]", "all teams live", "where do I rank live this race". Returns { status, leagueCode, leagueName, matchdayId, extractedAt, selectedTeamId, rows: [{ teamId, teamName, userName, teamNo, position, totalPoints, totalPriceChange, transferPenalty, isSelected }] }. Statuses: ok / not_followed / not_found / invalid_input. **Prefer passing `leagueName` directly** rather than calling list_user_leagues first — one tool call per question lands the rich UI render reliably.',
+    parameters: z.object({
+      leagueCode: z
+        .string()
+        .optional()
+        .describe(
+          'Canonical league code. Provide this if you already have it; otherwise use leagueName.',
+        ),
+      leagueName: z
+        .string()
+        .optional()
+        .describe(
+          'League display name as the user typed it. The tool resolves this against the user\'s followed leagues (case-insensitive substring match). Provide this when the user named a league by display name — DO NOT call list_user_leagues first.',
+        ),
+    }),
+    execute: async (args) => {
+      await ensureCacheReady();
+      const chatId = getAgentChatId();
+
+      return await getLiveScoreLeaderboard({
+        chatId,
+        leagueCode: args.leagueCode,
+        leagueName: args.leagueName,
+      });
     },
   }),
 ];
