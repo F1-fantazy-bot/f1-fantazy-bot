@@ -5,13 +5,15 @@ user-facing surface for the Telegram bot, plus the cost-cap data fix
 that fell out of Phase 2. It's structured so anyone can pick up where
 we left off without prior context.
 
-**Current state (2026-05-17):** Phases 1, 2, the cost-cap data-source
-fix, the api-data `prices.json` producer, and the bot's `prices.json`
-consumer ([#183](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/183))
-are all merged. **Phase 3 is in flight** on
-`feature/doronkilzi/agent-phase3`: followed-teams + leaderboard cores,
-3 new agent tools, 2 new React components, system-prompt clarify-and-focus
-rule for multi-team questions. Phases 4–6 are planned but not started.
+**Current state (2026-05-17):** Phases 1, 2, 3, 4, plus the cost-cap
+data-source fix, the api-data `prices.json` producer, and the bot's
+`prices.json` consumer
+([#183](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/183))
+are all merged. The agent now covers upcoming races, the user's
+tracked teams + leagues + leaderboards, best teams with filters,
+best-team scenarios (ppm × chip matrix), next race info, weather
+forecast, and the lock deadline — each with a tailored React render
+component. Phases 5–6 are planned but not started.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -163,7 +165,9 @@ All five exact-match the F1 Fantasy site.
 
 ---
 
-## Phase 3 — Cross-league / followed teams (in flight on `feature/doronkilzi/agent-phase3`)
+## Phase 3 — Cross-league / followed teams ✅ **MERGED (PR #184, squash commit `508b681`)**
+
+Squash-merged `2026-05-17` as commit `508b681`.
 
 **Goal:** the second user request works:
 _"Best teams by points-per-million for every team I track."_
@@ -239,7 +243,9 @@ abstraction for the agent that returns enriched standings
 
 ---
 
-## Phase 4 — Race info, weather, deadline
+## Phase 4 — Race info, weather, deadline ✅ **MERGED (PR #185, squash commit `c14dc97`)**
+
+Squash-merged `2026-05-17` as commit `c14dc97`.
 
 **Goal:** the agent can answer all "next race" questions in detail
 (weather, schedule, lock deadline, full race info) — each rendered
@@ -247,30 +253,36 @@ with a tailored component.
 
 **Tasks:**
 
-1. Extract cores:
-   - `src/cores/nextRaceInfoCore.js` from `nextRaceInfoHandler.js`
-   - `src/cores/raceWeatherCore.js` from `nextRaceWeatherHandler.js`
-   - `src/cores/deadlineCore.js` from `deadlineHandler.js`
-2. Refactor handlers to adapters; run their Jest tests.
-3. Add three agent tools:
-   - `get_next_race_info` (no args).
-   - `get_race_weather` (no args; pulls next race's location).
-   - `get_deadline` (no args).
-4. Build rich components:
-   - `web/src/components/RaceInfoCard.tsx` — circuit map (if available), full session schedule (FP1/FP2/FP3/Quali/Sprint/Race), countdown.
-   - `web/src/components/WeatherForecast.tsx` — per-session weather: icon, temperature, rain probability.
-   - `web/src/components/DeadlineCountdown.tsx` — live ticking countdown to the next deadline.
-   - Register all three via `useCopilotAction`.
-5. Tests for new cores + tools.
+1. ✅ Extract cores:
+   - `src/cores/nextRaceInfoCore.js` from `nextRaceInfoHandler.js` — opportunistic weather cache with `onFetch`/`onError` hooks so the Telegram adapter keeps its `sendLogMessage`/`sendErrorMessage` calls (existing handler test stays byte-identical green).
+   - `src/cores/raceWeatherCore.js` from `nextRaceWeatherHandler.js` — `now` injection makes the `nowRounded` 3-hour filter testable.
+   - `src/cores/deadlineCore.js` — **additive**. `deadlineHandler.js` is intentionally untouched (its tests import `formatDuration`/`getDeadlineSession`/`buildDeadlineMessage`/`getDeadlinePayload` directly, so the safest extraction was a new agent-facing `getDeadlineSnapshot` that reuses `fetchNextRace` + `getDeadlineSession`).
+2. ✅ Handlers refactored to thin adapters:
+   - `nextRaceInfoHandler.js` 254 → 209 lines, 9/9 tests pass unchanged.
+   - `nextRaceWeatherHandler.js` 130 → 65 lines, 3/3 tests pass unchanged.
+3. ✅ Three agent tools in `src/agent/tools.js` (all no-arg, `parameters: z.object({})`):
+   - `get_next_race_info`.
+   - `get_race_weather`.
+   - `get_deadline`.
+4. ✅ Rich components:
+   - `web/src/components/RaceInfoCard.tsx` — circuit image, schedule (quali/race + sprint pair when applicable), weather chips, historical results table, track history. **FP1/FP2/FP3 deferred** — `nextRaceInfoCache` doesn't track practice sessions; render only the sessions present in cache.
+   - `web/src/components/WeatherForecast.tsx` — per-session cards with up to 3 hourly forecast chips (temp, rain %/mm, wind, humidity, cloud cover, weather emoji).
+   - `web/src/components/DeadlineCountdown.tsx` — live ticking countdown anchored to the server clock via `nowIso` skew compensation; stops ticking once deadline passes; cleans up interval on unmount.
+   - All registered in `web/src/App.tsx`.
+5. ✅ +17 new tests (775 → 792 total).
 
-**Acceptance test:**
+**System prompt addition:** race-info / weather / deadline routing block placed AFTER the scenarios-precedence and team-name rules, with an explicit exclusion clause — "best team for the next race" still routes to `get_best_teams`, not `get_next_race_info`.
 
-- Web app: _"What's the weather forecast for the next race?"_ → renders `<WeatherForecast />`.
-- Web app: _"How long until the next deadline?"_ → renders `<DeadlineCountdown />` with a live ticking clock.
-- Web app: _"Tell me about the next race."_ → renders `<RaceInfoCard />`.
-- Phase 1–3 questions still work.
-- Telegram: all related commands → identical to before.
-- `npm test` → all green.
+**Companion fix bundled into the PR:** `eslint.config.mjs` added an `ignores` entry for `web/dist` + `web/node_modules` + `node_modules` + `coverage` — ESLint flat config doesn't auto-read `.eslintignore`, and the new `cd web && npm run build` verification step was tripping the pre-commit hook on bundled syntax.
+
+**Acceptance test:** ✅ all passed in Playwright
+
+- Web app: _"What's the weather forecast for the next race?"_ → renders `<WeatherForecast />` (4 sessions × 3 hourly cards) ✅
+- Web app: _"How long until the next deadline?"_ → renders `<DeadlineCountdown />` with a live ticking clock (verified 24:20 → 23:45 in ~3s) ✅
+- Web app: _"Tell me about the next race."_ → renders `<RaceInfoCard />` ✅
+- Phase 1–3 regression: _"best teams for Doron-Kilzi_3"_ → `<BestTeamsTable />` ✅
+- Telegram: handler tests stay byte-identical (9/9, 3/3, 12/12) ✅
+- `npm test` → 792/792 green ✅
 
 ---
 
