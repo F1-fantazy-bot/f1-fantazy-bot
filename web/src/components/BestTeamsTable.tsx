@@ -12,7 +12,6 @@ type BestTeamRow = {
   projectedPoints: number;
   budgetAdjustedPoints: number | null;
   expectedPriceChange: number | null;
-  pointsPerMillion: number | null;
 };
 
 type GetBestTeamsOkResult = {
@@ -20,7 +19,7 @@ type GetBestTeamsOkResult = {
   teamId: string;
   teamName: string;
   chip: string | null;
-  rankBy: 'points' | 'budget_adjusted' | 'points_per_million' | null;
+  rankBy: 'points' | 'budget_adjusted' | null;
   budgetChangePointsPerMillion: number;
   filters: {
     mustIncludeDrivers: string[];
@@ -92,7 +91,6 @@ function rankByLabel(
 ): string {
   if (rankBy === 'points') return 'projected points';
   if (rankBy === 'budget_adjusted') return 'budget-adjusted points';
-  if (rankBy === 'points_per_million') return 'points per million';
   return budgetChangePointsPerMillion > 0
     ? 'budget-adjusted points'
     : 'projected points';
@@ -185,7 +183,6 @@ function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
   const includeDrivers = new Set(result.filters.mustIncludeDrivers);
   const includeConstructors = new Set(result.filters.mustIncludeConstructors);
   const showBudgetAdjusted = result.budgetChangePointsPerMillion > 0;
-  const showPointsPerMillion = result.rankBy === 'points_per_million';
 
   return (
     <div
@@ -235,7 +232,6 @@ function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
             <th style={cellHeader}>Price</th>
             <th style={cellHeader}>Pts</th>
             {showBudgetAdjusted ? <th style={cellHeader}>Budget-adj</th> : null}
-            {showPointsPerMillion ? <th style={cellHeader}>Pts/$M</th> : null}
             <th style={cellHeader}>Tr</th>
             <th style={cellHeader}>Δ price</th>
           </tr>
@@ -284,13 +280,6 @@ function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
                 <td style={cellBody}>
                   {team.budgetAdjustedPoints != null
                     ? team.budgetAdjustedPoints.toFixed(1)
-                    : '—'}
-                </td>
-              ) : null}
-              {showPointsPerMillion ? (
-                <td style={cellBody}>
-                  {team.pointsPerMillion != null
-                    ? team.pointsPerMillion.toFixed(2)
                     : '—'}
                 </td>
               ) : null}

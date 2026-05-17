@@ -5,12 +5,13 @@ user-facing surface for the Telegram bot, plus the cost-cap data fix
 that fell out of Phase 2. It's structured so anyone can pick up where
 we left off without prior context.
 
-**Current state (2026-05-16):** Phases 1 and 2 are both shipped and
-merged to `main`. The cost-cap data-source fix is also merged
-([f1-fantasy-api-data#19](https://github.com/F1-fantazy-bot/f1-fantasy-api-data/pull/19)
-and [f1-fantazy-bot#181](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/181)).
-**Phase 3 is the next natural step** and is unblocked — see the
-phase-3 section below. Phases 4–6 are planned but not started.
+**Current state (2026-05-17):** Phases 1, 2, the cost-cap data-source
+fix, the api-data `prices.json` producer, and the bot's `prices.json`
+consumer ([#183](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/183))
+are all merged. **Phase 3 is in flight** on
+`feature/doronkilzi/agent-phase3`: followed-teams + leaderboard cores,
+3 new agent tools, 2 new React components, system-prompt clarify-and-focus
+rule for multi-team questions. Phases 4–6 are planned but not started.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -102,7 +103,7 @@ companion cost-cap fix in
 
 **What shipped:**
 
-1. ✅ `src/bestTeamsCalculator.js` — optional 5th `options` arg with `mustInclude{Drivers,Constructors}` / `mustExclude{Drivers,Constructors}` filters (applied BEFORE the top-K slice so candidates outside the legacy top-K don't get lost), `rankBy: null | 'points' | 'budget_adjusted' | 'points_per_million'`, and `resultCount`. Empty/absent options preserve legacy 4-arg behaviour **byte-for-byte** — the existing 11 `bestTeamsHandler.test.js` cases pass unchanged because the refactored Telegram handler calls the calculator with the historical 4 positional args.
+1. ✅ `src/bestTeamsCalculator.js` — optional 5th `options` arg with `mustInclude{Drivers,Constructors}` / `mustExclude{Drivers,Constructors}` filters (applied BEFORE the top-K slice so candidates outside the legacy top-K don't get lost), `rankBy: null | 'points' | 'budget_adjusted'`, and `resultCount`. Empty/absent options preserve legacy 4-arg behaviour **byte-for-byte** — the existing 11 `bestTeamsHandler.test.js` cases pass unchanged because the refactored Telegram handler calls the calculator with the historical 4 positional args. (The value-for-money `'points_per_million'` option introduced briefly in Phase 3 was removed — in this bot, "points per million" is the per-team budget-adjusted weight set via `/set_best_team_ranking`, not a value-for-money sort.)
 2. ✅ `src/cores/bestTeamsCore.js` — `computeBestTeams({chatId, teamId?, teamName?, rankBy?, mustInclude*, mustExclude*})` with status-tagged result: `no_teams | unknown_team | ambiguous_team | missing_cache | missing_remaining_race_count | unknown_filter | ok`. Driver / constructor codes normalised through `NAME_TO_CODE_MAPPING` (the LLM can pass `'VER'` or `'m. verstappen'` interchangeably). Unresolved names surface as `unknown_filter` so the LLM can ask for clarification — no silent drops.
 3. ✅ `src/cores/userTeamsCore.js` — `listUserTeams({chatId})` returns `[{teamId, teamName, isLeague, isSelected, chip, drivers, constructors, boost, freeTransfers, costCapRemaining}]`.
 4. ✅ `src/commandsHandler/bestTeamsHandler.js` — refactored to thin adapter. `validateJsonData` is now properly `await`ed (was previously a Promise being `!`'d — silent latent bug). All 11 existing handler tests pass byte-for-byte unchanged.
@@ -162,41 +163,79 @@ All five exact-match the F1 Fantasy site.
 
 ---
 
-## Phase 3 — Cross-league / followed teams
+## Phase 3 — Cross-league / followed teams (in flight on `feature/doronkilzi/agent-phase3`)
 
 **Goal:** the second user request works:
 _"Best teams by points-per-million for every team I track."_
-Rendered as a stack of `<BestTeamsTable />` instances, one per followed
-team, each labeled with its team name + league(s).
+**Updated approach (2026-05-17):** the agent does NOT fan out. It calls
+`list_followed_teams`, asks the user which specific team to focus on,
+then runs `get_best_teams` for that one team. Single rich render per
+question. This sidesteps the `parallelToolCalls: false` rendering
+constraint cleanly without a server-side batch tool.
 
-**Telegram surface changes:** `leaderboardHandler.js` and the
-followed-teams helpers get core extractions. No user-visible change.
+**Telegram surface changes:** none. The handler refactor was
+**deferred** — `leaderboardHandler.js` is already a thin
+`getLeagueData → formatLeaderboard → sendMessage` pipeline, and
+`formatLeaderboard` is tested directly with the raw blob shape (the
+byte-identical rule). The new `leaderboardCore` is an **additive**
+abstraction for the agent that returns enriched standings
+(`selectedTeamId`, `gapToLeader`, `isSelected`).
 
-**Tasks:**
+**What shipped on the branch:**
 
-1. Extract `src/cores/followedTeamsCore.js`. Returns the user's followed teams across all leagues, deduplicated by `teamId`: `[{ teamId, teamName, leagues: [{ leagueCode, leagueName, position }] }]`.
-2. Extract `src/cores/leaderboardCore.js` from `leaderboardHandler.js`. Returns `{ leagueCode, leagueName, standings: [{ position, teamName, totalScore, ... }] }`.
-3. Refactor both handlers to thin adapters; run their Jest tests — must pass unchanged.
-4. Add three agent tools:
-   - `list_followed_teams` (no args).
-   - `get_leaderboard` (args: `leagueCode`).
-   - `list_user_leagues` (no args) — small helper so the LLM knows which leagues to choose from.
-5. Build rich components:
-   - `web/src/components/FollowedTeamsGrid.tsx` — cards with team name, leagues + positions.
-   - `web/src/components/LeaderboardTable.tsx` — standings with position, name, total score; sortable.
-   - Register both via `useCopilotAction({ available: 'frontend', render })`.
-6. Update system prompt to guide the LLM on cross-team workflows ("when the user says 'every team I track', call `list_followed_teams` then call `get_best_teams` for each").
-7. Tests for the new cores + tools.
+- `src/cores/followedTeamsCore.js` — `listFollowedTeams({chatId})`
+  returns status-tagged result with teams deduplicated by `teamId`
+  across all followed leagues, each entry carrying its
+  `leagues: [{leagueCode, leagueName, position}]` enrichment.
+- `src/cores/leaderboardCore.js` — `getLeaderboard({chatId, leagueCode})`
+  returns status-tagged result (`ok` / `not_followed` / `not_found` /
+  `invalid_input`) with sorted standings + `selectedTeamId` for
+  client-side highlighting.
+- Tests for both cores in `src/cores/*.test.js` (10 new tests,
+  Jest stays at 770/770).
+- 3 new agent tools in `src/agent/tools.js`:
+  `list_followed_teams`, `list_user_leagues`, `get_leaderboard`. Plus
+  `get_best_team_scenarios` (a 4th tool added in the same phase) —
+  returns the 4×4 ppm-preset × chip matrix from
+  `src/cores/bestTeamScenariosCore.js`, mirroring the Telegram
+  `/best_team_scenarios` command. Used by the LLM for "compare best
+  teams at different weights", "best team scenarios", and "what if I
+  change my ranking preference" questions.
+- `src/cores/bestTeamScenariosCore.js` + tests — pure 4×4 matrix
+  computation. Returns status-tagged result with one section per ppm
+  (0 / 1.3 / 1.65 / 2.0) and per-section results for the 4 chip
+  scenarios (no chip / Limitless / Extra Boost / Wildcard). Each cell
+  carries `projectedPoints`, `expectedPriceChange`, and a
+  `recommendation` (`null` / `'yellow'` / `'green'`) computed against
+  the no-chip baseline of the SAME ppm row, matching the chip-specific
+  thresholds in `getChipRecommendationDot`.
+- `src/agent/systemPrompt.js` — clarify-and-focus rule for multi-team
+  questions, plus "points per million" guidance: when a user asks for
+  "best teams by points per million", call `get_best_teams` with
+  `rankBy='budget_adjusted'` (NOT a value-for-money calc).
+- `web/src/components/FollowedTeamsGrid.tsx` — card-per-team grid with
+  `leagueName: position` chips, ACTIVE highlight on the user's
+  selected team.
+- `web/src/components/LeaderboardTable.tsx` — standings table with
+  the user's row highlighted, status-driven fallbacks for
+  not_followed / not_found.
+- `web/src/components/BestTeamScenariosMatrix.tsx` — 4 ppm sections ×
+  4 chip rows showing projected points, Δ expected price change, and
+  🟢/🟡 chip recommendation dots mirroring the Telegram
+  `/best_team_scenarios` display.
+- `web/src/App.tsx` — registers the 3 new render hooks.
 
 **Acceptance test:**
 
-- Web app: _"Best teams by points-per-million for every team I track."_ → multiple `<BestTeamsTable />` cards, one per followed team.
-- Web app: _"Show me the leaderboard for league X."_ → `<LeaderboardTable />`.
+- Web app: _"Best teams by points-per-million for every team I track."_
+  → agent shows `<FollowedTeamsGrid />` and asks _"which team to focus
+  on?"_ → user replies _"Kilzid2"_ → ONE `<BestTeamsTable />` renders.
+- Web app: _"Show me the leaderboard for kilzi test."_ → `list_user_leagues`
+  resolves the code → `<LeaderboardTable />` with the user's row bolded.
+- Web app: _"Which leagues do I follow?"_ → list.
 - Phase 1+2 questions still work.
-- Telegram: `/leaderboard`, `/teams_tracker` → identical to before.
-- `npm test` → all green.
-
-**Open question for Phase 3:** the LLM has to fan out one "best teams for every team I track" question into N tool calls. Because of the parallel-tool-calls limitation (see "Pitfalls" in `AGENTS.md`), each `get_best_teams` call has to land in its own assistant message → each rich component renders in order. Verify in Playwright that the chat doesn't get visually janky with 5–6 sequential tables.
+- Telegram: `/leaderboard`, `/teams_tracker` → byte-identical.
+- `npm test` → 770/770 green.
 
 ---
 

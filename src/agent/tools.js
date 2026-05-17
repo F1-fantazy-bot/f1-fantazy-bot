@@ -14,7 +14,13 @@ const { defineTool } = require('@copilotkit/runtime/v2');
 const z = require('zod');
 const { getNextRaces } = require('../cores/nextRacesCore');
 const { computeBestTeams } = require('../cores/bestTeamsCore');
+const {
+  computeBestTeamScenarios,
+} = require('../cores/bestTeamScenariosCore');
 const { listUserTeams } = require('../cores/userTeamsCore');
+const { listFollowedTeams } = require('../cores/followedTeamsCore');
+const { getLeaderboard } = require('../cores/leaderboardCore');
+const { listUserLeagues } = require('../leagueRegistryService');
 const { getAgentChatId } = require('./identity');
 const { ensureCacheReady } = require('./cacheBootstrap');
 
@@ -42,10 +48,6 @@ function summariseBestTeam(team) {
     expectedPriceChange:
       typeof team.expected_price_change === 'number'
         ? Number(team.expected_price_change.toFixed(2))
-        : null,
-    pointsPerMillion:
-      team.total_price > 0
-        ? Number((team.projected_points / team.total_price).toFixed(3))
         : null,
   };
 }
@@ -92,10 +94,10 @@ const tools = [
           'Exact teamName from list_user_teams. Used only when teamId is not provided.',
         ),
       rankBy: z
-        .enum(['points', 'budget_adjusted', 'points_per_million'])
+        .enum(['points', 'budget_adjusted'])
         .optional()
         .describe(
-          'Sort criterion. Defaults to the user\'s preferred ranking (matching the Telegram bot). Use "points" for raw projected points, "points_per_million" for value-for-money, "budget_adjusted" for the budget-adjusted score.',
+          'Sort criterion. Defaults to the user\'s preferred ranking (matching the Telegram bot). Use "points" for raw projected points; use "budget_adjusted" for the budget-adjusted score that weights the team\'s expected price change by the user\'s saved budgetChangePointsPerMillion preference (set via /set_best_team_ranking). When the user asks for "points per million" sorting, that is the budget-adjusted ranking — call with rankBy="budget_adjusted".',
         ),
       mustIncludeDrivers: z
         .array(z.string())
@@ -158,6 +160,88 @@ const tools = [
         },
         bestTeams: result.bestTeams.map(summariseBestTeam),
       };
+    },
+  }),
+
+  defineTool({
+    name: 'get_best_team_scenarios',
+    description:
+      'Compare the top best team across the bot\'s 4 budget-adjusted weight presets (0, 1.3, 1.65, 2.0 points-per-million of expected price change) × 4 chip choices (no chip, Limitless, Extra Boost, Wildcard). Use this for questions like "compare best teams at different weights", "best team scenarios", "what if I change my ranking preference", or "should I play a chip". Returns { status, teamId, teamName, chip, scenarios: [{ ppm, ppmLabel, results: [{ chipKey, chipLabel, projectedPoints, expectedPriceChange, recommendation: null|"yellow"|"green" }] }] }. The recommendation level encodes the chip\'s lift over the no-chip baseline of the SAME ppm row, matching the Telegram /best_team_scenarios indicators.',
+    parameters: z.object({
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          'Canonical team identifier (preferred over teamName). Obtain via list_followed_teams or list_user_teams.',
+        ),
+      teamName: z
+        .string()
+        .optional()
+        .describe(
+          'Exact teamName. Used only when teamId is not provided.',
+        ),
+    }),
+    execute: async (args) => {
+      await ensureCacheReady();
+      const chatId = getAgentChatId();
+
+      return computeBestTeamScenarios({
+        chatId,
+        teamId: args.teamId,
+        teamName: args.teamName,
+      });
+    },
+  }),
+
+  defineTool({
+    name: 'list_followed_teams',
+    description:
+      'List the F1 Fantasy teams the user is tracking, enriched with the leagues each team appears in plus the team\'s current position in each league. Returns { status, teams: [{ teamId, teamName, leagues: [{ leagueCode, leagueName, position }], isSelected }] }. status="empty" means the user has not followed any league team yet. ALWAYS call this when the user asks "which teams do I track" or asks a multi-team question like "best teams for every team I track" — for the multi-team case, surface the team names back to the user and ask which one to focus on (one team per get_best_teams call).',
+    parameters: z.object({}),
+    execute: async () => {
+      await ensureCacheReady();
+      const chatId = getAgentChatId();
+
+      return await listFollowedTeams({ chatId });
+    },
+  }),
+
+  defineTool({
+    name: 'list_user_leagues',
+    description:
+      'List the private F1 Fantasy leagues the user has followed via /follow_league. Returns an array of { leagueCode, leagueName, registeredAt }. Use this when the user asks "which leagues do I follow" or when they name a league but you need to look up its `leagueCode` before calling `get_leaderboard`.',
+    parameters: z.object({}),
+    execute: async () => {
+      await ensureCacheReady();
+      const chatId = getAgentChatId();
+      const leagues = await listUserLeagues(chatId);
+
+      return {
+        leagues: (leagues || []).map((l) => ({
+          leagueCode: l.leagueCode,
+          leagueName: l.leagueName || l.leagueCode,
+          registeredAt: l.registeredAt || null,
+        })),
+      };
+    },
+  }),
+
+  defineTool({
+    name: 'get_leaderboard',
+    description:
+      'Get the standings (leaderboard) for one of the user\'s followed F1 Fantasy leagues. Pass the canonical `leagueCode` (e.g. "C7UYMMWIO07") — call `list_user_leagues` first if the user named a league by display name. Returns { status, leagueCode, leagueName, memberCount, fetchedAt, selectedTeamId, standings: [{ position, teamName, totalScore, gapToLeader, teamId, isSelected }] }. status="not_followed" means the user does not follow this league. status="not_found" means the league exists but the standings blob has not been generated yet.',
+    parameters: z.object({
+      leagueCode: z
+        .string()
+        .describe(
+          'Canonical league code (e.g. "C7UYMMWIO07"). Look up via list_user_leagues if the user gave a display name.',
+        ),
+    }),
+    execute: async (args) => {
+      await ensureCacheReady();
+      const chatId = getAgentChatId();
+
+      return await getLeaderboard({ chatId, leagueCode: args.leagueCode });
     },
   }),
 ];

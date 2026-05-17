@@ -3,7 +3,10 @@ import { CopilotChat } from '@copilotkit/react-ui';
 import '@copilotkit/react-ui/styles.css';
 import { useNextRacesAction } from './components/NextRacesTable';
 import { useBestTeamsAction } from './components/BestTeamsTable';
+import { useBestTeamScenariosAction } from './components/BestTeamScenariosMatrix';
 import { useUserTeamsAction } from './components/UserTeamsList';
+import { useFollowedTeamsAction } from './components/FollowedTeamsGrid';
+import { useLeaderboardAction } from './components/LeaderboardTable';
 
 const RUNTIME_URL =
   (import.meta.env.VITE_AGENT_API_URL as string | undefined) ??
@@ -12,7 +15,10 @@ const RUNTIME_URL =
 function AgentActions() {
   useNextRacesAction();
   useUserTeamsAction();
+  useFollowedTeamsAction();
+  useLeaderboardAction();
   useBestTeamsAction();
+  useBestTeamScenariosAction();
   return null;
 }
 

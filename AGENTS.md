@@ -98,7 +98,7 @@ Start the web-chat agent locally with `npm run dev` (boots both the agent dev se
 
 **Cold-Start Initialization (Telegram):** `src/bot.js` stores the `initializeCaches()` promise as `cacheReady` and exports it. The Azure Function webhook (`telegramWebhook/index.js`) awaits `bot.cacheReady` before calling `bot.processUpdate(update)`. On a cold start the first request waits for caches to be ready; on warm invocations the resolved promise returns instantly. In polling dev mode `cacheReady` is unused — the natural polling delay avoids the race.
 
-**Cold-Start Initialization (Agent):** `src/agent/cacheBootstrap.js` lazily calls `initializeCaches()` before cache-dependent agent tools run. `get_next_races` can still answer without cache data, but `list_user_teams` and `get_best_teams` depend on the same initialized caches as Telegram.
+**Cold-Start Initialization (Agent):** `src/agent/cacheBootstrap.js` lazily calls `initializeCaches()` before cache-dependent agent tools run. `get_next_races` can still answer without cache data, but `list_user_teams`, `list_followed_teams`, `list_user_leagues`, `get_leaderboard`, `get_best_teams`, and `get_best_team_scenarios` all depend on the same initialized caches as Telegram.
 
 **Deployment targets:**
 - The Telegram bot is deployed as the existing Azure Function App via the `telegramWebhook/` function.
@@ -543,11 +543,23 @@ Blob naming includes the team ID:
 
 A second user-facing surface that runs the same business logic as the Telegram bot through tool calls. Architecture, code layout, and the patterns for adding new capabilities live in this section.
 
-Phase-2 capabilities (shipped):
+Phase-3 capabilities (shipped):
 
 - `get_next_races` — upcoming races for the season (Phase 1).
-- `list_user_teams` — the user's tracked teams (teamId + friendly teamName).
-- `get_best_teams` — top scoring fantasy combinations with optional must-include / must-exclude filters on drivers and constructors (the marquee "best teams for X with Verstappen but no Alonso" question runs here).
+- `list_user_teams` — the user's tracked teams (teamId + friendly teamName) (Phase 2).
+- `get_best_teams` — top scoring fantasy combinations with optional must-include / must-exclude filters on drivers and constructors (Phase 2). The marquee _"best teams for X with Verstappen but no Alonso"_ question runs here. Reads canonical prices via `getDriversForChat` / `getConstructorsForChat` so price-aware rankings work without user-uploaded JSON. Sort criteria: `'points'` (raw projected points) or `'budget_adjusted'` (weights expected price change by the user's saved `budgetChangePointsPerMillion` preset — set via `/set_best_team_ranking` in Telegram). "Points per million" questions resolve to `'budget_adjusted'`; the deprecated `'points_per_million'` value-for-money sort was removed.
+- `get_best_team_scenarios` — 4×4 matrix of top best team across the 4 budget-adjusted weight presets (0, 1.3, 1.65, 2.0 ppm) × 4 chip scenarios (no chip, Limitless, Extra Boost, Wildcard) (Phase 3). Each cell reports `projectedPoints`, `expectedPriceChange`, and a `recommendation` (`null`/`'yellow'`/`'green'`) indicating the chip's lift vs. the no-chip baseline of the SAME ppm row, mirroring the Telegram `/best_team_scenarios` indicators.
+- `list_followed_teams` — the user's followed league teams enriched with the leagues each team appears in + position in each (Phase 3).
+- `list_user_leagues` — the private leagues the user has followed via `/follow_league` (Phase 3).
+- `get_leaderboard` — standings for one of the user's followed leagues (Phase 3). Returns status-tagged result (`ok` / `not_followed` / `not_found` / `invalid_input`) plus `selectedTeamId` for client-side highlighting.
+
+**Multi-team "every team I track" pattern.** When the user asks a multi-team
+question like _"best teams by points-per-million for every team I track"_,
+the agent does NOT fan out N `get_best_teams` calls. It calls
+`list_followed_teams`, surfaces the team names back to the user, and asks
+them to pick one team to focus on — then runs `get_best_teams` ONCE for
+the chosen team. This keeps the chat to a single rich render per question
+and sidesteps the `parallelToolCalls: false` rendering constraint.
 
 ### Architecture
 
@@ -639,7 +651,10 @@ f1-fantazy-bot/
 │   │   └── components/
 │   │       ├── NextRacesTable.tsx    # useCopilotAction({ name: 'get_next_races', available: 'frontend', render })
 │   │       ├── BestTeamsTable.tsx    # useCopilotAction({ name: 'get_best_teams', available: 'frontend', render })
-│   │       └── UserTeamsList.tsx     # useCopilotAction({ name: 'list_user_teams', available: 'frontend', render })
+│   │       ├── UserTeamsList.tsx     # useCopilotAction({ name: 'list_user_teams', available: 'frontend', render })
+│   │       ├── FollowedTeamsGrid.tsx # useCopilotAction({ name: 'list_followed_teams', available: 'frontend', render })
+│   │       ├── LeaderboardTable.tsx  # useCopilotAction({ name: 'get_leaderboard', available: 'frontend', render })
+│   │       └── BestTeamScenariosMatrix.tsx # useCopilotAction({ name: 'get_best_team_scenarios', available: 'frontend', render })
 │   ├── package.json
 │   └── …                             # own package.json — frontend deps don't pollute the backend
 └── scripts/
@@ -768,7 +783,10 @@ npm run dev:web      # only Vite frontend on :5173/:5174
 | `src/cores/<feature>Core.js` | Pure logic core, returned JSON only. |
 | `src/cores/bestTeamsCore.js` | `computeBestTeams({chatId, teamId?, teamName?, rankBy?, mustInclude*, mustExclude*})` — status-tagged result, normalises codes via `NAME_TO_CODE_MAPPING`, returns `unknown_filter` when a name can't be resolved. |
 | `src/cores/userTeamsCore.js` | `listUserTeams({chatId})` — array of `{teamId, teamName, isLeague, isSelected, chip, …}`. |
-| `src/bestTeamsCalculator.js` | Accepts an optional 5th `options` arg with `mustInclude*`/`mustExclude*` filters, `rankBy: null \| 'points' \| 'points_per_million' \| 'budget_adjusted'`, and `resultCount`. Empty/absent options preserve legacy 4-arg behaviour byte-for-byte. |
+| `src/cores/followedTeamsCore.js` | `listFollowedTeams({chatId})` — status-tagged. Returns `{ status: 'ok', teams: [{ teamId, teamName, leagues: [{leagueCode, leagueName, position}], isSelected }] }` deduplicated by teamId across followed leagues; `status: 'empty'` when the user has no league teams. |
+| `src/cores/leaderboardCore.js` | `getLeaderboard({chatId, leagueCode})` — status-tagged (`ok` / `not_followed` / `not_found` / `invalid_input`). Returns `{ leagueCode, leagueName, memberCount, fetchedAt, selectedTeamId, standings: [{ position, teamName, userName, teamNo, teamId, totalScore, gapToLeader, isSelected }] }`. |
+| `src/cores/bestTeamScenariosCore.js` | `computeBestTeamScenarios({chatId, teamId?, teamName?})` — status-tagged (`ok` / `no_teams` / `unknown_team` / `ambiguous_team` / `missing_cache`). Returns the 4×4 matrix `{ teamId, teamName, chip, scenarios: [{ ppm, ppmLabel, results: [{ chipKey, chipLabel, projectedPoints, expectedPriceChange, recommendation: null\|'yellow'\|'green' }] }] }`. Mirrors the Telegram `/best_team_scenarios` chip-recommendation thresholds. |
+| `src/bestTeamsCalculator.js` | Accepts an optional 5th `options` arg with `mustInclude*`/`mustExclude*` filters, `rankBy: null \| 'points' \| 'budget_adjusted'`, and `resultCount`. Empty/absent options preserve legacy 4-arg behaviour byte-for-byte. |
 | `src/agent/identity.js` | Reads `AGENT_HARDCODED_CHAT_ID`, exposes `getAgentChatId()`. |
 | `src/agent/cacheBootstrap.js` | `ensureCacheReady()` — lazy `initializeCaches(noopBot)` for the agent process; resets on failure for retry-on-next-call. |
 | `src/agent/systemPrompt.js` | English system prompt; extended per phase. |
@@ -780,6 +798,9 @@ npm run dev:web      # only Vite frontend on :5173/:5174
 | `web/src/components/NextRacesTable.tsx` | `get_next_races` rich render. |
 | `web/src/components/BestTeamsTable.tsx` | `get_best_teams` rich render (top-10 table, captain badge, must-include highlights, penalty markers). |
 | `web/src/components/UserTeamsList.tsx` | `list_user_teams` rich render (card grid). |
+| `web/src/components/FollowedTeamsGrid.tsx` | `list_followed_teams` rich render — card per team with `leagueName: position` chips, active-team highlight. |
+| `web/src/components/LeaderboardTable.tsx` | `get_leaderboard` rich render — sortable standings table with the user's row highlighted; status fallbacks for `not_followed` / `not_found`. |
+| `web/src/components/BestTeamScenariosMatrix.tsx` | `get_best_team_scenarios` rich render — 4 ppm sections × 4 chip rows showing projected points, Δ price change, and 🟢/🟡 chip recommendation dots mirroring `/best_team_scenarios`. |
 | `scripts/dev-agent-server.js` | Local dev wrapper around `agentWebhook/index.js`. Not deployed. |
 
 ---
