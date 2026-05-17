@@ -20,6 +20,9 @@ const {
 const { listUserTeams } = require('../cores/userTeamsCore');
 const { listFollowedTeams } = require('../cores/followedTeamsCore');
 const { getLeaderboard } = require('../cores/leaderboardCore');
+const { getNextRaceInfo } = require('../cores/nextRaceInfoCore');
+const { getRaceWeather } = require('../cores/raceWeatherCore');
+const { getDeadlineSnapshot } = require('../cores/deadlineCore');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getAgentChatId } = require('./identity');
 const { ensureCacheReady } = require('./cacheBootstrap');
@@ -242,6 +245,41 @@ const tools = [
       const chatId = getAgentChatId();
 
       return await getLeaderboard({ chatId, leagueCode: args.leagueCode });
+    },
+  }),
+
+  defineTool({
+    name: 'get_next_race_info',
+    description:
+      'Get detailed information about the next upcoming F1 race: race name, circuit, location, weekend format (regular or sprint), session timestamps (qualifying / race, plus sprintQualifying / sprint on sprint weekends), historical race stats for that track, multi-language track history, circuit image URL, and an optional pre-fetched weather snapshot. Use for questions like "tell me about the next race", "what circuit is next", "give me race info", "what is the schedule for the next race", "track history", or "historical stats for this race". Returns { status, raceName, circuitName, circuitImageUrl, location, weekendFormat, isSprintWeekend, sessions, historicalRaceStats, trackHistory, weather }. status="unavailable" means the race-info cache has not been populated yet.',
+    parameters: z.object({}),
+    execute: async () => {
+      await ensureCacheReady();
+
+      return await getNextRaceInfo();
+    },
+  }),
+
+  defineTool({
+    name: 'get_race_weather',
+    description:
+      'Get the per-session hourly weather forecast (up to 3 hours per session, starting from each session start time, filtered to drop hours already in the past) for the next F1 race. Use for questions about weather, rain, temperature, wind, humidity, or cloud cover for the upcoming race weekend. Returns { status, raceName, circuitName, location, isSprintWeekend, sessions: [{ key, label, startsAt, hours: [iso], forecasts: [{ temperature, humidity, cloudCover, precipitation, precipitation_mm, wind }] }] }. status="unavailable" means either the race-info cache is empty or the weather API call failed.',
+    parameters: z.object({}),
+    execute: async () => {
+      await ensureCacheReady();
+
+      return await getRaceWeather();
+    },
+  }),
+
+  defineTool({
+    name: 'get_deadline',
+    description:
+      'Get the next F1 Fantasy team-lock deadline. The deadline is the start time of the first locking session of the weekend: sprint (on sprint weekends) or qualifying (on regular weekends). Use for questions like "when does the team lock", "how long until the deadline", "next deadline", or "countdown to lock". Returns { status, raceName, sessionType, sessionLabel, sessionStartsAt: ISO, nowIso: ISO, alreadyStarted }. The web UI uses `sessionStartsAt` to render a live ticking countdown — return the result as-is and let the rich component handle the display.',
+    parameters: z.object({}),
+    execute: async () => {
+      // No cache needed — fetchNextRace pulls fresh from the schedule service.
+      return await getDeadlineSnapshot();
     },
   }),
 ];

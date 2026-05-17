@@ -3,6 +3,7 @@ import unusedImports from 'eslint-plugin-unused-imports';
 import globals from 'globals';
 
 export default [
+  { ignores: ['web/dist/**', 'web/node_modules/**', 'node_modules/**', 'coverage/**'] },
   { files: ['**/*.{js,mjs,cjs}'] },
   { files: ['**/*.js'], languageOptions: { sourceType: 'commonjs' } },
   {
