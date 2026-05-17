@@ -5,15 +5,19 @@ user-facing surface for the Telegram bot, plus the cost-cap data fix
 that fell out of Phase 2. It's structured so anyone can pick up where
 we left off without prior context.
 
-**Current state (2026-05-17):** Phases 1, 2, 3, 4, plus the cost-cap
+**Current state (2026-05-17):** Phases 1, 2, 3, 4, 5, plus the cost-cap
 data-source fix, the api-data `prices.json` producer, and the bot's
 `prices.json` consumer
 ([#183](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/183))
-are all merged. The agent now covers upcoming races, the user's
-tracked teams + leagues + leaderboards, best teams with filters,
-best-team scenarios (ppm × chip matrix), next race info, weather
-forecast, and the lock deadline — each with a tailored React render
-component. Phases 5–6 are planned but not started.
+are all merged. **v1 capability scope is now COMPLETE** — the agent
+covers every read-only Telegram capability with a tailored React
+render component: upcoming races, tracked teams + leagues +
+leaderboards, best teams with filters, best-team scenarios
+(ppm × chip matrix), next race info, weather forecast, lock deadline,
+current saved roster, per-team live score breakdown, and all-teams
+live leaderboard. **Phase 6 (polish & hardening — token logging, error
+UX, CORS lockdown, optional history persistence) is the only remaining
+phase.**
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -286,7 +290,9 @@ with a tailored component.
 
 ---
 
-## Phase 5 — Current team + live score (last v1 capabilities)
+## Phase 5 — Current team + live score ✅ **MERGED (PR #187)**
+
+Merged via PR [#187](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/187) — **v1 capability scope is now COMPLETE**.
 
 **Goal:** complete the v1 capability scope. After this phase the agent
 covers every read-only thing the Telegram bot can do, each with a
@@ -294,27 +300,42 @@ tailored component.
 
 **Tasks:**
 
-1. Extract cores:
-   - `src/cores/currentTeamCore.js` from `currentTeamInfoHandler.js`
-   - `src/cores/liveScoreCore.js` from `liveScoreHandler.js`
-2. Refactor handlers to adapters; run their Jest tests.
-3. Add two agent tools:
-   - `get_current_team` (args: optional `teamId`).
-   - `get_live_score` (args: `leagueCode`, optional `teamName` — omitted means "all teams").
-4. Build rich components:
-   - `web/src/components/CurrentTeamCard.tsx` — current roster, boost driver, free transfers, cost cap.
-   - `web/src/components/LiveScoreBreakdown.tsx` — per-driver and per-constructor scoring breakdown with captain/mega-captain multipliers visualized.
-   - `web/src/components/LiveScoreLeaderboard.tsx` — all-teams variant.
-   - Register all via `useCopilotAction`.
-5. Tests for new cores + tools.
+1. ✅ Extract cores:
+   - `src/cores/currentTeamCore.js` from `currentTeamInfoHandler.js` — status-tagged (`ok` / `no_teams` / `unknown_team` / `ambiguous_team` / `missing_cache`); team resolution mirrors `bestTeamsCore.pickTeamId` exactly.
+   - `src/cores/liveScoreCore.js` from `liveScoreHandler.js` — three entry points (`getLiveScoreForTeam`, `getLiveScoreLeaderboard`, `listLeagueTeams`); all validate `leagueCode` / `leagueName` against `listUserLeagues(chatId)` before fetching (prevents arbitrary-blob access).
+   - **Companion utils extraction** (per rubber-duck — cleaner than core importing handler): `src/utils/liveScoreCalc.js` — `mapLockedTeamForScoring`, `calculateLiveScoreBreakdown`, `deriveLiveScoreOptions` moved out of `liveScoreHandler.js`. Handler re-exports them for back-compat with its 735-line test (which stays green unchanged).
+2. ✅ Handlers refactored to thin adapters:
+   - `currentTeamInfoHandler.js` — 69 → 57 lines. Test 7/7 pass unchanged.
+   - `liveScoreHandler.js` — 635 → 506 lines (only helper-import move + unused `mapNameToCode` import removed). Test 40/40 pass unchanged.
+3. ✅ **Four** new agent tools (the original spec had two; split during rubber-duck for cleaner UX):
+   - `get_current_team` (args: optional `teamId` / `teamName`).
+   - `list_league_teams` (args: `leagueCode` OR `leagueName`) — returns the FULL roster of a followed league with `isSelected: true` on the user's own team. The system prompt uses this (not `list_followed_teams`) to ask which team to focus on, so the user can pick ANY team in the league just like Telegram `/live_score`.
+   - `get_live_score_for_team` (args: `leagueCode` OR `leagueName`, plus optional `teamId` / `teamName`) — accepts both league forms so the LLM doesn't need to chain `list_user_leagues` first (avoids the `useLazyToolRenderer` multi-step quirk). Has a `teamId` → `teamName` fallback in `pickLockedTeam`.
+   - `get_live_score_leaderboard` (args: `leagueCode` OR `leagueName`) — all-teams view, sorted by live points desc.
+4. ✅ Rich components:
+   - `web/src/components/CurrentTeamCard.tsx` — team header with chip badge, drivers/constructors chips (boost ⭐, mega-captain 🏆), metrics grid (total price, cost cap remaining, overall budget, expected points, budget-adjusted when ppm preset > 0, expected price change, free transfers).
+   - `web/src/components/LiveScoreBreakdown.tsx` — header with league/matchday/team, big total live points (with pre-penalty if applicable), Δ price change, active-chip badges (🛡️ No Negative), per-driver and per-constructor cards with effective points × multiplier badge (x2 / x3) + session breakdowns.
+   - `web/src/components/LiveScoreLeaderboard.tsx` — sortable table (rank, team, live pts, Δ price), user row highlighted with `YOU` badge, `†` marker on penalty rows.
+   - All wired in `web/src/App.tsx`.
+5. ✅ +53 new tests (775 → 828 total).
 
-**Acceptance test:**
+**System prompt — strengthened clarify-and-focus pattern (per user testing feedback):**
 
-- Web app: _"How is my current team doing this race?"_ → renders `<LiveScoreBreakdown />`.
-- Web app: _"Compare my live score across all my followed teams."_ → renders `<LiveScoreLeaderboard />`.
-- Phase 1–4 questions still work.
-- Telegram: `/current_team_info`, `/live_score` → identical to before.
-- `npm test` → all green.
+For live-score questions:
+1. Ask which league (if user follows >1).
+2. Call `list_league_teams` (NOT `list_followed_teams`) to surface the league's FULL roster. The user can pick ANY team in the league, not just their own tracked teams. Mirrors Telegram `/live_score` behavior.
+3. Then call `get_live_score_for_team` ONCE with both `leagueName` + `teamName` so the rich UI render lands reliably.
+
+Strengthened exclusion clause: questions about _projected_, _best_, _future_, _optimized_, or _recommended_ teams stay with `get_best_teams` / `get_best_team_scenarios`, even when phrased as "current race" or "next race".
+
+**Acceptance test:** ✅ all passed in Playwright (fresh browser sessions per prompt)
+
+- Web app: _"Show me my current team"_ → renders `<CurrentTeamCard />` (Kilzid2: drivers/constructors chips, total price 109.40$M, 275.40 expected pts) ✅
+- Web app: _"What's my live score this race?"_ → 3-step clarify-and-focus chain (ask league → "kilzi test" → list all 8 league teams → "HIRSCHEL" → `<LiveScoreBreakdown />` rendered with 142.00 pts — proves any team in the league can be picked, not just the user's own) ✅
+- Web app: _"Show me the live-score leaderboard"_ → ask league → "kilzi test" → `<LiveScoreLeaderboard />` rendered as sorted table (233 → 95 pts, Δ price column visible) ✅
+- Phase 1–4 regression (_"How long until the next deadline?"_) → `<DeadlineCountdown />` ticking ✅
+- Telegram: `/current_team_info`, `/live_score` byte-identical (handler tests 7/7 + 40/40 unchanged) ✅
+- `npm test` → 828/828 green ✅
 
 ---
 
