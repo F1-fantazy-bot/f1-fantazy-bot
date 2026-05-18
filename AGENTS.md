@@ -543,6 +543,8 @@ Blob naming includes the team ID:
 
 A second user-facing surface that runs the same business logic as the Telegram bot through tool calls. Architecture, code layout, and the patterns for adding new capabilities live in this section.
 
+**Status (2026-05-18):** v1 capability scope is COMPLETE; Phase 6 (polish & hardening) is in flight. Phase 6.1 (per-step token-usage logging via AI SDK middleware, PR [#188](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/188)) and Phase 6.2 (friendly tool-error UX with opaque `errorId`, PR [#189](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/189)) are merged. See [Token usage logging](#token-usage-logging-phase-61) and [Tool error handling](#tool-error-handling-phase-62) below.
+
 Phase-5 capabilities (shipped — v1 capability scope is now COMPLETE):
 
 - `get_next_races` — upcoming races for the season (Phase 1).
@@ -651,9 +653,12 @@ f1-fantazy-bot/
 │   ├── agent/
 │   │   ├── identity.js               # AGENT_HARDCODED_CHAT_ID (LLM never sees it)
 │   │   ├── systemPrompt.js           # English-only v1; built once at startup
-│   │   ├── tools.js                  # defineTool({ name, description, parameters: z.object({…}), execute })
-│   │   ├── cacheBootstrap.js         # ensureCacheReady() — lazy initializeCaches(noopBot) for agent process
-│   │   └── runtime.js                # BuiltInAgent + CopilotRuntime + createCopilotRuntimeHandler
+│   │   ├── tools.js                  # defineTool({ name, description, parameters: z.object({…}), execute: wrapToolExecute(…) })
+│   │   ├── cacheBootstrap.js         # ensureCacheReady() — lazy initializeCaches(notifierBot) for agent process
+│   │   ├── notifierBot.js            # Singleton non-polling TelegramBot for the agent process (Phase 6.1)
+│   │   ├── tokenUsageMiddleware.js   # LanguageModelV3 middleware that logs per-step token usage (Phase 6.1)
+│   │   ├── wrapToolExecute.js        # try/catch wrapper that returns `{status:'tool_error', errorId, ...}` (Phase 6.2)
+│   │   └── runtime.js                # BuiltInAgent + CopilotRuntime + createCopilotRuntimeHandler (+ wrapLanguageModel)
 │   ├── bestTeamsCalculator.js        # exports an optional `options` arg: filters + rankBy + resultCount
 │   └── commandsHandler/
 │       ├── nextRacesHandler.js       # refactored: thin Telegram adapter over the core
@@ -679,7 +684,8 @@ f1-fantazy-bot/
 │   │       ├── DeadlineCountdown.tsx # useCopilotAction({ name: 'get_deadline', available: 'frontend', render })
 │   │       ├── CurrentTeamCard.tsx   # useCopilotAction({ name: 'get_current_team', available: 'frontend', render })
 │   │       ├── LiveScoreBreakdown.tsx # useCopilotAction({ name: 'get_live_score_for_team', available: 'frontend', render })
-│   │       └── LiveScoreLeaderboard.tsx # useCopilotAction({ name: 'get_live_score_leaderboard', available: 'frontend', render })
+│   │       ├── LiveScoreLeaderboard.tsx # useCopilotAction({ name: 'get_live_score_leaderboard', available: 'frontend', render })
+│   │       └── ToolErrorFallback.tsx # shared red-banner + isToolErrorResult() type-guard (Phase 6.2)
 │   ├── package.json
 │   └── …                             # own package.json — frontend deps don't pollute the backend
 └── scripts/
@@ -690,7 +696,7 @@ f1-fantazy-bot/
 
 The Telegram bot's `src/bot.js` runs `initializeCaches(bot)` at startup so every command handler can read from `driversCache`, `currentTeamCache`, etc. The agent runs in a **separate process** (its own Azure Function App) and therefore has its own empty in-memory caches — they MUST be populated before any tool that reads them can run.
 
-`src/agent/cacheBootstrap.js` exports `ensureCacheReady()`: it lazily calls `initializeCaches(noopBot)` once per process, where `noopBot` is `{ sendMessage: async () => undefined }` so the bot-side `sendLogMessage`/`sendErrorMessage`/`sendMessageToAdmins` calls become no-ops (the agent process has no Telegram token). The promise is cached for reuse; on failure it resets so the next tool call retries from scratch (transient Azure errors don't brick the agent for the lifetime of the process).
+`src/agent/cacheBootstrap.js` exports `ensureCacheReady()`: it lazily calls `initializeCaches(getNotifierBot())` once per process. The notifier bot (introduced in Phase 6.1, see [Token usage logging](#token-usage-logging-phase-61)) is a singleton **non-polling** `TelegramBot` instance — when `TELEGRAM_BOT_TOKEN` is set, cache-init logs land in the same Telegram `LOG_CHANNEL_ID` the main bot uses; otherwise it's a noop and logs stay on stdout. The promise is cached for reuse; on failure it resets so the next tool call retries from scratch (transient Azure errors don't brick the agent for the lifetime of the process).
 
 Tools that need caches MUST `await ensureCacheReady()` before reading from `currentTeamCache`/`driversCache`/etc.:
 
@@ -749,6 +755,93 @@ useCopilotAction({
 
 > **Pitfall (Phase 2):** if you don't disable parallel tool calls (`providerOptions: { openai: { parallelToolCalls: false } }` on the `BuiltInAgent`), Azure OpenAI is free to emit multiple tools in the SAME assistant message — and CopilotKit's `useLazyToolRenderer` only renders `toolCalls[0]`. You'll see ONE of N tool results render and the rest silently disappear from the UI (the LLM's text reply will still describe them correctly, just no rich component). Fix: keep parallel calls disabled in `src/agent/runtime.js`.
 
+> **Pitfall (Phase 5):** the `useLazyToolRenderer` "only renders `toolCalls[0]`" rule also means a multi-call clarify-then-fetch flow inside ONE turn drops the second tool's UI. We learned this with live-score: the agent should NOT call `list_league_teams` and then `get_live_score_for_team` in the same turn. The clarify-and-focus pattern: **ask which league → wait for the user → ask which team in that league → wait again → call `get_live_score_for_team` ONCE with both `leagueName` and `teamName`.** The system prompt enforces this and the live-score tool's description spells it out — keep it that way when adding similar two-arg lookup tools.
+
+> **Pitfall (Phase 5):** the `liveScoreCore` lesson — for cross-league live-score, do NOT auto-default to the user's `selectedTeam`. A user can be in multiple leagues with different team names; auto-pick produces "I can't find that team" errors when the resolved teamId belongs to a different league. The right pattern is to ASK which league and team, then call the tool with both. The tool's `team_not_found` status returns an `availableTeams` array specifically so the LLM can re-ask.
+
+> **Pitfall (Phase 3 + Phase 5 — recurring):** the system prompt is a **template literal** in `src/agent/systemPrompt.js`. Any literal backtick inside the prompt must be escaped (`` \` ``) — an unescaped backtick terminates the template literal early and turns the rest of the prompt into syntactically-invalid JavaScript (cryptic "Unexpected identifier" errors on require). Phase 3 and Phase 5 both hit this. When you add new tool guidance with code-like fragments, prefer single-quotes (`'tool_error'`) over backticks where possible.
+
+### Token usage logging (Phase 6.1)
+
+The agent emits a per-step token-usage log line for every LLM call. The Telegram `/ask` command has done this since day one; the web-chat agent reaches the same observability via an **AI SDK middleware** attached at the `wrapLanguageModel` boundary. CopilotKit v2's `BuiltInAgent` does NOT expose an `onFinish` or `onStepFinish` hook, so the middleware seam is the only stable place to observe usage.
+
+```
+src/agent/runtime.js
+  ↓
+buildAzureLanguageModel(cfg)  ─→ Azure LanguageModelV3
+  ↓
+wrapLanguageModel({ model, middleware: createTokenUsageMiddleware({ bot }) })
+  ↓
+BuiltInAgent({ model: wrapped, … })
+```
+
+The middleware (`src/agent/tokenUsageMiddleware.js`) implements `wrapStream` and pipes every chunk through a `TransformStream`. On each `finish` chunk it logs:
+
+```
+BOT: Agent step usage — model: gpt-4o, step: 1, prompt: 120, completion: 30, total: 150
+env: prod
+pid: 12345
+```
+
+**Key gotchas:**
+
+- **V3 usage shape is NESTED.** A `LanguageModelV3StreamPart` of type `finish` carries `usage.inputTokens.total` and `usage.outputTokens.total` (NOT the V2 flat `promptTokens` / `completionTokens`). There is no aggregated `totalTokens` in V3 — we compute it locally. Any of these fields may be `undefined`; we substitute 0 so the log line still renders cleanly.
+- **Per-step, not per-turn.** A single agent turn with N tool calls produces up to N+1 `finish` chunks (one per LLM step). We log each — true per-turn aggregation would require factory mode and is deferred. The log line includes a `step: K` label so you can correlate.
+- **Logging is fire-and-forget.** The send is wrapped in BOTH a sync try/catch AND an `.catch()` on the returned promise so a Telegram outage cannot break the LLM stream piping back to the browser. Worst case: the user gets their answer, the log line lands in stderr instead of Telegram.
+- **Notifier bot is non-polling.** `src/agent/notifierBot.js` instantiates `new TelegramBot(token, { polling: false })` so the agent process never conflicts with the main Telegram bot process that owns the long-polling loop on the same token. Telegram allows N senders on one token; only one poller is allowed. Falls back to a noop if `TELEGRAM_BOT_TOKEN` is unset (so local dev without Telegram still works).
+
+### Tool error handling (Phase 6.2)
+
+When any agent tool throws, the user sees a friendly red banner in the web chat — never a raw error string. Azure error messages routinely include URLs, container names, request IDs, SAS tokens, and full stack traces; **we MUST NOT expose these to the UI.**
+
+```
+agent tool throws
+        ↓
+wrapToolExecute(name, fn) catches → generates 8-char errorId (slice of randomUUID())
+        ↓
+   ┌── full err + errorId → sendErrorMessage(notifierBot, …) → ERRORS_CHANNEL_ID
+   │   (try/catched — telegram outage cannot break the tool path)
+   ↓
+{ status: 'tool_error', tool, errorId, userMessage } → LLM + UI
+        ↓
+   ┌── system prompt: surface userMessage, no auto-retry, no fabrication, no errorId exposure
+   ↓
+   <ToolErrorFallback result={parsed} /> → red banner + collapsed support details (tool + errorId)
+```
+
+**Pieces:**
+
+- **`src/agent/wrapToolExecute.js`** — `wrapToolExecute(toolName, fn)` returns a wrapped `execute` that try/catches `fn(args)`. On throw: routes the full technical error (including stack) to `ERRORS_CHANNEL_ID` and returns `{ status: 'tool_error', tool, errorId, userMessage }` to the LLM/UI. The notifier-send is itself try/catched so a Telegram outage cannot break the tool dispatch.
+- **All 14 tools in `src/agent/tools.js` are wrapped** via this helper. Two tools without rich UI components (`list_user_leagues`, `list_league_teams`) still benefit — their `tool_error` result is narrated by the LLM via the system-prompt rule.
+- **`web/src/components/ToolErrorFallback.tsx`** exports `<ToolErrorFallback />` and `isToolErrorResult()`. All 12 render hooks add a three-line short-circuit right after `safeParse`:
+  ```tsx
+  const parsed = typeof result === 'string' ? safeParse(result) : result;
+  if (isToolErrorResult(parsed)) {
+    return <ToolErrorFallback result={parsed} />;
+  }
+  return <RealComponent result={parsed} />;
+  ```
+- **System prompt rule:** if a tool returns `status: 'tool_error'`, briefly apologize, surface the `userMessage`, suggest retry. **DO NOT** retry the same tool with the same args unless the user explicitly asks. **DO NOT** invent or fabricate data. **DO NOT** mention the `errorId` unless the user asks for a support reference.
+
+**Secret-redaction policy (don't relax this):**
+
+- The user-facing return value of `wrapToolExecute` MUST NOT include `err.message` or any derived form of the original error. The 8-char `errorId` is the only correlation surface the user sees.
+- There is a regression test in `wrapToolExecute.test.js` titled _"NEVER includes the raw technical message in the returned user-facing result"_ that asserts URLs / SAS tokens / `sig=` query params cannot leak into the serialized result. **Do not weaken this test** — it's the guard rail that catches a future contributor who tries to "be helpful" by passing `err.message` to the UI.
+- The full error (with stack) DOES go to `ERRORS_CHANNEL_ID` so on-call has everything they need to debug; the channel is private. The `errorId` is the same in both places, so support → channel correlation is one grep.
+
+### Environment variables
+
+| Var | Required for | Purpose |
+|---|---|---|
+| `AZURE_OPENAI_ENDPOINT` | Agent | Azure OpenAI host (works for both `*.openai.azure.com` and `*.services.ai.azure.com`). |
+| `AZURE_OPENAI_API_KEY` | Agent | Azure OpenAI auth. |
+| `AZURE_OPEN_AI_MODEL` | Agent + Telegram `/ask` | Deployment name (used by `azure.chat(deployment)`). |
+| `AGENT_HARDCODED_CHAT_ID` | Agent | v1 single-user identity. The LLM never sees it. Defaults to `KILZI_CHAT_ID` in `scripts/dev-agent-server.js` if absent. |
+| `TELEGRAM_BOT_TOKEN` | Agent (optional) | If set, the agent's notifier bot sends token-usage + tool-error logs to the same Telegram channels the main bot uses. If unset, logs stay on stdout — local dev without Telegram still works. |
+| `LOG_CHANNEL_ID` | Telegram bot | Token-usage logs land here from BOTH processes when their notifier bots have a Telegram token. Set in `src/constants.js`. |
+| `ERRORS_CHANNEL_ID` | Telegram bot | Tool errors with `errorId` land here. Set in `src/constants.js`. |
+| `<other Azure Storage creds>` | Agent + Telegram | Cache init reads (and occasionally writes) league rosters from Azure Storage — same creds the bot uses. |
+
 ### Identity model (v1)
 
 - `AGENT_HARDCODED_CHAT_ID` env var is the only identity. `src/agent/identity.js` reads it once and exposes `getAgentChatId()`.
@@ -786,20 +879,32 @@ npm run dev:web      # only Vite frontend on :5173/:5174
 
 1. **Extract the core** at `src/cores/<feature>Core.js`. Pure function, structured JSON return.
 2. **Refactor the matching Telegram handler** to call the core. Run `npx jest <handler>.test.js` — must pass unchanged.
-3. **Add the tool** to `src/agent/tools.js` via `defineTool({ name, description, parameters: z.object({…}), execute })`. The `execute` handler calls the core. If `chatId` is needed, use `getAgentChatId()` from `src/agent/identity.js`. **If the core reads from `currentTeamCache`/`driversCache`/etc, `await ensureCacheReady()` first** (see [Cache bootstrap](#cache-bootstrap-cross-process)).
-4. **Update the system prompt** in `src/agent/systemPrompt.js` if the new tool requires guidance (e.g. "if the user names a team in a 'best teams' question, call get_best_teams directly with `teamName` — don't pre-call list_user_teams; the multi-step routing costs latency and only one rich UI component can render per assistant turn").
-5. **Build the React component** at `web/src/components/<Feature>.tsx`. Define it inside a `useCopilotAction({ name, available: 'frontend', render })` hook (the hook must run inside a component mounted under `<CopilotKit>`). Match `name` exactly to the backend tool's name; for `available: 'frontend'` actions the `parameters` array is metadata-only — keep it as `[]` to avoid TypeScript / shape-matching issues with CopilotKit's frontend tooling.
+3. **Add the tool** to `src/agent/tools.js` via `defineTool({ name, description, parameters: z.object({…}), execute: wrapToolExecute('<tool_name>', async (args) => { … }) })`. **The `execute` MUST be wrapped via `wrapToolExecute` from `src/agent/wrapToolExecute.js`** (Phase 6.2) — this gives the tool friendly UI errors with an opaque `errorId` instead of leaking raw Azure error strings. The wrapper is transparent on success. If `chatId` is needed, use `getAgentChatId()` from `src/agent/identity.js`. **If the core reads from `currentTeamCache`/`driversCache`/etc, `await ensureCacheReady()` first** (see [Cache bootstrap](#cache-bootstrap-cross-process)).
+4. **Update the system prompt** in `src/agent/systemPrompt.js` if the new tool requires guidance (e.g. "if the user names a team in a 'best teams' question, call get_best_teams directly with `teamName` — don't pre-call list_user_teams; the multi-step routing costs latency and only one rich UI component can render per assistant turn"). **Escape any literal backticks inside the prompt** — an unescaped backtick terminates the template literal early and breaks `require('./systemPrompt')`. Prefer single-quotes for code-like fragments (`'tool_error'`) over backticks where possible.
+5. **Build the React component** at `web/src/components/<Feature>.tsx`. Define it inside a `useCopilotAction({ name, available: 'frontend', render })` hook (the hook must run inside a component mounted under `<CopilotKit>`). Match `name` exactly to the backend tool's name; for `available: 'frontend'` actions the `parameters` array is metadata-only — keep it as `[]` to avoid TypeScript / shape-matching issues with CopilotKit's frontend tooling. **Inside the `render` callback, after `safeParse`, add the shared error fallback short-circuit:**
+   ```tsx
+   import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
+   // …
+   const parsed = typeof result === 'string' ? safeParse(result) : result;
+   if (isToolErrorResult(parsed)) {
+     return <ToolErrorFallback result={parsed} />;
+   }
+   return <RealComponent result={parsed} />;
+   ```
+   The fallback is shared across all 12 components — do not duplicate the JSX.
 6. **Wire the hook** by importing and calling it from `web/src/App.tsx` (or wherever the `<AgentActions />` component lives).
 7. **Tests:** unit-test the core in `src/cores/<feature>Core.test.js`. Unit-test the tool's JSON shape if non-trivial. Re-run the full Telegram suite — must stay green.
 8. **Verify in-browser with Playwright MCP.** The browser is the source of truth for UI changes — every UI change must be Playwright-verified before declaring "done".
 
 ### Known issues / deferred
 
-- **405s on `/threads?agentId=default`** in the browser console are CopilotKit polling for chat-history persistence routes that don't exist in single-route mode. Harmless; deferred until persistence is wired (Phase 6).
-- **SSE streaming on Azure Functions Consumption plan** is unverified — locally the bridge buffers the full response. If streaming flushing turns out to be flaky on Consumption, fall back to non-streaming JSON or upgrade to Premium. Phase 6 hardening item.
-- **CORS** is currently permissive (`Access-Control-Allow-Origin: *`). Phase 6 locks it down to the production Static Web App origin.
+- **Token-usage logging** is wired in Phase 6.1 — see [Token usage logging](#token-usage-logging-phase-61). Logs land in stdout always, and in `LOG_CHANNEL_ID` when `TELEGRAM_BOT_TOKEN` is set.
+- **Tool-error UX** is wired in Phase 6.2 — see [Tool error handling](#tool-error-handling-phase-62). Full errors go to `ERRORS_CHANNEL_ID`; users see a friendly banner with an opaque `errorId`.
+- **405s on `/threads?agentId=default`** in the browser console are CopilotKit polling for chat-history persistence routes that don't exist in single-route mode. Harmless; deferred until persistence is wired (Phase 6.5).
+- **SSE streaming on Azure Functions Consumption plan** is unverified — locally the bridge buffers the full response. If streaming flushing turns out to be flaky on Consumption, fall back to non-streaming JSON or upgrade to Premium. Deferred along with deployment.
+- **CORS** is currently permissive (`Access-Control-Allow-Origin: *`). CORS hardening is deferred until frontend deployment unparks.
 - **Hebrew localisation** of agent outputs is out of v1 scope. The Telegram bot stays bilingual.
-- **Multi-tool-call rendering**: CopilotKit's `useLazyToolRenderer` only renders `message.toolCalls[0]`. We force sequential tool calls via `parallelToolCalls: false`. If a future tool needs to fan out (e.g., "best teams for every team I track"), it has to do so server-side inside one `execute` and return a list — the LLM cannot emit N parallel tool calls and expect N React renders.
+- **Multi-tool-call rendering**: CopilotKit's `useLazyToolRenderer` only renders `message.toolCalls[0]`. We force sequential tool calls via `parallelToolCalls: false`. If a future tool needs to fan out (e.g., "best teams for every team I track"), it has to do so server-side inside one `execute` and return a list — the LLM cannot emit N parallel tool calls and expect N React renders. The clarify-and-focus pattern (ask once, call once) is the established workaround for two-arg lookups like live-score.
 
 ### Key files
 
@@ -813,10 +918,14 @@ npm run dev:web      # only Vite frontend on :5173/:5174
 | `src/cores/bestTeamScenariosCore.js` | `computeBestTeamScenarios({chatId, teamId?, teamName?})` — status-tagged (`ok` / `no_teams` / `unknown_team` / `ambiguous_team` / `missing_cache`). Returns the 4×4 matrix `{ teamId, teamName, chip, scenarios: [{ ppm, ppmLabel, results: [{ chipKey, chipLabel, projectedPoints, expectedPriceChange, recommendation: null\|'yellow'\|'green' }] }] }`. Mirrors the Telegram `/best_team_scenarios` chip-recommendation thresholds. |
 | `src/bestTeamsCalculator.js` | Accepts an optional 5th `options` arg with `mustInclude*`/`mustExclude*` filters, `rankBy: null \| 'points' \| 'budget_adjusted'`, and `resultCount`. Empty/absent options preserve legacy 4-arg behaviour byte-for-byte. |
 | `src/agent/identity.js` | Reads `AGENT_HARDCODED_CHAT_ID`, exposes `getAgentChatId()`. |
-| `src/agent/cacheBootstrap.js` | `ensureCacheReady()` — lazy `initializeCaches(noopBot)` for the agent process; resets on failure for retry-on-next-call. |
-| `src/agent/systemPrompt.js` | English system prompt; extended per phase. |
-| `src/agent/tools.js` | Tool catalogue (`defineTool` array). |
-| `src/agent/runtime.js` | Builds Azure model → `BuiltInAgent` (with `parallelToolCalls: false`) → `CopilotRuntime` → `createCopilotRuntimeHandler`. Caches the handler per process. |
+| `src/agent/cacheBootstrap.js` | `ensureCacheReady()` — lazy `initializeCaches(getNotifierBot())` for the agent process; resets on failure for retry-on-next-call. |
+| `src/agent/systemPrompt.js` | English system prompt; extended per phase. Includes a `tool_error` handling rule (Phase 6.2). Backticks inside the template literal MUST be escaped. |
+| `src/agent/tools.js` | Tool catalogue (`defineTool` array). All 14 tools' `execute` are wrapped via `wrapToolExecute` (Phase 6.2). |
+| `src/agent/runtime.js` | Builds Azure model → `wrapLanguageModel({ middleware: createTokenUsageMiddleware(…) })` (Phase 6.1) → `BuiltInAgent` (with `parallelToolCalls: false`) → `CopilotRuntime` → `createCopilotRuntimeHandler`. Caches the handler per process. |
+| `src/agent/notifierBot.js` | Singleton non-polling `TelegramBot` for the agent process (Phase 6.1). Real bot when `TELEGRAM_BOT_TOKEN` set, noop fallback otherwise. Polling stays disabled so it never conflicts with the main bot's poller on the same token. |
+| `src/agent/tokenUsageMiddleware.js` | `LanguageModelV3Middleware` that pipes the stream through a `TransformStream` and logs every `finish` chunk's per-step token usage (Phase 6.1). Reads the V3 NESTED usage shape (`usage.inputTokens.total` / `usage.outputTokens.total`). Logging is fire-and-forget — a Telegram outage cannot break the LLM stream. |
+| `src/agent/wrapToolExecute.js` | `wrapToolExecute(toolName, fn)` try/catches the execute and returns `{ status: 'tool_error', tool, errorId, userMessage }` on throw (Phase 6.2). Full error → `ERRORS_CHANNEL_ID` via `sendErrorMessage(notifierBot, …)`. The 8-char `errorId` is the user-visible correlation token. Raw `err.message` is NEVER included in the returned UI shape. |
+| `web/src/components/ToolErrorFallback.tsx` | Shared red-banner fallback + `isToolErrorResult()` type-guard (Phase 6.2). All 12 render hooks short-circuit on `tool_error` via this component — no JSX duplication. |
 | `agentWebhook/function.json` | Azure Functions httpTrigger config (route `agent/{*restOfPath}`). |
 | `agentWebhook/index.js` | Bridges Azure Functions v3 (context, req) onto a Web Request; handles OPTIONS preflight + CORS; tolerant of both `Uint8Array` and string body chunks. |
 | `web/src/App.tsx` | Mounts `<CopilotKit>` + `<CopilotChat />`; reads `VITE_AGENT_API_URL`. |
