@@ -1,0 +1,297 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "hand-authored",
+      "comment": "ARM template for the F1 Fantasy AGENT Function App (separate from the Telegram bot). Provisions a Linux Y1 Consumption Function App with `production` + `test` slots, both reusing the existing App Service Plan, storage account, App Insights, and Key Vault. Grants each slot's system-assigned MSI the 'Key Vault Secrets User' role on the existing `f1-fantasy-kv` so app settings can use @Microsoft.KeyVault references."
+    }
+  },
+  "parameters": {
+    "functionAppName": {
+      "type": "string",
+      "defaultValue": "f1-fantazy-agent-func",
+      "metadata": {
+        "description": "Name of the new Function App that hosts the CopilotKit agent webhook."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for the Function App. Must match the App Service Plan's region."
+      }
+    },
+    "appServicePlanName": {
+      "type": "string",
+      "defaultValue": "ASP-f1fantazybot-b551",
+      "metadata": {
+        "description": "Name of the EXISTING App Service Plan to host the new Function App (reused from the Telegram bot)."
+      }
+    },
+    "appServicePlanResourceGroup": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().name]",
+      "metadata": {
+        "description": "Resource group of the EXISTING App Service Plan."
+      }
+    },
+    "storageAccountName": {
+      "type": "string",
+      "defaultValue": "f1fantazybot9eca",
+      "metadata": {
+        "description": "Name of the EXISTING storage account used for AzureWebJobsStorage (shared with the Telegram bot)."
+      }
+    },
+    "storageAccountResourceGroup": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().name]",
+      "metadata": {
+        "description": "Resource group of the EXISTING storage account."
+      }
+    },
+    "keyVaultName": {
+      "type": "string",
+      "defaultValue": "f1-fantasy-kv",
+      "metadata": {
+        "description": "Name of the EXISTING Key Vault that holds all agent secrets. MUST be RBAC-enabled (this template grants the function app's MSI the 'Key Vault Secrets User' role)."
+      }
+    },
+    "appInsightsName": {
+      "type": "string",
+      "defaultValue": "f1-fantazy-bot-func",
+      "metadata": {
+        "description": "Name of the EXISTING Application Insights component (reused from the Telegram bot — splitting it out is deferred)."
+      }
+    },
+    "appInsightsResourceGroup": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().name]",
+      "metadata": {
+        "description": "Resource group of the EXISTING Application Insights component."
+      }
+    },
+    "azureStorageContainerName": {
+      "type": "string",
+      "defaultValue": "f1-fantasy-scraper-json",
+      "metadata": {
+        "description": "Blob container the agent reads league/team data from. Same container the Telegram bot uses."
+      }
+    },
+    "azureOpenAiModel": {
+      "type": "string",
+      "defaultValue": "gpt-5.4",
+      "metadata": {
+        "description": "Deployment name of the Azure OpenAI chat model. Matches the Telegram bot's current value."
+      }
+    },
+    "nodeEnv": {
+      "type": "string",
+      "defaultValue": "production",
+      "metadata": {
+        "description": "NODE_ENV value passed to the Node.js runtime."
+      }
+    },
+    "prodAllowedOrigins": {
+      "type": "string",
+      "defaultValue": "*",
+      "metadata": {
+        "description": "Comma-separated EXACT origins allowed by CORS on the production slot. Default `*` only for the bootstrap deploy (before the Static Web App exists). After SWA is provisioned, redeploy with this set to e.g. `https://f1-fantazy-agent-web.azurestaticapps.net`. The function code matches against this list (CORS is enforced in agentWebhook/index.js, not by Azure's CORS layer, because preview origins need regex matching)."
+      }
+    },
+    "prodPreviewOriginPattern": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional regex matched against the Origin header on the production slot. Default empty (no preview origins allowed on prod). Production should rarely need this."
+      }
+    },
+    "testAllowedOrigins": {
+      "type": "string",
+      "defaultValue": "*",
+      "metadata": {
+        "description": "Comma-separated EXACT origins allowed by CORS on the test slot. Same shape as prodAllowedOrigins; typically the SWA prod origin so PR previews can also be tested against the prod-shaped chat URL."
+      }
+    },
+    "testPreviewOriginPattern": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Regex matched against the Origin header on the test slot. After SWA is provisioned, set to e.g. `^https://[a-z0-9-]+\\.[0-9]+\\.westeurope\\.[0-9]+\\.azurestaticapps\\.net$` so SWA per-PR preview environments can reach the test slot."
+      }
+    }
+  },
+  "variables": {
+    "linuxFxVersion": "Node|22",
+    "kvSecretsUserRoleId": "4633458b-17de-408a-b874-0445c86b69e6",
+    "storageResourceId": "[resourceId(parameters('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+    "appServicePlanResourceId": "[resourceId(parameters('appServicePlanResourceGroup'), 'Microsoft.Web/serverfarms', parameters('appServicePlanName'))]",
+    "appInsightsResourceId": "[resourceId(parameters('appInsightsResourceGroup'), 'Microsoft.Insights/components', parameters('appInsightsName'))]",
+    "kvBaseUri": "[concat('https://', parameters('keyVaultName'), '.vault.azure.net/secrets')]",
+    "staticAppSettings": [
+      {
+        "name": "FUNCTIONS_EXTENSION_VERSION",
+        "value": "~4"
+      },
+      {
+        "name": "FUNCTIONS_WORKER_RUNTIME",
+        "value": "node"
+      },
+      {
+        "name": "WEBSITE_NODE_DEFAULT_VERSION",
+        "value": "~22"
+      },
+      {
+        "name": "NODE_ENV",
+        "value": "[parameters('nodeEnv')]"
+      },
+      {
+        "name": "AZURE_OPEN_AI_MODEL",
+        "value": "[parameters('azureOpenAiModel')]"
+      },
+      {
+        "name": "AZURE_STORAGE_CONTAINER_NAME",
+        "value": "[parameters('azureStorageContainerName')]"
+      },
+      {
+        "name": "AZURE_OPENAI_ENDPOINT",
+        "value": "[concat('@Microsoft.KeyVault(SecretUri=', variables('kvBaseUri'), '/azure-openai-endpoint/)')]"
+      },
+      {
+        "name": "AZURE_OPENAI_API_KEY",
+        "value": "[concat('@Microsoft.KeyVault(SecretUri=', variables('kvBaseUri'), '/azure-openai-api-key/)')]"
+      },
+      {
+        "name": "AZURE_STORAGE_CONNECTION_STRING",
+        "value": "[concat('@Microsoft.KeyVault(SecretUri=', variables('kvBaseUri'), '/azure-storage-connection-string/)')]"
+      },
+      {
+        "name": "TELEGRAM_BOT_TOKEN",
+        "value": "[concat('@Microsoft.KeyVault(SecretUri=', variables('kvBaseUri'), '/telegram-bot-token/)')]"
+      },
+      {
+        "name": "AGENT_HARDCODED_CHAT_ID",
+        "value": "[concat('@Microsoft.KeyVault(SecretUri=', variables('kvBaseUri'), '/agent-hardcoded-chat-id/)')]"
+      }
+    ]
+  },
+  "resources": [
+    {
+      "comments": "Main Function App (production slot).",
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2023-12-01",
+      "name": "[parameters('functionAppName')]",
+      "location": "[parameters('location')]",
+      "kind": "functionapp,linux",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "serverFarmId": "[variables('appServicePlanResourceId')]",
+        "reserved": true,
+        "httpsOnly": true,
+        "clientAffinityEnabled": false,
+        "keyVaultReferenceIdentity": "SystemAssigned",
+        "siteConfig": {
+          "linuxFxVersion": "[variables('linuxFxVersion')]",
+          "ftpsState": "Disabled",
+          "minTlsVersion": "1.2",
+          "http20Enabled": true,
+          "alwaysOn": false,
+          "use32BitWorkerProcess": false,
+          "cors": {
+            "allowedOrigins": [],
+            "supportCredentials": false
+          },
+          "appSettings": "[concat(variables('staticAppSettings'), createArray(createObject('name', 'AzureWebJobsStorage', 'value', concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';AccountKey=', listKeys(variables('storageResourceId'), '2023-01-01').keys[0].value, ';EndpointSuffix=', environment().suffixes.storage)), createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'value', reference(variables('appInsightsResourceId'), '2020-02-02').ConnectionString), createObject('name', 'AGENT_CORS_ALLOWED_ORIGINS', 'value', parameters('prodAllowedOrigins')), createObject('name', 'AGENT_CORS_PREVIEW_ORIGIN_PATTERN', 'value', parameters('prodPreviewOriginPattern'))))]"
+        }
+      }
+    },
+    {
+      "comments": "Test deployment slot (per-PR deploys land here).",
+      "type": "Microsoft.Web/sites/slots",
+      "apiVersion": "2023-12-01",
+      "name": "[concat(parameters('functionAppName'), '/test')]",
+      "location": "[parameters('location')]",
+      "kind": "functionapp,linux",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]"
+      ],
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "serverFarmId": "[variables('appServicePlanResourceId')]",
+        "reserved": true,
+        "httpsOnly": true,
+        "clientAffinityEnabled": false,
+        "keyVaultReferenceIdentity": "SystemAssigned",
+        "siteConfig": {
+          "linuxFxVersion": "[variables('linuxFxVersion')]",
+          "ftpsState": "Disabled",
+          "minTlsVersion": "1.2",
+          "http20Enabled": true,
+          "alwaysOn": false,
+          "use32BitWorkerProcess": false,
+          "cors": {
+            "allowedOrigins": [],
+            "supportCredentials": false
+          },
+          "appSettings": "[concat(variables('staticAppSettings'), createArray(createObject('name', 'AzureWebJobsStorage', 'value', concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';AccountKey=', listKeys(variables('storageResourceId'), '2023-01-01').keys[0].value, ';EndpointSuffix=', environment().suffixes.storage)), createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'value', reference(variables('appInsightsResourceId'), '2020-02-02').ConnectionString), createObject('name', 'AGENT_CORS_ALLOWED_ORIGINS', 'value', parameters('testAllowedOrigins')), createObject('name', 'AGENT_CORS_PREVIEW_ORIGIN_PATTERN', 'value', parameters('testPreviewOriginPattern'))))]"
+        }
+      }
+    },
+    {
+      "comments": "Grant the production slot's system MSI the 'Key Vault Secrets User' role on the existing Key Vault, so @Microsoft.KeyVault references in app settings can resolve.",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), resourceId('Microsoft.Web/sites', parameters('functionAppName')), variables('kvSecretsUserRoleId'))]",
+      "scope": "[concat('Microsoft.KeyVault/vaults/', parameters('keyVaultName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]"
+      ],
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('kvSecretsUserRoleId'))]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2023-12-01', 'Full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      }
+    },
+    {
+      "comments": "Same role assignment for the test slot's system MSI (slots have independent identities).",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), resourceId('Microsoft.Web/sites/slots', parameters('functionAppName'), 'test'), variables('kvSecretsUserRoleId'))]",
+      "scope": "[concat('Microsoft.KeyVault/vaults/', parameters('keyVaultName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites/slots', parameters('functionAppName'), 'test')]"
+      ],
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('kvSecretsUserRoleId'))]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites/slots', parameters('functionAppName'), 'test'), '2023-12-01', 'Full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      }
+    }
+  ],
+  "outputs": {
+    "functionAppName": {
+      "type": "string",
+      "value": "[parameters('functionAppName')]"
+    },
+    "functionAppHostName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2023-12-01').defaultHostName]"
+    },
+    "functionAppTestSlotHostName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/sites/slots', parameters('functionAppName'), 'test'), '2023-12-01').defaultHostName]"
+    },
+    "functionAppPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2023-12-01', 'Full').identity.principalId]"
+    },
+    "functionAppTestSlotPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/sites/slots', parameters('functionAppName'), 'test'), '2023-12-01', 'Full').identity.principalId]"
+    }
+  }
+}

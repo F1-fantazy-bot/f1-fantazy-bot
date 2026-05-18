@@ -337,3 +337,83 @@ f1-fantazy-bot/
 - **`npm run dev:agent`** - Start the web-chat agent backend on `:7071`
 - **`npm run dev:web`** - Start the Vite frontend (defaults to `:5173`)
 - **`npm run dev`** - Start both the agent backend and Vite frontend at once (via `concurrently`)
+- **`npm run deploy:agent-func`** - Apply the agent Function App ARM template (provisions `f1-fantazy-agent-func` + `test` slot + Key Vault role assignments). Usually invoked by the `deploy-infra-agent-func.yml` workflow; runnable locally for first-time provisioning.
+- **`npm run deploy:agent-web`** - Apply the agent Static Web App ARM template (provisions `f1-fantazy-agent-web` Free SKU).
+- **`npm run deploy:agent`** - Chains both of the above.
+
+## Deploying the agent (one-time bootstrap)
+
+The agent is a SEPARATE Function App (`f1-fantazy-agent-func`) and a Static Web App (`f1-fantazy-agent-web`) deployed independently of the Telegram bot. Code changes deploy automatically — these steps only need to be run ONCE to provision the cloud resources and wire up GitHub secrets. After that, every push to `main` deploys to production, every PR deploys to the `test` slot / SWA preview environment.
+
+### Prerequisites
+
+- `az` CLI logged in to subscription `5cfc4033-d828-4bdb-b9ea-de042e483715` with permission to deploy ARM templates and create role assignments at Key Vault scope.
+- The existing GitHub repo secrets used by the Telegram bot workflows (`AZUREAPPSERVICE_CLIENTID_…`, `AZUREAPPSERVICE_TENANTID_…`, `AZUREAPPSERVICE_SUBSCRIPTIONID_…`) — already in place; the agent workflows reuse them.
+
+### Steps
+
+1. **Add the new Key Vault secret** (the agent's hardcoded chatId, PII — kept in KV rather than as a plain app setting):
+
+   ```bash
+   az keyvault secret set \
+     --vault-name f1-fantasy-kv \
+     --name agent-hardcoded-chat-id \
+     --value <YOUR_CHAT_ID>
+   ```
+
+2. **Provision the agent Function App** (creates `f1-fantazy-agent-func` + `test` slot + KV role assignments). Skips Telegram bot resources — verified via `az deployment group what-if`:
+
+   ```bash
+   DEPLOYMENT_SUFFIX=bootstrap npm run deploy:agent-func
+   ```
+
+3. **Provision the Static Web App**:
+
+   ```bash
+   DEPLOYMENT_SUFFIX=bootstrap npm run deploy:agent-web
+   ```
+
+4. **Add the SWA deployment token to GitHub Secrets**:
+
+   ```bash
+   az staticwebapp secrets list \
+     --name f1-fantazy-agent-web \
+     --resource-group f1-fantazy-bot \
+     --query properties.apiKey \
+     -o tsv
+   ```
+
+   Copy the output and add it as `AZURE_STATIC_WEB_APPS_API_TOKEN` in your GitHub repo's Settings → Secrets and variables → Actions.
+
+5. **Adjust CORS to the real SWA hostname**. Azure auto-generates the SWA hostname (typically `<random-pair>-<hex>.<n>.azurestaticapps.net`, e.g. `calm-beach-055be4603.7.azurestaticapps.net`) — it is NOT predictable from the resource name. Find yours:
+
+   ```bash
+   az staticwebapp show \
+     --name f1-fantazy-agent-web \
+     --resource-group f1-fantazy-bot \
+     --query defaultHostname \
+     -o tsv
+   ```
+
+   If it differs from the value already in `infra/agent-func/azuredeploy.parameters.json` (current: `https://calm-beach-055be4603.7.azurestaticapps.net`), update the three CORS fields (`prodAllowedOrigins`, `testAllowedOrigins`, and the `<hostname-prefix>` segment inside `testPreviewOriginPattern`) and re-run:
+
+   ```bash
+   npm run deploy:agent-func
+   ```
+
+   The function app will pick up the new `AGENT_CORS_*` env vars within seconds — no restart required.
+
+### Trigger map
+
+| Event                                                      | Workflow                                       | Target                                                       |
+| ---------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------ |
+| Push to `main` touching `infra/agent-func/**`              | `deploy-infra-agent-func.yml`                  | Re-applies the Function App ARM template                     |
+| Push to `main` touching `infra/agent-web/**`               | `deploy-infra-agent-web.yml`                   | Re-applies the Static Web App ARM template                   |
+| Push to `main` touching `src/`/`agentWebhook/`/`host.json` | `main_f1-fantazy-agent-func.yml`               | Code deploy → agent Function App `production` slot           |
+| PR open/sync/reopen touching the same paths                | `pr_test_f1-fantazy-agent-func.yml`            | Code deploy → agent Function App `test` slot                 |
+| Push to `main` touching `web/**`                           | `main_f1-fantazy-agent-web.yml`                | Build web → SWA production env (`VITE_AGENT_API_URL` = prod) |
+| PR open/sync/reopen touching `web/**`                      | `pr_test_f1-fantazy-agent-web.yml`             | Build web → SWA per-PR preview env (`VITE_AGENT_API_URL` = test slot) |
+| PR closed (with `web/**` changes)                          | `pr_test_f1-fantazy-agent-web.yml` (close job) | Tears down the PR preview environment                        |
+
+The Telegram bot workflows (`main_f1-fantazy-bot-func.yml`, `pr_test_f1-fantazy-bot-func.yml`) remain unchanged and continue to deploy to `f1-fantazy-bot-func` independently.
+

@@ -24,9 +24,15 @@ Phase 6.3 — AGENTS.md refresh
 ([#190](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/190)),
 Phase 6.4 — final regression sweep
 ([#192](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/192)),
-and Phase 6.5 — chat history persistence (this PR). The **only**
-remaining piece of work is frontend deployment + CORS hardening,
-both currently parked.
+and Phase 6.5 — chat history persistence
+([#193](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/193)).
+**Frontend deployment + CORS hardening (this PR)** wires up the
+Azure resources (ARM templates under `infra/agent-{func,web}/`),
+the npm `deploy:agent-*` commands, the six GitHub workflows, and the
+env-var-driven CORS allowlist in `agentWebhook/index.js`. Once the
+one-time bootstrap in `readme.md` → "Deploying the agent" is run,
+push-to-main deploys to production and PRs deploy to the test slot
++ SWA preview environments automatically.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -95,10 +101,14 @@ possible capability — "what are the next races?" → rich `<NextRacesTable />`
 - `scripts/dev-agent-server.js` — local Node HTTP wrapper around the same handler the function uses; no `func` CLI required.
 - `npm run dev` / `dev:agent` / `dev:web` via `concurrently`.
 
-**Remaining Phase-1 todo:** `p1-frontend-deploy` — provision Azure
-Static Web App for `web/` and Azure Function App for `agentWebhook/`.
-This is **operator-side** (needs cloud credentials) and is deferred
-until ready. The agent is fully functional locally via `npm run dev`.
+**Remaining Phase-1 todo:** `p1-frontend-deploy` — ✅ **DONE** (this
+PR). Provisioned via `infra/agent-func/azuredeploy.json` (Function App
++ `test` slot + KV role assignments) and
+`infra/agent-web/azuredeploy.json` (Static Web App). Six GitHub
+workflows wire up infra deploys (push-to-main on `infra/agent-*/**`
+changes) and code deploys (push-to-main → prod, PR → test slot / SWA
+preview). See `readme.md` → "Deploying the agent" for the one-time
+bootstrap (KV secret + first-pass ARM deploy + SWA token paste).
 
 ---
 
@@ -571,12 +581,21 @@ shipped code; design rationale captured inline in
   mitigations cover the code paths; this smoke confirms the
   UX end-to-end on real Azure traffic.
 
+### Resolved (frontend deployment PR)
+
+- **CORS hardening**: ✅ resolved by `src/agent/corsAllowList.js` +
+  env-var-driven matcher in `agentWebhook/index.js`. Prod slot
+  whitelists only the SWA prod origin; test slot also accepts the
+  SWA preview hostname pattern. Local-dev fallback (empty env vars)
+  preserves the old permissive `*`.
+- **Application Insights for the agent Function App**: deferred —
+  the agent reuses the Telegram bot's App Insights instance to
+  minimise infra surface. Split into a dedicated instance later if
+  signal noise becomes a problem.
+
 ### Parked
 
-- **CORS hardening**: deferred along with the rest of frontend
-  deployment.
-- **Application Insights for the agent Function App**: deferred along
-  with deployment.
+- _(none — v1 deployment scope is complete)_
 
 **Acceptance test:**
 

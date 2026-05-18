@@ -1,0 +1,57 @@
+# Production deploy for the f1-fantazy-agent-web Static Web App.
+# Merges to main land in the SWA's `production` environment.
+#
+# Build is run BEFORE the SWA action (skip_app_build: true) so we can
+# bake `VITE_AGENT_API_URL` into the bundle at build time.
+
+name: Build and deploy web frontend to Azure Static Web App - f1-fantazy-agent-web
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'web/**'
+      - '.github/workflows/main_f1-fantazy-agent-web.yml'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '22.x'
+  AGENT_API_URL: 'https://f1-fantazy-agent-func.azurewebsites.net/api/agent/copilotkit'
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install web deps
+        working-directory: web
+        run: npm ci
+
+      - name: Build web (VITE_AGENT_API_URL baked in)
+        working-directory: web
+        env:
+          VITE_AGENT_API_URL: ${{ env.AGENT_API_URL }}
+        run: npm run build
+
+      - name: Deploy to Azure Static Web Apps (production)
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: 'upload'
+          app_location: 'web/dist'
+          api_location: ''
+          output_location: ''
+          skip_app_build: true
+          skip_api_build: true
+          production_branch: 'main'
