@@ -8,25 +8,20 @@
 //
 // `initializeCaches(bot)` only uses `bot` for the logging side-effects
 // (`sendLogMessage`, `sendErrorMessage`, `sendMessageToAdmins`, and
-// `saveUserTeam` for refreshed league rosters). We hand it a no-op
-// "bot" whose `sendMessage` simply resolves — the agent process has no
-// Telegram token. Note: cache init still touches Azure Storage (read +
-// occasionally write refreshed league teams), so the agent function
-// needs the same Azure credentials the bot does.
+// `saveUserTeam` for refreshed league rosters). We hand it the same
+// notifier bot the token-usage middleware uses — a non-polling
+// `TelegramBot` instance when `TELEGRAM_BOT_TOKEN` is set, or a noop
+// otherwise — so cache init logs land in the same Telegram channels as
+// the main bot.
 
 const { initializeCaches } = require('../cacheInitializer');
+const { getNotifierBot } = require('./notifierBot');
 
 let pendingCacheReady = null;
 
-function getNoopBot() {
-  return {
-    sendMessage: async () => undefined,
-  };
-}
-
 function ensureCacheReady() {
   if (!pendingCacheReady) {
-    pendingCacheReady = initializeCaches(getNoopBot()).catch((err) => {
+    pendingCacheReady = initializeCaches(getNotifierBot()).catch((err) => {
       // Reset on failure so the next tool invocation retries from
       // scratch (transient Azure errors should not brick the agent
       // until the process restarts).
