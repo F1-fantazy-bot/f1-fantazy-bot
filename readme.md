@@ -361,11 +361,13 @@ The agent is a SEPARATE Function App (`f1-fantazy-agent-func`) and a Static Web 
      --value <YOUR_CHAT_ID>
    ```
 
-2. **Provision the agent Function App** (creates `f1-fantazy-agent-func` + `test` slot + KV role assignments). Skips Telegram bot resources — verified via `az deployment group what-if`:
+2. **Provision the agent Function App** (creates `f1-fantazy-agent-func` + `test` slot + KV role assignments + app settings on both slots). Skips Telegram bot resources — verified via `az deployment group what-if`:
 
    ```bash
    DEPLOYMENT_SUFFIX=bootstrap npm run deploy:agent-func
    ```
+
+   This chains TWO steps: (a) `az deployment group create` applies the ARM template (creates/updates the function app + slots + KV role assignments), then (b) `bash infra/agent-func/apply-settings.sh` sets app settings via `az functionapp config appsettings set` — which is ADDITIVE (it preserves externally-managed keys like `WEBSITE_RUN_FROM_PACKAGE`). This split exists because ARM's `siteConfig.appSettings` is a full-replace and would wipe the deploy action's package pointer on every re-apply.
 
 3. **Provision the Static Web App**:
 

@@ -96,28 +96,28 @@
       "type": "string",
       "defaultValue": "*",
       "metadata": {
-        "description": "Comma-separated EXACT origins allowed by CORS on the production slot. Default `*` only for the bootstrap deploy (before the Static Web App exists). After SWA is provisioned, redeploy with this set to e.g. `https://f1-fantazy-agent-web.azurestaticapps.net`. The function code matches against this list (CORS is enforced in agentWebhook/index.js, not by Azure's CORS layer, because preview origins need regex matching)."
+        "description": "Comma-separated EXACT origins allowed by CORS on the production slot. Default `*` only for the bootstrap deploy (before the Static Web App exists). After SWA is provisioned, redeploy with this set to e.g. `https://f1-fantazy-agent-web.azurestaticapps.net`. NOTE: this value populates BOTH `siteConfig.cors.allowedOrigins` (Azure's CORS layer — handles preflight) AND the function-code env var `AGENT_CORS_ALLOWED_ORIGINS` (local-dev fallback). On Azure, the platform layer takes precedence; the function-code matcher is effectively dead but harmless. Wildcards/regex are NOT supported by Azure's CORS layer — only literal `*` for `match-all`."
       }
     },
     "prodPreviewOriginPattern": {
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Optional regex matched against the Origin header on the production slot. Default empty (no preview origins allowed on prod). Production should rarely need this."
+        "description": "Function-code-only env var. Azure CORS does not support regex. Default empty (no preview origins on prod). Production should rarely need this."
       }
     },
     "testAllowedOrigins": {
       "type": "string",
       "defaultValue": "*",
       "metadata": {
-        "description": "Comma-separated EXACT origins allowed by CORS on the test slot. Same shape as prodAllowedOrigins; typically the SWA prod origin so PR previews can also be tested against the prod-shaped chat URL."
+        "description": "Comma-separated EXACT origins allowed by CORS on the test slot. Same shape as prodAllowedOrigins. Default is `*` because SWA preview environments have unpredictable per-PR hostnames that Azure's CORS layer cannot regex-match; restricting the test slot to a tight allowlist would mean updating it per PR. `*` is acceptable on test since the slot is for short-lived PR validation."
       }
     },
     "testPreviewOriginPattern": {
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Regex matched against the Origin header on the test slot. After SWA is provisioned, set to e.g. `^https://[a-z0-9-]+\\.[0-9]+\\.westeurope\\.[0-9]+\\.azurestaticapps\\.net$` so SWA per-PR preview environments can reach the test slot."
+        "description": "Function-code-only env var. Set only for the function-code matcher in local-dev / direct-curl scenarios. Azure CORS overrides on the deployed slot."
       }
     }
   },
@@ -127,57 +127,11 @@
     "storageResourceId": "[resourceId(parameters('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
     "appServicePlanResourceId": "[resourceId(parameters('appServicePlanResourceGroup'), 'Microsoft.Web/serverfarms', parameters('appServicePlanName'))]",
     "appInsightsResourceId": "[resourceId(parameters('appInsightsResourceGroup'), 'Microsoft.Insights/components', parameters('appInsightsName'))]",
-    "kvBaseUri": "[concat('https://', parameters('keyVaultName'), '.vault.azure.net/secrets')]",
-    "staticAppSettings": [
-      {
-        "name": "FUNCTIONS_EXTENSION_VERSION",
-        "value": "~4"
-      },
-      {
-        "name": "FUNCTIONS_WORKER_RUNTIME",
-        "value": "node"
-      },
-      {
-        "name": "WEBSITE_NODE_DEFAULT_VERSION",
-        "value": "~22"
-      },
-      {
-        "name": "NODE_ENV",
-        "value": "[parameters('nodeEnv')]"
-      },
-      {
-        "name": "AZURE_OPEN_AI_MODEL",
-        "value": "[parameters('azureOpenAiModel')]"
-      },
-      {
-        "name": "AZURE_STORAGE_CONTAINER_NAME",
-        "value": "[parameters('azureStorageContainerName')]"
-      },
-      {
-        "name": "AZURE_OPENAI_ENDPOINT",
-        "value": "[concat('@Microsoft.KeyVault(SecretUri=', variables('kvBaseUri'), '/azure-openai-endpoint/)')]"
-      },
-      {
-        "name": "AZURE_OPENAI_API_KEY",
-        "value": "[concat('@Microsoft.KeyVault(SecretUri=', variables('kvBaseUri'), '/azure-openai-api-key/)')]"
-      },
-      {
-        "name": "AZURE_STORAGE_CONNECTION_STRING",
-        "value": "[concat('@Microsoft.KeyVault(SecretUri=', variables('kvBaseUri'), '/azure-storage-connection-string/)')]"
-      },
-      {
-        "name": "TELEGRAM_BOT_TOKEN",
-        "value": "[concat('@Microsoft.KeyVault(SecretUri=', variables('kvBaseUri'), '/telegram-bot-token/)')]"
-      },
-      {
-        "name": "AGENT_HARDCODED_CHAT_ID",
-        "value": "[concat('@Microsoft.KeyVault(SecretUri=', variables('kvBaseUri'), '/agent-hardcoded-chat-id/)')]"
-      }
-    ]
+    "kvBaseUri": "[concat('https://', parameters('keyVaultName'), '.vault.azure.net/secrets')]"
   },
   "resources": [
     {
-      "comments": "Main Function App (production slot).",
+      "comments": "Main Function App (production slot). siteConfig.appSettings is intentionally absent — ARM never touches appSettings to avoid wiping externally-managed keys like WEBSITE_RUN_FROM_PACKAGE (set by the GH deploy action). App settings are managed instead by `infra/agent-func/apply-settings.sh`, which uses `az functionapp config appsettings set` (additive — only updates listed keys). The npm script `deploy:agent-func` chains both.",
       "type": "Microsoft.Web/sites",
       "apiVersion": "2023-12-01",
       "name": "[parameters('functionAppName')]",
@@ -200,15 +154,14 @@
           "alwaysOn": false,
           "use32BitWorkerProcess": false,
           "cors": {
-            "allowedOrigins": [],
+            "allowedOrigins": "[split(parameters('prodAllowedOrigins'), ',')]",
             "supportCredentials": false
-          },
-          "appSettings": "[concat(variables('staticAppSettings'), createArray(createObject('name', 'AzureWebJobsStorage', 'value', concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';AccountKey=', listKeys(variables('storageResourceId'), '2023-01-01').keys[0].value, ';EndpointSuffix=', environment().suffixes.storage)), createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'value', reference(variables('appInsightsResourceId'), '2020-02-02').ConnectionString), createObject('name', 'AGENT_CORS_ALLOWED_ORIGINS', 'value', parameters('prodAllowedOrigins')), createObject('name', 'AGENT_CORS_PREVIEW_ORIGIN_PATTERN', 'value', parameters('prodPreviewOriginPattern'))))]"
+          }
         }
       }
     },
     {
-      "comments": "Test deployment slot (per-PR deploys land here).",
+      "comments": "Test deployment slot (per-PR deploys land here). Same isolation as the prod resource — no appSettings managed by ARM; the apply-settings.sh script handles both slots.",
       "type": "Microsoft.Web/sites/slots",
       "apiVersion": "2023-12-01",
       "name": "[concat(parameters('functionAppName'), '/test')]",
@@ -234,10 +187,9 @@
           "alwaysOn": false,
           "use32BitWorkerProcess": false,
           "cors": {
-            "allowedOrigins": [],
+            "allowedOrigins": "[split(parameters('testAllowedOrigins'), ',')]",
             "supportCredentials": false
-          },
-          "appSettings": "[concat(variables('staticAppSettings'), createArray(createObject('name', 'AzureWebJobsStorage', 'value', concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';AccountKey=', listKeys(variables('storageResourceId'), '2023-01-01').keys[0].value, ';EndpointSuffix=', environment().suffixes.storage)), createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'value', reference(variables('appInsightsResourceId'), '2020-02-02').ConnectionString), createObject('name', 'AGENT_CORS_ALLOWED_ORIGINS', 'value', parameters('testAllowedOrigins')), createObject('name', 'AGENT_CORS_PREVIEW_ORIGIN_PATTERN', 'value', parameters('testPreviewOriginPattern'))))]"
+          }
         }
       }
     },

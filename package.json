@@ -12,7 +12,7 @@
     "dev:agent": "node scripts/dev-agent-server.js",
     "dev:web": "npm --prefix web run dev",
     "dev": "concurrently -n agent,web -c yellow.bold,cyan.bold --kill-others-on-fail \"npm:dev:agent\" \"npm:dev:web\"",
-    "deploy:agent-func": "az deployment group create --resource-group f1-fantazy-bot --name \"agent-func-${DEPLOYMENT_SUFFIX:-manual-$(date +%s)}\" --template-file infra/agent-func/azuredeploy.json --parameters @infra/agent-func/azuredeploy.parameters.json --output none --only-show-errors",
+    "deploy:agent-func": "az deployment group create --resource-group f1-fantazy-bot --name \"agent-func-${DEPLOYMENT_SUFFIX:-manual-$(date +%s)}\" --template-file infra/agent-func/azuredeploy.json --parameters @infra/agent-func/azuredeploy.parameters.json --output none --only-show-errors && bash infra/agent-func/apply-settings.sh",
     "deploy:agent-web": "az deployment group create --resource-group f1-fantazy-bot --name \"agent-web-${DEPLOYMENT_SUFFIX:-manual-$(date +%s)}\" --template-file infra/agent-web/azuredeploy.json --parameters @infra/agent-web/azuredeploy.parameters.json --output none --only-show-errors",
     "deploy:agent": "npm run deploy:agent-func && npm run deploy:agent-web"
   },
