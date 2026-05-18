@@ -5,7 +5,7 @@ user-facing surface for the Telegram bot, plus the cost-cap data fix
 that fell out of Phase 2. It's structured so anyone can pick up where
 we left off without prior context.
 
-**Current state (2026-05-17):** Phases 1, 2, 3, 4, 5, plus the cost-cap
+**Current state (2026-05-18):** Phases 1, 2, 3, 4, 5, plus the cost-cap
 data-source fix, the api-data `prices.json` producer, and the bot's
 `prices.json` consumer
 ([#183](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/183))
@@ -15,9 +15,13 @@ render component: upcoming races, tracked teams + leagues +
 leaderboards, best teams with filters, best-team scenarios
 (ppm × chip matrix), next race info, weather forecast, lock deadline,
 current saved roster, per-team live score breakdown, and all-teams
-live leaderboard. **Phase 6 (polish & hardening — token logging, error
-UX, CORS lockdown, optional history persistence) is the only remaining
-phase.**
+live leaderboard. **Phase 6 (polish & hardening) is in progress and
+being shipped as small incremental PRs.** **Phase 6.1 — per-step
+token-usage logging via AI SDK middleware
+([#188](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/188)) —
+is merged.** Remaining Phase 6 work: error UX, docs refresh,
+regression sweep, and optional history persistence. Frontend
+deployment is parked for now.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -342,21 +346,108 @@ Strengthened exclusion clause: questions about _projected_, _best_, _future_, _o
 ## Phase 6 — Polish & hardening
 
 **Goal:** make this maintainable in production. No new capabilities.
+Shipped as a series of small, incremental PRs (easier to review, easier
+to revert) rather than one big "Phase 6" PR.
 
-**Tasks:**
+### Phase 6.1 — Token usage logging ✅ MERGED ([#188](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/188))
 
-1. **Token usage logging**: per-turn `prompt/completion/total` tokens logged to the existing `LOG_CHANNEL_ID` via `sendLogMessage` (mirror `askHandler.js` pattern).
-2. **Error UX**: when a tool throws or the LLM fails, render a friendly message in the web chat. Log full error to a new Application Insights instance scoped to the agent Function App.
-3. **CORS hardening**: lock CORS allowlist to the production Static Web App URL only (currently permissive `*` for dev).
-4. **History persistence (optional)**: persist the last 20 user turns in browser localStorage so reloading doesn't lose context.
-5. **Docs**: refresh `AGENTS.md` "Agent (Web Chat)" section to capture any new gotchas discovered across Phases 3–5. Make sure the new-tool checklist still reflects current best practices.
-6. **Final regression sweep**: run full `npm test` + manual smoke on Telegram for the top-10 commands.
+Per-step LLM `prompt / completion / total` tokens logged to the existing
+`LOG_CHANNEL_ID` via `sendLogMessage` so we can monitor agent cost the
+same way the Telegram `/ask` command already does.
+
+**What landed:**
+
+- `src/agent/tokenUsageMiddleware.js` — a `LanguageModelV3Middleware`
+  attached via `wrapLanguageModel` from `ai`. Observes the raw stream
+  coming back from Azure and emits a log line for every `finish` chunk
+  it sees. Per-step (not per-turn) because that's the granularity the
+  underlying API exposes — a single agent turn with N tool calls
+  produces up to N+1 finish chunks.
+- `src/agent/notifierBot.js` — singleton **non-polling** `TelegramBot`
+  for the agent process, so it can `sendMessage` to the same log
+  channels the main bot uses without conflicting with the main bot's
+  long-polling loop. Falls back to a noop when `TELEGRAM_BOT_TOKEN` is
+  unset.
+- `src/agent/cacheBootstrap.js` — switched from an inline `getNoopBot()`
+  to the shared notifier so cache-init logs also land in Telegram.
+- `ai` is now an explicit dependency (was transitive via
+  `@copilotkit/runtime`).
+
+**Gotcha:** the V3 usage shape is **nested** (`usage.inputTokens.total`
+/ `usage.outputTokens.total`), not the flat V2 shape (`promptTokens` /
+`completionTokens`). There is no aggregated `totalTokens` in V3 — we
+compute it locally. Logging is fire-and-forget with sync + async catch
+guards so a Telegram outage cannot break the LLM stream piping back to
+the browser.
+
+**Log format:**
+
+```
+BOT: Agent step usage — model: gpt-4o, step: 1, prompt: 120, completion: 30, total: 150
+env: prod
+pid: 12345
+```
+
+### Phase 6.2 — Error UX (next)
+
+When a tool throws or the LLM fails, render a friendly message in the
+web chat. Concretely:
+
+- `wrapToolExecute(name, fn)` returns
+  `{ status: 'tool_error', tool, errorId, userMessage }` on throw.
+  **Never** leaks raw `err.message` to the UI (Azure errors can contain
+  URLs, container names, request IDs).
+- Opaque `errorId` (e.g. `crypto.randomUUID().slice(0, 8)`) as a
+  user-visible correlation token.
+- Full technical error → `ERRORS_CHANNEL_ID` via
+  `sendErrorMessage(notifierBot, ...)`.
+- Shared `<ToolErrorFallback />` component + `isToolErrorResult()`
+  helper to avoid 12-place JSX duplication.
+- System prompt: "DO NOT retry the same tool / invent data / expose
+  errorId unless asked."
+
+### Phase 6.3 — Docs refresh
+
+Refresh `AGENTS.md` "Agent (Web Chat)" section to capture the new
+patterns from Phases 3–6.1 (token-logging middleware, notifier bot,
+error-UX wrapper) and document the optional env vars
+(`TELEGRAM_BOT_TOKEN`, `LOG_CHANNEL_ID`, `ERRORS_CHANNEL_ID`) for the
+agent process. Make sure the new-tool checklist still reflects
+current best practices.
+
+### Phase 6.4 — Regression sweep
+
+Full `npm test` + manual smoke on Telegram for the top-10 commands +
+Playwright smoke on the agent. Summary-only — doesn't block other
+phases; each preceding PR already runs the test gate.
+
+### Phase 6.5 — History persistence
+
+Persist the last 20 user turns in browser localStorage so reloading
+doesn't lose context. **Only** persist `role: 'user' | 'assistant'`
+text content — strip tool calls, tool results, and large blobs
+(`availableTeams`, leaderboard rows, live-score payloads) so stale
+data never re-enters the LLM context. Schema-versioned payload
+(`{ version: 1, savedAt, messages }`) with hard caps (20 messages OR
+100 KB total), corruption / version-mismatch / quota errors trigger
+`clear()` + start fresh. Storage key:
+`localStorage.f1-fantasy-agent-history`. Includes a "Clear chat
+history" button.
+
+### Parked
+
+- **CORS hardening**: deferred along with the rest of frontend
+  deployment.
+- **Application Insights for the agent Function App**: deferred along
+  with deployment.
 
 **Acceptance test:**
 
-- Token usage shows up in `LOG_CHANNEL_ID`.
-- Forcing a tool error shows a friendly message in the web chat.
-- All previous-phase acceptance tests still pass.
+- ✅ Token usage shows up in `LOG_CHANNEL_ID` (Phase 6.1 — merged).
+- Forcing a tool error shows a friendly message in the web chat
+  (Phase 6.2).
+- All previous-phase acceptance tests still pass (regression sweep —
+  Phase 6.4).
 
 ---
 

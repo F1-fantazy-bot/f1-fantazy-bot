@@ -16,9 +16,12 @@ const {
   createCopilotRuntimeHandler,
 } = require('@copilotkit/runtime/v2');
 const { createAzure } = require('@ai-sdk/azure');
+const { wrapLanguageModel } = require('ai');
 
 const { tools } = require('./tools');
 const { getSystemPrompt } = require('./systemPrompt');
+const { getNotifierBot } = require('./notifierBot');
+const { createTokenUsageMiddleware } = require('./tokenUsageMiddleware');
 
 const COPILOTKIT_ENDPOINT = '/api/agent/copilotkit';
 const AZURE_OPENAI_API_VERSION = '2024-04-01-preview';
@@ -63,7 +66,14 @@ function buildAzureLanguageModel({ endpoint, apiKey, model }) {
 }
 
 function buildAgent(cfg) {
-  const model = buildAzureLanguageModel(cfg);
+  const rawModel = buildAzureLanguageModel(cfg);
+  // Wrap the Azure model with our token-usage middleware so every LLM step
+  // emits a log line into stdout + the Telegram log channel. The middleware
+  // is purely observational — it never mutates the stream.
+  const model = wrapLanguageModel({
+    model: rawModel,
+    middleware: createTokenUsageMiddleware({ bot: getNotifierBot() }),
+  });
 
   return new BuiltInAgent({
     model,
