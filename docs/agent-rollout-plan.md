@@ -9,22 +9,24 @@ we left off without prior context.
 data-source fix, the api-data `prices.json` producer, and the bot's
 `prices.json` consumer
 ([#183](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/183))
-are all merged. **v1 capability scope is now COMPLETE** — the agent
+are all merged. **v1 capability scope is COMPLETE** — the agent
 covers every read-only Telegram capability with a tailored React
 render component: upcoming races, tracked teams + leagues +
 leaderboards, best teams with filters, best-team scenarios
 (ppm × chip matrix), next race info, weather forecast, lock deadline,
 current saved roster, per-team live score breakdown, and all-teams
-live leaderboard. **Phase 6 (polish & hardening) is mostly done.**
-Phase 6.1 — token-usage logging
+live leaderboard. **Phase 6 (polish & hardening) is COMPLETE.**
+All five sub-phases are merged: Phase 6.1 — token-usage logging
 ([#188](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/188)),
 Phase 6.2 — tool-error UX
 ([#189](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/189)),
 Phase 6.3 — AGENTS.md refresh
 ([#190](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/190)),
-and Phase 6.4 — final regression sweep (this PR) **are all merged**.
-The only remaining Phase 6 work is the optional Phase 6.5 (chat
-history persistence). Frontend deployment is parked for now.
+Phase 6.4 — final regression sweep
+([#192](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/192)),
+and Phase 6.5 — chat history persistence (this PR). The **only**
+remaining piece of work is frontend deployment + CORS hardening,
+both currently parked.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -461,7 +463,7 @@ work without re-deriving the Phase 6 patterns from the merged PRs.
   `ToolErrorFallback.tsx`. One stale duplicate "Identity model (v1)"
   heading removed.
 
-### Phase 6.4 — Regression sweep ✅ MERGED ([#TBD](#))
+### Phase 6.4 — Regression sweep ✅ MERGED ([#192](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/192))
 
 Final v1 verification before history-persistence ships. Confirmed
 that nothing in Phases 6.1 / 6.2 / 6.3 broke an existing capability.
@@ -497,18 +499,77 @@ on GitHub PR):**
   Phase 6, so behaviour drift is highly unlikely but worth a final
   manual confirmation before deployment.
 
-### Phase 6.5 — History persistence (next)
+### Phase 6.5 — History persistence ✅ MERGED ([#193](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/193))
 
-Persist the last 20 user turns in browser localStorage so reloading
-doesn't lose context. **Only** persist `role: 'user' | 'assistant'`
-text content — strip tool calls, tool results, and large blobs
-(`availableTeams`, leaderboard rows, live-score payloads) so stale
-data never re-enters the LLM context. Schema-versioned payload
-(`{ version: 1, savedAt, messages }`) with hard caps (20 messages OR
-100 KB total), corruption / version-mismatch / quota errors trigger
-`clear()` + start fresh. Storage key:
-`localStorage.f1-fantasy-agent-history`. Includes a "Clear chat
-history" button.
+Final v1 polish slice. After a page reload, the last 20 user-or-
+assistant **text** messages reappear in the chat — but no tool
+calls, tool results, or large blobs (`availableTeams`, leaderboard
+rows, live-score payloads) are persisted. Reloads cannot
+re-introduce stale data into the LLM context.
+
+**What landed:**
+
+- `web/src/lib/chatHistoryStore.ts` — schema-versioned localStorage
+  payload `{ version: 1, savedAt, messages: StoredMessage[] }` with
+  strict per-item validation, dedupe-on-load, double caps (20
+  messages **or** 100 KB total — whichever hits first), and
+  whole-payload-reject on any corruption / version mismatch / per-
+  field failure. Quota errors and read errors both swallowed with
+  a `clear()` fallback. Exports `load`, `save`, `clear`,
+  `toStoredMessages` (AG-UI → persistence shape), and
+  `toAgUiMessages` (persistence → AG-UI). Strict allowlist when
+  flattening `ContentBlock[]` content — only `type === 'text'`
+  blocks survive.
+- `web/src/components/HistoryRestorer.tsx` — uses
+  `useAgent({ agentId: 'default', updates: [OnMessagesChanged,
+  OnRunStatusChanged] })`. Tracks restoration per-agent-instance
+  via `restoredAgentRef.current === agent` (handles the stub →
+  real swap). Gates the save effect on a `hydrated` state flag
+  that flips on a `queueMicrotask` after restore, so the very first
+  `OnMessagesChanged` from the restored array can't trigger an
+  empty-save race. Auto-save is debounced 500 ms AND gated on
+  `agent.isRunning === false` — `OnRunStatusChanged` guarantees we
+  re-trigger when a stream completes, so reloading mid-stream
+  cannot persist a half-formed assistant reply. Uses a cheap
+  fingerprint (`length:lastId:lastContentLen`) as the React dep so
+  in-place message-array mutations still fire the effect.
+- `web/src/components/ClearHistoryButton.tsx` — small button next
+  to the header; on click `clear()` + `agent?.setMessages([])`.
+- `web/src/App.tsx` — single `<CopilotKit>` provider wrapping the
+  whole header + chat (so all three hooks share the same agent
+  instance); `<HistoryRestorer />` mounted inside.
+
+**API correction worth flagging:** The earlier rubber-duck pass
+assumed `useCopilotMessagesContext()` was the right hook. It does
+**NOT** exist in the installed CopilotKit version. The real hooks
+live at `@copilotkit/react-core/v2` (subpath import — `useAgent`,
+`UseAgentUpdate` are **not** in the root). Future contributors:
+always check `node_modules/@copilotkit/react-core/dist/v2/...d.cts`
+when looking for the v2 hooks, not the root index typedef.
+
+**Rubber-duck-vetted (second pass):** This phase went through a
+second rubber-duck critique that surfaced three blockers — restore
+overwritten by an early empty save, agent stub→real swap losing
+restoration, and mid-stream partial saves persisting half-formed
+replies — plus six important findings. All addressed in the
+shipped code; design rationale captured inline in
+`HistoryRestorer.tsx`.
+
+**Deferred (run before any deployment cut):**
+
+- Manual reload-after-conversation smoke. Boot the dev frontend
+  (`npm run dev`), run a 3-turn conversation that includes at
+  least ONE tool call, reload the page. Expect: (a) the 3 user
+  messages + 3 assistant text replies appear in order, (b) the
+  rich tool-render component does NOT reappear (intentional —
+  tool blobs are stripped on persist), (c) the localStorage
+  `f1-fantasy-agent-history` key is well-formed JSON with
+  `version: 1`, (d) reloading mid-stream does NOT persist a
+  half-formed assistant reply (the `isRunning` gate prevents it),
+  (e) the "Clear chat history" button empties both the chat and
+  the storage. The TypeScript build + the rubber-duck-vetted race
+  mitigations cover the code paths; this smoke confirms the
+  UX end-to-end on real Azure traffic.
 
 ### Parked
 
@@ -522,8 +583,11 @@ history" button.
 - ✅ Token usage shows up in `LOG_CHANNEL_ID` (Phase 6.1 — merged).
 - ✅ Forcing a tool error shows a friendly message in the web chat
   (Phase 6.2 — merged).
-- All previous-phase acceptance tests still pass (regression sweep —
-  Phase 6.4).
+- ✅ All previous-phase acceptance tests still pass (regression sweep —
+  Phase 6.4 — merged; manual Playwright + Telegram smokes
+  **deferred** to pre-deployment).
+- ✅ Page reload restores the last conversation's text (Phase 6.5 —
+  merged; manual reload smoke **deferred** to pre-deployment).
 
 ---
 

@@ -13,6 +13,8 @@ import { useDeadlineCountdownAction } from './components/DeadlineCountdown';
 import { useCurrentTeamAction } from './components/CurrentTeamCard';
 import { useLiveScoreBreakdownAction } from './components/LiveScoreBreakdown';
 import { useLiveScoreLeaderboardAction } from './components/LiveScoreLeaderboard';
+import { HistoryRestorer } from './components/HistoryRestorer';
+import { ClearHistoryButton } from './components/ClearHistoryButton';
 
 const RUNTIME_URL =
   (import.meta.env.VITE_AGENT_API_URL as string | undefined) ??
@@ -37,12 +39,25 @@ function AgentActions() {
 export default function App() {
   return (
     <div className="app-shell">
-      <h1 className="app-header">F1 Fantasy Agent</h1>
-      <p className="app-subheader">
-        Ask about upcoming races or your best teams. The Telegram bot is unaffected.
-      </p>
       <CopilotKit runtimeUrl={RUNTIME_URL}>
+        <HistoryRestorer />
         <AgentActions />
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: 16,
+          }}
+        >
+          <div>
+            <h1 className="app-header">F1 Fantasy Agent</h1>
+            <p className="app-subheader">
+              Ask about upcoming races or your best teams. The Telegram bot is unaffected.
+            </p>
+          </div>
+          <ClearHistoryButton />
+        </div>
         <div className="chat-wrapper">
           <CopilotChat
             instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them."
