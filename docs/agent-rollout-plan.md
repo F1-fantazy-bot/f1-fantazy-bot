@@ -632,14 +632,16 @@ The full per-tool checklist (including the **cache bootstrap** and
 - **Hebrew localisation**: out of v1 scope. The Telegram bot stays bilingual.
 - **Token cost**: function-calling is more expensive than the current ASK pattern. Phase 6 adds monitoring; first cost reading is after Phase 1 deploys.
 - **Cold-start cache init**: agent re-initialises caches from Azure Storage on first request. Reuses `cacheReady` promise pattern. Should be ≤5s — acceptable.
+- **Open agent endpoint (no real auth, CORS-only protection)** ([PR #194](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/194)): the agent function is `authLevel: anonymous` because browsers cannot supply a function key, and `siteConfig.cors.allowedOrigins` is the only gate. Browser-based callers are restricted to the SWA prod origin (prod slot) and SWA prod + per-PR preview origin (test slot, managed by the SWA PR workflow). **Non-browser callers (curl, scripts) face no protection** — anyone who guesses `https://f1-fantazy-agent-func.azurewebsites.net/api/agent/copilotkit` can POST and burn LLM tokens. The agent's identity model is server-side (`AGENT_HARDCODED_CHAT_ID`) so abuse can't impersonate other users, but token-cost abuse is real. Monitor App Insights for unexpected traffic; harden when adopting per-user auth (see Future work).
 
 ## Future work (beyond v1)
 
-- Proper auth (drop `AGENT_HARDCODED_CHAT_ID`).
+- **Proper auth + harden the open agent endpoint** (drop `AGENT_HARDCODED_CHAT_ID` AND close the anonymous-POST hole — currently CORS is the only protection; see Risks above). Options that pair well: Azure Functions Easy Auth (Azure AD / GitHub OAuth) so each request carries a real identity token + the function reads chatId from claims instead of an env var. Same swap-out removes both the single-user constraint AND the open-endpoint risk in one step.
 - Hebrew localisation of agent outputs.
 - Voice input/output.
 - MCP server façade so Copilot/Claude/Cursor can call the same tools.
 - Write capabilities (e.g. set chip, switch team) — currently read-only.
+- **Rate-limiting on the agent endpoint** (Azure API Management or a CDN-layer policy) — defense in depth even after proper auth lands; relevant if abuse appears in App Insights before proper auth ships.
 
 ---
 
