@@ -10,6 +10,9 @@ import { useLeaderboardAction } from './components/LeaderboardTable';
 import { useRaceInfoAction } from './components/RaceInfoCard';
 import { useWeatherForecastAction } from './components/WeatherForecast';
 import { useDeadlineCountdownAction } from './components/DeadlineCountdown';
+import { useCurrentTeamAction } from './components/CurrentTeamCard';
+import { useLiveScoreBreakdownAction } from './components/LiveScoreBreakdown';
+import { useLiveScoreLeaderboardAction } from './components/LiveScoreLeaderboard';
 
 const RUNTIME_URL =
   (import.meta.env.VITE_AGENT_API_URL as string | undefined) ??
@@ -25,6 +28,9 @@ function AgentActions() {
   useRaceInfoAction();
   useWeatherForecastAction();
   useDeadlineCountdownAction();
+  useCurrentTeamAction();
+  useLiveScoreBreakdownAction();
+  useLiveScoreLeaderboardAction();
   return null;
 }
 

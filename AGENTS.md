@@ -28,7 +28,7 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
   - `src/azureStorageService.js` and `src/azureBillingService.js` wrap Azure integrations.
 - **Internationalization:** `src/i18n.js` and `src/translations.js` provide language support (English/Hebrew) used throughout handlers.
 - **AI Assist:** `src/prompts.js` defines system prompts. `/ask`-style natural language queries are handled by `src/commandsHandler/askHandler.js`, which leverages Azure OpenAI to map free-text requests into command sequences.
-- **Logic Cores:** `src/cores/` holds **pure** business-logic functions that take inputs and return structured JSON. They do not depend on `bot`, `t()`, or `sendMessage`. Each Telegram handler is being progressively refactored into `(pure core in src/cores/) + (thin Telegram adapter)`. The same core is consumed by the web-chat agent's tools — so a question like "best teams with VER but no ALO" runs through the same calculator as the `/best_teams` command. **Refactor rule:** existing handler tests must keep passing unchanged after the extraction; if they don't, fix the refactor, not the test. Cores extracted so far: `nextRacesCore`, `bestTeamsCore`, `userTeamsCore`, `followedTeamsCore`, `leaderboardCore`, `bestTeamScenariosCore`, `nextRaceInfoCore`, `raceWeatherCore`, `deadlineCore`. Cores that need side effects (e.g. weather fetch logging) accept optional `onFetch`/`onError` callbacks — the Telegram adapter wires them to bot-side helpers; the agent path omits them.
+- **Logic Cores:** `src/cores/` holds **pure** business-logic functions that take inputs and return structured JSON. They do not depend on `bot`, `t()`, or `sendMessage`. Each Telegram handler is being progressively refactored into `(pure core in src/cores/) + (thin Telegram adapter)`. The same core is consumed by the web-chat agent's tools — so a question like "best teams with VER but no ALO" runs through the same calculator as the `/best_teams` command. **Refactor rule:** existing handler tests must keep passing unchanged after the extraction; if they don't, fix the refactor, not the test. Cores extracted so far: `nextRacesCore`, `bestTeamsCore`, `userTeamsCore`, `followedTeamsCore`, `leaderboardCore`, `bestTeamScenariosCore`, `nextRaceInfoCore`, `raceWeatherCore`, `deadlineCore`, `currentTeamCore`, `liveScoreCore`. Cores that need side effects (e.g. weather fetch logging) accept optional `onFetch`/`onError` callbacks — the Telegram adapter wires them to bot-side helpers; the agent path omits them. Pure scoring helpers shared between a handler and its core live in `src/utils/` (e.g. `src/utils/liveScoreCalc.js` for `mapLockedTeamForScoring` / `calculateLiveScoreBreakdown` / `deriveLiveScoreOptions`) so the core never depends on the adapter.
 - **Agent (Web Chat):** `src/agent/`, `agentWebhook/`, and `web/` together implement a second user-facing surface. Identity is resolved from the `AGENT_HARDCODED_CHAT_ID` env var (v1) so all tool calls operate as that user against the same caches/blobs as the Telegram bot. See the [Agent (Web Chat)](#agent-web-chat) section for the full architecture, the cores↔tools pattern, and how to add a new tool with a matching React component.
 
 ---
@@ -543,7 +543,7 @@ Blob naming includes the team ID:
 
 A second user-facing surface that runs the same business logic as the Telegram bot through tool calls. Architecture, code layout, and the patterns for adding new capabilities live in this section.
 
-Phase-4 capabilities (shipped):
+Phase-5 capabilities (shipped — v1 capability scope is now COMPLETE):
 
 - `get_next_races` — upcoming races for the season (Phase 1).
 - `list_user_teams` — the user's tracked teams (teamId + friendly teamName) (Phase 2).
@@ -555,6 +555,9 @@ Phase-4 capabilities (shipped):
 - `get_next_race_info` — full info on the next race: circuit, location, weekend format (regular/sprint), session timestamps, historical stats, multi-language track history, and opportunistic weather snapshot. Reads `nextRaceInfoCache[sharedKey]` + `weatherForecastCache`; on cache miss the core calls `getWeatherForecast` directly (Phase 4).
 - `get_race_weather` — per-session hourly weather forecast (up to 3 hours per session, filtered to drop hours already in the past) for the next race weekend (Phase 4).
 - `get_deadline` — next team-lock deadline (start of the first locking session: sprint on sprint weekends, qualifying otherwise). Returns absolute timestamps (`sessionStartsAt`, `nowIso`) — the web UI's `<DeadlineCountdown />` ticks client-side with skew compensation so the server's clock stays the source of truth (Phase 4).
+- `get_current_team` — the user's CURRENT saved/selected roster: drivers, constructors, captain, mega-captain, chip, free transfers, cost cap, expected points, expected price change, plus budget-adjusted points when a non-zero ppm preset is set. Resolves team via the same `bestTeamsCore.pickTeamId` pattern (Phase 5). Status-tagged: `ok` / `no_teams` / `unknown_team` / `ambiguous_team` / `missing_cache`.
+- `get_live_score_for_team` — per-team live score breakdown (per-driver / per-constructor points, captain x2 / mega-captain x3 multipliers, transfer penalty, No Negative chip, session breakdowns) for ONE team in ONE followed league. Defaults to the user's `selectedTeam` when no `teamId` / `teamName` provided (Phase 5).
+- `get_live_score_leaderboard` — all-teams live leaderboard for ONE followed league. Sorted by total live points desc (tie-break: total live price change desc). User's row marked with `isSelected: true` for client highlighting (Phase 5).
 
 **Multi-team "every team I track" pattern.** When the user asks a multi-team
 question like _"best teams by points-per-million for every team I track"_,
@@ -640,7 +643,11 @@ f1-fantazy-bot/
 │   │   ├── bestTeamScenariosCore.js  # pure: computeBestTeamScenarios({chatId, teamId?, teamName?}) — 4×4 matrix
 │   │   ├── nextRaceInfoCore.js       # pure: getNextRaceInfo({onFetch?, onError?}) — cache + opportunistic weather
 │   │   ├── raceWeatherCore.js        # pure: getRaceWeather({now?, onFetch?, onError?}) — hourly forecasts
-│   │   └── deadlineCore.js           # pure: getDeadlineSnapshot({now?}) — absolute timestamps for client-side countdown
+│   │   ├── deadlineCore.js           # pure: getDeadlineSnapshot({now?}) — absolute timestamps for client-side countdown
+│   │   ├── currentTeamCore.js        # pure: getCurrentTeam({chatId, teamId?, teamName?}) — current roster + metrics
+│   │   └── liveScoreCore.js          # pure: getLiveScoreForTeam / getLiveScoreLeaderboard — validates league membership
+│   ├── utils/
+│   │   └── liveScoreCalc.js          # pure scoring helpers shared by liveScoreHandler + liveScoreCore
 │   ├── agent/
 │   │   ├── identity.js               # AGENT_HARDCODED_CHAT_ID (LLM never sees it)
 │   │   ├── systemPrompt.js           # English-only v1; built once at startup
@@ -669,7 +676,10 @@ f1-fantazy-bot/
 │   │       ├── BestTeamScenariosMatrix.tsx # useCopilotAction({ name: 'get_best_team_scenarios', available: 'frontend', render })
 │   │       ├── RaceInfoCard.tsx      # useCopilotAction({ name: 'get_next_race_info', available: 'frontend', render })
 │   │       ├── WeatherForecast.tsx   # useCopilotAction({ name: 'get_race_weather', available: 'frontend', render })
-│   │       └── DeadlineCountdown.tsx # useCopilotAction({ name: 'get_deadline', available: 'frontend', render })
+│   │       ├── DeadlineCountdown.tsx # useCopilotAction({ name: 'get_deadline', available: 'frontend', render })
+│   │       ├── CurrentTeamCard.tsx   # useCopilotAction({ name: 'get_current_team', available: 'frontend', render })
+│   │       ├── LiveScoreBreakdown.tsx # useCopilotAction({ name: 'get_live_score_for_team', available: 'frontend', render })
+│   │       └── LiveScoreLeaderboard.tsx # useCopilotAction({ name: 'get_live_score_leaderboard', available: 'frontend', render })
 │   ├── package.json
 │   └── …                             # own package.json — frontend deps don't pollute the backend
 └── scripts/
@@ -822,6 +832,12 @@ npm run dev:web      # only Vite frontend on :5173/:5174
 | `web/src/components/RaceInfoCard.tsx` | `get_next_race_info` rich render — header + circuit image + schedule (quali/race/+sprint pair) + weather chips + historical results table + track history. |
 | `web/src/components/WeatherForecast.tsx` | `get_race_weather` rich render — per-session card with hourly chips: temp, rain %/mm, wind, humidity, cloud cover. |
 | `web/src/components/DeadlineCountdown.tsx` | `get_deadline` rich render — live ticking countdown (days/hours/min/sec) anchored to server clock via `nowIso` skew; stops ticking once deadline passes; collapses to "already started" state when applicable. |
+| `src/cores/currentTeamCore.js` | `getCurrentTeam({chatId, teamId?, teamName?})` — status-tagged (`ok` / `no_teams` / `unknown_team` / `ambiguous_team` / `missing_cache`). Team resolution mirrors `bestTeamsCore.pickTeamId` exactly. Returns `{teamId, teamName, chip, drivers, constructors, boostDriver, extraBoostDriver, freeTransfers, teamInfo: {totalPrice, costCapRemaining, overallBudget, teamExpectedPoints, teamPriceChange}, budgetChangePointsPerMillion, budgetAdjustedPoints, remainingRaceCount}`. |
+| `src/cores/liveScoreCore.js` | `getLiveScoreForTeam({chatId, leagueCode, teamId?, teamName?})` + `getLiveScoreLeaderboard({chatId, leagueCode})` — both validate `leagueCode` against `listUserLeagues(chatId)` before fetching. Per-team mode defaults to the user's `selectedTeam` when no team args. All-teams mode sorts by total live points desc (tie-break: total live price change desc) and marks the user's row with `isSelected`. |
+| `src/utils/liveScoreCalc.js` | Pure scoring helpers extracted in Phase 5 from `liveScoreHandler.js` so both the Telegram surface and the agent core can share `mapLockedTeamForScoring` / `calculateLiveScoreBreakdown` / `deriveLiveScoreOptions`. The handler re-exports these names for back-compat with its existing 735-line test. |
+| `web/src/components/CurrentTeamCard.tsx` | `get_current_team` rich render — team header with chip badge, drivers/constructors chips (boost ⭐, mega-captain 🏆), metrics grid (total price, cost cap remaining, overall budget, expected points, budget-adjusted when ppm preset > 0, expected price change, free transfers). |
+| `web/src/components/LiveScoreBreakdown.tsx` | `get_live_score_for_team` rich render — header with league/matchday/team/last-update; big total-live-points number with pre-penalty + Δ price change; active-chip badges; per-driver and per-constructor cards with effective points × multiplier badge (x2 / x3) + session breakdown (Sprint/Qualifying/Race with POS/PG/OV/FL/DD/TW/FP metrics, only non-zero ones shown). |
+| `web/src/components/LiveScoreLeaderboard.tsx` | `get_live_score_leaderboard` rich render — sortable table (rank, team, live pts, Δ price), user row highlighted with `YOU` badge, `†` marker on rows with transfer penalty, footer note when any row has a penalty. |
 | `scripts/dev-agent-server.js` | Local dev wrapper around `agentWebhook/index.js`. Not deployed. |
 
 ---

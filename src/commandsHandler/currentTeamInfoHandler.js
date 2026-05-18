@@ -1,13 +1,5 @@
-const { calculateTeamInfo, calculateBudgetAdjustedPoints } = require('../utils');
-const {
-  currentTeamCache,
-  sharedKey,
-  resolveSelectedTeam,
-  getBestTeamBudgetChangePointsPerMillion,
-  remainingRaceCountCache,
-  getDriversForChat,
-  getConstructorsForChat,
-} = require('../cache');
+const { resolveSelectedTeam } = require('../cache');
+const { getCurrentTeam } = require('../cores/currentTeamCore');
 const { t } = require('../i18n');
 
 async function calcCurrentTeamInfo(bot, chatId) {
@@ -16,11 +8,9 @@ async function calcCurrentTeamInfo(bot, chatId) {
     return;
   }
 
-  const drivers = getDriversForChat(chatId);
-  const constructors = getConstructorsForChat(chatId);
-  const currentTeam = currentTeamCache[chatId]?.[teamId];
+  const result = await getCurrentTeam({ chatId, teamId });
 
-  if (!drivers || !constructors || !currentTeam) {
+  if (result.status === 'missing_cache') {
     await bot
       .sendMessage(
         chatId,
@@ -36,15 +26,13 @@ async function calcCurrentTeamInfo(bot, chatId) {
     return;
   }
 
-  const teamInfo = calculateTeamInfo(currentTeam, drivers, constructors);
-  const budgetChangePointsPerMillion =
-    getBestTeamBudgetChangePointsPerMillion(chatId, teamId);
-  const budgetAdjustedPoints = calculateBudgetAdjustedPoints(
-    teamInfo.teamExpectedPoints,
-    teamInfo.teamPriceChange,
-    budgetChangePointsPerMillion,
-    remainingRaceCountCache[sharedKey],
-  );
+  if (result.status !== 'ok') {
+    // resolveSelectedTeam already handled the no_teams / ambiguous_team
+    // user paths. Any other status here would mean a coding error.
+    return;
+  }
+
+  const { teamInfo, budgetChangePointsPerMillion, budgetAdjustedPoints } = result;
 
   const message =
     `*${t('Current Team Info', chatId)}:*\n` +
