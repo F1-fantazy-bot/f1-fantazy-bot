@@ -19,9 +19,11 @@ live leaderboard. **Phase 6 (polish & hardening) is in progress and
 being shipped as small incremental PRs.** **Phase 6.1 — per-step
 token-usage logging via AI SDK middleware
 ([#188](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/188)) —
-is merged.** Remaining Phase 6 work: error UX, docs refresh,
-regression sweep, and optional history persistence. Frontend
-deployment is parked for now.
+and Phase 6.2 — friendly tool-error UX with opaque errorId
+([#189](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/189)) —
+are both merged.** Remaining Phase 6 work: docs refresh, regression
+sweep, and optional history persistence. Frontend deployment is
+parked for now.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -388,25 +390,49 @@ env: prod
 pid: 12345
 ```
 
-### Phase 6.2 — Error UX (next)
+### Phase 6.2 — Error UX ✅ MERGED ([#189](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/189))
 
-When a tool throws or the LLM fails, render a friendly message in the
-web chat. Concretely:
+When a tool throws or the LLM fails, the web chat renders a friendly
+red banner instead of leaking a raw Azure error string to the user.
 
-- `wrapToolExecute(name, fn)` returns
+**What landed:**
+
+- `src/agent/wrapToolExecute.js` — `wrapToolExecute(name, fn)` returns
   `{ status: 'tool_error', tool, errorId, userMessage }` on throw.
-  **Never** leaks raw `err.message` to the UI (Azure errors can contain
-  URLs, container names, request IDs).
-- Opaque `errorId` (e.g. `crypto.randomUUID().slice(0, 8)`) as a
-  user-visible correlation token.
-- Full technical error → `ERRORS_CHANNEL_ID` via
-  `sendErrorMessage(notifierBot, ...)`.
-- Shared `<ToolErrorFallback />` component + `isToolErrorResult()`
-  helper to avoid 12-place JSX duplication.
-- System prompt: "DO NOT retry the same tool / invent data / expose
-  errorId unless asked."
+  The 8-char `errorId` (slice of `randomUUID()`) is the user-visible
+  correlation token. **Never** leaks raw `err.message` to the UI —
+  Azure errors routinely include URLs, container names, request IDs,
+  and SAS tokens.
+- Full technical error (including stack) is pushed to
+  `ERRORS_CHANNEL_ID` via `sendErrorMessage(notifierBot, …)` — the
+  same notifier introduced in Phase 6.1. The notifier-send is itself
+  try/catched so a Telegram outage cannot break the tool dispatch
+  path.
+- All **14** tools in `src/agent/tools.js` are wrapped via this
+  helper. Two tools without rich UI (`list_user_leagues`,
+  `list_league_teams`) still benefit — their `tool_error` result is
+  narrated by the LLM via the new system-prompt rule.
+- `web/src/components/ToolErrorFallback.tsx` — shared red-banner
+  component + `isToolErrorResult()` type-guard. All 12 render hooks
+  short-circuit on `tool_error` with a uniform three-line addition.
+- `src/agent/systemPrompt.js` gained a "Tool error handling" section:
+  surface `userMessage`, suggest retry, **DO NOT** retry the same
+  tool with the same args, **DO NOT** invent data, **DO NOT** expose
+  `errorId` unless asked.
 
-### Phase 6.3 — Docs refresh
+**Tests:** 12 new tests in `wrapToolExecute.test.js` cover the
+discriminator, success passthrough (3 cases), async + sync + non-Error
+throws, full-error routing to the channel with matching `errorId`,
+**secret-leak regression guard** (asserts SAS tokens / URLs / sig
+params cannot reach the returned UI shape), notifier-failure
+resilience, and `errorId` uniqueness across 50 calls.
+
+**Format:**
+- UI banner: _"⚠️ Something went wrong — Please try again in a moment."_
+- Collapsed `<details>` block with `tool` + `errorId` for support.
+- Channel log: `Agent tool "<name>" threw [<errorId>]: <err.message>\n<stack>`.
+
+### Phase 6.3 — Docs refresh (next)
 
 Refresh `AGENTS.md` "Agent (Web Chat)" section to capture the new
 patterns from Phases 3–6.1 (token-logging middleware, notifier bot,
@@ -444,8 +470,8 @@ history" button.
 **Acceptance test:**
 
 - ✅ Token usage shows up in `LOG_CHANNEL_ID` (Phase 6.1 — merged).
-- Forcing a tool error shows a friendly message in the web chat
-  (Phase 6.2).
+- ✅ Forcing a tool error shows a friendly message in the web chat
+  (Phase 6.2 — merged).
 - All previous-phase acceptance tests still pass (regression sweep —
   Phase 6.4).
 
