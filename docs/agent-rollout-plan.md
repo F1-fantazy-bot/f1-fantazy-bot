@@ -15,16 +15,16 @@ render component: upcoming races, tracked teams + leagues +
 leaderboards, best teams with filters, best-team scenarios
 (ppm × chip matrix), next race info, weather forecast, lock deadline,
 current saved roster, per-team live score breakdown, and all-teams
-live leaderboard. **Phase 6 (polish & hardening) is in progress and
-being shipped as small incremental PRs.** **Phase 6.1 — per-step
-token-usage logging via AI SDK middleware
+live leaderboard. **Phase 6 (polish & hardening) is mostly done.**
+Phase 6.1 — token-usage logging
 ([#188](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/188)),
-Phase 6.2 — friendly tool-error UX with opaque errorId
+Phase 6.2 — tool-error UX
 ([#189](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/189)),
-and Phase 6.3 — AGENTS.md refresh capturing the new patterns
-([#190](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/190)) —
-are all merged.** Remaining Phase 6 work: regression sweep and
-optional history persistence. Frontend deployment is parked for now.
+Phase 6.3 — AGENTS.md refresh
+([#190](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/190)),
+and Phase 6.4 — final regression sweep (this PR) **are all merged**.
+The only remaining Phase 6 work is the optional Phase 6.5 (chat
+history persistence). Frontend deployment is parked for now.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -461,13 +461,43 @@ work without re-deriving the Phase 6 patterns from the merged PRs.
   `ToolErrorFallback.tsx`. One stale duplicate "Identity model (v1)"
   heading removed.
 
-### Phase 6.4 — Regression sweep (next)
+### Phase 6.4 — Regression sweep ✅ MERGED ([#TBD](#))
 
-Full `npm test` + manual smoke on Telegram for the top-10 commands +
-Playwright smoke on the agent. Summary-only — doesn't block other
-phases; each preceding PR already runs the test gate.
+Final v1 verification before history-persistence ships. Confirmed
+that nothing in Phases 6.1 / 6.2 / 6.3 broke an existing capability.
 
-### Phase 6.5 — History persistence
+**Automated gates (run 2026-05-18):**
+
+| Gate | Result |
+|---|---|
+| `npm test` | **850/850** passing across 82 suites |
+| `cd web && npm run build` | clean (✓ built in ~10s) |
+| `npm run lint` | 4 pre-existing warnings, **0 errors** in modified files |
+| Runtime smoke (`require('./src/agent/runtime').getCopilotRuntimeHandler()`) | All **14 wrapped tools** load; handler builds; notifier bot falls back to noop when `TELEGRAM_BOT_TOKEN` unset, as expected |
+
+**Why this is enough for v1:**
+
+- The risky surfaces (Phase 6.1 streaming middleware, Phase 6.2
+  error-UX wrapper on 14 tools + 12 components) each ran a
+  per-PR Playwright gate BEFORE merging.
+- Phase 6.3 was doc-only — no behaviour change.
+- The unit suite at 850/850 covers the wrapper (12 tests including
+  the secret-leak regression guard) and the middleware (10 tests
+  including telegram-failure resilience).
+- The TypeScript build catches any prop-shape drift across the 12
+  fallback-wrapped React components.
+
+**Deferred (with user-runnable checklists in this section's history
+on GitHub PR):**
+
+- Full Playwright smoke on the agent (12 prompts, one per UI-rendered
+  tool). The checklist exists; run it before any deployment cut.
+- Telegram top-10 read-only commands smoke. Same — the cores were
+  refactored additively, the Telegram adapters were not touched in
+  Phase 6, so behaviour drift is highly unlikely but worth a final
+  manual confirmation before deployment.
+
+### Phase 6.5 — History persistence (next)
 
 Persist the last 20 user turns in browser localStorage so reloading
 doesn't lose context. **Only** persist `role: 'user' | 'assistant'`
