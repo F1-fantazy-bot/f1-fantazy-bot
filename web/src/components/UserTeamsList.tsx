@@ -1,4 +1,5 @@
 import { useCopilotAction } from '@copilotkit/react-core';
+import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 
 type UserTeam = {
   teamId: string;
@@ -130,6 +131,9 @@ export function useUserTeamsAction() {
         );
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
+      if (isToolErrorResult(parsed)) {
+        return <ToolErrorFallback result={parsed} />;
+      }
       return <UserTeamsList result={parsed as ListUserTeamsResult | undefined} />;
     },
   });

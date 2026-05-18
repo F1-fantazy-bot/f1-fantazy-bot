@@ -1,0 +1,66 @@
+// Shared fallback component rendered by every tool-render hook when
+// the backend returned `{ status: 'tool_error', ... }` (produced by
+// `wrapToolExecute` in `src/agent/wrapToolExecute.js`).
+//
+// Design rules:
+// - NEVER display the raw technical error in the UI. Azure error
+//   messages routinely leak URLs, container names, request IDs.
+// - Show the friendly `userMessage` prominently.
+// - Show the `errorId` in a collapsed `<details>` block so users can
+//   quote it in a bug report — that's the correlation token to find
+//   the full error in the Telegram error channel.
+
+export type ToolErrorResult = {
+  status: 'tool_error';
+  tool?: string;
+  errorId?: string;
+  userMessage?: string;
+};
+
+export function isToolErrorResult(value: unknown): value is ToolErrorResult {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    (value as { status?: unknown }).status === 'tool_error'
+  );
+}
+
+const DEFAULT_USER_MESSAGE =
+  'Something went wrong while looking that up. Please try again in a moment.';
+
+export function ToolErrorFallback({ result }: { result: ToolErrorResult }) {
+  const message =
+    typeof result.userMessage === 'string' && result.userMessage.length > 0
+      ? result.userMessage
+      : DEFAULT_USER_MESSAGE;
+
+  return (
+    <div
+      role="alert"
+      style={{
+        padding: '12px 14px',
+        background: '#fff1f1',
+        border: '1px solid #f3c2c2',
+        borderRadius: 8,
+        color: '#7a1f1f',
+        margin: '6px 0',
+      }}
+    >
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>
+        ⚠️ Something went wrong
+      </div>
+      <div style={{ fontSize: 13, lineHeight: 1.4 }}>{message}</div>
+      {(result.tool || result.errorId) && (
+        <details style={{ marginTop: 8, fontSize: 11, color: '#a04545' }}>
+          <summary style={{ cursor: 'pointer', userSelect: 'none' }}>
+            Support details
+          </summary>
+          <div style={{ marginTop: 4, fontFamily: 'monospace' }}>
+            {result.tool ? <div>tool: {result.tool}</div> : null}
+            {result.errorId ? <div>errorId: {result.errorId}</div> : null}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}

@@ -1,4 +1,5 @@
 import { useCopilotAction } from '@copilotkit/react-core';
+import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 
 type BestTeamRow = {
   row: number;
@@ -337,6 +338,9 @@ export function useBestTeamsAction() {
         );
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
+      if (isToolErrorResult(parsed)) {
+        return <ToolErrorFallback result={parsed} />;
+      }
       return <BestTeamsTable result={parsed as GetBestTeamsResult | undefined} />;
     },
   });

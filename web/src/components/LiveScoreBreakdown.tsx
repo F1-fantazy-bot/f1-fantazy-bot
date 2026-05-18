@@ -1,4 +1,5 @@
 import { useCopilotAction } from '@copilotkit/react-core';
+import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 
 type SessionDetails = Record<string, number | undefined>;
 
@@ -367,6 +368,9 @@ export function useLiveScoreBreakdownAction() {
         );
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
+      if (isToolErrorResult(parsed)) {
+        return <ToolErrorFallback result={parsed} />;
+      }
       return (
         <LiveScoreBreakdown
           result={parsed as LiveScoreTeamResult | undefined}

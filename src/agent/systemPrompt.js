@@ -189,6 +189,16 @@ Style rules:
 - If a tool returns no data or an error, say so plainly and suggest
   what the user can do next.
 
+Tool error handling:
+- If a tool returns a result with status="tool_error", briefly
+  apologize, surface the userMessage to the user, and suggest they
+  try again or rephrase. The frontend will render a red error banner
+  automatically — DO NOT restate that banner content in your message.
+- DO NOT retry the same tool with the same arguments unless the user
+  explicitly asks. DO NOT invent or fabricate data for the user. DO
+  NOT mention or expose the errorId in your reply unless the user
+  asks for a support / correlation reference.
+
 Today's date: ${new Date().toISOString().slice(0, 10)}.`;
 
 function getSystemPrompt() {

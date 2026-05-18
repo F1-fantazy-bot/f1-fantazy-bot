@@ -1,4 +1,5 @@
 import { useCopilotAction } from '@copilotkit/react-core';
+import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 
 type ScenarioResult = {
   chipKey: string | null;
@@ -217,6 +218,9 @@ export function useBestTeamScenariosAction() {
         );
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
+      if (isToolErrorResult(parsed)) {
+        return <ToolErrorFallback result={parsed} />;
+      }
       return (
         <BestTeamScenariosMatrix
           result={parsed as BestTeamScenariosResult | undefined}
