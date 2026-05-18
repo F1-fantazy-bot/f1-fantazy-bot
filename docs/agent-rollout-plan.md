@@ -18,12 +18,13 @@ current saved roster, per-team live score breakdown, and all-teams
 live leaderboard. **Phase 6 (polish & hardening) is in progress and
 being shipped as small incremental PRs.** **Phase 6.1 — per-step
 token-usage logging via AI SDK middleware
-([#188](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/188)) —
-and Phase 6.2 — friendly tool-error UX with opaque errorId
-([#189](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/189)) —
-are both merged.** Remaining Phase 6 work: docs refresh, regression
-sweep, and optional history persistence. Frontend deployment is
-parked for now.
+([#188](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/188)),
+Phase 6.2 — friendly tool-error UX with opaque errorId
+([#189](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/189)),
+and Phase 6.3 — AGENTS.md refresh capturing the new patterns
+([#190](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/190)) —
+are all merged.** Remaining Phase 6 work: regression sweep and
+optional history persistence. Frontend deployment is parked for now.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -432,16 +433,35 @@ resilience, and `errorId` uniqueness across 50 calls.
 - Collapsed `<details>` block with `tool` + `errorId` for support.
 - Channel log: `Agent tool "<name>" threw [<errorId>]: <err.message>\n<stack>`.
 
-### Phase 6.3 — Docs refresh (next)
+### Phase 6.3 — Docs refresh ✅ MERGED ([#190](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/190))
 
-Refresh `AGENTS.md` "Agent (Web Chat)" section to capture the new
-patterns from Phases 3–6.1 (token-logging middleware, notifier bot,
-error-UX wrapper) and document the optional env vars
-(`TELEGRAM_BOT_TOKEN`, `LOG_CHANNEL_ID`, `ERRORS_CHANNEL_ID`) for the
-agent process. Make sure the new-tool checklist still reflects
-current best practices.
+Doc-only refresh of `AGENTS.md` so future contributors can pick up the
+work without re-deriving the Phase 6 patterns from the merged PRs.
 
-### Phase 6.4 — Regression sweep
+**What landed:**
+
+- New "Token usage logging (Phase 6.1)" and "Tool error handling
+  (Phase 6.2)" sections in `AGENTS.md` with flow diagrams, the V3
+  nested-usage-shape gotcha (`usage.inputTokens.total` /
+  `outputTokens.total`, NOT V2 flat), the per-step granularity caveat,
+  and the secret-redaction policy with explicit _"do not weaken this
+  test"_ wording for the regression guard.
+- New "Environment variables" table documenting required Azure creds
+  + optional `TELEGRAM_BOT_TOKEN` / `LOG_CHANNEL_ID` /
+  `ERRORS_CHANNEL_ID` (gracefully degrade to stdout-only when unset).
+- New pitfall callouts captured from Phase 5: `useLazyToolRenderer`
+  + clarify-and-focus pattern for two-arg lookups, `liveScoreCore`
+  cross-league lesson (don't auto-default to `selectedTeam`),
+  unescaped-backtick gotcha in the system-prompt template literal.
+- Updated "Adding a new tool" checklist: step 3 mandates
+  `wrapToolExecute`, step 5 mandates the `<ToolErrorFallback />`
+  short-circuit — both with exact paste-able snippets.
+- Code-layout tree + Key files table updated for `notifierBot.js`,
+  `tokenUsageMiddleware.js`, `wrapToolExecute.js`,
+  `ToolErrorFallback.tsx`. One stale duplicate "Identity model (v1)"
+  heading removed.
+
+### Phase 6.4 — Regression sweep (next)
 
 Full `npm test` + manual smoke on Telegram for the top-10 commands +
 Playwright smoke on the agent. Summary-only — doesn't block other
