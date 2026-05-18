@@ -36,7 +36,7 @@
       "value": ""
     },
     "testAllowedOrigins": {
-      "value": "*"
+      "value": "https://calm-beach-055be4603.7.azurestaticapps.net"
     },
     "testPreviewOriginPattern": {
       "value": ""
