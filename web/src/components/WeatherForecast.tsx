@@ -1,4 +1,5 @@
 import { useCopilotAction } from '@copilotkit/react-core';
+import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 
 type Forecast = {
   temperature?: number;
@@ -203,6 +204,9 @@ export function useWeatherForecastAction() {
         );
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
+      if (isToolErrorResult(parsed)) {
+        return <ToolErrorFallback result={parsed} />;
+      }
       return <WeatherForecast result={parsed as WeatherResult | undefined} />;
     },
   });

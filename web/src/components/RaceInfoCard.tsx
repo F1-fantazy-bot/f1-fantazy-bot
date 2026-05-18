@@ -1,4 +1,5 @@
 import { useCopilotAction } from '@copilotkit/react-core';
+import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 
 type Sessions = {
   qualifying?: string;
@@ -331,6 +332,9 @@ export function useRaceInfoAction() {
         );
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
+      if (isToolErrorResult(parsed)) {
+        return <ToolErrorFallback result={parsed} />;
+      }
       return <RaceInfoCard result={parsed as RaceInfoResult | undefined} />;
     },
   });

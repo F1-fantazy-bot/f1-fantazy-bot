@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useCopilotAction } from '@copilotkit/react-core';
+import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 
 type DeadlineResult = {
   status?: 'ok' | 'unavailable';
@@ -203,6 +204,9 @@ export function useDeadlineCountdownAction() {
         );
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
+      if (isToolErrorResult(parsed)) {
+        return <ToolErrorFallback result={parsed} />;
+      }
       return (
         <DeadlineCountdown result={parsed as DeadlineResult | undefined} />
       );

@@ -32,6 +32,7 @@ const {
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getAgentChatId } = require('./identity');
 const { ensureCacheReady } = require('./cacheBootstrap');
+const { wrapToolExecute } = require('./wrapToolExecute');
 
 // Trim a best-teams calculator row down to the fields the React component
 // actually renders. Sending the full driver/constructor dictionaries (which
@@ -67,9 +68,9 @@ const tools = [
     description:
       'Get the list of upcoming F1 races for the current season. Returns the season, an array of race objects (each with round, raceName, date/time, Circuit.circuitName, Circuit.Location.locality, Circuit.Location.country, and per-session schedules), and counts {total, sprint}. Use this for any question about upcoming races, race dates, locations, or country filtering — apply filters and sorting yourself on the returned array.',
     parameters: z.object({}),
-    execute: async () => {
+    execute: wrapToolExecute('get_next_races', async () => {
       return getNextRaces();
-    },
+    }),
   }),
 
   defineTool({
@@ -77,12 +78,12 @@ const tools = [
     description:
       'List the F1 Fantasy teams the user is tracking. Returns an array of teams with `teamId` (canonical identifier — pass this to other tools), `teamName` (friendly label like "kilzid3"), `isSelected`, `chip`, current drivers, current constructors, and roster metadata. ALWAYS call this first when the user mentions a team by name so you can resolve the name to a teamId before calling `get_best_teams`.',
     parameters: z.object({}),
-    execute: async () => {
+    execute: wrapToolExecute('list_user_teams', async () => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
       return { teams: listUserTeams({ chatId }) };
-    },
+    }),
   }),
 
   defineTool({
@@ -127,7 +128,7 @@ const tools = [
         .optional()
         .describe('Constructor codes the team MUST NOT contain.'),
     }),
-    execute: async (args) => {
+    execute: wrapToolExecute('get_best_teams', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
       // Web component renders up to 10 teams at a time — anything beyond
@@ -169,7 +170,7 @@ const tools = [
         },
         bestTeams: result.bestTeams.map(summariseBestTeam),
       };
-    },
+    }),
   }),
 
   defineTool({
@@ -190,7 +191,7 @@ const tools = [
           'Exact teamName. Used only when teamId is not provided.',
         ),
     }),
-    execute: async (args) => {
+    execute: wrapToolExecute('get_best_team_scenarios', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
@@ -199,7 +200,7 @@ const tools = [
         teamId: args.teamId,
         teamName: args.teamName,
       });
-    },
+    }),
   }),
 
   defineTool({
@@ -207,12 +208,12 @@ const tools = [
     description:
       'List the F1 Fantasy teams the user is tracking, enriched with the leagues each team appears in plus the team\'s current position in each league. Returns { status, teams: [{ teamId, teamName, leagues: [{ leagueCode, leagueName, position }], isSelected }] }. status="empty" means the user has not followed any league team yet. ALWAYS call this when the user asks "which teams do I track" or asks a multi-team question like "best teams for every team I track" — for the multi-team case, surface the team names back to the user and ask which one to focus on (one team per get_best_teams call).',
     parameters: z.object({}),
-    execute: async () => {
+    execute: wrapToolExecute('list_followed_teams', async () => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
       return await listFollowedTeams({ chatId });
-    },
+    }),
   }),
 
   defineTool({
@@ -220,7 +221,7 @@ const tools = [
     description:
       'List the private F1 Fantasy leagues the user has followed via /follow_league. Returns an array of { leagueCode, leagueName, registeredAt }. Use this when the user asks "which leagues do I follow" or when they name a league but you need to look up its `leagueCode` before calling `get_leaderboard`.',
     parameters: z.object({}),
-    execute: async () => {
+    execute: wrapToolExecute('list_user_leagues', async () => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
       const leagues = await listUserLeagues(chatId);
@@ -232,7 +233,7 @@ const tools = [
           registeredAt: l.registeredAt || null,
         })),
       };
-    },
+    }),
   }),
 
   defineTool({
@@ -246,12 +247,12 @@ const tools = [
           'Canonical league code (e.g. "C7UYMMWIO07"). Look up via list_user_leagues if the user gave a display name.',
         ),
     }),
-    execute: async (args) => {
+    execute: wrapToolExecute('get_leaderboard', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
       return await getLeaderboard({ chatId, leagueCode: args.leagueCode });
-    },
+    }),
   }),
 
   defineTool({
@@ -259,11 +260,11 @@ const tools = [
     description:
       'Get detailed information about the next upcoming F1 race: race name, circuit, location, weekend format (regular or sprint), session timestamps (qualifying / race, plus sprintQualifying / sprint on sprint weekends), historical race stats for that track, multi-language track history, circuit image URL, and an optional pre-fetched weather snapshot. Use for questions like "tell me about the next race", "what circuit is next", "give me race info", "what is the schedule for the next race", "track history", or "historical stats for this race". Returns { status, raceName, circuitName, circuitImageUrl, location, weekendFormat, isSprintWeekend, sessions, historicalRaceStats, trackHistory, weather }. status="unavailable" means the race-info cache has not been populated yet.',
     parameters: z.object({}),
-    execute: async () => {
+    execute: wrapToolExecute('get_next_race_info', async () => {
       await ensureCacheReady();
 
       return await getNextRaceInfo();
-    },
+    }),
   }),
 
   defineTool({
@@ -271,11 +272,11 @@ const tools = [
     description:
       'Get the per-session hourly weather forecast (up to 3 hours per session, starting from each session start time, filtered to drop hours already in the past) for the next F1 race. Use for questions about weather, rain, temperature, wind, humidity, or cloud cover for the upcoming race weekend. Returns { status, raceName, circuitName, location, isSprintWeekend, sessions: [{ key, label, startsAt, hours: [iso], forecasts: [{ temperature, humidity, cloudCover, precipitation, precipitation_mm, wind }] }] }. status="unavailable" means either the race-info cache is empty or the weather API call failed.',
     parameters: z.object({}),
-    execute: async () => {
+    execute: wrapToolExecute('get_race_weather', async () => {
       await ensureCacheReady();
 
       return await getRaceWeather();
-    },
+    }),
   }),
 
   defineTool({
@@ -283,10 +284,10 @@ const tools = [
     description:
       'Get the next F1 Fantasy team-lock deadline. The deadline is the start time of the first locking session of the weekend: sprint (on sprint weekends) or qualifying (on regular weekends). Use for questions like "when does the team lock", "how long until the deadline", "next deadline", or "countdown to lock". Returns { status, raceName, sessionType, sessionLabel, sessionStartsAt: ISO, nowIso: ISO, alreadyStarted }. The web UI uses `sessionStartsAt` to render a live ticking countdown — return the result as-is and let the rich component handle the display.',
     parameters: z.object({}),
-    execute: async () => {
+    execute: wrapToolExecute('get_deadline', async () => {
       // No cache needed — fetchNextRace pulls fresh from the schedule service.
       return await getDeadlineSnapshot();
-    },
+    }),
   }),
 
   defineTool({
@@ -307,7 +308,7 @@ const tools = [
           'Exact teamName. Used only when teamId is not provided.',
         ),
     }),
-    execute: async (args) => {
+    execute: wrapToolExecute('get_current_team', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
@@ -316,7 +317,7 @@ const tools = [
         teamId: args.teamId,
         teamName: args.teamName,
       });
-    },
+    }),
   }),
 
   defineTool({
@@ -327,7 +328,7 @@ const tools = [
       leagueCode: z.string().optional(),
       leagueName: z.string().optional(),
     }),
-    execute: async (args) => {
+    execute: wrapToolExecute('list_league_teams', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
@@ -336,7 +337,7 @@ const tools = [
         leagueCode: args.leagueCode,
         leagueName: args.leagueName,
       });
-    },
+    }),
   }),
 
   defineTool({
@@ -369,7 +370,7 @@ const tools = [
           'Team name as shown in the league\'s roster. Used only when teamId is not provided.',
         ),
     }),
-    execute: async (args) => {
+    execute: wrapToolExecute('get_live_score_for_team', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
@@ -380,7 +381,7 @@ const tools = [
         teamId: args.teamId,
         teamName: args.teamName,
       });
-    },
+    }),
   }),
 
   defineTool({
@@ -401,7 +402,7 @@ const tools = [
           'League display name as the user typed it. The tool resolves this against the user\'s followed leagues (case-insensitive substring match). Provide this when the user named a league by display name — DO NOT call list_user_leagues first.',
         ),
     }),
-    execute: async (args) => {
+    execute: wrapToolExecute('get_live_score_leaderboard', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
@@ -410,7 +411,7 @@ const tools = [
         leagueCode: args.leagueCode,
         leagueName: args.leagueName,
       });
-    },
+    }),
   }),
 ];
 

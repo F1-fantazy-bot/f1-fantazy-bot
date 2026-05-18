@@ -1,4 +1,5 @@
 import { useCopilotAction } from '@copilotkit/react-core';
+import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 
 type StandingsRow = {
   position: number | null;
@@ -187,6 +188,9 @@ export function useLeaderboardAction() {
         );
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
+      if (isToolErrorResult(parsed)) {
+        return <ToolErrorFallback result={parsed} />;
+      }
       return (
         <LeaderboardTable result={parsed as LeaderboardResult | undefined} />
       );

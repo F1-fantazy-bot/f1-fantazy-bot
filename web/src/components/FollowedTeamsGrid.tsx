@@ -1,4 +1,5 @@
 import { useCopilotAction } from '@copilotkit/react-core';
+import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 
 type LeagueRow = {
   leagueCode: string;
@@ -150,6 +151,9 @@ export function useFollowedTeamsAction() {
         );
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
+      if (isToolErrorResult(parsed)) {
+        return <ToolErrorFallback result={parsed} />;
+      }
       return (
         <FollowedTeamsGrid
           result={parsed as ListFollowedTeamsResult | undefined}

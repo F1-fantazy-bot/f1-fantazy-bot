@@ -1,4 +1,5 @@
 import { useCopilotAction } from '@copilotkit/react-core';
+import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 
 type LeaderboardRow = {
   teamId?: string;
@@ -213,6 +214,9 @@ export function useLiveScoreLeaderboardAction() {
         );
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
+      if (isToolErrorResult(parsed)) {
+        return <ToolErrorFallback result={parsed} />;
+      }
       return (
         <LiveScoreLeaderboard
           result={parsed as LiveScoreLeaderboardResult | undefined}

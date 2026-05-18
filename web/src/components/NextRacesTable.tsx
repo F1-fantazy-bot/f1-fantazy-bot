@@ -1,4 +1,5 @@
 import { useCopilotAction } from '@copilotkit/react-core';
+import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 
 type Session = { date?: string; time?: string };
 
@@ -158,6 +159,9 @@ export function useNextRacesAction() {
         );
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
+      if (isToolErrorResult(parsed)) {
+        return <ToolErrorFallback result={parsed} />;
+      }
       return <NextRacesTable result={parsed as NextRacesResult | undefined} />;
     },
   });

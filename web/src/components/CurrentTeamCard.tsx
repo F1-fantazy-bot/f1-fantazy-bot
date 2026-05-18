@@ -1,4 +1,5 @@
 import { useCopilotAction } from '@copilotkit/react-core';
+import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 
 type TeamInfo = {
   totalPrice?: number;
@@ -269,6 +270,9 @@ export function useCurrentTeamAction() {
         );
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
+      if (isToolErrorResult(parsed)) {
+        return <ToolErrorFallback result={parsed} />;
+      }
       return (
         <CurrentTeamCard result={parsed as CurrentTeamResult | undefined} />
       );
