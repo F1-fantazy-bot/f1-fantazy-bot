@@ -97,9 +97,26 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_8FDB1A8936224E90A898EAC192094784 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_00873174CBBD48D3871911006820901C }}
 
+      - name: Check function app state (test slot)
+        id: state_check
+        # When the slot is Stopped, the Sync Trigger step inside Azure/functions-action
+        # below fails (the runtime isn't listening). The upload + WEBSITE_RUN_FROM_PACKAGE
+        # update still succeed BEFORE that failure, so the latest code is queued for the
+        # next `az functionapp start --slot test`. We tolerate the sync-trigger failure
+        # ONLY when the slot is Stopped — see continue-on-error on the action.
+        run: |
+          STATE=$(az functionapp show --name f1-fantazy-agent-func --slot test --resource-group f1-fantazy-bot --query state -o tsv)
+          echo "Test slot state: $STATE"
+          echo "state=$STATE" >> "$GITHUB_OUTPUT"
+          if [ "$STATE" = "Stopped" ]; then
+            echo "::warning::Test slot is Stopped. Code will upload + WEBSITE_RUN_FROM_PACKAGE will update, but Sync Trigger will fail (cosmetic). The latest code will load automatically on the next \`az functionapp start --slot test\`."
+          fi
+
       - name: 'Run Azure Functions Action'
         uses: Azure/functions-action@v1
         id: fa
+        # See state_check note for why this tolerates failure when the slot is Stopped.
+        continue-on-error: ${{ steps.state_check.outputs.state == 'Stopped' }}
         with:
           app-name: 'f1-fantazy-agent-func'
           slot-name: 'test'
