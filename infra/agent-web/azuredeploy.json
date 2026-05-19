@@ -38,6 +38,13 @@
       "metadata": {
         "description": "Whether per-PR preview environments are enabled. We rely on this for PR test deploys, so it must stay Enabled."
       }
+    },
+    "customDomains": {
+      "type": "array",
+      "defaultValue": [],
+      "metadata": {
+        "description": "List of custom domains (e.g. ['f1.kilzid.com']) to attach to the SWA. Each one is provisioned as a `Microsoft.Web/staticSites/customDomains` child resource. DNS validation prerequisite: each domain MUST already have a CNAME record pointing at the SWA's defaultHostname (e.g. f1.kilzid.com CNAME calm-beach-055be4603.7.azurestaticapps.net) BEFORE this template is applied for the first time, otherwise the deployment fails with validation timeout (~10 min). After validation succeeds Azure auto-issues a managed TLS cert (~5-15 min). Reapplying when a domain already exists is a no-op."
+      }
     }
   },
   "resources": [
@@ -56,6 +63,21 @@
         "allowConfigFileUpdates": true,
         "provider": "Custom",
         "enterpriseGradeCdnStatus": "Disabled"
+      }
+    },
+    {
+      "comments": "Custom-domain child resources. One per entry in the `customDomains` parameter. Each requires a pre-existing CNAME (or A/ALIAS) record at the user's DNS provider pointing at the SWA's defaultHostname. Provisioning blocks until DNS validation succeeds — if DNS isn't ready, the whole template deployment will eventually fail (~10 min timeout) and you'll need to retry after fixing DNS. The validationMethod defaults to `cname-delegation` which is correct for Free SKU.",
+      "condition": "[greater(length(parameters('customDomains')), 0)]",
+      "type": "Microsoft.Web/staticSites/customDomains",
+      "apiVersion": "2023-12-01",
+      "name": "[concat(parameters('staticWebAppName'), '/', parameters('customDomains')[copyIndex()])]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/staticSites', parameters('staticWebAppName'))]"
+      ],
+      "properties": {},
+      "copy": {
+        "name": "customDomainsLoop",
+        "count": "[length(parameters('customDomains'))]"
       }
     }
   ],

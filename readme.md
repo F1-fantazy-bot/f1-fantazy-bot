@@ -397,13 +397,33 @@ The agent is a SEPARATE Function App (`f1-fantazy-agent-func`) and a Static Web 
      -o tsv
    ```
 
-   If it differs from the value already in `infra/agent-func/azuredeploy.parameters.json` (current: `https://calm-beach-055be4603.7.azurestaticapps.net`), update the three CORS fields (`prodAllowedOrigins`, `testAllowedOrigins`, and the `<hostname-prefix>` segment inside `testPreviewOriginPattern`) and re-run:
+   If it differs from the value already in `infra/agent-func/azuredeploy.parameters.json` (current: `https://f1.kilzid.com,https://calm-beach-055be4603.7.azurestaticapps.net`), update the `prodAllowedOrigins` / `testAllowedOrigins` values + the `<hostname-prefix>` segment inside `pr_test_f1-fantazy-agent-web.yml`'s `SWA_HOSTNAME_PREFIX` env var, then re-run:
 
    ```bash
    npm run deploy:agent-func
    ```
 
    The function app will pick up the new `AGENT_CORS_*` env vars within seconds — no restart required.
+
+6. **(Optional) Bind a custom domain to the SWA**. The default `*.azurestaticapps.net` hostname always works, but you'll usually want a friendlier prod URL (e.g. `https://f1.kilzid.com` for this repo). Two steps:
+
+   a. **Add a DNS CNAME** at your registrar (Namecheap, Cloudflare, etc.):
+
+      ```
+      f1   CNAME   calm-beach-055be4603.7.azurestaticapps.net
+      ```
+
+      (Replace `f1` with your subdomain and the right-hand side with your SWA's `defaultHostname` from step 5.) **Cloudflare-specific**: must be DNS-only (grey cloud), NOT proxied — SWA Free SKU doesn't support proxying.
+
+   b. **Add the domain to the SWA's `customDomains` parameter** in `infra/agent-web/azuredeploy.parameters.json` (an array of strings) and apply:
+
+      ```bash
+      npm run deploy:agent-web
+      ```
+
+      ARM blocks until Azure validates the CNAME (~30s once DNS is correct, ~10 min timeout otherwise). Azure then auto-issues a managed TLS cert (~5–15 min). Each entry in `customDomains` is a `Microsoft.Web/staticSites/customDomains` child resource.
+
+   c. **Add the new origin to the agent's CORS allowlist**. Update `prodAllowedOrigins` / `testAllowedOrigins` in `infra/agent-func/azuredeploy.parameters.json` (comma-separated) and re-run `npm run deploy:agent-func`.
 
 ### Trigger map
 

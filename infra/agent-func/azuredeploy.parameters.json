@@ -30,13 +30,13 @@
       "value": "production"
     },
     "prodAllowedOrigins": {
-      "value": "https://calm-beach-055be4603.7.azurestaticapps.net"
+      "value": "https://f1.kilzid.com,https://calm-beach-055be4603.7.azurestaticapps.net"
     },
     "prodPreviewOriginPattern": {
       "value": ""
     },
     "testAllowedOrigins": {
-      "value": "https://calm-beach-055be4603.7.azurestaticapps.net"
+      "value": "https://f1.kilzid.com,https://calm-beach-055be4603.7.azurestaticapps.net"
     },
     "testPreviewOriginPattern": {
       "value": ""
