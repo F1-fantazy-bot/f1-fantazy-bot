@@ -24,9 +24,15 @@ Phase 6.3 — AGENTS.md refresh
 ([#190](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/190)),
 Phase 6.4 — final regression sweep
 ([#192](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/192)),
-and Phase 6.5 — chat history persistence (this PR). The **only**
-remaining piece of work is frontend deployment + CORS hardening,
-both currently parked.
+and Phase 6.5 — chat history persistence
+([#193](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/193)).
+**Frontend deployment + CORS hardening (this PR)** wires up the
+Azure resources (ARM templates under `infra/agent-{func,web}/`),
+the npm `deploy:agent-*` commands, the six GitHub workflows, and the
+env-var-driven CORS allowlist in `agentWebhook/index.js`. Once the
+one-time bootstrap in `readme.md` → "Deploying the agent" is run,
+push-to-main deploys to production and PRs deploy to the test slot
++ SWA preview environments automatically.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -95,10 +101,14 @@ possible capability — "what are the next races?" → rich `<NextRacesTable />`
 - `scripts/dev-agent-server.js` — local Node HTTP wrapper around the same handler the function uses; no `func` CLI required.
 - `npm run dev` / `dev:agent` / `dev:web` via `concurrently`.
 
-**Remaining Phase-1 todo:** `p1-frontend-deploy` — provision Azure
-Static Web App for `web/` and Azure Function App for `agentWebhook/`.
-This is **operator-side** (needs cloud credentials) and is deferred
-until ready. The agent is fully functional locally via `npm run dev`.
+**Remaining Phase-1 todo:** `p1-frontend-deploy` — ✅ **DONE** (this
+PR). Provisioned via `infra/agent-func/azuredeploy.json` (Function App
++ `test` slot + KV role assignments) and
+`infra/agent-web/azuredeploy.json` (Static Web App). Six GitHub
+workflows wire up infra deploys (push-to-main on `infra/agent-*/**`
+changes) and code deploys (push-to-main → prod, PR → test slot / SWA
+preview). See `readme.md` → "Deploying the agent" for the one-time
+bootstrap (KV secret + first-pass ARM deploy + SWA token paste).
 
 ---
 
@@ -571,12 +581,21 @@ shipped code; design rationale captured inline in
   mitigations cover the code paths; this smoke confirms the
   UX end-to-end on real Azure traffic.
 
+### Resolved (frontend deployment PR)
+
+- **CORS hardening**: ✅ resolved by `src/agent/corsAllowList.js` +
+  env-var-driven matcher in `agentWebhook/index.js`. Prod slot
+  whitelists only the SWA prod origin; test slot also accepts the
+  SWA preview hostname pattern. Local-dev fallback (empty env vars)
+  preserves the old permissive `*`.
+- **Application Insights for the agent Function App**: deferred —
+  the agent reuses the Telegram bot's App Insights instance to
+  minimise infra surface. Split into a dedicated instance later if
+  signal noise becomes a problem.
+
 ### Parked
 
-- **CORS hardening**: deferred along with the rest of frontend
-  deployment.
-- **Application Insights for the agent Function App**: deferred along
-  with deployment.
+- _(none — v1 deployment scope is complete)_
 
 **Acceptance test:**
 
@@ -613,14 +632,16 @@ The full per-tool checklist (including the **cache bootstrap** and
 - **Hebrew localisation**: out of v1 scope. The Telegram bot stays bilingual.
 - **Token cost**: function-calling is more expensive than the current ASK pattern. Phase 6 adds monitoring; first cost reading is after Phase 1 deploys.
 - **Cold-start cache init**: agent re-initialises caches from Azure Storage on first request. Reuses `cacheReady` promise pattern. Should be ≤5s — acceptable.
+- **Open agent endpoint (no real auth, CORS-only protection)** ([PR #194](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/194)): the agent function is `authLevel: anonymous` because browsers cannot supply a function key, and `siteConfig.cors.allowedOrigins` is the only gate. Browser-based callers are restricted to the SWA prod origin (prod slot) and SWA prod + per-PR preview origin (test slot, managed by the SWA PR workflow). **Non-browser callers (curl, scripts) face no protection** — anyone who guesses `https://f1-fantazy-agent-func.azurewebsites.net/api/agent/copilotkit` can POST and burn LLM tokens. The agent's identity model is server-side (`AGENT_HARDCODED_CHAT_ID`) so abuse can't impersonate other users, but token-cost abuse is real. Monitor App Insights for unexpected traffic; harden when adopting per-user auth (see Future work).
 
 ## Future work (beyond v1)
 
-- Proper auth (drop `AGENT_HARDCODED_CHAT_ID`).
+- **Proper auth + harden the open agent endpoint** (drop `AGENT_HARDCODED_CHAT_ID` AND close the anonymous-POST hole — currently CORS is the only protection; see Risks above). Options that pair well: Azure Functions Easy Auth (Azure AD / GitHub OAuth) so each request carries a real identity token + the function reads chatId from claims instead of an env var. Same swap-out removes both the single-user constraint AND the open-endpoint risk in one step.
 - Hebrew localisation of agent outputs.
 - Voice input/output.
 - MCP server façade so Copilot/Claude/Cursor can call the same tools.
 - Write capabilities (e.g. set chip, switch team) — currently read-only.
+- **Rate-limiting on the agent endpoint** (Azure API Management or a CDN-layer policy) — defense in depth even after proper auth lands; relevant if abuse appears in App Insights before proper auth ships.
 
 ---
 

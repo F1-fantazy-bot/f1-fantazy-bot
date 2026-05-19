@@ -1,0 +1,54 @@
+# .funcignore variant used by the AGENT Function App deploy workflow.
+#
+# The agent Function App is deployed as `f1-fantazy-agent-func` and must
+# host ONLY the `agentWebhook/` function — per the AGENTS.md isolation
+# goal that "an agent rollout cannot break the Telegram bot". This file
+# documents what the deploy workflow excludes from the package.
+#
+# How it's used: the workflow renames this file to `.funcignore` before
+# zipping (in case Azure's deploy action consults it) AND explicitly
+# removes the same set of paths from the working tree before handing
+# the directory to `Azure/functions-action@v1` (belt-and-braces — the
+# action zips the directory itself and the explicit `rm -rf` is the
+# authoritative exclusion mechanism).
+#
+# IMPORTANT: keep this file in sync with the workflow's `rm -rf` step.
+
+# The OTHER function — must NOT ship with the agent app.
+telegramWebhook/
+
+# Web frontend — deployed separately to Azure Static Web Apps.
+web/
+
+# Infra-as-code — not runtime artifacts.
+infra/
+
+# Dev scripts and docs — never runtime artifacts.
+scripts/
+docs/
+.github/
+.husky/
+.vscode/
+AGENTS.md
+readme.md
+
+# Test + tooling files.
+coverage/
+**/*.test.js
+**/*.test.ts
+jest.config.js
+eslint.config.mjs
+.eslintignore
+.prettierrc
+.gitignore
+.funcignore.agent
+
+# Secrets and local-only config.
+local.settings.json
+.env
+.env.*
+
+# Source-map / TS leftovers (mirrors the default .funcignore).
+*.js.map
+*.ts
+.git*

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "functionAppName": {
+      "value": "f1-fantazy-agent-func"
+    },
+    "location": {
+      "value": "westeurope"
+    },
+    "appServicePlanName": {
+      "value": "ASP-f1fantazybot-b551"
+    },
+    "storageAccountName": {
+      "value": "f1fantazybot9eca"
+    },
+    "keyVaultName": {
+      "value": "f1-fantasy-kv"
+    },
+    "appInsightsName": {
+      "value": "f1-fantazy-bot-func"
+    },
+    "azureStorageContainerName": {
+      "value": "f1-fantasy-scraper-json"
+    },
+    "azureOpenAiModel": {
+      "value": "gpt-5.4"
+    },
+    "nodeEnv": {
+      "value": "production"
+    },
+    "prodAllowedOrigins": {
+      "value": "https://calm-beach-055be4603.7.azurestaticapps.net"
+    },
+    "prodPreviewOriginPattern": {
+      "value": ""
+    },
+    "testAllowedOrigins": {
+      "value": "https://calm-beach-055be4603.7.azurestaticapps.net"
+    },
+    "testPreviewOriginPattern": {
+      "value": ""
+    }
+  }
+}

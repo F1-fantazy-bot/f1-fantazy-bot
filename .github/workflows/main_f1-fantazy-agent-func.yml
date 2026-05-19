@@ -1,0 +1,150 @@
+# Code deploy for the f1-fantazy-agent-func Function App (production slot).
+# Merges to main land here. The agent package EXCLUDES `telegramWebhook/`
+# and other non-agent paths so an agent rollout cannot break the Telegram
+# bot (which has its own deployment at main_f1-fantazy-bot-func.yml).
+
+name: Build and deploy Node.js project to Azure Function App - f1-fantazy-agent-func
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'agentWebhook/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'host.json'
+      - '.funcignore.agent'
+      - '.github/workflows/main_f1-fantazy-agent-func.yml'
+  workflow_dispatch:
+
+env:
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.'
+  NODE_VERSION: '22.x'
+  COMMIT_ID: ${{ github.sha }}
+  COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+  COMMIT_LINK: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: 'Checkout GitHub Action'
+        uses: actions/checkout@v4
+
+      - name: Extract commit title
+        id: extract_commit_title
+        run: |
+          title=$(printf '%s\n' "${{ env.COMMIT_MESSAGE }}" | head -n 1)
+          echo "COMMIT_MESSAGE=$title" >> "$GITHUB_ENV"
+          printf 'commit_message=%s\n' "$title" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node ${{ env.NODE_VERSION }} Environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 'npm i + npm run lint + npm run test:coverage'
+        shell: bash
+        run: |
+          pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
+          npm install
+          npm run lint
+          npm run test:coverage
+          popd
+
+      - name: Write version information
+        env:
+          COMMIT_TITLE: ${{ steps.extract_commit_title.outputs.commit_message }}
+        run: |
+          echo "COMMIT_ID=${{ env.COMMIT_ID }}" >> .env
+          echo "COMMIT_MESSAGE=$COMMIT_TITLE" >> .env
+          echo "COMMIT_LINK=${{ env.COMMIT_LINK }}" >> .env
+
+      - name: Strip non-agent paths from the package
+        shell: bash
+        run: |
+          # Keep .funcignore.agent in lockstep with this list — it documents
+          # the same exclusions for human readers. The authoritative removal
+          # is the rm -rf below.
+          rm -rf telegramWebhook/ web/ infra/ scripts/ docs/ .github/ coverage/ .husky/ .vscode/
+          rm -f AGENTS.md readme.md jest.config.js eslint.config.mjs .eslintignore .prettierrc local.settings.json
+          # Replace the default .funcignore (which still references the old layout) with the agent variant.
+          cp .funcignore.agent .funcignore
+          # Sanity-check: the agent function entry MUST still be here.
+          test -f agentWebhook/function.json
+          test -f agentWebhook/index.js
+          test -f src/agent/runtime.js
+          # And telegramWebhook MUST be gone.
+          test ! -d telegramWebhook
+
+      - name: Zip artifact for deployment
+        run: zip release.zip ./* .funcignore -r
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-node-app
+          path: release.zip
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: agent-node-app
+
+      - name: Unzip artifact for deployment
+        run: unzip release.zip
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_A26EA2FA0FAC46F99530B8845D983E85 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_8FDB1A8936224E90A898EAC192094784 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_00873174CBBD48D3871911006820901C }}
+
+      - name: Extract commit title
+        id: extract_commit_title
+        run: |
+          title=$(printf '%s\n' "${{ env.COMMIT_MESSAGE }}" | head -n 1)
+          printf 'commit_message=%s\n' "$title" >> "$GITHUB_OUTPUT"
+
+      - name: 'Run Azure Functions Action'
+        uses: Azure/functions-action@v1
+        id: fa
+        with:
+          app-name: 'f1-fantazy-agent-func'
+          slot-name: 'Production'
+          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+
+      - name: 'Set Function App Environment Variables'
+        uses: azure/appservice-settings@v1
+        with:
+          app-name: 'f1-fantazy-agent-func'
+          slot-name: 'Production'
+          mask-inputs: false
+          app-settings-json: |
+            [
+              { "name": "COMMIT_ID",
+                "value": ${{ toJSON(env.COMMIT_ID) }},
+                "slotSetting": false },
+
+              { "name": "COMMIT_MESSAGE",
+                "value": ${{ toJSON(steps.extract_commit_title.outputs.commit_message) }},
+                "slotSetting": false },
+
+              { "name": "COMMIT_LINK",
+                "value": ${{ toJSON(env.COMMIT_LINK) }},
+                "slotSetting": false }
+            ]

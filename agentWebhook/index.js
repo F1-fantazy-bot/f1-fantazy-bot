@@ -6,23 +6,23 @@
 // in modern Node (>= 18) — Azure Functions Node 20 runtime supports
 // them natively.
 //
-// Phase 1 simplifications:
-//   - No `await bot.cacheReady` here. The only tool wired in Phase 1
-//     is `get_next_races`, which fetches the Ergast/Jolpica API
-//     directly and needs no in-memory caches. Phase 2 introduces
-//     cache-dependent tools (best teams) and will add the cache
-//     bootstrap at that point.
-//   - Permissive CORS for development. Phase 6 locks this down to
-//     the production Static Web App origin only.
+// CORS is handled here (not by Azure's siteConfig.cors layer) because
+// SWA preview environments need regex-based origin matching, which
+// siteConfig.cors.allowedOrigins doesn't support. See src/agent/corsAllowList.js
+// and the AGENT_CORS_* env vars wired up in infra/agent-func/azuredeploy.json.
 
 const { getCopilotRuntimeHandler } = require('../src/agent/runtime');
+const { buildCorsHeadersFromEnv } = require('../src/agent/corsAllowList');
 
-const DEFAULT_CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-copilotcloud-public-api-key',
-  'Access-Control-Max-Age': '86400',
-};
+function getOriginHeader(req) {
+  const headers = req.headers || {};
+
+  return headers.origin || headers.Origin || undefined;
+}
+
+function buildResponseCorsHeaders(req) {
+  return buildCorsHeadersFromEnv(getOriginHeader(req));
+}
 
 function buildRequestUrl(req) {
   const protocol = req.headers?.['x-forwarded-proto'] || 'https';
@@ -86,9 +86,9 @@ async function readResponseBody(webResponse) {
   return result;
 }
 
-async function toAzureResponse(webResponse) {
+async function toAzureResponse(webResponse, req) {
   const body = await readResponseBody(webResponse);
-  const headers = { ...DEFAULT_CORS_HEADERS };
+  const headers = buildResponseCorsHeaders(req);
   webResponse.headers.forEach((value, key) => {
     headers[key] = value;
   });
@@ -104,7 +104,7 @@ module.exports = async function (context, req) {
   if ((req.method || '').toUpperCase() === 'OPTIONS') {
     context.res = {
       status: 204,
-      headers: DEFAULT_CORS_HEADERS,
+      headers: buildResponseCorsHeaders(req),
     };
 
     return;
@@ -118,19 +118,19 @@ module.exports = async function (context, req) {
     if (!webResponse) {
       context.res = {
         status: 500,
-        headers: DEFAULT_CORS_HEADERS,
+        headers: buildResponseCorsHeaders(req),
         body: 'Agent handler returned no response',
       };
 
       return;
     }
 
-    context.res = await toAzureResponse(webResponse);
+    context.res = await toAzureResponse(webResponse, req);
   } catch (err) {
     context.log('Agent webhook error:', err && err.stack ? err.stack : err);
     context.res = {
       status: 500,
-      headers: DEFAULT_CORS_HEADERS,
+      headers: buildResponseCorsHeaders(req),
       body: 'Internal Server Error',
     };
   }
