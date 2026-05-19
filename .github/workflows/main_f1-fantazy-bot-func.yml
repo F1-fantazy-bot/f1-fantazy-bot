@@ -28,8 +28,13 @@ jobs:
 
       - name: Extract commit title
         id: extract_commit_title
+        # `$COMMIT_MESSAGE` (shell env var, populated from the workflow-level `env:` block)
+        # is used instead of `${{ env.COMMIT_MESSAGE }}` (Actions string-interpolation into
+        # the script). The latter substitutes the raw multi-line commit body BEFORE bash
+        # parses the script — special chars like `)` or backticks in commit bodies break
+        # the parser. Shell-var form keeps the body in a real variable.
         run: |
-          title=$(printf '%s\n' "${{ env.COMMIT_MESSAGE }}" | head -n 1)
+          title=$(printf '%s\n' "$COMMIT_MESSAGE" | head -n 1)
           echo "COMMIT_MESSAGE=$title" >> "$GITHUB_ENV"
           printf 'commit_message=%s\n' "$title" >> "$GITHUB_OUTPUT"
 
@@ -89,8 +94,10 @@ jobs:
 
       - name: Extract commit title
         id: extract_commit_title
+        # See note on the matching step in the `build` job for why `$COMMIT_MESSAGE`
+        # is used instead of `${{ env.COMMIT_MESSAGE }}`.
         run: |
-          title=$(printf '%s\n' "${{ env.COMMIT_MESSAGE }}" | head -n 1)
+          title=$(printf '%s\n' "$COMMIT_MESSAGE" | head -n 1)
           printf 'commit_message=%s\n' "$title" >> "$GITHUB_OUTPUT"
 
       - name: 'Run Azure Functions Action'
