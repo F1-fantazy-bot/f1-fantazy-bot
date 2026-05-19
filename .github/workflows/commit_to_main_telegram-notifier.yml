@@ -8,6 +8,17 @@ jobs:
   notifyTelegram:
     runs-on: ubuntu-latest
     steps:
+      - name: Extract commit title (avoid Telegram's 4096-char limit)
+        id: title
+        env:
+          FULL_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          # Only the first line of the commit message — the subject — so the
+          # full multi-line body (which can blow past Telegram's 4096-char cap)
+          # never gets passed to the action.
+          TITLE=$(printf '%s\n' "$FULL_COMMIT_MESSAGE" | head -n 1)
+          echo "title=$TITLE" >> "$GITHUB_OUTPUT"
+
       - name: send custom message
         uses: appleboy/telegram-action@master
         with:
@@ -16,5 +27,5 @@ jobs:
           message: |
             A push was made to the main branch in ${{ github.repository }}
             By: ${{ github.actor }}
-            Commit message: ${{ github.event.head_commit.message }}
+            Commit: ${{ steps.title.outputs.title }}
             Commit link: [GitHub Commit](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
