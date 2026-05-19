@@ -120,7 +120,6 @@ jobs:
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_00873174CBBD48D3871911006820901C }}
 
       - name: Extract commit title
-      - name: Extract commit title
         id: extract_commit_title
         # See note on the matching step in the `build` job for why `$COMMIT_MESSAGE`
         # is used instead of `${{ env.COMMIT_MESSAGE }}`.
