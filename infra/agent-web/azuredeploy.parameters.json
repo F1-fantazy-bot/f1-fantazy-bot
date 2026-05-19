@@ -13,6 +13,9 @@
     },
     "stagingEnvironmentPolicy": {
       "value": "Enabled"
+    },
+    "customDomains": {
+      "value": ["f1.kilzid.com"]
     }
   }
 }
