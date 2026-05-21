@@ -127,6 +127,9 @@ exports.COMMAND_TEAMS_TRACKER = '/teams_tracker';
 exports.COMMAND_LEAGUE_GRAPHS = '/league_graphs';
 exports.COMMAND_LEAGUE_CHANGES = '/league_changes';
 exports.COMMAND_WHATS_NEW = '/whats_new';
+exports.COMMAND_ALLOW_WEB_USER = '/allow_web_user';
+exports.COMMAND_REVOKE_WEB_USER = '/revoke_web_user';
+exports.COMMAND_LIST_WEB_USERS = '/list_web_users';
 
 // Menu configuration for interactive menu command
 exports.MENU_CATEGORIES = {
@@ -321,6 +324,22 @@ exports.MENU_CATEGORIES = {
         constant: exports.COMMAND_UPLOAD_CONSTRUCTORS_PHOTO,
         title: '📤 Upload Constructors Photo',
         description: 'Upload a constructors screenshot for cache extraction',
+      },
+      {
+        constant: exports.COMMAND_ALLOW_WEB_USER,
+        title: '🔐 Allow Web User',
+        description:
+          'Allow a Google email to sign in to the web agent (maps email → chat ID)',
+      },
+      {
+        constant: exports.COMMAND_REVOKE_WEB_USER,
+        title: '🚫 Revoke Web User',
+        description: 'Revoke a Google email from the web agent allowlist',
+      },
+      {
+        constant: exports.COMMAND_LIST_WEB_USERS,
+        title: '📜 List Web Users',
+        description: 'List Google emails currently allowed on the web agent',
       },
     ],
   },

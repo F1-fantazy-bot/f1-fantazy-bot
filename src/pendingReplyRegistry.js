@@ -13,9 +13,23 @@ const {
   getChatName,
   getDisplayName,
   sendMessageToAdmins,
+  sendLogMessage,
 } = require('./utils/utils');
 const { getUserById, listAllUsers, updateUserAttributes } = require('./userRegistryService');
+const {
+  getAllowedUserByEmail,
+  addAllowedUser,
+  removeAllowedUser,
+} = require('./webUserAllowlistService');
 const { userCache } = require('./cache');
+
+// Basic RFC 5322 "looks-like-an-email" gate. Deliberately loose — Google's
+// identity provider is the real validator. We only want to catch obvious
+// typos before persisting to Azure Table Storage.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function looksLikeEmail(text) {
+  return typeof text === 'string' && EMAIL_REGEX.test(text.trim());
+}
 
 /**
  * Each entry provides builder functions that reconstruct the handler, validator,
@@ -599,6 +613,209 @@ const PENDING_REPLY_REGISTRY = {
         'We support only text. Please enter the league code:',
         chatId,
       ),
+  },
+  allow_web_user: {
+    buildHandler: (chatId, data) => {
+      const { registerPendingReply } = require('./pendingReplyManager');
+
+      return async (replyBot, replyMsg) => {
+        if (!data || data.step === 'collect_email') {
+          const email = replyMsg.text.trim().toLowerCase();
+
+          await registerPendingReply(chatId, 'allow_web_user', {
+            step: 'collect_chat_id',
+            email,
+          });
+
+          const prompt = `${t(
+            'Got it: {EMAIL}. Now please enter the chat ID to map this email to:',
+            chatId,
+            { EMAIL: email },
+          )}\n\n${t('💡 Send /cancel at any time to abort.', chatId)}`;
+
+          await replyBot
+            .sendMessage(chatId, prompt, {
+              reply_markup: { force_reply: true },
+            })
+            .catch((err) =>
+              console.error('Error sending allow_web_user step-2 prompt:', err),
+            );
+
+          return;
+        }
+
+        if (data.step === 'collect_chat_id') {
+          const targetChatId = replyMsg.text.trim();
+
+          let user;
+          try {
+            user = await getUserById(targetChatId);
+          } catch (err) {
+            console.error('Error fetching user in allow_web_user handler:', err);
+            await replyBot
+              .sendMessage(
+                chatId,
+                t('❌ Error fetching user: {ERROR}', chatId, {
+                  ERROR: err.message,
+                }),
+              )
+              .catch((sendErr) =>
+                console.error('Error sending allow_web_user error:', sendErr),
+              );
+
+            return;
+          }
+
+          try {
+            await addAllowedUser(data.email, targetChatId, chatId);
+          } catch (err) {
+            console.error('Error writing web allowlist:', err);
+            await replyBot
+              .sendMessage(
+                chatId,
+                t('❌ Error allowlisting user: {ERROR}', chatId, {
+                  ERROR: err.message,
+                }),
+              )
+              .catch((sendErr) =>
+                console.error(
+                  'Error sending allow_web_user write-error message:',
+                  sendErr,
+                ),
+              );
+
+            return;
+          }
+
+          const linkedName = user.nickname || user.chatName || targetChatId;
+          await replyBot
+            .sendMessage(
+              chatId,
+              t(
+                '✅ Allowed {EMAIL} on the web agent, mapped to {NAME} ({ID}).',
+                chatId,
+                { EMAIL: data.email, NAME: linkedName, ID: targetChatId },
+              ),
+            )
+            .catch((err) =>
+              console.error('Error sending allow_web_user confirmation:', err),
+            );
+
+          await sendLogMessage(
+            replyBot,
+            `Allowed web user ${data.email} → chatId ${targetChatId} (added by ${chatId})`,
+          ).catch(() => {});
+        }
+      };
+    },
+    buildValidate: (chatId, data) => {
+      if (!data || data.step === 'collect_email') {
+        return (replyMsg) => looksLikeEmail(replyMsg.text);
+      }
+
+      // Step 2: chat ID must exist in the user registry.
+      return async (replyMsg) => {
+        if (!replyMsg.text) {
+          return false;
+        }
+
+        try {
+          const user = await getUserById(replyMsg.text.trim());
+
+          return user !== null;
+        } catch (err) {
+          console.error('Error validating chat ID for allow_web_user:', err);
+
+          return false;
+        }
+      };
+    },
+    buildResendPrompt: (chatId, data) => {
+      if (!data || data.step === 'collect_email') {
+        return t('Please enter a valid Google email address.', chatId);
+      }
+
+      return t(
+        'Chat ID not found in the registry. Please enter a valid chat ID:',
+        chatId,
+      );
+    },
+  },
+  revoke_web_user: {
+    buildHandler: (chatId) => async (replyBot, replyMsg) => {
+      const email = replyMsg.text.trim().toLowerCase();
+
+      let existing;
+      try {
+        existing = await getAllowedUserByEmail(email);
+      } catch (err) {
+        console.error('Error looking up web user for revoke:', err);
+        await replyBot
+          .sendMessage(
+            chatId,
+            t('❌ Error looking up web user: {ERROR}', chatId, {
+              ERROR: err.message,
+            }),
+          )
+          .catch((sendErr) =>
+            console.error('Error sending revoke lookup error:', sendErr),
+          );
+
+        return;
+      }
+
+      if (!existing) {
+        await replyBot
+          .sendMessage(
+            chatId,
+            t('{EMAIL} was not on the web allowlist — nothing to do.', chatId, {
+              EMAIL: email,
+            }),
+          )
+          .catch((err) =>
+            console.error('Error sending revoke not-found message:', err),
+          );
+
+        return;
+      }
+
+      try {
+        await removeAllowedUser(email);
+      } catch (err) {
+        console.error('Error removing web allowlist row:', err);
+        await replyBot
+          .sendMessage(
+            chatId,
+            t('❌ Error revoking web user: {ERROR}', chatId, {
+              ERROR: err.message,
+            }),
+          )
+          .catch((sendErr) =>
+            console.error('Error sending revoke delete error:', sendErr),
+          );
+
+        return;
+      }
+
+      await replyBot
+        .sendMessage(
+          chatId,
+          t('🚫 Revoked {EMAIL} from the web agent allowlist.', chatId, {
+            EMAIL: email,
+          }),
+        )
+        .catch((err) =>
+          console.error('Error sending revoke confirmation:', err),
+        );
+
+      await sendLogMessage(
+        replyBot,
+        `Revoked web user ${email} (revoked by ${chatId})`,
+      ).catch(() => {});
+    },
+    buildValidate: () => (replyMsg) => looksLikeEmail(replyMsg.text),
+    buildResendPrompt: (chatId) =>
+      t('Please enter a valid Google email address.', chatId),
   },
 };
 

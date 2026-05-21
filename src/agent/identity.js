@@ -1,13 +1,29 @@
 // Resolves the user identity the agent operates as.
 //
-// Phase 1 (v1): a single hardcoded chatId is provided via the
-// AGENT_HARDCODED_CHAT_ID env var. The LLM never sees or controls
-// this — it is read from the environment by tool handlers when they
-// need it to look up the user's teams/caches/leagues.
+// Resolution order:
+//   1. The request-scoped chatId set by `runWithRequestContext` (used
+//      by the web agent webhook after verifying the caller's Google ID
+//      token and resolving it through the web allowlist). The LLM
+//      never sees or controls this — it is set by the webhook before
+//      handing the request off to CopilotKit.
+//   2. The `AGENT_HARDCODED_CHAT_ID` env var. Used by:
+//        - local dev (`scripts/dev-agent-server.js`),
+//        - the test slot of the agent Function App (where Google auth
+//          is intentionally bypassed for PR validation),
+//        - any process running outside an HTTP request scope
+//          (e.g. background cache bootstrap).
 //
-// Future phases will replace this with proper auth (token / bot login).
+// If neither is available we throw — tools cannot proceed without an
+// identity.
+
+const { getRequestContext } = require('./requestContext');
 
 function getAgentChatId() {
+  const ctx = getRequestContext();
+  if (ctx && typeof ctx.chatId === 'number' && Number.isFinite(ctx.chatId)) {
+    return ctx.chatId;
+  }
+
   const raw = process.env.AGENT_HARDCODED_CHAT_ID;
   if (!raw) {
     throw new Error(

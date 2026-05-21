@@ -23,6 +23,7 @@
 // CopilotKit runtime is piping back to the browser.
 
 const { sendLogMessage } = require('../utils/utils');
+const { getRequestContext } = require('./requestContext');
 
 function safeTotal(field) {
   if (!field || typeof field !== 'object') {return 0;}
@@ -31,8 +32,10 @@ function safeTotal(field) {
   return Number.isFinite(value) ? value : 0;
 }
 
-function formatLine({ modelId, step, prompt, completion, total }) {
-  return `Agent step usage — model: ${modelId}, step: ${step}, prompt: ${prompt}, completion: ${completion}, total: ${total}`;
+function formatLine({ modelId, step, prompt, completion, total, email }) {
+  const tail = email ? `, email: ${email}` : '';
+
+  return `Agent step usage — model: ${modelId}, step: ${step}, prompt: ${prompt}, completion: ${completion}, total: ${total}${tail}`;
 }
 
 // `bot` is supplied by the runtime when the middleware is constructed so
@@ -54,12 +57,14 @@ function createTokenUsageMiddleware({ bot }) {
               chunk.usage && chunk.usage.outputTokens,
             );
             const total = prompt + completion;
+            const email = (getRequestContext() || {}).email;
             const line = formatLine({
               modelId,
               step: stepIndex,
               prompt,
               completion,
               total,
+              email,
             });
 
             // Fire-and-forget. We deliberately do NOT await here — the

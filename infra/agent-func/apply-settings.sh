@@ -27,6 +27,8 @@
 #   PROD_PREVIEW_PATTERN   (default: empty)
 #   TEST_ALLOWED_ORIGINS   (default: *)
 #   TEST_PREVIEW_PATTERN   (default: empty)
+#   GOOGLE_CLIENT_ID       (default: empty — auth gate disabled.
+#                           Set to enable Google sign-in on prod.)
 
 set -euo pipefail
 
@@ -42,6 +44,11 @@ PROD_ORIGINS="${PROD_ALLOWED_ORIGINS:-https://calm-beach-055be4603.7.azurestatic
 PROD_PATTERN="${PROD_PREVIEW_PATTERN:-}"
 TEST_ORIGINS="${TEST_ALLOWED_ORIGINS:-*}"
 TEST_PATTERN="${TEST_PREVIEW_PATTERN:-}"
+# Empty string ⇒ Google auth gate is BYPASSED (the webhook falls back to
+# AGENT_HARDCODED_CHAT_ID). Set to the OAuth 2.0 Web client ID to enable
+# the gate on the production slot. The test slot intentionally stays
+# unset so PR-preview SWA builds don't require Google credentials.
+PROD_GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
 
 KV_BASE="https://${KV_NAME}.vault.azure.net/secrets"
 
@@ -64,6 +71,7 @@ apply_to_slot() {
   local slot_label="$1"
   local cors_origins="$2"
   local cors_pattern="$3"
+  local google_client_id="$4"
   local slot_args=()
 
   if [[ "$slot_label" != "production" ]]; then
@@ -92,12 +100,15 @@ apply_to_slot() {
       "AGENT_HARDCODED_CHAT_ID=@Microsoft.KeyVault(SecretUri=${KV_BASE}/agent-hardcoded-chat-id/)" \
       "AGENT_CORS_ALLOWED_ORIGINS=${cors_origins}" \
       "AGENT_CORS_PREVIEW_ORIGIN_PATTERN=${cors_pattern}" \
+      "GOOGLE_CLIENT_ID=${google_client_id}" \
       "AzureWebJobsStorage=${STORAGE_CS}" \
       "APPLICATIONINSIGHTS_CONNECTION_STRING=${APPINSIGHTS_CS}" \
     --output none --only-show-errors
 }
 
-apply_to_slot "production" "$PROD_ORIGINS" "$PROD_PATTERN"
-apply_to_slot "test"       "$TEST_ORIGINS" "$TEST_PATTERN"
+apply_to_slot "production" "$PROD_ORIGINS" "$PROD_PATTERN" "$PROD_GOOGLE_CLIENT_ID"
+# Test slot deliberately leaves GOOGLE_CLIENT_ID empty — auth gate
+# bypassed so PR previews continue to use AGENT_HARDCODED_CHAT_ID.
+apply_to_slot "test"       "$TEST_ORIGINS" "$TEST_PATTERN" ""
 
 echo "Done. WEBSITE_RUN_FROM_PACKAGE and other externally-managed settings are preserved."

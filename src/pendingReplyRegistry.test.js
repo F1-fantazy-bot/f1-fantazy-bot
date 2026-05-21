@@ -36,6 +36,12 @@ jest.mock('./leagueRegistryService', () => ({
   addUserLeague: jest.fn().mockResolvedValue(),
 }));
 
+jest.mock('./webUserAllowlistService', () => ({
+  getAllowedUserByEmail: jest.fn(),
+  addAllowedUser: jest.fn().mockResolvedValue(),
+  removeAllowedUser: jest.fn().mockResolvedValue(),
+}));
+
 const {
   PENDING_REPLY_REGISTRY,
   resolveCommand,
@@ -934,6 +940,161 @@ describe('pendingReplyRegistry', () => {
         const resolved = resolveCommand('follow_league', 1);
         expect(resolved.validate({})).toBe(false);
       });
+    });
+  });
+
+  describe('allow_web_user', () => {
+    const {
+      addAllowedUser,
+    } = require('./webUserAllowlistService');
+
+    beforeEach(() => {
+      addAllowedUser.mockReset().mockResolvedValue();
+      registerPendingReply.mockClear();
+      getUserById.mockReset();
+    });
+
+    describe('step 1 (collect_email)', () => {
+      it('validate rejects non-emails', () => {
+        const resolved = resolveCommand('allow_web_user', 1);
+        expect(resolved.validate({ text: 'not-an-email' })).toBe(false);
+        expect(resolved.validate({ text: 'foo bar@x.com' })).toBe(false);
+      });
+
+      it('validate accepts something that looks like an email', () => {
+        const resolved = resolveCommand('allow_web_user', 1);
+        expect(resolved.validate({ text: 'foo@example.com' })).toBe(true);
+      });
+
+      it('handler registers step-2 with the lowercased email', async () => {
+        const botMock = { sendMessage: jest.fn().mockResolvedValue() };
+        const resolved = resolveCommand('allow_web_user', 7);
+        await resolved.handler(botMock, { text: 'Foo@Example.COM' });
+
+        expect(registerPendingReply).toHaveBeenCalledWith(
+          7,
+          'allow_web_user',
+          { step: 'collect_chat_id', email: 'foo@example.com' },
+        );
+      });
+    });
+
+    describe('step 2 (collect_chat_id)', () => {
+      it('validate rejects chat IDs missing from the registry', async () => {
+        getUserById.mockResolvedValueOnce(null);
+        const resolved = resolveCommand('allow_web_user', 1, {
+          step: 'collect_chat_id',
+          email: 'foo@example.com',
+        });
+        expect(await resolved.validate({ text: '999' })).toBe(false);
+      });
+
+      it('validate accepts chat IDs that exist in the registry', async () => {
+        getUserById.mockResolvedValueOnce({ chatName: 'X' });
+        const resolved = resolveCommand('allow_web_user', 1, {
+          step: 'collect_chat_id',
+          email: 'foo@example.com',
+        });
+        expect(await resolved.validate({ text: '12345' })).toBe(true);
+      });
+
+      it('handler writes the allowlist row and confirms', async () => {
+        getUserById.mockResolvedValueOnce({
+          chatName: 'Foo User',
+          nickname: 'TheFoo',
+        });
+        const botMock = { sendMessage: jest.fn().mockResolvedValue() };
+
+        const resolved = resolveCommand('allow_web_user', 7, {
+          step: 'collect_chat_id',
+          email: 'foo@example.com',
+        });
+        await resolved.handler(botMock, { text: '12345' });
+
+        expect(addAllowedUser).toHaveBeenCalledWith(
+          'foo@example.com',
+          '12345',
+          7,
+        );
+        expect(t).toHaveBeenCalledWith(
+          '✅ Allowed {EMAIL} on the web agent, mapped to {NAME} ({ID}).',
+          7,
+          { EMAIL: 'foo@example.com', NAME: 'TheFoo', ID: '12345' },
+        );
+        expect(botMock.sendMessage).toHaveBeenCalled();
+      });
+
+      it('handler reports addAllowedUser errors without throwing', async () => {
+        getUserById.mockResolvedValueOnce({ chatName: 'Foo' });
+        addAllowedUser.mockRejectedValueOnce(new Error('table down'));
+        const botMock = { sendMessage: jest.fn().mockResolvedValue() };
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        const resolved = resolveCommand('allow_web_user', 7, {
+          step: 'collect_chat_id',
+          email: 'foo@example.com',
+        });
+        await resolved.handler(botMock, { text: '12345' });
+
+        expect(t).toHaveBeenCalledWith(
+          '❌ Error allowlisting user: {ERROR}',
+          7,
+          { ERROR: 'table down' },
+        );
+      });
+    });
+  });
+
+  describe('revoke_web_user', () => {
+    const {
+      getAllowedUserByEmail,
+      removeAllowedUser,
+    } = require('./webUserAllowlistService');
+
+    beforeEach(() => {
+      getAllowedUserByEmail.mockReset();
+      removeAllowedUser.mockReset().mockResolvedValue();
+    });
+
+    it('validate rejects non-emails', () => {
+      const resolved = resolveCommand('revoke_web_user', 1);
+      expect(resolved.validate({ text: 'nope' })).toBe(false);
+    });
+
+    it('validate accepts email-like text', () => {
+      const resolved = resolveCommand('revoke_web_user', 1);
+      expect(resolved.validate({ text: 'a@b.com' })).toBe(true);
+    });
+
+    it('handler deletes the allowlist row when present', async () => {
+      getAllowedUserByEmail.mockResolvedValueOnce({ email: 'foo@example.com' });
+      const botMock = { sendMessage: jest.fn().mockResolvedValue() };
+
+      const resolved = resolveCommand('revoke_web_user', 7);
+      await resolved.handler(botMock, { text: 'Foo@Example.COM' });
+
+      expect(getAllowedUserByEmail).toHaveBeenCalledWith('foo@example.com');
+      expect(removeAllowedUser).toHaveBeenCalledWith('foo@example.com');
+      expect(t).toHaveBeenCalledWith(
+        '🚫 Revoked {EMAIL} from the web agent allowlist.',
+        7,
+        { EMAIL: 'foo@example.com' },
+      );
+    });
+
+    it('handler is a no-op (with friendly message) when the email is not on the allowlist', async () => {
+      getAllowedUserByEmail.mockResolvedValueOnce(null);
+      const botMock = { sendMessage: jest.fn().mockResolvedValue() };
+
+      const resolved = resolveCommand('revoke_web_user', 7);
+      await resolved.handler(botMock, { text: 'foo@example.com' });
+
+      expect(removeAllowedUser).not.toHaveBeenCalled();
+      expect(t).toHaveBeenCalledWith(
+        '{EMAIL} was not on the web allowlist — nothing to do.',
+        7,
+        { EMAIL: 'foo@example.com' },
+      );
     });
   });
 });
