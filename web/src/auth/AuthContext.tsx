@@ -48,13 +48,17 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// Minimal JWT payload decoder. We do NOT verify the signature here —
+// the backend does that. Decoding is only for UI display (email,
+// name, etc.) and for scoping localStorage keys by `sub`. If the
+// token is malformed we treat it as "not signed in".
+//
+// `atob` is a browser builtin in every environment Vite targets, so
+// no Node `Buffer` fallback is needed.
 function base64UrlDecode(input: string): string {
   const padding = '='.repeat((4 - (input.length % 4)) % 4);
   const base64 = (input + padding).replace(/-/g, '+').replace(/_/g, '/');
-  if (typeof atob === 'function') {
-    return atob(base64);
-  }
-  return Buffer.from(base64, 'base64').toString('binary');
+  return atob(base64);
 }
 
 export function decodeIdTokenClaims(token: string): IdTokenClaims | null {
