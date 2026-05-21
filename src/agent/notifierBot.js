@@ -16,11 +16,18 @@
 
 const TelegramBot = require('node-telegram-bot-api');
 
+// Prefix used by `sendLogMessage` / `sendErrorMessage` /
+// `sendMessageToAdmins` in `src/utils/utils.js` to tag the log line.
+// The agent runs in its own process and must be visually distinct from
+// the original Telegram-bot path (which uses the default `BOT:` prefix).
+const AGENT_LOG_PREFIX = 'AGENT';
+
 let cachedBot = null;
 
 function makeNoopBot() {
   return {
     sendMessage: async () => undefined,
+    _logPrefix: AGENT_LOG_PREFIX,
   };
 }
 
@@ -41,6 +48,7 @@ function getNotifierBot() {
 
   try {
     cachedBot = new TelegramBot(token, { polling: false });
+    cachedBot._logPrefix = AGENT_LOG_PREFIX;
   } catch (err) {
     console.error(
       'AGENT: Failed to construct notifier TelegramBot, falling back to noop:',
@@ -56,4 +64,4 @@ function resetNotifierBotForTests() {
   cachedBot = null;
 }
 
-module.exports = { getNotifierBot, resetNotifierBotForTests };
+module.exports = { getNotifierBot, resetNotifierBotForTests, AGENT_LOG_PREFIX };

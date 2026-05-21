@@ -165,6 +165,33 @@ describe('utils', () => {
 
       consoleErrorSpy.mockRestore();
     });
+
+    it('defaults to BOT: prefix when bot has no _logPrefix tag', async () => {
+      const botMock = { sendMessage: jest.fn().mockResolvedValue() };
+
+      await sendLogMessage(botMock, 'untagged bot');
+
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringMatching(/^BOT: untagged bot/),
+        undefined,
+      );
+    });
+
+    it('uses the bot._logPrefix tag when set (agent path)', async () => {
+      const botMock = {
+        _logPrefix: 'AGENT',
+        sendMessage: jest.fn().mockResolvedValue(),
+      };
+
+      await sendLogMessage(botMock, 'tagged bot');
+
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringMatching(/^AGENT: tagged bot/),
+        undefined,
+      );
+    });
   });
 
   describe('sendErrorMessage', () => {
