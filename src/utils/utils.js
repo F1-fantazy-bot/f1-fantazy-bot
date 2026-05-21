@@ -64,6 +64,18 @@ const sendMessage = async function (bot, chatId, message, options) {
   await bot.sendMessage(chatId, message, options);
 };
 
+// Resolve the log-line prefix for a given bot instance. The agent's
+// notifier bot tags itself with `_logPrefix = 'AGENT'` so its
+// Telegram-bound log lines are visually distinct from the original
+// Telegram bot path. Untagged bots fall back to `BOT`.
+const resolveLogPrefix = function (bot) {
+  if (bot && typeof bot._logPrefix === 'string' && bot._logPrefix.length > 0) {
+    return bot._logPrefix;
+  }
+
+  return 'BOT';
+};
+
 exports.sendLogMessage = async function (bot, logMessage) {
   if (!LOG_CHANNEL_ID) {
     console.error('LOG_CHANNEL_ID is not set');
@@ -78,7 +90,7 @@ exports.sendLogMessage = async function (bot, logMessage) {
     env = 'test';
   }
 
-  let log = `BOT: ${logMessage}
+  let log = `${resolveLogPrefix(bot)}: ${logMessage}
 env: ${env}`;
 
   if (
@@ -109,7 +121,7 @@ exports.sendErrorMessage = async function (bot, errorMessage) {
     env = 'test';
   }
 
-  let log = `BOT: ${errorMessage}
+  let log = `${resolveLogPrefix(bot)}: ${errorMessage}
 env: ${env}`;
 
   if (
@@ -129,7 +141,7 @@ pid: ${process.pid}`;
 
 exports.sendMessageToAdmins = async function (bot, message) {
   const adminChatIds = [KILZI_CHAT_ID, DORSE_CHAT_ID];
-  const msg = `BOT: ${message}`;
+  const msg = `${resolveLogPrefix(bot)}: ${message}`;
 
   for (const chatId of adminChatIds) {
     await sendMessage(bot, chatId, msg);

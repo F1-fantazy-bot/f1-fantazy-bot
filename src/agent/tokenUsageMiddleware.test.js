@@ -31,11 +31,14 @@ function makeReadable(chunks) {
 
 // `sendLogMessage(bot, line)` calls `bot.sendMessage(LOG_CHANNEL_ID, line)`
 // internally, so faking the bot is enough to observe what was logged.
+// We tag the fake bot with `_logPrefix: 'AGENT'` to mirror the production
+// notifier bot — `sendLogMessage` reads that to choose the line prefix.
 function makeBot() {
   const calls = [];
 
   return {
     calls,
+    _logPrefix: 'AGENT',
     sendMessage: jest.fn(async (chatId, line) => {
       calls.push({ chatId, line });
     }),
@@ -131,7 +134,7 @@ describe('createTokenUsageMiddleware', () => {
     expect(bot.sendMessage).toHaveBeenCalledTimes(2);
     const firstLine = bot.calls[0].line;
     const secondLine = bot.calls[1].line;
-    expect(firstLine).toContain('BOT: Agent step usage');
+    expect(firstLine).toContain('AGENT: Agent step usage');
     expect(firstLine).toContain('model: gpt-test-1');
     expect(firstLine).toContain('step: 1');
     expect(firstLine).toContain('prompt: 120');
