@@ -95,11 +95,12 @@ describe('verifyAccess — happy path', () => {
   });
 
   test('sends the Bearer token when one is provided', async () => {
-    const fetchSpy = vi.fn(async () =>
-      new Response(JSON.stringify({ status: 'ok', mode: 'authenticated' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
+    const fetchSpy = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(JSON.stringify({ status: 'ok', mode: 'authenticated' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
     );
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
 
