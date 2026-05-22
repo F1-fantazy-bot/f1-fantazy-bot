@@ -5,6 +5,7 @@ import '@copilotkit/react-ui/styles.css';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { useAuthFetchInterceptor } from './auth/useAuthFetchInterceptor';
+import { AccessVerifier } from './auth/AccessVerifier';
 import { LoginScreen } from './components/LoginScreen';
 import { SignedInBadge } from './components/SignedInBadge';
 import { setHistoryScope } from './lib/chatHistoryStore';
@@ -50,16 +51,37 @@ function AuthedAgent() {
   const { session } = useAuth();
   useAuthFetchInterceptor(RUNTIME_URL);
 
-  // Keep the chat-history scope in sync with the active user so two
-  // users on the same browser don't see each other's chat. Side-effect
-  // is set BEFORE the chat tree renders so the very first HistoryRestorer
-  // read targets the right key.
+  if (!session) {
+    // Detach any previous user's history scope before the login screen
+    // renders. Defensive — `signOut()` clearing the session triggers
+    // this branch even if a different user later signs in.
+    setHistoryScope(null);
+    return <LoginScreen />;
+  }
+
+  return (
+    <AccessVerifier runtimeUrl={RUNTIME_URL}>
+      <VerifiedAgentChat />
+    </AccessVerifier>
+  );
+}
+
+function VerifiedAgentChat() {
+  const { session } = useAuth();
+
+  // Bind the chat-history scope BEFORE <HistoryRestorer /> mounts so
+  // the very first read targets this user's key — and ONLY inside the
+  // verified subtree so a forbidden/unavailable user never binds a
+  // scope (or reads any history).
   useEffect(() => {
     setHistoryScope(session ? session.claims.sub : null);
   }, [session]);
 
   if (!session) {
-    return <LoginScreen />;
+    // Defensive guard — AccessVerifier should not render us without a
+    // session, but if signOut() races a re-render we'd rather show
+    // nothing than mount the chat tree without an identity.
+    return null;
   }
 
   return (

@@ -2,6 +2,11 @@ module.exports = {
   // Specify that tests run in a Node environment
   testEnvironment: 'node',
 
+  // The web/ project has its own test runner (Vitest). Skip its
+  // tests during the root-level Jest pass so a TypeScript file
+  // doesn't cause a parser failure.
+  testPathIgnorePatterns: ['/node_modules/', '/web/'],
+
   // Enable code coverage collection
   collectCoverage: false,
   collectCoverageFrom: [

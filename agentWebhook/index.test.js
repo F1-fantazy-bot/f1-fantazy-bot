@@ -46,6 +46,14 @@ function makeReq({ method = 'POST', headers = {}, body, url = '/api/agent/copilo
   };
 }
 
+function makeWhoamiReq(overrides = {}) {
+  return makeReq({
+    method: 'GET',
+    url: '/api/agent/whoami',
+    ...overrides,
+  });
+}
+
 function makeCtx() {
   const logs = [];
 
@@ -170,5 +178,123 @@ describe('agentWebhook', () => {
     await webhook(ctx, makeReq({ body: { hello: 'world' } }));
 
     expect(ctx.res.status).toBe(500);
+  });
+});
+
+describe('agentWebhook → /whoami', () => {
+  test('GET whoami with OK auth result returns 200 + authenticated body and never invokes copilot', async () => {
+    authenticateRequest.mockResolvedValueOnce({
+      status: STATUS.OK,
+      chatId: 12345,
+      email: 'foo@example.com',
+      name: 'Foo',
+      sub: 's1',
+    });
+
+    const ctx = makeCtx();
+    await webhook(ctx, makeWhoamiReq());
+
+    expect(copilotHandler).not.toHaveBeenCalled();
+    expect(ctx.res.status).toBe(200);
+    expect(ctx.res.headers['Content-Type']).toBe('application/json');
+    const parsed = JSON.parse(ctx.res.body);
+    expect(parsed).toEqual({
+      status: 'ok',
+      mode: 'authenticated',
+      email: 'foo@example.com',
+      name: 'Foo',
+    });
+  });
+
+  test('GET whoami in BYPASSED mode returns 200 + bypassed body', async () => {
+    authenticateRequest.mockResolvedValueOnce({ status: STATUS.BYPASSED });
+
+    const ctx = makeCtx();
+    await webhook(ctx, makeWhoamiReq());
+
+    expect(copilotHandler).not.toHaveBeenCalled();
+    expect(ctx.res.status).toBe(200);
+    const parsed = JSON.parse(ctx.res.body);
+    expect(parsed).toEqual({ status: 'ok', mode: 'bypassed' });
+  });
+
+  test('GET whoami with UNAUTHORIZED returns 401 + JSON body', async () => {
+    authenticateRequest.mockResolvedValueOnce({
+      status: STATUS.UNAUTHORIZED,
+      reason: 'invalid_token',
+      detail: 'Token expired',
+    });
+
+    const ctx = makeCtx();
+    await webhook(ctx, makeWhoamiReq());
+
+    expect(copilotHandler).not.toHaveBeenCalled();
+    expect(ctx.res.status).toBe(401);
+    const parsed = JSON.parse(ctx.res.body);
+    expect(parsed).toEqual({ error: 'unauthorized', reason: 'invalid_token' });
+  });
+
+  test('GET whoami with FORBIDDEN returns 401 + email so the UI can render "not allowlisted"', async () => {
+    authenticateRequest.mockResolvedValueOnce({
+      status: STATUS.FORBIDDEN,
+      reason: 'email_not_allowlisted',
+      email: 'foo@example.com',
+    });
+
+    const ctx = makeCtx();
+    await webhook(ctx, makeWhoamiReq());
+
+    expect(copilotHandler).not.toHaveBeenCalled();
+    expect(ctx.res.status).toBe(401);
+    const parsed = JSON.parse(ctx.res.body);
+    expect(parsed).toEqual({
+      error: 'unauthorized',
+      reason: 'email_not_allowlisted',
+      email: 'foo@example.com',
+    });
+  });
+
+  test('POST /whoami returns 405 with Allow header and never calls auth or runtime', async () => {
+    const ctx = makeCtx();
+    await webhook(ctx, makeWhoamiReq({ method: 'POST', body: {} }));
+
+    expect(authenticateRequest).not.toHaveBeenCalled();
+    expect(copilotHandler).not.toHaveBeenCalled();
+    expect(ctx.res.status).toBe(405);
+    expect(ctx.res.headers.Allow).toBe('GET, OPTIONS');
+  });
+
+  test('OPTIONS /whoami still returns 204 with CORS headers (preflight)', async () => {
+    const ctx = makeCtx();
+    await webhook(ctx, makeWhoamiReq({ method: 'OPTIONS' }));
+
+    expect(authenticateRequest).not.toHaveBeenCalled();
+    expect(copilotHandler).not.toHaveBeenCalled();
+    expect(ctx.res.status).toBe(204);
+  });
+
+  test('"whoami" suffix on a different path does NOT route here (exact-match guard)', async () => {
+    authenticateRequest.mockResolvedValueOnce({ status: STATUS.BYPASSED });
+    copilotHandler.mockResolvedValueOnce(
+      new Response('agent-ok', {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain' },
+      }),
+    );
+
+    const ctx = makeCtx();
+    await webhook(
+      ctx,
+      makeReq({
+        method: 'POST',
+        url: '/api/agent/copilotkit/whoami',
+        body: {},
+      }),
+    );
+
+    // Must go through the copilot runtime, not the whoami short-circuit
+    expect(copilotHandler).toHaveBeenCalledTimes(1);
+    expect(ctx.res.status).toBe(200);
+    expect(ctx.res.body).toBe('agent-ok');
   });
 });

@@ -983,6 +983,58 @@ use the test slot which also has `GOOGLE_CLIENT_ID` unset.
 per-step log line, so on-call can correlate Telegram log spikes to a
 specific user.
 
+#### Verification (whoami) — the gate is fail-closed
+
+Google sign-in only proves the caller has a Google account. The
+backend allowlist is the actual authorization layer. To avoid
+"backend down → user gets into the chat anyway", the frontend runs a
+pre-flight `GET /api/agent/whoami` BEFORE mounting `<CopilotKit>` /
+the chat tree.
+
+**Endpoint** (`agentWebhook/index.js`): same Azure Function, same
+route; dispatched by exact `pathname === '/api/agent/whoami'`. Runs
+the same `authenticateRequest` pipeline as the chat path but NEVER
+invokes CopilotKit. Returns:
+
+- `200 { status: 'ok', mode: 'authenticated', email, name }` on hit
+- `200 { status: 'ok', mode: 'bypassed' }` when `GOOGLE_CLIENT_ID` is
+  unset (preserves local-dev parity)
+- `401 { error, reason, email? }` on rejection — same body shape as
+  the chat path
+- `405` on non-GET / non-OPTIONS verbs
+
+**Frontend** (`web/src/auth/`):
+
+- `whoami.ts` — `verifyAccess(idToken, runtimeUrl)`. Pure helper.
+  3 attempts max with exponential backoff (300 / 900 / 1800 ms) and
+  an `AbortController` 8 s timeout per attempt. Retries only
+  transient failures (network / timeout / 408 / 429 / 5xx). **Never
+  retries 401** — that's a definitive rejection. Returns a
+  discriminated union `{status: 'ok' | 'forbidden' | 'unavailable'}`.
+- `AccessVerifier.tsx` — wraps the chat subtree. On `ok` → render
+  children. On `forbidden` → `signOut()` + `setRejection` → login
+  screen reappears with the right reason. On `unavailable` →
+  "Agent unavailable, Retry" card with the session preserved.
+
+**The fail-closed UX rule:**
+
+| Result        | Frontend behaviour                       | Why                                                                                              |
+| ------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `ok`          | mount the chat                           | User is verified.                                                                                |
+| `forbidden`   | sign out → login screen with rejection   | 401 is definitive.                                                                               |
+| `unavailable` | "Retry" card, **session preserved**      | Cold-start blips / outages → bouncing to sign-in creates a loop the user can't escape. Stay in a recoverable state with the chat hidden. |
+
+**One-line contract: backend unreachable = no chat.** The chat tree
+is NEVER mounted on `verifying` or `unavailable`. The chat-history
+scope (`setHistoryScope`) is bound INSIDE the verified subtree only,
+so an unauthorized user never even touches `localStorage`.
+
+**Security-regression test:** `web/src/auth/whoami.test.ts` pins the
+invariant that a failing / unreachable backend NEVER resolves to
+`status: 'ok'` — including the edge cases where the server returns
+200 with an unexpected body shape or non-JSON content. Do not weaken
+those assertions; they are the guard rail for the original bug.
+
 ### Cores ↔ Telegram-adapter pattern
 
 This is the cross-phase invariant. For every capability that needs to be on **both** surfaces:
