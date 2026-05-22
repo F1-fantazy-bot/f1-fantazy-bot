@@ -25,10 +25,14 @@
 #   AZURE_OPEN_AI_MODEL    (default: gpt-5.4)
 #   PROD_ALLOWED_ORIGINS   (default: https://calm-beach-055be4603.7.azurestaticapps.net)
 #   PROD_PREVIEW_PATTERN   (default: empty)
-#   TEST_ALLOWED_ORIGINS   (default: *)
+#   TEST_ALLOWED_ORIGINS   (default: https://calm-beach-055be4603-staging.westeurope.7.azurestaticapps.net)
 #   TEST_PREVIEW_PATTERN   (default: empty)
-#   GOOGLE_CLIENT_ID       (default: empty — auth gate disabled.
-#                           Set to enable Google sign-in on prod.)
+#   GOOGLE_CLIENT_ID       (default: empty — auth gate DISABLED on both
+#                           slots. Set to the OAuth 2.0 Web client ID to
+#                           enable Google sign-in on BOTH the production
+#                           AND test slots. The test slot additionally
+#                           runs an admin-only filter — see
+#                           AGENT_REQUIRE_ADMIN below.)
 
 set -euo pipefail
 
@@ -42,13 +46,18 @@ MODEL="${AZURE_OPEN_AI_MODEL:-gpt-5.4}"
 STORAGE_CONTAINER="${AZURE_STORAGE_CONTAINER_NAME:-f1-fantasy-scraper-json}"
 PROD_ORIGINS="${PROD_ALLOWED_ORIGINS:-https://calm-beach-055be4603.7.azurestaticapps.net}"
 PROD_PATTERN="${PROD_PREVIEW_PATTERN:-}"
-TEST_ORIGINS="${TEST_ALLOWED_ORIGINS:-*}"
+# The test slot frontend lives at a single fixed SWA staging hostname
+# now (no more per-PR previews) — see `pr_test_f1-fantazy-agent-web.yml`.
+# This tightens CORS without sacrificing PR-preview workflow.
+TEST_ORIGINS="${TEST_ALLOWED_ORIGINS:-https://calm-beach-055be4603-staging.westeurope.7.azurestaticapps.net}"
 TEST_PATTERN="${TEST_PREVIEW_PATTERN:-}"
-# Empty string ⇒ Google auth gate is BYPASSED (the webhook falls back to
-# AGENT_HARDCODED_CHAT_ID). Set to the OAuth 2.0 Web client ID to enable
-# the gate on the production slot. The test slot intentionally stays
-# unset so PR-preview SWA builds don't require Google credentials.
+# When set, the Google auth gate runs on BOTH slots. The test slot
+# additionally requires AGENT_REQUIRE_ADMIN=true (see below) so only
+# admin chatIds (KILZI/DORSE) can reach the agent on PR previews. When
+# empty, both slots BYPASS auth and fall back to AGENT_HARDCODED_CHAT_ID
+# — kept ONLY for local-dev parity; do not ship empty to Azure.
 PROD_GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
+TEST_GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
 
 KV_BASE="https://${KV_NAME}.vault.azure.net/secrets"
 
@@ -72,6 +81,7 @@ apply_to_slot() {
   local cors_origins="$2"
   local cors_pattern="$3"
   local google_client_id="$4"
+  local require_admin="$5"
   local slot_args=()
 
   if [[ "$slot_label" != "production" ]]; then
@@ -101,14 +111,20 @@ apply_to_slot() {
       "AGENT_CORS_ALLOWED_ORIGINS=${cors_origins}" \
       "AGENT_CORS_PREVIEW_ORIGIN_PATTERN=${cors_pattern}" \
       "GOOGLE_CLIENT_ID=${google_client_id}" \
+      "AGENT_REQUIRE_ADMIN=${require_admin}" \
       "AzureWebJobsStorage=${STORAGE_CS}" \
       "APPLICATIONINSIGHTS_CONNECTION_STRING=${APPINSIGHTS_CS}" \
     --output none --only-show-errors
 }
 
-apply_to_slot "production" "$PROD_ORIGINS" "$PROD_PATTERN" "$PROD_GOOGLE_CLIENT_ID"
-# Test slot deliberately leaves GOOGLE_CLIENT_ID empty — auth gate
-# bypassed so PR previews continue to use AGENT_HARDCODED_CHAT_ID.
-apply_to_slot "test"       "$TEST_ORIGINS" "$TEST_PATTERN" ""
+# Production: full Google sign-in + allowlist; everyone on the
+# WebUserAllowlist can chat as themselves.
+apply_to_slot "production" "$PROD_ORIGINS" "$PROD_PATTERN" "$PROD_GOOGLE_CLIENT_ID" "false"
+# Test slot: same Google client + same allowlist, BUT an additional
+# admin-only filter (AGENT_REQUIRE_ADMIN=true) — the test slot is
+# locked down to admin chatIds (KILZI/DORSE) per
+# src/agent/auth.js#isAdminChatId. Non-admin allowlisted users still
+# work on prod; the test slot returns FORBIDDEN reason=not_admin.
+apply_to_slot "test"       "$TEST_ORIGINS" "$TEST_PATTERN" "$TEST_GOOGLE_CLIENT_ID" "true"
 
 echo "Done. WEBSITE_RUN_FROM_PACKAGE and other externally-managed settings are preserved."

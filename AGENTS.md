@@ -29,7 +29,7 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
 - **Internationalization:** `src/i18n.js` and `src/translations.js` provide language support (English/Hebrew) used throughout handlers.
 - **AI Assist:** `src/prompts.js` defines system prompts. `/ask`-style natural language queries are handled by `src/commandsHandler/askHandler.js`, which leverages Azure OpenAI to map free-text requests into command sequences.
 - **Logic Cores:** `src/cores/` holds **pure** business-logic functions that take inputs and return structured JSON. They do not depend on `bot`, `t()`, or `sendMessage`. Each Telegram handler is being progressively refactored into `(pure core in src/cores/) + (thin Telegram adapter)`. The same core is consumed by the web-chat agent's tools — so a question like "best teams with VER but no ALO" runs through the same calculator as the `/best_teams` command. **Refactor rule:** existing handler tests must keep passing unchanged after the extraction; if they don't, fix the refactor, not the test. Cores extracted so far: `nextRacesCore`, `bestTeamsCore`, `userTeamsCore`, `followedTeamsCore`, `leaderboardCore`, `bestTeamScenariosCore`, `nextRaceInfoCore`, `raceWeatherCore`, `deadlineCore`, `currentTeamCore`, `liveScoreCore`. Cores that need side effects (e.g. weather fetch logging) accept optional `onFetch`/`onError` callbacks — the Telegram adapter wires them to bot-side helpers; the agent path omits them. Pure scoring helpers shared between a handler and its core live in `src/utils/` (e.g. `src/utils/liveScoreCalc.js` for `mapLockedTeamForScoring` / `calculateLiveScoreBreakdown` / `deriveLiveScoreOptions`) so the core never depends on the adapter.
-- **Agent (Web Chat):** `src/agent/`, `agentWebhook/`, and `web/` together implement a second user-facing surface. **Identity is per-request**, propagated through `AsyncLocalStorage` from the agent webhook into `getAgentChatId()`. The webhook verifies the caller's Google ID token, looks the email up in the `WebUserAllowlist` Azure Table to resolve a Telegram chatId, then runs the entire CopilotKit invocation inside that ALS scope. When `GOOGLE_CLIENT_ID` is unset (local dev + the test slot of the Function App) the auth gate is bypassed and `AGENT_HARDCODED_CHAT_ID` is used instead. See [Web auth](#web-auth) for the full pipeline and the three new Telegram admin commands (`/allow_web_user`, `/revoke_web_user`, `/list_web_users`) that manage the allowlist.
+- **Agent (Web Chat):** `src/agent/`, `agentWebhook/`, and `web/` together implement a second user-facing surface. **Identity is per-request**, propagated through `AsyncLocalStorage` from the agent webhook into `getAgentChatId()`. The webhook verifies the caller's Google ID token, looks the email up in the `WebUserAllowlist` Azure Table to resolve a Telegram chatId, then runs the entire CopilotKit invocation inside that ALS scope. When `GOOGLE_CLIENT_ID` is unset (local dev only — both production AND test slots in Azure set it) the auth gate is bypassed and `AGENT_HARDCODED_CHAT_ID` is used instead. The test slot additionally enforces an **admin-only** filter via `AGENT_REQUIRE_ADMIN=true` — see [Web auth → Test-slot admin-only gate](#test-slot-admin-only-gate). See [Web auth](#web-auth) for the full pipeline and the three new Telegram admin commands (`/allow_web_user`, `/revoke_web_user`, `/list_web_users`) that manage the allowlist.
 
 ---
 
@@ -103,7 +103,7 @@ Start the web-chat agent locally with `npm run dev` (boots both the agent dev se
 **Deployment targets:**
 - The Telegram bot is deployed as the existing Azure Function App `f1-fantazy-bot-func` via the `telegramWebhook/` function. Push to `main` → `production` slot; PR → `test` slot.
 - The web-chat agent is deployed to a **separate Azure Function App** (`f1-fantazy-agent-func`) via the `agentWebhook/` function — keeping it independent for deploy, scale, and failure-isolation reasons (an agent rollout cannot break the Telegram bot). Push to `main` → `production` slot; PR → `test` slot. The agent's deploy package EXCLUDES `telegramWebhook/` and other non-agent paths (see `.funcignore.agent` and the `Strip non-agent paths from the package` step in `.github/workflows/main_f1-fantazy-agent-func.yml`) so the isolation goal is enforced mechanically.
-- The frontend (`web/`) is deployed to an Azure Static Web App (`f1-fantazy-agent-web`, Free SKU) and served from the prod custom domain `https://f1.kilzid.com` (CNAME → the SWA's auto-generated `calm-beach-055be4603.7.azurestaticapps.net`). The custom domain is provisioned via the SWA ARM template's `customDomains` parameter. Push to `main` → `production` environment; PR → per-PR preview environment at `https://<prefix>-<PR>.<region>.<n>.azurestaticapps.net` (the SWA built-in feature, no separate resource per PR; previews use the auto hostname, not the custom domain). The preview environment's `VITE_AGENT_API_URL` points at the agent Function App's `test` slot so PR builds exercise the end-to-end stack against the slot version of the backend.
+- The frontend (`web/`) is deployed to an Azure Static Web App (`f1-fantazy-agent-web`, Free SKU) and served from the prod custom domain `https://f1.kilzid.com` (CNAME → the SWA's auto-generated `calm-beach-055be4603.7.azurestaticapps.net`). The custom domain is provisioned via the SWA ARM template's `customDomains` parameter. Push to `main` → `production` environment. PRs deploy to a **single shared `staging` environment** at `https://calm-beach-055be4603-staging.westeurope.7.azurestaticapps.net` (NOT per-PR ephemerals — Google OAuth doesn't allow wildcard origins, so we collapsed PR previews into one fixed origin so the test slot can be fully auth-gated; see [Web auth → Test-slot admin-only gate](#test-slot-admin-only-gate)). Trade-off: only one PR can be visually tested at a time. The staging environment's `VITE_AGENT_API_URL` points at the agent Function App's `test` slot so PR builds exercise the end-to-end stack against the slot version of the backend.
 - All Azure resources live in resource group `f1-fantazy-bot` in subscription `5cfc4033-…` (`westeurope`). The agent Function App reuses the existing App Service Plan `ASP-f1fantazybot-b551` (Y1 Consumption, supports slots), storage account `f1fantazybot9eca`, Key Vault `f1-fantasy-kv`, and Application Insights `f1-fantazy-bot-func`. New KV secret: `agent-hardcoded-chat-id`.
 - ARM templates: `infra/agent-func/azuredeploy.json` + `infra/agent-web/azuredeploy.json` (parameter files alongside). Run `npm run deploy:agent-func` / `npm run deploy:agent-web` to apply locally; the `deploy-infra-agent-func.yml` / `deploy-infra-agent-web.yml` workflows do the same on push to `main` when those paths change.
 - CORS is handled in `agentWebhook/index.js` (via `src/agent/corsAllowList.js`), not by Azure's `siteConfig.cors` layer, because SWA preview environments need regex matching that the Azure layer doesn't support. Env vars: `AGENT_CORS_ALLOWED_ORIGINS` (comma-separated exact origins) + `AGENT_CORS_PREVIEW_ORIGIN_PATTERN` (regex). When both are unset (local dev), the matcher returns `*` for back-compat. See `readme.md` → "Deploying the agent" for the one-time bootstrap checklist.
@@ -840,9 +840,10 @@ wrapToolExecute(name, fn) catches → generates 8-char errorId (slice of randomU
 | `AZURE_OPENAI_ENDPOINT` | Agent | Azure OpenAI host (works for both `*.openai.azure.com` and `*.services.ai.azure.com`). |
 | `AZURE_OPENAI_API_KEY` | Agent | Azure OpenAI auth. |
 | `AZURE_OPEN_AI_MODEL` | Agent + Telegram `/ask` | Deployment name (used by `azure.chat(deployment)`). |
-| `AGENT_HARDCODED_CHAT_ID` | Agent | Fallback identity used when no per-request context is active (local dev + test slot + cache bootstrap). The LLM never sees it. Defaults to `KILZI_CHAT_ID` in `scripts/dev-agent-server.js` if absent. |
-| `GOOGLE_CLIENT_ID` | Agent (optional) | OAuth 2.0 Web client ID. NOT a secret — safe in app settings. When set, the agent webhook enforces Google sign-in + allowlist lookup on every POST. When unset (local dev, test slot), auth is bypassed and `AGENT_HARDCODED_CHAT_ID` is used instead. |
-| `VITE_GOOGLE_CLIENT_ID` | SWA build env (optional) | Same value as `GOOGLE_CLIENT_ID`, baked into the bundle by the production SWA build (NOT PR previews). Unset = login screen is skipped (matches the backend bypass). |
+| `AGENT_HARDCODED_CHAT_ID` | Agent | Fallback identity used when no per-request context is active (local dev + cache bootstrap). On Azure-deployed slots both prod + test set `GOOGLE_CLIENT_ID`, so the hardcoded path is unreachable from user traffic — it survives as a local-dev fallback only. The LLM never sees it. Defaults to `KILZI_CHAT_ID` in `scripts/dev-agent-server.js` if absent. |
+| `GOOGLE_CLIENT_ID` | Agent | OAuth 2.0 Web client ID. NOT a secret — safe in app settings. Set on BOTH Azure slots (production + test). When the agent webhook sees a valid bearer it enforces Google sign-in + allowlist lookup on every POST. When unset (local dev only), auth is bypassed and `AGENT_HARDCODED_CHAT_ID` is used instead. |
+| `AGENT_REQUIRE_ADMIN` | Agent | `"true"` on the test slot only — adds an admin-only filter after the allowlist check (admins = `KILZI_CHAT_ID` / `DORSE_CHAT_ID` from `src/constants.js`). `"false"` / unset on prod. See [Web auth → Test-slot admin-only gate](#test-slot-admin-only-gate). |
+| `VITE_GOOGLE_CLIENT_ID` | SWA build env | Same client ID, baked into the bundle by both the prod SWA workflow AND the PR/staging workflow. Unset at build time = chat renders without auth gate (local dev only). |
 | `TELEGRAM_BOT_TOKEN` | Agent (optional) | If set, the agent's notifier bot sends token-usage + tool-error logs to the same Telegram channels the main bot uses. If unset, logs stay on stdout — local dev without Telegram still works. |
 | `LOG_CHANNEL_ID` | Telegram bot | Token-usage logs land here from BOTH processes when their notifier bots have a Telegram token. Set in `src/constants.js`. |
 | `ERRORS_CHANNEL_ID` | Telegram bot | Tool errors with `errorId` land here. Set in `src/constants.js`. |
@@ -863,10 +864,11 @@ The agent acts as a **per-request chatId** propagated through Node's
    via `getAgentChatId()` — the LLM never sees `chatId` or `email` in
    its `args`.
 2. **`AGENT_HARDCODED_CHAT_ID` env var** — used by local dev
-   (`scripts/dev-agent-server.js`), the test slot of the agent
-   Function App (auth gate intentionally bypassed for PR validation),
-   and background paths that run outside an HTTP request (e.g.
-   `cacheBootstrap`).
+   (`scripts/dev-agent-server.js`) and by background paths that run
+   outside an HTTP request (e.g. `cacheBootstrap`). Both Azure-deployed
+   slots (production + test) now run the Google auth gate, so the
+   hardcoded path is no longer reachable from real user traffic on
+   Azure — it survives as a local-dev fallback only.
 3. **Throw** — neither available; tools cannot proceed without an
    identity.
 
@@ -899,7 +901,7 @@ agentWebhook/index.js
   │    └── looks up the lowercased email in `WebUserAllowlist`
   │  status → HTTP:
   │    OK         → runWithRequestContext({ chatId, email, sub }, …)
-  │    BYPASSED   → falls through (GOOGLE_CLIENT_ID unset)
+  │    BYPASSED   → falls through (GOOGLE_CLIENT_ID unset; local dev only)
   │    UNAUTHORIZED → 401 + JSON { error, reason }
   │    FORBIDDEN  → 401 + JSON { error, reason, email }
   ▼
@@ -908,14 +910,14 @@ CopilotKit → BuiltInAgent → tool execute()
 getAgentChatId() reads ALS context → the right user's data
 ```
 
-**Backend bypass:** when `GOOGLE_CLIENT_ID` is unset on the Function
-App, `authenticateRequest` returns `BYPASSED` and the webhook falls
-through to the legacy hardcoded-chatId path. Local dev, the test
-slot, and the initial production deploy all start in bypassed mode;
-enabling the gate is a one-line app-setting change. The frontend
-mirrors the bypass: when `VITE_GOOGLE_CLIENT_ID` is empty at build
-time, the login screen is skipped entirely (no Google client to
-authenticate against).
+**Backend bypass (local-dev only):** when `GOOGLE_CLIENT_ID` is unset
+on the Function App, `authenticateRequest` returns `BYPASSED` and the
+webhook falls through to the legacy hardcoded-chatId path. In Azure,
+both slots now set `GOOGLE_CLIENT_ID` (production + test), so
+`BYPASSED` is only reachable from local dev (`scripts/dev-agent-server.js`,
+where the env var is intentionally absent). The frontend mirrors the
+bypass: when `VITE_GOOGLE_CLIENT_ID` is empty at build time, the
+login screen is skipped entirely (local dev only).
 
 **Allowlist storage (`src/webUserAllowlistService.js`):** Azure Table
 `WebUserAllowlist`, single partition `'WebUser'`. RowKey is the
@@ -954,29 +956,105 @@ allowlist via the existing Pending Reply Manager:
 
 | Var                     | Where               | Notes                                                                                                                                       |
 | ----------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GOOGLE_CLIENT_ID`      | Agent Function App  | OAuth 2.0 Web client ID. NOT a secret — safe in app settings. Unset = bypass mode.                                                          |
-| `VITE_GOOGLE_CLIENT_ID` | SWA build env       | Same value, baked into the bundle at build time (only on prod workflow, NOT PR previews). Unset at build time = chat renders without auth gate. |
+| `GOOGLE_CLIENT_ID`      | Agent Function App  | OAuth 2.0 Web client ID. NOT a secret — safe in app settings. Set on BOTH slots in Azure (production + test). Unset = bypass mode (local dev only). |
+| `AGENT_REQUIRE_ADMIN`   | Agent Function App  | `"true"` on the test slot (admin-only filter — see [Test-slot admin-only gate](#test-slot-admin-only-gate)). `"false"` / unset on production. |
+| `VITE_GOOGLE_CLIENT_ID` | SWA build env       | Same client ID, baked into the bundle at build time by both the prod workflow (`main_f1-fantazy-agent-web.yml`) AND the PR/staging workflow (`pr_test_f1-fantazy-agent-web.yml`). Unset at build time = chat renders without auth gate (local dev only). |
 
 **Google Cloud Console setup (one-time):** create an OAuth 2.0 Web
 client. Authorized JavaScript origins must include the production
-SWA host (`https://f1.kilzid.com` + the SWA default hostname).
-Wildcards aren't supported by Google for authorized origins, so
-PR-preview hostnames intentionally don't get auth-gated; instead they
-use the test slot which also has `GOOGLE_CLIENT_ID` unset.
+SWA host (`https://f1.kilzid.com` + the SWA default hostname
+`https://calm-beach-055be4603.7.azurestaticapps.net`) AND the
+fixed staging-environment hostname
+`https://calm-beach-055be4603-staging.westeurope.7.azurestaticapps.net`.
+The latter is the single shared PR-preview origin — see [Test-slot
+admin-only gate](#test-slot-admin-only-gate) for why per-PR
+ephemeral origins were collapsed into one.
 
-**Rollout sequence (do NOT skip steps):**
+#### Test-slot admin-only gate
 
-1. Backend ships with `GOOGLE_CLIENT_ID` unset on the prod slot —
-   `authenticateRequest` returns `BYPASSED`, nothing changes.
-2. Provision the Google OAuth Web client; copy the client ID.
-3. Set `VITE_GOOGLE_CLIENT_ID` in GitHub Actions secrets; redeploy
-   the SWA via the prod workflow. Users now see the login screen but
-   the backend still bypasses (so any signed-in user can chat).
-4. Set `GOOGLE_CLIENT_ID` on the prod slot of the agent Function App
-   (via `infra/agent-func/apply-settings.sh` with the env var set).
-   Auth gate is now live end-to-end.
-5. Allowlist yourself first via `/allow_web_user` (your Google email
-   → your Telegram chatId), soak, then widen the allowlist.
+The test slot of the agent Function App is fully Google-gated AND
+additionally locked to admin chatIds (`KILZI_CHAT_ID`,
+`DORSE_CHAT_ID` — same set `isAdminMessage` uses). This blocks
+drive-by abuse and cost-exfiltration on the publicly-reachable
+preview URL.
+
+**How it works:**
+
+- `AGENT_REQUIRE_ADMIN=true` is set on the test slot (via
+  `infra/agent-func/apply-settings.sh`). On prod it's `"false"`.
+- `src/agent/auth.js` evaluates `process.env.AGENT_REQUIRE_ADMIN === 'true'`
+  AFTER the standard allowlist + valid-chatId checks succeed. Only
+  the literal string `"true"` enables the gate — defensive against
+  typos in app settings.
+- Non-admin allowlisted users on the test slot resolve to
+  `{ status: FORBIDDEN, reason: 'not_admin', email }` → `401` to the
+  client. The frontend's existing rejection-screen path renders this
+  the same way as `email_not_allowlisted`.
+- Admin definition lives in `src/constants.js`
+  (`KILZI_CHAT_ID = 454873194`, `DORSE_CHAT_ID = 673447790`). The
+  env var doesn't carry a chatId list — keeping one source of truth
+  for "admin" between the Telegram bot and the agent.
+- Gate ordering is intentional: the allowlist + chatId validity
+  checks run FIRST, so a non-allowlisted admin still gets the
+  generic `email_not_allowlisted` response (no info leak about admin
+  identity).
+
+**Why a single staging SWA environment instead of per-PR
+ephemerals?** Google's OAuth 2.0 Web client requires every
+Authorized JavaScript origin to be a fixed URL — wildcards are not
+supported. Maintaining a list of per-PR hostnames in GCP Console
+doesn't scale, so all PR builds publish to the same fixed `staging`
+environment of the SWA. The trade-off — only one PR can be visually
+tested at a time — is acceptable for a small dev team and is
+documented at the top of `.github/workflows/pr_test_f1-fantazy-agent-web.yml`.
+
+**Test slot operational notes:**
+
+- The slot stays **Running** by default. Pre-auth it used to be
+  kept Stopped as a security workaround (anyone with the URL could
+  drive the agent as the owner); with Google sign-in +
+  `AGENT_REQUIRE_ADMIN=true` in place, that workaround is no longer
+  needed. The App Service Plan is Y1 Consumption — pay-per-execution
+  — so an idle Running slot costs effectively $0, and PR validation
+  becomes a single deploy → test loop with no manual `az functionapp
+  start` round-trip.
+- The PR workflow (`pr_test_f1-fantazy-agent-func.yml`) still
+  tolerates the slot being Stopped during deploy via
+  `continue-on-error: ${{ steps.state_check.outputs.state == 'Stopped' }}`
+  — kept as a safety net if someone stops it manually. The
+  `WEBSITE_RUN_FROM_PACKAGE` setting + the package upload succeed
+  even when stopped; only Sync Trigger fails cosmetically. The latest
+  code loads automatically on the next `az functionapp start --slot test`.
+- A stopped slot returns Azure's "Web App stopped" `HTTP 403` page
+  to all callers before reaching our code — strictly stronger than
+  the 401 the auth gate would return. Either state is safe; Running
+  is just more ergonomic.
+
+**Rollout sequence (executed 2026-05-22; documented for the record):**
+
+1. Backend code: add `AGENT_REQUIRE_ADMIN` env-var support to
+   `src/agent/auth.js` + tests in `src/agent/auth.test.js`.
+2. Frontend: no source changes needed — existing Google sign-in
+   flow works against the staging environment because the OAuth
+   client ID and the `WebUserAllowlist` Azure Table are shared with
+   prod.
+3. Provision the SWA staging environment (one-off SWA CLI deploy
+   of a placeholder to materialize the `staging` env) — yields
+   `https://calm-beach-055be4603-staging.westeurope.7.azurestaticapps.net`.
+4. Add the staging origin to the prod OAuth client's Authorized
+   JavaScript origins in Google Cloud Console.
+5. Update `infra/agent-func/apply-settings.sh` to set
+   `GOOGLE_CLIENT_ID` on the test slot (same value as prod) plus
+   `AGENT_REQUIRE_ADMIN=true`. Update `azuredeploy.parameters.json`
+   so `testAllowedOrigins` is the single staging URL.
+6. Rewrite `pr_test_f1-fantazy-agent-web.yml` to deploy to the
+   fixed `staging` environment (replacing per-PR previews). Delete
+   the dynamic `az functionapp cors add/remove` plumbing.
+7. Run `npm run deploy:agent-func` with `GOOGLE_CLIENT_ID` set to
+   apply both ARM + app-settings to Azure.
+8. Push, open a PR, let the PR workflows deploy the new agent code
+   + staging frontend. Manually start the test slot for end-to-end
+   verification, then stop it again.
 
 **Token observability:** the Phase 6.1 token-usage middleware reads
 `getRequestContext()?.email` and appends `, email: <user>` to every
