@@ -103,9 +103,12 @@ Start the web-chat agent locally with `npm run dev` (boots both the agent dev se
 **Deployment targets:**
 - The Telegram bot is deployed as the existing Azure Function App `f1-fantazy-bot-func` via the `telegramWebhook/` function. Push to `main` → `production` slot; PR → `test` slot.
 - The web-chat agent is deployed to a **separate Azure Function App** (`f1-fantazy-agent-func`) via the `agentWebhook/` function — keeping it independent for deploy, scale, and failure-isolation reasons (an agent rollout cannot break the Telegram bot). Push to `main` → `production` slot; PR → `test` slot. The agent's deploy package EXCLUDES `telegramWebhook/` and other non-agent paths (see `.funcignore.agent` and the `Strip non-agent paths from the package` step in `.github/workflows/main_f1-fantazy-agent-func.yml`) so the isolation goal is enforced mechanically.
-- The frontend (`web/`) is deployed to an Azure Static Web App (`f1-fantazy-agent-web`, Free SKU) and served from the prod custom domain `https://f1.kilzid.com` (CNAME → the SWA's auto-generated `calm-beach-055be4603.7.azurestaticapps.net`). The custom domain is provisioned via the SWA ARM template's `customDomains` parameter. Push to `main` → `production` environment. PRs deploy to a **single shared `staging` environment** at `https://calm-beach-055be4603-staging.westeurope.7.azurestaticapps.net` (NOT per-PR ephemerals — Google OAuth doesn't allow wildcard origins, so we collapsed PR previews into one fixed origin so the test slot can be fully auth-gated; see [Web auth → Test-slot admin-only gate](#test-slot-admin-only-gate)). Trade-off: only one PR can be visually tested at a time. The staging environment's `VITE_AGENT_API_URL` points at the agent Function App's `test` slot so PR builds exercise the end-to-end stack against the slot version of the backend.
+- The frontend has **two** Azure Static Web Apps (both Free SKU, both in `westeurope`):
+  - **Production:** `f1-fantazy-agent-web` at the prod custom domain `https://f1.kilzid.com` (CNAME → the SWA's auto-generated `calm-beach-055be4603.7.azurestaticapps.net`). Push to `main` → `production` environment.
+  - **PR validation / staging:** `f1-fantazy-agent-web-test` at the custom domain `https://test.f1.kilzid.com` (CNAME → its auto-generated `proud-sky-035c6b003.7.azurestaticapps.net`). Every PR replaces the content of its `default` environment; `stagingEnvironmentPolicy: Disabled` so per-PR ephemerals can't be created by mistake.
+  Two-SWA model was chosen over upgrading to Standard SKU because (a) Free SKU is sufficient at our scale and (b) isolation — a PR build can never accidentally publish to prod. Both PR-validation builds bake `VITE_AGENT_API_URL` pointing at the agent Function App's `test` slot so PR builds exercise the end-to-end stack against the slot version of the backend.
 - All Azure resources live in resource group `f1-fantazy-bot` in subscription `5cfc4033-…` (`westeurope`). The agent Function App reuses the existing App Service Plan `ASP-f1fantazybot-b551` (Y1 Consumption, supports slots), storage account `f1fantazybot9eca`, Key Vault `f1-fantasy-kv`, and Application Insights `f1-fantazy-bot-func`. New KV secret: `agent-hardcoded-chat-id`.
-- ARM templates: `infra/agent-func/azuredeploy.json` + `infra/agent-web/azuredeploy.json` (parameter files alongside). Run `npm run deploy:agent-func` / `npm run deploy:agent-web` to apply locally; the `deploy-infra-agent-func.yml` / `deploy-infra-agent-web.yml` workflows do the same on push to `main` when those paths change.
+- ARM templates: `infra/agent-func/azuredeploy.json` (Function App) + `infra/agent-web/azuredeploy.json` (prod SWA) + `infra/agent-web-test/azuredeploy.json` (test SWA). Parameter files alongside each. Run `npm run deploy:agent-func` / `deploy:agent-web` / `deploy:agent-web-test` to apply locally; the `deploy-infra-agent-func.yml` / `deploy-infra-agent-web.yml` / `deploy-infra-agent-web-test.yml` workflows do the same on push to `main` when those paths change.
 - CORS is handled in `agentWebhook/index.js` (via `src/agent/corsAllowList.js`), not by Azure's `siteConfig.cors` layer, because SWA preview environments need regex matching that the Azure layer doesn't support. Env vars: `AGENT_CORS_ALLOWED_ORIGINS` (comma-separated exact origins) + `AGENT_CORS_PREVIEW_ORIGIN_PATTERN` (regex). When both are unset (local dev), the matcher returns `*` for back-compat. See `readme.md` → "Deploying the agent" for the one-time bootstrap checklist.
 
 ---
@@ -961,14 +964,17 @@ allowlist via the existing Pending Reply Manager:
 | `VITE_GOOGLE_CLIENT_ID` | SWA build env       | Same client ID, baked into the bundle at build time by both the prod workflow (`main_f1-fantazy-agent-web.yml`) AND the PR/staging workflow (`pr_test_f1-fantazy-agent-web.yml`). Unset at build time = chat renders without auth gate (local dev only). |
 
 **Google Cloud Console setup (one-time):** create an OAuth 2.0 Web
-client. Authorized JavaScript origins must include the production
-SWA host (`https://f1.kilzid.com` + the SWA default hostname
-`https://calm-beach-055be4603.7.azurestaticapps.net`) AND the
-fixed staging-environment hostname
-`https://calm-beach-055be4603-staging.westeurope.7.azurestaticapps.net`.
-The latter is the single shared PR-preview origin — see [Test-slot
-admin-only gate](#test-slot-admin-only-gate) for why per-PR
-ephemeral origins were collapsed into one.
+client. Authorized JavaScript origins must include:
+
+- Production SWA: `https://f1.kilzid.com` + the raw hostname
+  `https://calm-beach-055be4603.7.azurestaticapps.net`.
+- Test SWA (PR validation): `https://test.f1.kilzid.com` + the raw
+  hostname `https://proud-sky-035c6b003.7.azurestaticapps.net`.
+
+Both SWAs use the SAME OAuth client (one client ID, one consent
+screen). See [Test-slot admin-only gate](#test-slot-admin-only-gate)
+for why we use one fixed `test.f1.kilzid.com` URL instead of
+per-PR ephemerals.
 
 #### Test-slot admin-only gate
 
@@ -999,14 +1005,19 @@ preview URL.
   generic `email_not_allowlisted` response (no info leak about admin
   identity).
 
-**Why a single staging SWA environment instead of per-PR
-ephemerals?** Google's OAuth 2.0 Web client requires every
-Authorized JavaScript origin to be a fixed URL — wildcards are not
-supported. Maintaining a list of per-PR hostnames in GCP Console
-doesn't scale, so all PR builds publish to the same fixed `staging`
-environment of the SWA. The trade-off — only one PR can be visually
-tested at a time — is acceptable for a small dev team and is
-documented at the top of `.github/workflows/pr_test_f1-fantazy-agent-web.yml`.
+**Why a dedicated `test.f1.kilzid.com` SWA instead of a `staging`
+environment on the prod SWA?** Google's OAuth 2.0 Web client requires
+every Authorized JavaScript origin to be a fixed URL — wildcards are
+not supported. Maintaining a list of per-PR hostnames in GCP Console
+doesn't scale, so all PR builds publish to **a single fixed URL**.
+Custom domains on non-production SWA environments require Standard
+SKU (~$9/mo), so we provisioned a second Free-SKU SWA
+(`f1-fantazy-agent-web-test`, `infra/agent-web-test/`) dedicated to
+PR validation. Its `default` (production) environment IS the staging
+surface — no per-PR ephemerals, no environment-flag tricks. The
+trade-off — only one PR can be visually tested at a time — is
+acceptable for a small dev team and is documented at the top of
+`.github/workflows/pr_test_f1-fantazy-agent-web.yml`.
 
 **Test slot operational notes:**
 
@@ -1033,28 +1044,25 @@ documented at the top of `.github/workflows/pr_test_f1-fantazy-agent-web.yml`.
 **Rollout sequence (executed 2026-05-22; documented for the record):**
 
 1. Backend code: add `AGENT_REQUIRE_ADMIN` env-var support to
-   `src/agent/auth.js` + tests in `src/agent/auth.test.js`.
+   `src/agent/auth.js` + tests in `src/agent/auth.test.js`. (PR #204)
 2. Frontend: no source changes needed — existing Google sign-in
-   flow works against the staging environment because the OAuth
-   client ID and the `WebUserAllowlist` Azure Table are shared with
-   prod.
-3. Provision the SWA staging environment (one-off SWA CLI deploy
-   of a placeholder to materialize the `staging` env) — yields
-   `https://calm-beach-055be4603-staging.westeurope.7.azurestaticapps.net`.
-4. Add the staging origin to the prod OAuth client's Authorized
-   JavaScript origins in Google Cloud Console.
-5. Update `infra/agent-func/apply-settings.sh` to set
-   `GOOGLE_CLIENT_ID` on the test slot (same value as prod) plus
-   `AGENT_REQUIRE_ADMIN=true`. Update `azuredeploy.parameters.json`
-   so `testAllowedOrigins` is the single staging URL.
-6. Rewrite `pr_test_f1-fantazy-agent-web.yml` to deploy to the
-   fixed `staging` environment (replacing per-PR previews). Delete
-   the dynamic `az functionapp cors add/remove` plumbing.
-7. Run `npm run deploy:agent-func` with `GOOGLE_CLIENT_ID` set to
-   apply both ARM + app-settings to Azure.
-8. Push, open a PR, let the PR workflows deploy the new agent code
-   + staging frontend. Manually start the test slot for end-to-end
-   verification, then stop it again.
+   flow works because the OAuth client ID and the `WebUserAllowlist`
+   Azure Table are shared with prod.
+3. (Original Strategy A) Materialize a `staging` environment on the
+   prod SWA via SWA CLI; deploy PR builds there. Worked but couldn't
+   get a custom domain on Free SKU. (PR #204 + PR #205 follow-up)
+4. (Option B — current model) Provision a dedicated test SWA
+   `f1-fantazy-agent-web-test` (`infra/agent-web-test/`), bind
+   `test.f1.kilzid.com` to its default environment. Rewrite the PR
+   workflow to deploy to the test SWA via a separate GH secret
+   `AZURE_STATIC_WEB_APPS_API_TOKEN_TEST`. Decommission the original
+   `staging` environment on the prod SWA.
+5. Allowlist updates for new origins (`https://test.f1.kilzid.com`,
+   raw test-SWA hostname) added in the prod OAuth client.
+6. Test slot CORS pinned to the two test origins via
+   `infra/agent-func/apply-settings.sh` + `azuredeploy.parameters.json`.
+7. End-to-end verified: anonymous → 401, signed-in admin → works on
+   `test.f1.kilzid.com`, PR auto-comment posts the right URL.
 
 **Token observability:** the Phase 6.1 token-usage middleware reads
 `getRequestContext()?.email` and appends `, email: <user>` to every

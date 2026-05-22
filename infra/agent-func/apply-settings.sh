@@ -25,7 +25,7 @@
 #   AZURE_OPEN_AI_MODEL    (default: gpt-5.4)
 #   PROD_ALLOWED_ORIGINS   (default: https://calm-beach-055be4603.7.azurestaticapps.net)
 #   PROD_PREVIEW_PATTERN   (default: empty)
-#   TEST_ALLOWED_ORIGINS   (default: https://calm-beach-055be4603-staging.westeurope.7.azurestaticapps.net)
+#   TEST_ALLOWED_ORIGINS   (default: https://test.f1.kilzid.com,https://proud-sky-035c6b003.7.azurestaticapps.net)
 #   TEST_PREVIEW_PATTERN   (default: empty)
 #   GOOGLE_CLIENT_ID       (default: empty — auth gate DISABLED on both
 #                           slots. Set to the OAuth 2.0 Web client ID to
@@ -46,10 +46,13 @@ MODEL="${AZURE_OPEN_AI_MODEL:-gpt-5.4}"
 STORAGE_CONTAINER="${AZURE_STORAGE_CONTAINER_NAME:-f1-fantasy-scraper-json}"
 PROD_ORIGINS="${PROD_ALLOWED_ORIGINS:-https://calm-beach-055be4603.7.azurestaticapps.net}"
 PROD_PATTERN="${PROD_PREVIEW_PATTERN:-}"
-# The test slot frontend lives at a single fixed SWA staging hostname
-# now (no more per-PR previews) — see `pr_test_f1-fantazy-agent-web.yml`.
-# This tightens CORS without sacrificing PR-preview workflow.
-TEST_ORIGINS="${TEST_ALLOWED_ORIGINS:-https://calm-beach-055be4603-staging.westeurope.7.azurestaticapps.net}"
+# The test slot frontend lives at the dedicated test SWA — see
+# `infra/agent-web-test/` and `pr_test_f1-fantazy-agent-web.yml`. The
+# user-facing URL is the custom domain (test.f1.kilzid.com); the raw
+# SWA hostname is included as defense-in-depth in case someone hits
+# it directly bypassing DNS. This is the only CORS we need now — no
+# per-PR origin churn.
+TEST_ORIGINS="${TEST_ALLOWED_ORIGINS:-https://test.f1.kilzid.com,https://proud-sky-035c6b003.7.azurestaticapps.net}"
 TEST_PATTERN="${TEST_PREVIEW_PATTERN:-}"
 # When set, the Google auth gate runs on BOTH slots. The test slot
 # additionally requires AGENT_REQUIRE_ADMIN=true (see below) so only

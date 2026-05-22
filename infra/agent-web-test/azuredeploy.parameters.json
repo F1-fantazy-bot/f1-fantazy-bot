@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "staticWebAppName": {
+      "value": "f1-fantazy-agent-web-test"
+    },
+    "location": {
+      "value": "westeurope"
+    },
+    "sku": {
+      "value": "Free"
+    },
+    "stagingEnvironmentPolicy": {
+      "value": "Disabled"
+    },
+    "customDomains": {
+      "value": ["test.f1.kilzid.com"]
+    }
+  }
+}

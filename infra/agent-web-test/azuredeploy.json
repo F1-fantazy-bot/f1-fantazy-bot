@@ -1,0 +1,98 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "hand-authored",
+      "comment": "ARM template for the F1 Fantasy AGENT TEST/STAGING web frontend (Static Web App). Separate resource from the prod SWA `f1-fantazy-agent-web` — this one exists exclusively to host the PR-validation frontend at https://test.f1.kilzid.com. Two-SWA model was chosen over upgrading the prod SWA to Standard SKU because (a) Free SKU is sufficient at our scale and (b) isolation: a PR build can never accidentally publish to prod. See AGENTS.md > 'Deployment targets' for the rollout history. The deployment token is fetched out-of-band (`az staticwebapp secrets list`) and set as the GitHub Actions secret AZURE_STATIC_WEB_APPS_API_TOKEN_TEST, which the PR workflow uses to deploy."
+    }
+  },
+  "parameters": {
+    "staticWebAppName": {
+      "type": "string",
+      "defaultValue": "f1-fantazy-agent-web-test",
+      "metadata": {
+        "description": "Name of the test/staging Static Web App resource. Naming convention mirrors the f1-fantazy-agent-func test slot."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "westeurope",
+      "allowedValues": ["centralus", "eastus2", "eastasia", "westeurope", "westus2"],
+      "metadata": {
+        "description": "Azure region. SWA Free SKU is only available in this short list of regions; westeurope keeps it co-located with the rest of the resource group and the prod SWA."
+      }
+    },
+    "sku": {
+      "type": "string",
+      "defaultValue": "Free",
+      "allowedValues": ["Free", "Standard"],
+      "metadata": {
+        "description": "SKU tier. Free is sufficient because PRs deploy to this SWA's default (production) environment — no per-PR preview environments are needed (and they're disabled via stagingEnvironmentPolicy below)."
+      }
+    },
+    "stagingEnvironmentPolicy": {
+      "type": "string",
+      "defaultValue": "Disabled",
+      "allowedValues": ["Enabled", "Disabled"],
+      "metadata": {
+        "description": "Deliberately Disabled. The PR workflow deploys directly to this SWA's default (production) environment — there's no concept of 'per-PR preview' on the test SWA. Keeping this Disabled prevents a future workflow change from accidentally creating per-PR ephemerals, which would defeat the whole point of the two-SWA architecture (fixed origin → matches Google OAuth allowlist)."
+      }
+    },
+    "customDomains": {
+      "type": "array",
+      "defaultValue": [],
+      "metadata": {
+        "description": "List of custom domains (e.g. ['test.f1.kilzid.com']) to attach to the SWA. Same semantics as in the prod template: DNS CNAME record MUST already point at the SWA's defaultHostname BEFORE this template is re-applied with the domain in the array. Initial provision uses an empty array so we can capture the defaultHostname FIRST, set up DNS, THEN re-apply the template with the domain (or use `az staticwebapp hostname set` as a one-off equivalent)."
+      }
+    }
+  },
+  "resources": [
+    {
+      "comments": "Static Web App. Same shape as the prod SWA — no repositoryUrl/branch/repositoryToken, the GH workflow drives deploys directly via Azure/static-web-apps-deploy@v1 (or the SWA CLI) using the deployment token (apiKey) that this resource auto-generates.",
+      "type": "Microsoft.Web/staticSites",
+      "apiVersion": "2023-12-01",
+      "name": "[parameters('staticWebAppName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "[parameters('sku')]",
+        "tier": "[parameters('sku')]"
+      },
+      "properties": {
+        "stagingEnvironmentPolicy": "[parameters('stagingEnvironmentPolicy')]",
+        "allowConfigFileUpdates": true,
+        "provider": "Custom",
+        "enterpriseGradeCdnStatus": "Disabled"
+      }
+    },
+    {
+      "comments": "Custom-domain child resources. One per entry in the `customDomains` parameter. Each requires a pre-existing CNAME (or A/ALIAS) record at the user's DNS provider pointing at the SWA's defaultHostname. Provisioning blocks until DNS validation succeeds — if DNS isn't ready, the whole template deployment will eventually fail (~10 min timeout) and you'll need to retry after fixing DNS. The validationMethod defaults to `cname-delegation` which is correct for Free SKU.",
+      "condition": "[greater(length(parameters('customDomains')), 0)]",
+      "type": "Microsoft.Web/staticSites/customDomains",
+      "apiVersion": "2023-12-01",
+      "name": "[concat(parameters('staticWebAppName'), '/', parameters('customDomains')[copyIndex()])]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/staticSites', parameters('staticWebAppName'))]"
+      ],
+      "properties": {},
+      "copy": {
+        "name": "customDomainsLoop",
+        "count": "[length(parameters('customDomains'))]"
+      }
+    }
+  ],
+  "outputs": {
+    "staticWebAppName": {
+      "type": "string",
+      "value": "[parameters('staticWebAppName')]"
+    },
+    "staticWebAppDefaultHostName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/staticSites', parameters('staticWebAppName')), '2023-12-01').defaultHostname]"
+    },
+    "staticWebAppResourceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Web/staticSites', parameters('staticWebAppName'))]"
+    }
+  }
+}

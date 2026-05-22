@@ -110,7 +110,7 @@
       "type": "string",
       "defaultValue": "*",
       "metadata": {
-        "description": "Comma-separated EXACT origins allowed by CORS on the test slot. Same shape as prodAllowedOrigins. After the test slot was locked behind Google auth + admin-only filter (see GOOGLE_CLIENT_ID + AGENT_REQUIRE_ADMIN in apply-settings.sh), PR previews deploy to a single fixed SWA staging environment instead of per-PR ephemerals. The parameter file pins this to that one origin so the platform CORS layer matches exactly."
+        "description": "Comma-separated EXACT origins allowed by CORS on the test slot. Same shape as prodAllowedOrigins. After the test slot was locked behind Google auth + admin-only filter (see GOOGLE_CLIENT_ID + AGENT_REQUIRE_ADMIN in apply-settings.sh) AND the PR-preview frontend was migrated to its own dedicated SWA `f1-fantazy-agent-web-test` (see infra/agent-web-test/, Option B), this pins the platform CORS layer to the custom domain (test.f1.kilzid.com) + the raw test-SWA hostname as defense-in-depth."
       }
     },
     "testPreviewOriginPattern": {
