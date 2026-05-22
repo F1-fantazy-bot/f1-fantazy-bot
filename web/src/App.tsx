@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { CopilotKit } from '@copilotkit/react-core';
 import { CopilotChat } from '@copilotkit/react-ui';
 import '@copilotkit/react-ui/styles.css';
@@ -69,13 +68,15 @@ function AuthedAgent() {
 function VerifiedAgentChat() {
   const { session } = useAuth();
 
-  // Bind the chat-history scope BEFORE <HistoryRestorer /> mounts so
-  // the very first read targets this user's key — and ONLY inside the
-  // verified subtree so a forbidden/unavailable user never binds a
-  // scope (or reads any history).
-  useEffect(() => {
-    setHistoryScope(session ? session.claims.sub : null);
-  }, [session]);
+  // Bind the chat-history scope SYNCHRONOUSLY during render — before
+  // any descendant effect runs. React runs child effects BEFORE
+  // parent effects on a commit, so binding the scope in a parent
+  // `useEffect` would let `<HistoryRestorer />`'s very first read
+  // observe an unbound or stale scope. Calling `setHistoryScope`
+  // during render is safe because the assignment is idempotent for
+  // the same session — strict-mode double invocation produces the
+  // same value.
+  setHistoryScope(session ? session.claims.sub : null);
 
   if (!session) {
     // Defensive guard — AccessVerifier should not render us without a

@@ -1,28 +1,50 @@
 // Phase 6.5 — chat history restore + auto-save.
 //
 // Mounted INSIDE <CopilotKit>. Uses `useAgent` to grab the live
-// AbstractAgent instance, then:
+// AbstractAgent instance and reconciles its `messages` array with the
+// per-user localStorage payload.
 //
-//   1. On first mount with a real agent: load persisted history
-//      from localStorage and `agent.setMessages()` it. This is
-//      gated by `restoredAgentRef` so we re-run if CopilotKit
-//      swaps the agent instance (stub → real) but never restore
-//      twice on the same instance.
+// Why this is more than a one-shot restore:
 //
-//   2. After hydration: subscribe to message / run-status changes
-//      via the `useAgent({ updates: [...] })` config, debounce
-//      500 ms, and persist the current messages — but ONLY when
-//      `agent.isRunning === false`. Mid-stream saves would persist
-//      half-formed assistant replies that the user would see on
-//      reload as truncated text. The `OnRunStatusChanged` update
-//      guarantees this effect re-runs (and saves) the moment the
-//      stream completes.
+//   CopilotKit v2 (`@copilotkit/react-core/v2`) hands us a
+//   `ProxiedCopilotRuntimeAgent` instance in "pending" mode while the
+//   runtime is still connecting. Once the runtime connects, the agent
+//   syncs its initial state from the server — and our agent webhook
+//   runs in single-route mode without server-side `/threads`
+//   persistence (the harmless 405 in the console). So the runtime
+//   ALWAYS emits an initial `onMessagesChanged({ messages: [] })`
+//   event AFTER we mount, which clobbers any `setMessages(stored)`
+//   we did on first paint.
 //
-// The hook returns `null` — it's a side-effect-only mount.
+//   Treating restore as a one-shot per agent instance loses the
+//   user's history on every page reload because the save effect then
+//   fires with `agent.messages === []` and overwrites localStorage.
+//
+// Reconciliation invariant (the one rule that matters):
+//
+//   * RESTORE only into an empty, idle agent. Never overwrite a
+//     non-empty `agent.messages` — that's either the user's live
+//     conversation or messages we just applied ourselves.
+//   * SAVE only when the resulting payload would be a strict
+//     improvement: never write `[]` over a non-empty stored payload.
+//     Explicit clears go through `clear()` first, which empties
+//     localStorage before `agent.setMessages([])` fires, so this
+//     guard never blocks the legitimate "user clicked Clear" path.
+//
+// We subscribe to the agent's `onMessagesChanged` event directly and
+// drive a small `messageVersion` reducer so both effects re-run on
+// EVERY messages mutation — including in-place mutations that a
+// length+last-id fingerprint would miss. The `fp` fingerprint is
+// retained only as a save-debounce key.
+//
+// A tiny restore-fuse (`restoreCountRef`) bounds the self-heal to
+// avoid an unbounded restore ↔ runtime-clobber ping-pong if a future
+// CopilotKit version starts re-syncing repeatedly. After the fuse
+// trips we fall back to the save guard alone to prevent data loss.
 //
 // See `src/lib/chatHistoryStore.ts` for the persistence contract.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import {
   UseAgentUpdate,
   useAgent,
@@ -36,12 +58,9 @@ import {
   toAgUiMessages,
 } from '../lib/chatHistoryStore';
 
-// Cheap fingerprint over the message array so React re-runs the
-// save effect when something visible actually changes. `length`
-// catches new messages; the trailing id + content-length tail
-// catches the streaming-delta case. Using deep equality / the raw
-// array reference would either miss in-place mutations or churn
-// every render.
+// Used as a save-debounce dedupe key — NOT as the canonical
+// change-detection signal (`messageVersion` is). Cheap fingerprint so
+// rapid identical-payload renders don't all schedule a save.
 function fingerprint(messages: Message[] | undefined): string {
   if (!messages || messages.length === 0) return '';
   const last = messages[messages.length - 1];
@@ -57,6 +76,11 @@ function fingerprint(messages: Message[] | undefined): string {
   return `${messages.length}:${last.id ?? ''}:${tail}`;
 }
 
+// Bounds the self-heal restore loop. If the runtime keeps emitting
+// `messages: []` after we re-apply, we stop after this many tries and
+// rely on the save guard to keep localStorage intact.
+const MAX_RESTORE_ATTEMPTS_PER_AGENT = 5;
+
 export function HistoryRestorer(): null {
   const { agent } = useAgent({
     agentId: 'default',
@@ -66,29 +90,87 @@ export function HistoryRestorer(): null {
     ],
   });
 
+  // Per-agent restore counter — resets when the agent instance
+  // changes (provisional → real swap counts as a new agent and gets
+  // its own budget).
   const restoredAgentRef = useRef<AbstractAgent | null>(null);
+  const restoreCountRef = useRef(0);
   const [hydrated, setHydrated] = useState(false);
   const saveTimer = useRef<number | undefined>(undefined);
 
-  // 1) ONE-SHOT restore per agent instance.
+  // Direct subscription so we react to EVERY `onMessagesChanged`
+  // event — including in-place mutations that the `useAgent`-level
+  // `OnMessagesChanged` flag would force-render for but whose
+  // resulting `agent.messages` might still hash to the same `fp`.
+  const [messageVersion, bumpMessageVersion] = useReducer(
+    (x: number) => x + 1,
+    0,
+  );
   useEffect(() => {
-    if (!agent || restoredAgentRef.current === agent) return;
-    const stored = load();
-    if (stored.length > 0) {
-      agent.setMessages(toAgUiMessages(stored));
-    }
-    restoredAgentRef.current = agent;
-    // Defer flipping `hydrated` so the restored messages settle
-    // (and OnMessagesChanged fires for them) before the save effect
-    // arms. Without this microtask, the very first OnMessagesChanged
-    // could observe the pre-restore empty array and persist [].
-    queueMicrotask(() => setHydrated(true));
+    if (!agent) return;
+    const sub = agent.subscribe({
+      onMessagesChanged: () => {
+        bumpMessageVersion();
+      },
+    });
+    return () => sub.unsubscribe();
   }, [agent]);
 
-  // 2) Debounced auto-save, gated on `hydrated` AND `!isRunning`.
-  const fp = fingerprint(agent?.messages);
   const isRunning = agent?.isRunning ?? false;
+  const fp = fingerprint(agent?.messages);
 
+  // 1) Restore / self-heal. Runs on every messages mutation (via
+  //    `messageVersion`) and on every agent swap. Idempotent: only
+  //    acts when `agent.messages` is empty and stored is non-empty.
+  useEffect(() => {
+    if (!agent) return;
+    // Don't touch messages mid-conversation. The user's live message
+    // (and the agent's incoming reply) must not be overwritten.
+    if (isRunning) {
+      if (restoredAgentRef.current !== agent) {
+        restoredAgentRef.current = agent;
+        restoreCountRef.current = 0;
+      }
+      if (!hydrated) {
+        queueMicrotask(() => setHydrated(true));
+      }
+      return;
+    }
+
+    if (restoredAgentRef.current !== agent) {
+      restoredAgentRef.current = agent;
+      restoreCountRef.current = 0;
+    }
+
+    const stored = load();
+    const agentMessageCount = agent.messages?.length ?? 0;
+
+    if (
+      stored.length > 0 &&
+      agentMessageCount === 0 &&
+      restoreCountRef.current < MAX_RESTORE_ATTEMPTS_PER_AGENT
+    ) {
+      restoreCountRef.current += 1;
+      agent.setMessages(toAgUiMessages(stored));
+    }
+
+    if (!hydrated) {
+      // Microtask defers the save effect's first arming until after
+      // any synchronous `setMessages` notifications have settled —
+      // prevents a `messageVersion` change between commits from
+      // racing the very first save schedule.
+      queueMicrotask(() => setHydrated(true));
+    }
+  }, [agent, messageVersion, isRunning, hydrated]);
+
+  // 2) Debounced auto-save.
+  //
+  //    Defensive empty-save guard: if `agent.messages` is transiently
+  //    empty but localStorage still has content, refuse to overwrite.
+  //    The clear-history button removes the localStorage key BEFORE
+  //    calling `agent.setMessages([])`, so the legitimate clear path
+  //    sees `load().length === 0` and proceeds with `save([])` (a
+  //    no-op since the key is already gone).
   useEffect(() => {
     if (!hydrated || !agent) return;
     if (isRunning) return;
@@ -96,14 +178,20 @@ export function HistoryRestorer(): null {
       window.clearTimeout(saveTimer.current);
     }
     saveTimer.current = window.setTimeout(() => {
-      save(toStoredMessages(agent.messages));
+      const next = toStoredMessages(agent.messages);
+      if (next.length === 0 && load().length > 0) {
+        // Transient clobber. Leave stored history alone — the
+        // restore effect on the next render will re-apply it.
+        return;
+      }
+      save(next);
     }, 500);
     return () => {
       if (saveTimer.current !== undefined) {
         window.clearTimeout(saveTimer.current);
       }
     };
-  }, [hydrated, agent, fp, isRunning]);
+  }, [hydrated, agent, fp, messageVersion, isRunning]);
 
   return null;
 }
