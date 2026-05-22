@@ -19,8 +19,20 @@
 // the webhook turns into a clean 401 + JSON body.
 //
 // Bypass mode: when `GOOGLE_CLIENT_ID` is unset/empty, auth is
-// disabled. This is the local-dev path (and the test slot of the
-// Function App where `AGENT_HARDCODED_CHAT_ID` does the work).
+// disabled. This is the local-dev path only — every Azure-deployed
+// slot (production AND test) sets GOOGLE_CLIENT_ID and runs the gate.
+//
+// Admin-only mode: when `AGENT_REQUIRE_ADMIN === 'true'`, an additional
+// post-allowlist check enforces that the resolved chatId is one of the
+// admin chatIds (KILZI / DORSE — same source `isAdminMessage` uses).
+// Non-admins resolve to `FORBIDDEN` with reason `not_admin`. This is
+// the gate that locks the PR-preview / test-slot agent down to the two
+// repo owners while keeping production open to the wider
+// WebUserAllowlist. The env var is intentionally not a CHAT_ID list:
+// the source of truth for "admin" stays in `src/constants.js` so the
+// Telegram bot and the agent stay aligned.
+
+const { KILZI_CHAT_ID, DORSE_CHAT_ID } = require('../constants');
 
 const STATUS = {
   OK: 'ok',
@@ -33,6 +45,12 @@ const VALID_ISSUERS = new Set([
   'https://accounts.google.com',
   'accounts.google.com',
 ]);
+
+const ADMIN_CHAT_IDS = new Set([KILZI_CHAT_ID, DORSE_CHAT_ID]);
+
+function isAdminChatId(chatId) {
+  return ADMIN_CHAT_IDS.has(chatId);
+}
 
 let cachedOAuth2Client = null;
 
@@ -125,23 +143,27 @@ async function verifyGoogleIdToken(token, audience) {
  * Returns one of:
  *   { status: 'bypassed' } — auth disabled because GOOGLE_CLIENT_ID is
  *     unset; webhook should fall through to the legacy hardcoded chatId
- *     path. Used by local dev and PR-preview slots.
- *   { status: 'ok', email, chatId, name?, sub? } — token verified and
- *     email is in the allowlist; webhook should run with this chatId
- *     bound to the request context.
+ *     path. Used by local dev only (no Azure-deployed slot is bypassed
+ *     anymore — both production and test set GOOGLE_CLIENT_ID).
+ *   { status: 'ok', email, chatId, name?, sub? } — token verified,
+ *     email is in the allowlist, AND (if `AGENT_REQUIRE_ADMIN === 'true'`)
+ *     the resolved chatId is one of the admin chatIds. Webhook should
+ *     run with this chatId bound to the request context.
  *   { status: 'unauthorized', reason } — missing/malformed/invalid
  *     bearer token. Map to 401.
  *   { status: 'forbidden', reason, email? } — token is valid but the
- *     email is not in the allowlist (or has no chatId mapped). Map to
- *     401 too — we deliberately do NOT distinguish "you signed in OK
- *     but you're not authorized" from "your token is bad" on the wire
- *     to avoid leaking allowlist membership; only the user-facing
- *     `reason` differs.
+ *     email is not in the allowlist, the allowlist row has no chatId,
+ *     OR (admin-only mode) the chatId is not an admin. Map to 401 too —
+ *     we deliberately do NOT distinguish "you signed in OK but you're
+ *     not authorized" from "your token is bad" on the wire to avoid
+ *     leaking allowlist membership; only the user-facing `reason`
+ *     differs.
  *
  * @param {Object} req - Azure Functions request-like { headers, ... }.
  * @param {Object} options
  * @param {() => Promise<{email: string, chatId?: string}|null>} options.lookupAllowedUser - Async lookup by email.
  * @param {string|undefined} [options.clientId] - Override env GOOGLE_CLIENT_ID (used by tests).
+ * @param {boolean|undefined} [options.requireAdmin] - Override env AGENT_REQUIRE_ADMIN (used by tests). When true, non-admin chatIds resolve to FORBIDDEN with reason `not_admin`.
  * @param {(token: string, audience: string) => Promise<{email: string, sub?: string, name?: string}>} [options.verifyToken] - Inject the verifier for tests.
  * @returns {Promise<Object>}
  */
@@ -154,6 +176,11 @@ async function authenticateRequest(req, options) {
   if (!clientId) {
     return { status: STATUS.BYPASSED };
   }
+
+  const requireAdmin =
+    options && options.requireAdmin !== undefined
+      ? Boolean(options.requireAdmin)
+      : process.env.AGENT_REQUIRE_ADMIN === 'true';
 
   const token = extractBearerToken(req);
   if (!token) {
@@ -214,6 +241,19 @@ async function authenticateRequest(req, options) {
     };
   }
 
+  // Admin-only gate (test slot / PR previews). Runs LAST so the
+  // checks above (allowlist membership, valid chat-id mapping) still
+  // run against every signed-in caller — admins included. That keeps
+  // the failure mode of "I'm an admin but my allowlist row is bad"
+  // visible and debuggable.
+  if (requireAdmin && !isAdminChatId(chatIdNum)) {
+    return {
+      status: STATUS.FORBIDDEN,
+      reason: 'not_admin',
+      email: claims.email,
+    };
+  }
+
   return {
     status: STATUS.OK,
     email: claims.email,
@@ -228,5 +268,6 @@ module.exports = {
   extractBearerToken,
   verifyGoogleIdToken,
   authenticateRequest,
+  isAdminChatId,
   resetOAuth2ClientForTests,
 };

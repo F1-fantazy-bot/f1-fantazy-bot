@@ -36,7 +36,7 @@
       "value": ""
     },
     "testAllowedOrigins": {
-      "value": "https://f1.kilzid.com,https://calm-beach-055be4603.7.azurestaticapps.net"
+      "value": "https://calm-beach-055be4603-staging.westeurope.7.azurestaticapps.net"
     },
     "testPreviewOriginPattern": {
       "value": ""

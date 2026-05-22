@@ -1,32 +1,31 @@
 # PR preview deploy for the f1-fantazy-agent-web Static Web App.
-# Each PR gets a unique preview URL automatically (per-PR staging
-# environments). The preview frontend points at the agent's TEST slot
-# so backend changes in the same PR get exercised end-to-end.
 #
-# CORS strategy: SWA preview hostnames are predictable from the prod
-# hostname + PR number:
-#   `https://<SWA_HOSTNAME_PREFIX>-<PR>.<REGION>.<INFRA_ID>.azurestaticapps.net`
-# So this workflow adds the exact per-PR preview origin to the test
-# slot's CORS allowlist BEFORE the SWA deploy, and removes it on PR
-# close. That keeps the test slot's CORS tight (no `*` wildcard) while
-# letting per-PR previews actually talk to the test slot.
+# Every PR build is published to the SAME `staging` environment of the
+# SWA (https://calm-beach-055be4603-staging.westeurope.7.azurestaticapps.net).
+# We deliberately do NOT use per-PR preview environments any more —
+# Google's OAuth Web client requires every Authorized JavaScript origin
+# to be a fixed URL (no wildcards), so per-PR hostnames cannot be auth-
+# gated without manual GCP Console churn. Collapsing to one staging
+# environment keeps the test slot fully behind Google sign-in (and the
+# AGENT_REQUIRE_ADMIN=true filter — admins only on test).
 #
-# Caveat: an infra redeploy (deploy-infra-agent-func.yml) resets the
-# test slot CORS allowlist to the ARM template's baseline (just the SWA
-# prod origin). Open PRs lose their preview origin from the allowlist
-# until the next PR-workflow trigger re-adds it. Re-triggering a PR
-# workflow is a no-op push or a `gh run rerun` against this workflow.
+# Trade-off: only one PR can be visually tested at a time, since
+# subsequent pushes from any PR overwrite the staging deploy. For a
+# small dev team this is acceptable; communicate on the PR if you need
+# the staging slot.
 #
-# On PR close (merged or not), the staging environment is torn down
-# AND the cors origin is removed from the allowlist.
+# CORS: the test slot's allowlist is statically pinned to the single
+# staging URL (see infra/agent-func/apply-settings.sh and the
+# `testAllowedOrigins` parameter in infra/agent-func/azuredeploy.parameters.json).
+# No per-PR `az functionapp cors add/remove` plumbing is needed.
 
-name: Build and deploy web frontend to Azure Static Web App - f1-fantazy-agent-web (PR preview)
+name: Build and deploy web frontend to Azure Static Web App - f1-fantazy-agent-web (staging environment, PR validation)
 
 on:
   pull_request:
     branches:
       - main
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened]
     paths:
       - 'web/**'
       - '.github/workflows/pr_test_f1-fantazy-agent-web.yml'
@@ -34,62 +33,16 @@ on:
 env:
   NODE_VERSION: '22.x'
   AGENT_TEST_API_URL: 'https://f1-fantazy-agent-func-test.azurewebsites.net/api/agent/copilotkit'
-  # SWA preview hostname formula: `https://<PREFIX>-<PR_NUMBER>.<REGION>.<INFRA_ID>.azurestaticapps.net`
-  # The PREFIX and INFRA_ID are assigned by Azure when the SWA is created and
-  # are constants for the lifetime of the resource. If the SWA is recreated,
-  # update these three values + `prodAllowedOrigins` in infra/agent-func/azuredeploy.parameters.json.
-  SWA_HOSTNAME_PREFIX: 'calm-beach-055be4603'
-  SWA_REGION: 'westeurope'
-  SWA_INFRA_ID: '7'
-  AGENT_FUNC_NAME: 'f1-fantazy-agent-func'
-  AGENT_FUNC_RG: 'f1-fantazy-bot'
 
 jobs:
   build_and_deploy:
-    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
-      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Compute SWA preview origin
-        id: preview_origin
-        run: |
-          ORIGIN="https://${{ env.SWA_HOSTNAME_PREFIX }}-${{ github.event.pull_request.number }}.${{ env.SWA_REGION }}.${{ env.SWA_INFRA_ID }}.azurestaticapps.net"
-          echo "origin=$ORIGIN" >> "$GITHUB_OUTPUT"
-          echo "Preview origin for this PR: $ORIGIN"
-
-      - name: Azure login (to manage test slot CORS allowlist)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_A26EA2FA0FAC46F99530B8845D983E85 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_8FDB1A8936224E90A898EAC192094784 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_00873174CBBD48D3871911006820901C }}
-
-      - name: Add preview origin to test-slot CORS allowlist (idempotent)
-        run: |
-          ORIGIN='${{ steps.preview_origin.outputs.origin }}'
-          EXISTING=$(az functionapp cors show \
-            --name ${{ env.AGENT_FUNC_NAME }} \
-            --slot test \
-            --resource-group ${{ env.AGENT_FUNC_RG }} \
-            --query "allowedOrigins[?@=='$ORIGIN'] | length(@)" \
-            -o tsv)
-          if [ "$EXISTING" = "0" ]; then
-            az functionapp cors add \
-              --name ${{ env.AGENT_FUNC_NAME }} \
-              --slot test \
-              --resource-group ${{ env.AGENT_FUNC_RG }} \
-              --allowed-origins "$ORIGIN" \
-              -o none
-            echo "Added $ORIGIN to test slot CORS allowlist."
-          else
-            echo "$ORIGIN already in test slot CORS allowlist — skipping."
-          fi
 
       - name: Setup Node ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v3
@@ -100,13 +53,21 @@ jobs:
         working-directory: web
         run: npm ci
 
-      - name: Build web (VITE_AGENT_API_URL → test slot)
+      - name: Build web (VITE_AGENT_API_URL → test slot, VITE_GOOGLE_CLIENT_ID baked in)
         working-directory: web
         env:
           VITE_AGENT_API_URL: ${{ env.AGENT_TEST_API_URL }}
+          # Must be set for the staging build, otherwise the frontend
+          # renders without a login screen and the backend's GOOGLE_CLIENT_ID
+          # gate returns 401 to every call — confusing UX. The secret is
+          # shared with the prod build workflow (main_f1-fantazy-agent-web.yml).
+          # The client ID itself is NOT a secret per AGENTS.md — the
+          # GH-Actions `secrets.` indirection is just to keep the value
+          # out of the workflow file.
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
         run: npm run build
 
-      - name: Deploy preview to Azure Static Web Apps
+      - name: Deploy to Azure Static Web Apps (staging environment)
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
@@ -117,45 +78,9 @@ jobs:
           output_location: ''
           skip_app_build: true
           skip_api_build: true
-
-  close_preview:
-    if: github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      id-token: write
-    steps:
-      - name: Compute SWA preview origin
-        id: preview_origin
-        run: |
-          ORIGIN="https://${{ env.SWA_HOSTNAME_PREFIX }}-${{ github.event.pull_request.number }}.${{ env.SWA_REGION }}.${{ env.SWA_INFRA_ID }}.azurestaticapps.net"
-          echo "origin=$ORIGIN" >> "$GITHUB_OUTPUT"
-
-      - name: Azure login (to clean up test slot CORS allowlist)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_A26EA2FA0FAC46F99530B8845D983E85 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_8FDB1A8936224E90A898EAC192094784 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_00873174CBBD48D3871911006820901C }}
-
-      - name: Remove preview origin from test-slot CORS allowlist (tolerate absent)
-        run: |
-          ORIGIN='${{ steps.preview_origin.outputs.origin }}'
-          # Tolerate not-present: the workflow may never have added it
-          # (e.g. PR was closed before first deploy) or an infra redeploy
-          # already cleared it. We do not want a failed cleanup to fail
-          # the close_preview job.
-          az functionapp cors remove \
-            --name ${{ env.AGENT_FUNC_NAME }} \
-            --slot test \
-            --resource-group ${{ env.AGENT_FUNC_RG }} \
-            --allowed-origins "$ORIGIN" \
-            -o none \
-            || echo "Removal failed (likely already absent) — continuing."
-
-      - name: Close PR preview environment
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-          action: 'close'
+          # `deployment_environment: staging` forces the SWA action to
+          # publish to the fixed-name `staging` environment regardless
+          # of PR context. Without this input, the action defaults to a
+          # per-PR preview environment, which is exactly what we no
+          # longer want.
+          deployment_environment: 'staging'

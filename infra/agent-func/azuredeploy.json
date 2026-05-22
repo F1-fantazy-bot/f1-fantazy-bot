@@ -110,7 +110,7 @@
       "type": "string",
       "defaultValue": "*",
       "metadata": {
-        "description": "Comma-separated EXACT origins allowed by CORS on the test slot. Same shape as prodAllowedOrigins. Default is `*` because SWA preview environments have unpredictable per-PR hostnames that Azure's CORS layer cannot regex-match; restricting the test slot to a tight allowlist would mean updating it per PR. `*` is acceptable on test since the slot is for short-lived PR validation."
+        "description": "Comma-separated EXACT origins allowed by CORS on the test slot. Same shape as prodAllowedOrigins. After the test slot was locked behind Google auth + admin-only filter (see GOOGLE_CLIENT_ID + AGENT_REQUIRE_ADMIN in apply-settings.sh), PR previews deploy to a single fixed SWA staging environment instead of per-PR ephemerals. The parameter file pins this to that one origin so the platform CORS layer matches exactly."
       }
     },
     "testPreviewOriginPattern": {
