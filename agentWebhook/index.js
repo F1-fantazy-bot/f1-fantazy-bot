@@ -139,6 +139,45 @@ function buildUnauthorizedResponse(req, authResult) {
   };
 }
 
+// Cheap "you're in" probe. Same auth pipeline as the chat endpoint
+// but never invokes CopilotKit — used by the frontend AccessVerifier
+// to pre-check authorization before mounting the chat tree. Returns:
+//   200 { status: 'ok', email, name, mode: 'authenticated' }
+//   200 { status: 'ok', mode: 'bypassed' }   (when GOOGLE_CLIENT_ID is unset)
+//   401 { error, reason, email? }            (auth failure)
+//   405 (non-GET / non-OPTIONS — OPTIONS short-circuits before this)
+function buildWhoamiOkResponse(req, authResult) {
+  const headers = {
+    ...buildResponseCorsHeaders(req),
+    'Content-Type': 'application/json',
+  };
+  const body =
+    authResult.status === STATUS.BYPASSED
+      ? { status: 'ok', mode: 'bypassed' }
+      : {
+          status: 'ok',
+          mode: 'authenticated',
+          email: authResult.email,
+          name: authResult.name,
+        };
+
+  return {
+    status: 200,
+    headers,
+    body: JSON.stringify(body),
+  };
+}
+
+function isWhoamiPath(req) {
+  // Exact-match guard (no .endsWith) so we don't accidentally route
+  // e.g. /api/agent/copilotkit/whoami here.
+  try {
+    return buildRequestUrl(req).pathname === '/api/agent/whoami';
+  } catch {
+    return false;
+  }
+}
+
 async function runCopilotHandler(req) {
   const handler = getCopilotRuntimeHandler();
   const webRequest = buildWebRequest(req);
@@ -165,6 +204,20 @@ module.exports = async function (context, req) {
     return;
   }
 
+  const whoami = isWhoamiPath(req);
+  if (whoami && (req.method || '').toUpperCase() !== 'GET') {
+    context.res = {
+      status: 405,
+      headers: {
+        ...buildResponseCorsHeaders(req),
+        Allow: 'GET, OPTIONS',
+      },
+      body: 'Method Not Allowed',
+    };
+
+    return;
+  }
+
   try {
     const authResult = await authenticateRequest(req, {
       lookupAllowedUser: getAllowedUserByEmail,
@@ -180,6 +233,14 @@ module.exports = async function (context, req) {
           (authResult.detail ? ` detail=${authResult.detail}` : ''),
       );
       context.res = buildUnauthorizedResponse(req, authResult);
+
+      return;
+    }
+
+    if (whoami) {
+      // Cheap path — never invokes CopilotKit, never establishes the
+      // request context. Both `ok` and `bypassed` map to a 200 here.
+      context.res = buildWhoamiOkResponse(req, authResult);
 
       return;
     }
