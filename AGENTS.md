@@ -1010,17 +1010,25 @@ documented at the top of `.github/workflows/pr_test_f1-fantazy-agent-web.yml`.
 
 **Test slot operational notes:**
 
-- The slot is typically `Stopped` to save consumption-plan invocations.
-  PR-workflow deploys upload the package via
-  `Azure/functions-action@v1` even when the slot is stopped (the
-  `WEBSITE_RUN_FROM_PACKAGE` setting updates; only the Sync Trigger
-  step fails cosmetically — see the `continue-on-error` comment in
-  `pr_test_f1-fantazy-agent-func.yml`). The code loads automatically
-  on the next `az functionapp start --slot test`.
+- The slot stays **Running** by default. Pre-auth it used to be
+  kept Stopped as a security workaround (anyone with the URL could
+  drive the agent as the owner); with Google sign-in +
+  `AGENT_REQUIRE_ADMIN=true` in place, that workaround is no longer
+  needed. The App Service Plan is Y1 Consumption — pay-per-execution
+  — so an idle Running slot costs effectively $0, and PR validation
+  becomes a single deploy → test loop with no manual `az functionapp
+  start` round-trip.
+- The PR workflow (`pr_test_f1-fantazy-agent-func.yml`) still
+  tolerates the slot being Stopped during deploy via
+  `continue-on-error: ${{ steps.state_check.outputs.state == 'Stopped' }}`
+  — kept as a safety net if someone stops it manually. The
+  `WEBSITE_RUN_FROM_PACKAGE` setting + the package upload succeed
+  even when stopped; only Sync Trigger fails cosmetically. The latest
+  code loads automatically on the next `az functionapp start --slot test`.
 - A stopped slot returns Azure's "Web App stopped" `HTTP 403` page
-  to all callers before reaching our code. This is strictly stronger
-  than the 401 the auth gate would return, and is the default-safe
-  state between PR validation runs.
+  to all callers before reaching our code — strictly stronger than
+  the 401 the auth gate would return. Either state is safe; Running
+  is just more ergonomic.
 
 **Rollout sequence (executed 2026-05-22; documented for the record):**
 
