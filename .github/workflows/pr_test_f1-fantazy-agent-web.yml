@@ -67,20 +67,19 @@ jobs:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
         run: npm run build
 
-      - name: Deploy to Azure Static Web Apps (staging environment)
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: 'upload'
-          app_location: 'web/dist'
-          api_location: ''
-          output_location: ''
-          skip_app_build: true
-          skip_api_build: true
-          # `deployment_environment: staging` forces the SWA action to
-          # publish to the fixed-name `staging` environment regardless
-          # of PR context. Without this input, the action defaults to a
-          # per-PR preview environment, which is exactly what we no
-          # longer want.
-          deployment_environment: 'staging'
+      - name: Deploy to Azure Static Web Apps (staging environment, via SWA CLI)
+        # We deliberately use the SWA CLI here instead of
+        # `Azure/static-web-apps-deploy@v1`. On `pull_request` events
+        # the action silently overrides the `deployment_environment`
+        # input and creates a per-PR-numbered preview environment —
+        # exactly the behavior this rewrite was supposed to eliminate.
+        # The SWA CLI honours `--env staging` regardless of trigger
+        # context, which is what we need so the test slot's
+        # GOOGLE_CLIENT_ID gate + CORS allowlist actually match the
+        # URL the user lands on. The CLI is the same tool we used to
+        # materialize the staging env in the first place.
+        run: |
+          npx -y @azure/static-web-apps-cli@latest deploy web/dist \
+            --env staging \
+            --deployment-token "${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}" \
+            --no-use-keychain
