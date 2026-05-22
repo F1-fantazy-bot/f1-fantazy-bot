@@ -1,25 +1,30 @@
-# PR preview deploy for the f1-fantazy-agent-web Static Web App.
+# PR validation deploy for the f1-fantazy-agent-web-test Static Web
+# App (https://test.f1.kilzid.com).
 #
-# Every PR build is published to the SAME `staging` environment of the
-# SWA (https://calm-beach-055be4603-staging.westeurope.7.azurestaticapps.net).
-# We deliberately do NOT use per-PR preview environments any more —
-# Google's OAuth Web client requires every Authorized JavaScript origin
-# to be a fixed URL (no wildcards), so per-PR hostnames cannot be auth-
-# gated without manual GCP Console churn. Collapsing to one staging
-# environment keeps the test slot fully behind Google sign-in (and the
-# AGENT_REQUIRE_ADMIN=true filter — admins only on test).
+# Architecture: two-SWA model (Option B). The `f1-fantazy-agent-web`
+# SWA hosts prod (f1.kilzid.com) and is touched only by main_f1-fantazy-agent-web.yml.
+# The `f1-fantazy-agent-web-test` SWA (provisioned via
+# infra/agent-web-test/azuredeploy.json) is dedicated to PR validation
+# — every PR build replaces its content. PRs deploy directly to the
+# test SWA's `default` (production) environment, which means:
+# - The URL is a fixed `test.f1.kilzid.com` (Google OAuth-allowlisted).
+# - We never fight the SWA action's `pull_request`-event behavior
+#   (which silently auto-creates per-PR preview environments).
+# - The test SWA's stagingEnvironmentPolicy is `Disabled` in ARM, so
+#   per-PR previews can't be created on it even by mistake.
 #
 # Trade-off: only one PR can be visually tested at a time, since
-# subsequent pushes from any PR overwrite the staging deploy. For a
-# small dev team this is acceptable; communicate on the PR if you need
-# the staging slot.
+# subsequent pushes from any PR overwrite the test SWA. For a small
+# dev team this is acceptable; communicate on the PR if you need
+# exclusive access to the staging URL.
 #
-# CORS: the test slot's allowlist is statically pinned to the single
-# staging URL (see infra/agent-func/apply-settings.sh and the
-# `testAllowedOrigins` parameter in infra/agent-func/azuredeploy.parameters.json).
-# No per-PR `az functionapp cors add/remove` plumbing is needed.
+# CORS: the agent Function App test slot's allowlist is statically
+# pinned to test.f1.kilzid.com + the test SWA's raw default hostname
+# (see infra/agent-func/apply-settings.sh and the `testAllowedOrigins`
+# parameter in infra/agent-func/azuredeploy.parameters.json). No
+# per-PR `az functionapp cors add/remove` plumbing is needed.
 
-name: Build and deploy web frontend to Azure Static Web App - f1-fantazy-agent-web (staging environment, PR validation)
+name: Build and deploy web frontend to Azure Static Web App - f1-fantazy-agent-web-test (PR validation)
 
 on:
   pull_request:
@@ -58,28 +63,94 @@ jobs:
         env:
           VITE_AGENT_API_URL: ${{ env.AGENT_TEST_API_URL }}
           # Must be set for the staging build, otherwise the frontend
-          # renders without a login screen and the backend's GOOGLE_CLIENT_ID
-          # gate returns 401 to every call — confusing UX. The secret is
-          # shared with the prod build workflow (main_f1-fantazy-agent-web.yml).
-          # The client ID itself is NOT a secret per AGENTS.md — the
-          # GH-Actions `secrets.` indirection is just to keep the value
-          # out of the workflow file.
+          # renders without a login screen and the backend's
+          # GOOGLE_CLIENT_ID gate returns 401 to every call — confusing
+          # UX. The secret is shared with the prod build workflow
+          # (main_f1-fantazy-agent-web.yml). The client ID itself is
+          # NOT a secret per AGENTS.md — the GH-Actions `secrets.`
+          # indirection is just to keep the value out of the workflow
+          # file.
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
         run: npm run build
 
-      - name: Deploy to Azure Static Web Apps (staging environment, via SWA CLI)
-        # We deliberately use the SWA CLI here instead of
-        # `Azure/static-web-apps-deploy@v1`. On `pull_request` events
-        # the action silently overrides the `deployment_environment`
-        # input and creates a per-PR-numbered preview environment —
-        # exactly the behavior this rewrite was supposed to eliminate.
-        # The SWA CLI honours `--env staging` regardless of trigger
-        # context, which is what we need so the test slot's
-        # GOOGLE_CLIENT_ID gate + CORS allowlist actually match the
-        # URL the user lands on. The CLI is the same tool we used to
-        # materialize the staging env in the first place.
+      - name: Deploy to f1-fantazy-agent-web-test SWA (default env, via SWA CLI)
+        # Why the SWA CLI and not Azure/static-web-apps-deploy@v1?
+        # On `pull_request` events the action silently overrides any
+        # environment target and creates a per-PR-numbered preview
+        # environment on the SWA. We need the deploy to land in the
+        # test SWA's `default` (production) environment so it's
+        # reachable at the fixed `test.f1.kilzid.com` URL that's
+        # allowlisted in Google OAuth + the test slot CORS. The SWA
+        # CLI honours `--env default` regardless of trigger context.
+        #
+        # AZURE_STATIC_WEB_APPS_API_TOKEN_TEST is a separate secret
+        # bound to the test SWA's deployment token (NOT the prod SWA's
+        # AZURE_STATIC_WEB_APPS_API_TOKEN). Both are managed via
+        # `gh secret set`; rotation is `az staticwebapp secrets reset`
+        # then re-set the GH secret.
         run: |
           npx -y @azure/static-web-apps-cli@latest deploy web/dist \
-            --env staging \
-            --deployment-token "${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}" \
+            --env default \
+            --deployment-token "${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_TEST }}" \
             --no-use-keychain
+
+      - name: Post / update staging URL comment on the PR
+        # The old SWA action auto-commented "Your stage site is ready
+        # at <per-PR-url>" — we lost that when we switched to the CLI.
+        # This step re-creates a similar comment, but pointing at the
+        # FIXED `test.f1.kilzid.com` URL (the only URL where this PR's
+        # build is reachable, given our auth-gating model). The marker
+        # comment `<!-- staging-deploy-comment -->` makes the operation
+        # idempotent: subsequent pushes update the existing comment in
+        # place rather than spamming new comments on every push.
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const marker = '<!-- staging-deploy-comment -->';
+            const stagingUrl = 'https://test.f1.kilzid.com';
+            const agentTestUrl = 'https://f1-fantazy-agent-func-test.azurewebsites.net';
+            const sha = context.payload.pull_request.head.sha;
+            const shortSha = sha.slice(0, 8);
+            const updated = new Date().toISOString().replace('T', ' ').replace(/\..+/, ' UTC');
+
+            const body = [
+              marker,
+              '🚀 **Staging deploy for this PR is ready**',
+              '',
+              '| | |',
+              '|---|---|',
+              `| **Frontend (this PR\'s build)** | ${stagingUrl} |`,
+              `| **Backend (test slot)** | ${agentTestUrl} |`,
+              '| **Commit** | `' + shortSha + '` |',
+              `| **Updated** | ${updated} |`,
+              '',
+              '⚠️ **Sign-in required** — Google sign-in is enforced on the test slot. Only admin chatIds (KILZI / DORSE) can chat as themselves; other allowlisted users will get `reason=not_admin`. See AGENTS.md → `Test-slot admin-only gate` for details.',
+              '',
+              '⚠️ **Staging serializes across PRs** — only the latest pushed PR is live at this URL. Coordinate on the PR if you need exclusive access.',
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body && c.body.startsWith(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+              core.info(`Updated existing staging-deploy comment id=${existing.id}`);
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+              core.info('Created new staging-deploy comment');
+            }
