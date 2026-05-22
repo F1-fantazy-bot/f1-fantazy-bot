@@ -83,3 +83,64 @@ jobs:
             --env staging \
             --deployment-token "${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}" \
             --no-use-keychain
+
+      - name: Post / update staging URL comment on the PR
+        # The old SWA action auto-commented "Your stage site is ready
+        # at <per-PR-url>" — we lost that when we switched to the CLI.
+        # This step re-creates a similar comment, but pointing at the
+        # FIXED staging URL (the only URL where this PR's build is
+        # actually reachable, given our auth-gating model). The marker
+        # comment `<!-- staging-deploy-comment -->` makes the operation
+        # idempotent: subsequent pushes update the existing comment
+        # in place rather than spamming new comments on every push.
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const marker = '<!-- staging-deploy-comment -->';
+            const stagingUrl = 'https://calm-beach-055be4603-staging.westeurope.7.azurestaticapps.net';
+            const agentTestUrl = 'https://f1-fantazy-agent-func-test.azurewebsites.net';
+            const sha = context.payload.pull_request.head.sha;
+            const shortSha = sha.slice(0, 8);
+            const updated = new Date().toISOString().replace('T', ' ').replace(/\..+/, ' UTC');
+
+            const body = [
+              marker,
+              '🚀 **Staging deploy for this PR is ready**',
+              '',
+              '| | |',
+              '|---|---|',
+              `| **Frontend (this PR\'s build)** | ${stagingUrl} |`,
+              `| **Backend (test slot)** | ${agentTestUrl} |`,
+              '| **Commit** | `' + shortSha + '` |',
+              `| **Updated** | ${updated} |`,
+              '',
+              '⚠️ **Sign-in required** — Google sign-in is enforced on the test slot. Only admin chatIds (KILZI / DORSE) can chat as themselves; other allowlisted users will get `reason=not_admin`. See AGENTS.md → `Test-slot admin-only gate` for details.',
+              '',
+              '⚠️ **Staging serializes across PRs** — only the latest pushed PR is live at this URL. Coordinate on the PR if you need exclusive access.',
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body && c.body.startsWith(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+              core.info(`Updated existing staging-deploy comment id=${existing.id}`);
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+              core.info('Created new staging-deploy comment');
+            }
