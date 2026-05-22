@@ -1083,11 +1083,71 @@ npm run dev:web      # only Vite frontend on :5173/:5174
 7. **Tests:** unit-test the core in `src/cores/<feature>Core.test.js`. Unit-test the tool's JSON shape if non-trivial. Re-run the full Telegram suite — must stay green.
 8. **Verify in-browser with Playwright MCP.** The browser is the source of truth for UI changes — every UI change must be Playwright-verified before declaring "done".
 
+### Chat-history persistence (Phase 6.5)
+
+The web chat persists conversation text to `localStorage` so a page
+refresh doesn't wipe the visible history. The persistence layer is
+client-only and intentionally narrow — see
+`web/src/lib/chatHistoryStore.ts` for the contract:
+
+- Only `role: 'user' | 'assistant'` messages with a non-empty text
+  `content` survive. Tool calls / tool results / large blobs are
+  NEVER persisted (no reloading stale tool data into the LLM, no
+  bloating the per-origin localStorage quota).
+- Caps: 20 messages, 100 KB total payload, 8 KB per message. Oldest
+  messages are trimmed first.
+- Storage key is scoped per Google `sub` when the user is signed in
+  (`f1-fantasy-agent-history::<sub>`) and falls back to the
+  unscoped key in local-dev / un-authed mode.
+
+**Why restore is reconciliation-based, not one-shot.** CopilotKit v2
+hands `useAgent()` a `ProxiedCopilotRuntimeAgent` in "pending" mode
+before the runtime connects. Once the runtime connects, it syncs an
+**empty** initial state (we run in single-route mode without
+server-side `/threads`), which fires `onMessagesChanged({ messages:
+[] })` AFTER our first `setMessages(stored)` call — clobbering the
+restore. A naive one-shot restore therefore loses the user's
+history on every reload because the debounced save then writes `[]`
+over the stored payload.
+
+`HistoryRestorer` (`web/src/components/HistoryRestorer.tsx`) avoids
+this with **two cooperating invariants**, NOT a one-shot:
+
+1. **Restore only into an empty, idle agent.** The restore effect
+   re-runs on every `messageVersion` bump (driven by a direct
+   `agent.subscribe({ onMessagesChanged })` subscription so we react
+   to in-place mutations too) and re-applies `setMessages(stored)`
+   whenever `agent.messages.length === 0` AND `load().length > 0`
+   AND `!agent.isRunning`. A small per-agent fuse
+   (`MAX_RESTORE_ATTEMPTS_PER_AGENT = 5`) bounds the self-heal so a
+   future CopilotKit change that re-syncs repeatedly can't pin a
+   CPU at 100%.
+2. **Never overwrite a non-empty stored history with `[]`.** The
+   debounced save guards with `if (next.length === 0 &&
+   load().length > 0) return;` — so the transient runtime-clobber
+   window can't reach localStorage. The legitimate clear path
+   (`ClearHistoryButton` calls `clear()` BEFORE
+   `agent.setMessages([])`) sees `load().length === 0` and proceeds
+   with the empty save.
+
+The history scope (`setHistoryScope(sub)`) is bound **synchronously
+during render** of `<VerifiedAgentChat>`, not in a `useEffect` —
+React runs child effects before parent effects, so a parent-effect
+bind would let `<HistoryRestorer />`'s first read observe an
+unscoped or stale key.
+
+When adding features that touch the chat tree, you generally don't
+need to touch this code. If you do, the rule to keep in mind is:
+**the agent's `messages` array is not the source of truth across
+reloads — `localStorage` is.** Anything that intentionally drops
+messages must go through `clear()` first, then through
+`agent.setMessages([])`.
+
 ### Known issues / deferred
 
 - **Token-usage logging** is wired in Phase 6.1 — see [Token usage logging](#token-usage-logging-phase-61). Logs land in stdout always, and in `LOG_CHANNEL_ID` when `TELEGRAM_BOT_TOKEN` is set.
 - **Tool-error UX** is wired in Phase 6.2 — see [Tool error handling](#tool-error-handling-phase-62). Full errors go to `ERRORS_CHANNEL_ID`; users see a friendly banner with an opaque `errorId`.
-- **405s on `/threads?agentId=default`** in the browser console are CopilotKit polling for chat-history persistence routes that don't exist in single-route mode. Harmless; deferred until persistence is wired (Phase 6.5).
+- **405s on `/threads?agentId=default`** in the browser console are CopilotKit polling for chat-history persistence routes that don't exist in single-route mode. Harmless — we run Phase 6.5 client-side via `localStorage` (see [Chat-history persistence](#chat-history-persistence-phase-65)) so the runtime doesn't need a `/threads` backend.
 - **SSE streaming on Azure Functions Consumption plan** is unverified — locally the bridge buffers the full response. If streaming flushing turns out to be flaky on Consumption, fall back to non-streaming JSON or upgrade to Premium. Deferred along with deployment.
 - **CORS** is currently permissive (`Access-Control-Allow-Origin: *`). CORS hardening is deferred until frontend deployment unparks.
 - **Hebrew localisation** of agent outputs is out of v1 scope. The Telegram bot stays bilingual.
