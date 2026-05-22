@@ -45,6 +45,9 @@ const {
   COMMAND_LEAGUE_GRAPHS,
   COMMAND_LEAGUE_CHANGES,
   COMMAND_WHATS_NEW,
+  COMMAND_ALLOW_WEB_USER,
+  COMMAND_REVOKE_WEB_USER,
+  COMMAND_LIST_WEB_USERS,
 } = require('../constants');
 
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
@@ -106,6 +109,9 @@ const {
   handleLeagueChangesCommand,
 } = require('./leagueChangesHandler');
 const { handleWhatsNewCommand } = require('./whatsNewHandler');
+const { handleAllowWebUserCommand } = require('./allowWebUserHandler');
+const { handleRevokeWebUserCommand } = require('./revokeWebUserHandler');
+const { handleListWebUsersCommand } = require('./listWebUsersHandler');
 
 // Mapping of command constants to their handler functions
 const COMMAND_HANDLERS = {
@@ -156,6 +162,9 @@ const COMMAND_HANDLERS = {
   [COMMAND_LEAGUE_GRAPHS]: handleLeagueGraphsCommand,
   [COMMAND_LEAGUE_CHANGES]: handleLeagueChangesCommand,
   [COMMAND_WHATS_NEW]: handleWhatsNewCommand,
+  [COMMAND_ALLOW_WEB_USER]: handleAllowWebUserCommand,
+  [COMMAND_REVOKE_WEB_USER]: handleRevokeWebUserCommand,
+  [COMMAND_LIST_WEB_USERS]: handleListWebUsersCommand,
 };
 
 async function executeCommand(bot, msg, command) {

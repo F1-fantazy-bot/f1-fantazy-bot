@@ -611,6 +611,47 @@ const translations = {
     '💡 Send /cancel at any time to abort.':
       '💡\u200F שלח \u2066/cancel\u2069 בכל רגע כדי לבטל.',
     'Operation cancelled.': 'הפעולה בוטלה.',
+    'Please enter the Google email to allow on the web agent:':
+      'אנא הזן את כתובת ה-Google של המשתמש שברצונך לאשר באתר:',
+    'Please enter the Google email to revoke from the web agent:':
+      'אנא הזן את כתובת ה-Google של המשתמש שברצונך להסיר מהאתר:',
+    'Please enter a valid Google email address.':
+      'אנא הזן כתובת אימייל Google תקינה.',
+    'Got it: {EMAIL}. Now please enter the chat ID to map this email to:':
+      'הבנתי: {EMAIL}. כעת אנא הזן את ה-chat ID שאליו תמופה כתובת זו:',
+    'Chat ID not found in the registry. Please enter a valid chat ID:':
+      'ה-chat ID לא נמצא ברישום. אנא הזן chat ID תקין:',
+    '❌ Error fetching user: {ERROR}':
+      '❌ שגיאה באחזור המשתמש: {ERROR}',
+    '❌ Error allowlisting user: {ERROR}':
+      '❌ שגיאה בהוספה לרשימה המורשית: {ERROR}',
+    '❌ Error looking up web user: {ERROR}':
+      '❌ שגיאה בחיפוש משתמש האתר: {ERROR}',
+    '❌ Error revoking web user: {ERROR}':
+      '❌ שגיאה בהסרת משתמש האתר: {ERROR}',
+    '❌ Error fetching web allowlist: {ERROR}':
+      '❌ שגיאה באחזור רשימת המשתמשים המורשים: {ERROR}',
+    '✅ Allowed {EMAIL} on the web agent, mapped to {NAME} ({ID}).':
+      '✅ {EMAIL} אושר באתר ומקושר אל {NAME} ({ID}).',
+    '🚫 Revoked {EMAIL} from the web agent allowlist.':
+      '🚫 {EMAIL} הוסר מרשימת המשתמשים המורשים באתר.',
+    '{EMAIL} was not on the web allowlist — nothing to do.':
+      '{EMAIL} לא היה ברשימת המשתמשים המורשים — אין צורך בפעולה.',
+    'No web users allowlisted yet.':
+      'אין עדיין משתמשים מורשים באתר.',
+    'Web Allowlist': 'רשימת משתמשים מורשים באתר',
+    'Added': 'נוסף',
+    'Added by': 'נוסף על ידי',
+    '(unknown)': '(לא ידוע)',
+    '🔐 Allow Web User': '🔐 אישור משתמש לאתר',
+    '🚫 Revoke Web User': '🚫 הסרת משתמש מהאתר',
+    '📜 List Web Users': '📜 רשימת משתמשי האתר',
+    'Allow a Google email to sign in to the web agent (maps email → chat ID)':
+      'אישור כתובת Google לכניסה לסוכן האתר (ממפה אימייל → chat ID)',
+    'Revoke a Google email from the web agent allowlist':
+      'הסרת כתובת Google מרשימת המשתמשים המורשים באתר',
+    'List Google emails currently allowed on the web agent':
+      'הצגת כתובות ה-Google המורשות כעת באתר הסוכן',
     'Which league graph do you want to see?':
       'איזה גרף ליגה תרצה לראות?',
     'Which graph do you want to see?': 'איזה גרף תרצה לראות?',

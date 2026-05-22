@@ -77,6 +77,20 @@ describe('formatLine', () => {
       'Agent step usage — model: gpt-4o, step: 2, prompt: 100, completion: 50, total: 150',
     );
   });
+
+  test('appends email when provided', () => {
+    const line = formatLine({
+      modelId: 'gpt-4o',
+      step: 1,
+      prompt: 10,
+      completion: 5,
+      total: 15,
+      email: 'foo@example.com',
+    });
+    expect(line).toBe(
+      'Agent step usage — model: gpt-4o, step: 1, prompt: 10, completion: 5, total: 15, email: foo@example.com',
+    );
+  });
 });
 
 describe('createTokenUsageMiddleware', () => {
@@ -265,6 +279,41 @@ describe('createTokenUsageMiddleware', () => {
 
     expect(result.request).toEqual({ body: { x: 1 } });
     expect(result.response).toEqual({ headers: { 'x-foo': 'bar' } });
+  });
+
+  test('includes the request-scoped email in the log line when one is set', async () => {
+    const bot = makeBot();
+    const middleware = createTokenUsageMiddleware({ bot });
+    const { runWithRequestContext } = require('./requestContext');
+
+    const upstream = makeReadable([
+      {
+        type: 'finish',
+        finishReason: 'stop',
+        usage: {
+          inputTokens: { total: 1 },
+          outputTokens: { total: 2 },
+        },
+      },
+    ]);
+
+    await runWithRequestContext(
+      { chatId: 42, email: 'me@example.com' },
+      async () => {
+        const result = await middleware.wrapStream({
+          doStream: async () => ({ stream: upstream }),
+          doGenerate: async () => {
+            throw new Error('not used');
+          },
+          params: {},
+          model: FAKE_MODEL,
+        });
+        await collectStream(result.stream);
+        await new Promise((r) => setImmediate(r));
+      },
+    );
+
+    expect(bot.calls[0].line).toContain('email: me@example.com');
   });
 
   test('handles missing modelId gracefully', async () => {

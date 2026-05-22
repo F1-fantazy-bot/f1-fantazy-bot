@@ -48,6 +48,9 @@ const {
   handleLeagueGraphsCommand,
   handleLeagueChangesCommand,
   handleWhatsNewCommand,
+  handleAllowWebUserCommand,
+  handleRevokeWebUserCommand,
+  handleListWebUsersCommand,
 } = require('./commandsHandler');
 
 // Import constants
@@ -98,6 +101,9 @@ const {
   COMMAND_LEAGUE_GRAPHS,
   COMMAND_LEAGUE_CHANGES,
   COMMAND_WHATS_NEW,
+  COMMAND_ALLOW_WEB_USER,
+  COMMAND_REVOKE_WEB_USER,
+  COMMAND_LIST_WEB_USERS,
 } = require('./constants');
 
 exports.handleTextMessage = async function (bot, msg) {
@@ -206,6 +212,12 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleLeagueChangesCommand(bot, msg);
     case msg.text === COMMAND_WHATS_NEW:
       return await handleWhatsNewCommand(bot, msg);
+    case msg.text === COMMAND_ALLOW_WEB_USER:
+      return await handleAllowWebUserCommand(bot, msg);
+    case msg.text === COMMAND_REVOKE_WEB_USER:
+      return await handleRevokeWebUserCommand(bot, msg);
+    case msg.text === COMMAND_LIST_WEB_USERS:
+      return await handleListWebUsersCommand(bot, msg);
     default:
       try {
         const jsonData = JSON.parse(textTrimmed);

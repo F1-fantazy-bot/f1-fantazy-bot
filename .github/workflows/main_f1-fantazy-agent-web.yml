@@ -37,10 +37,15 @@ jobs:
         working-directory: web
         run: npm ci
 
-      - name: Build web (VITE_AGENT_API_URL baked in)
+      - name: Build web (VITE_AGENT_API_URL + VITE_GOOGLE_CLIENT_ID baked in)
         working-directory: web
         env:
           VITE_AGENT_API_URL: ${{ env.AGENT_API_URL }}
+          # When this secret is not configured the build still ships;
+          # the frontend then renders the chat without an auth gate
+          # (and the backend must also bypass — see infra/agent-func/
+          # apply-settings.sh). Set the secret to roll out Google auth.
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
         run: npm run build
 
       - name: Deploy to Azure Static Web Apps (production)

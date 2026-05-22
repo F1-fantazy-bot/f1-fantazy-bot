@@ -10,9 +10,22 @@
 // SWA preview environments need regex-based origin matching, which
 // siteConfig.cors.allowedOrigins doesn't support. See src/agent/corsAllowList.js
 // and the AGENT_CORS_* env vars wired up in infra/agent-func/azuredeploy.json.
+//
+// Auth: every POST is gated by `authenticateRequest` (src/agent/auth.js).
+// When `GOOGLE_CLIENT_ID` is unset the gate falls through to the legacy
+// hardcoded-chatId path (used by local dev + the test slot). When it is
+// set, the gate verifies the caller's Google ID token, looks the email
+// up in the web allowlist, and runs the downstream handler inside an
+// AsyncLocalStorage scope that carries the resolved chatId — every
+// agent tool reads it via `getAgentChatId()`.
 
 const { getCopilotRuntimeHandler } = require('../src/agent/runtime');
 const { buildCorsHeadersFromEnv } = require('../src/agent/corsAllowList');
+const { authenticateRequest, STATUS } = require('../src/agent/auth');
+const { runWithRequestContext } = require('../src/agent/requestContext');
+const {
+  getAllowedUserByEmail,
+} = require('../src/webUserAllowlistService');
 
 function getOriginHeader(req) {
   const headers = req.headers || {};
@@ -100,6 +113,48 @@ async function toAzureResponse(webResponse, req) {
   };
 }
 
+function buildUnauthorizedResponse(req, authResult) {
+  const headers = {
+    ...buildResponseCorsHeaders(req),
+    'Content-Type': 'application/json',
+  };
+  // Surface a stable machine-readable reason for the frontend (which
+  // distinguishes "session expired → re-prompt sign-in" from "this
+  // account is not allowed → show a permanent error"). We deliberately
+  // do NOT echo back the verifier's free-form `detail` string because
+  // it can contain Google library error text that doesn't add value
+  // to the user.
+  const body = {
+    error: 'unauthorized',
+    reason: authResult.reason || 'unauthorized',
+  };
+  if (authResult.status === STATUS.FORBIDDEN && authResult.email) {
+    body.email = authResult.email;
+  }
+
+  return {
+    status: 401,
+    headers,
+    body: JSON.stringify(body),
+  };
+}
+
+async function runCopilotHandler(req) {
+  const handler = getCopilotRuntimeHandler();
+  const webRequest = buildWebRequest(req);
+  const webResponse = await handler(webRequest);
+
+  if (!webResponse) {
+    return {
+      status: 500,
+      headers: buildResponseCorsHeaders(req),
+      body: 'Agent handler returned no response',
+    };
+  }
+
+  return await toAzureResponse(webResponse, req);
+}
+
 module.exports = async function (context, req) {
   if ((req.method || '').toUpperCase() === 'OPTIONS') {
     context.res = {
@@ -111,21 +166,40 @@ module.exports = async function (context, req) {
   }
 
   try {
-    const handler = getCopilotRuntimeHandler();
-    const webRequest = buildWebRequest(req);
-    const webResponse = await handler(webRequest);
+    const authResult = await authenticateRequest(req, {
+      lookupAllowedUser: getAllowedUserByEmail,
+    });
 
-    if (!webResponse) {
-      context.res = {
-        status: 500,
-        headers: buildResponseCorsHeaders(req),
-        body: 'Agent handler returned no response',
-      };
+    if (
+      authResult.status === STATUS.UNAUTHORIZED ||
+      authResult.status === STATUS.FORBIDDEN
+    ) {
+      context.log(
+        `Agent auth rejected: status=${authResult.status} reason=${authResult.reason}` +
+          (authResult.email ? ` email=${authResult.email}` : '') +
+          (authResult.detail ? ` detail=${authResult.detail}` : ''),
+      );
+      context.res = buildUnauthorizedResponse(req, authResult);
 
       return;
     }
 
-    context.res = await toAzureResponse(webResponse, req);
+    if (authResult.status === STATUS.OK) {
+      context.res = await runWithRequestContext(
+        {
+          chatId: authResult.chatId,
+          email: authResult.email,
+          name: authResult.name,
+          sub: authResult.sub,
+        },
+        () => runCopilotHandler(req),
+      );
+
+      return;
+    }
+
+    // status: BYPASSED — fall through to the legacy hardcoded-chatId path.
+    context.res = await runCopilotHandler(req);
   } catch (err) {
     context.log('Agent webhook error:', err && err.stack ? err.stack : err);
     context.res = {

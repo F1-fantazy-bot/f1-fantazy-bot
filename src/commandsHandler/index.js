@@ -61,6 +61,15 @@ const {
   handleLeagueChangesCommand,
 } = require('./leagueChangesHandler');
 const { handleWhatsNewCommand } = require('./whatsNewHandler');
+const {
+  handleAllowWebUserCommand,
+} = require('./allowWebUserHandler');
+const {
+  handleRevokeWebUserCommand,
+} = require('./revokeWebUserHandler');
+const {
+  handleListWebUsersCommand,
+} = require('./listWebUsersHandler');
 
 module.exports = {
   handleBestTeamsMessage,
@@ -111,4 +120,7 @@ module.exports = {
   handleLeagueGraphsCommand,
   handleLeagueChangesCommand,
   handleWhatsNewCommand,
+  handleAllowWebUserCommand,
+  handleRevokeWebUserCommand,
+  handleListWebUsersCommand,
 };

@@ -28,7 +28,25 @@
 
 import type { Message } from '@ag-ui/core';
 
-const STORAGE_KEY = 'f1-fantasy-agent-history';
+// Localstorage key — scoped per-Google-sub at runtime so multiple
+// users on the same browser don't see each other's history.
+const BASE_STORAGE_KEY = 'f1-fantasy-agent-history';
+let activeScope: string | null = null;
+
+function storageKey(): string {
+  return activeScope ? `${BASE_STORAGE_KEY}::${activeScope}` : BASE_STORAGE_KEY;
+}
+
+/**
+ * Bind chat history to a per-user scope. Call with the Google `sub`
+ * after sign-in; call with `null` after sign-out to detach (so a
+ * brief render between sign-out and unmount doesn't accidentally
+ * touch the previous user's blob).
+ */
+export function setHistoryScope(scope: string | null): void {
+  activeScope = scope;
+}
+
 const SCHEMA_VERSION = 1;
 const MAX_MESSAGES = 20;
 const MAX_BYTES = 100 * 1024;
@@ -72,7 +90,7 @@ function dedupeById(messages: StoredMessage[]): StoredMessage[] {
 export function load(): StoredMessage[] {
   let raw: string | null;
   try {
-    raw = window.localStorage.getItem(STORAGE_KEY);
+    raw = window.localStorage.getItem(storageKey());
   } catch {
     // Private mode / restricted context — treat as no history.
     return [];
@@ -130,7 +148,7 @@ export function save(messages: StoredMessage[]): void {
     messages: trimmed,
   };
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    window.localStorage.setItem(storageKey(), JSON.stringify(payload));
   } catch {
     // Quota exceeded or any other storage failure — clear and move
     // on. Better to lose history than to leak the failure into the
@@ -141,7 +159,7 @@ export function save(messages: StoredMessage[]): void {
 
 export function clear(): void {
   try {
-    window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(storageKey());
   } catch {
     // Nothing to do — storage isn't writeable in this context.
   }

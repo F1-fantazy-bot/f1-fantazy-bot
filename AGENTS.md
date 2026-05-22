@@ -29,7 +29,7 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
 - **Internationalization:** `src/i18n.js` and `src/translations.js` provide language support (English/Hebrew) used throughout handlers.
 - **AI Assist:** `src/prompts.js` defines system prompts. `/ask`-style natural language queries are handled by `src/commandsHandler/askHandler.js`, which leverages Azure OpenAI to map free-text requests into command sequences.
 - **Logic Cores:** `src/cores/` holds **pure** business-logic functions that take inputs and return structured JSON. They do not depend on `bot`, `t()`, or `sendMessage`. Each Telegram handler is being progressively refactored into `(pure core in src/cores/) + (thin Telegram adapter)`. The same core is consumed by the web-chat agent's tools — so a question like "best teams with VER but no ALO" runs through the same calculator as the `/best_teams` command. **Refactor rule:** existing handler tests must keep passing unchanged after the extraction; if they don't, fix the refactor, not the test. Cores extracted so far: `nextRacesCore`, `bestTeamsCore`, `userTeamsCore`, `followedTeamsCore`, `leaderboardCore`, `bestTeamScenariosCore`, `nextRaceInfoCore`, `raceWeatherCore`, `deadlineCore`, `currentTeamCore`, `liveScoreCore`. Cores that need side effects (e.g. weather fetch logging) accept optional `onFetch`/`onError` callbacks — the Telegram adapter wires them to bot-side helpers; the agent path omits them. Pure scoring helpers shared between a handler and its core live in `src/utils/` (e.g. `src/utils/liveScoreCalc.js` for `mapLockedTeamForScoring` / `calculateLiveScoreBreakdown` / `deriveLiveScoreOptions`) so the core never depends on the adapter.
-- **Agent (Web Chat):** `src/agent/`, `agentWebhook/`, and `web/` together implement a second user-facing surface. Identity is resolved from the `AGENT_HARDCODED_CHAT_ID` env var (v1) so all tool calls operate as that user against the same caches/blobs as the Telegram bot. See the [Agent (Web Chat)](#agent-web-chat) section for the full architecture, the cores↔tools pattern, and how to add a new tool with a matching React component.
+- **Agent (Web Chat):** `src/agent/`, `agentWebhook/`, and `web/` together implement a second user-facing surface. **Identity is per-request**, propagated through `AsyncLocalStorage` from the agent webhook into `getAgentChatId()`. The webhook verifies the caller's Google ID token, looks the email up in the `WebUserAllowlist` Azure Table to resolve a Telegram chatId, then runs the entire CopilotKit invocation inside that ALS scope. When `GOOGLE_CLIENT_ID` is unset (local dev + the test slot of the Function App) the auth gate is bypassed and `AGENT_HARDCODED_CHAT_ID` is used instead. See [Web auth](#web-auth) for the full pipeline and the three new Telegram admin commands (`/allow_web_user`, `/revoke_web_user`, `/list_web_users`) that manage the allowlist.
 
 ---
 
@@ -72,7 +72,7 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
 - `/follow_league`, `/unfollow_league`, `/teams_tracker`, `/leaderboard`, `/league_graphs`, `/league_changes`
 - `/report_bug` _(reply-based — uses pending reply manager)_
 
-**Admin-only:** `/trigger_scraping`, `/trigger_api_data`, `/trigger_api_data_locked`, `/trigger_next_race_info`, `/trigger_live_score_scheduler`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/upload_drivers_photo`, `/upload_constructors_photo`
+**Admin-only:** `/trigger_scraping`, `/trigger_api_data`, `/trigger_api_data_locked`, `/trigger_next_race_info`, `/trigger_live_score_scheduler`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/upload_drivers_photo`, `/upload_constructors_photo`, `/allow_web_user`, `/revoke_web_user`, `/list_web_users`
 
 ### Announcements file (`/whats_new`)
 
@@ -840,17 +840,148 @@ wrapToolExecute(name, fn) catches → generates 8-char errorId (slice of randomU
 | `AZURE_OPENAI_ENDPOINT` | Agent | Azure OpenAI host (works for both `*.openai.azure.com` and `*.services.ai.azure.com`). |
 | `AZURE_OPENAI_API_KEY` | Agent | Azure OpenAI auth. |
 | `AZURE_OPEN_AI_MODEL` | Agent + Telegram `/ask` | Deployment name (used by `azure.chat(deployment)`). |
-| `AGENT_HARDCODED_CHAT_ID` | Agent | v1 single-user identity. The LLM never sees it. Defaults to `KILZI_CHAT_ID` in `scripts/dev-agent-server.js` if absent. |
+| `AGENT_HARDCODED_CHAT_ID` | Agent | Fallback identity used when no per-request context is active (local dev + test slot + cache bootstrap). The LLM never sees it. Defaults to `KILZI_CHAT_ID` in `scripts/dev-agent-server.js` if absent. |
+| `GOOGLE_CLIENT_ID` | Agent (optional) | OAuth 2.0 Web client ID. NOT a secret — safe in app settings. When set, the agent webhook enforces Google sign-in + allowlist lookup on every POST. When unset (local dev, test slot), auth is bypassed and `AGENT_HARDCODED_CHAT_ID` is used instead. |
+| `VITE_GOOGLE_CLIENT_ID` | SWA build env (optional) | Same value as `GOOGLE_CLIENT_ID`, baked into the bundle by the production SWA build (NOT PR previews). Unset = login screen is skipped (matches the backend bypass). |
 | `TELEGRAM_BOT_TOKEN` | Agent (optional) | If set, the agent's notifier bot sends token-usage + tool-error logs to the same Telegram channels the main bot uses. If unset, logs stay on stdout — local dev without Telegram still works. |
 | `LOG_CHANNEL_ID` | Telegram bot | Token-usage logs land here from BOTH processes when their notifier bots have a Telegram token. Set in `src/constants.js`. |
 | `ERRORS_CHANNEL_ID` | Telegram bot | Tool errors with `errorId` land here. Set in `src/constants.js`. |
 | `<other Azure Storage creds>` | Agent + Telegram | Cache init reads (and occasionally writes) league rosters from Azure Storage — same creds the bot uses. |
 
-### Identity model (v1)
+### Identity model
 
-- `AGENT_HARDCODED_CHAT_ID` env var is the only identity. `src/agent/identity.js` reads it once and exposes `getAgentChatId()`.
-- The LLM **never** sees or controls this value. Tool handlers receive it from the runtime context, not from LLM-controlled arguments — this avoids prompt-injection escalating to "act as another user".
-- Future phases will replace this with proper auth (token / bot login).
+The agent acts as a **per-request chatId** propagated through Node's
+`AsyncLocalStorage`. Resolution order inside `getAgentChatId()`
+(`src/agent/identity.js`):
+
+1. **Request context** set by `runWithRequestContext({ chatId, email,
+   sub }, fn)` (`src/agent/requestContext.js`). The agent webhook
+   verifies the caller's Google ID token (see [Web auth](#web-auth)),
+   looks the email up in the `WebUserAllowlist` Azure Table, then
+   wraps the entire CopilotKit runtime invocation in that scope. Every
+   tool's `execute(args)` reads from `getRequestContext()` indirectly
+   via `getAgentChatId()` — the LLM never sees `chatId` or `email` in
+   its `args`.
+2. **`AGENT_HARDCODED_CHAT_ID` env var** — used by local dev
+   (`scripts/dev-agent-server.js`), the test slot of the agent
+   Function App (auth gate intentionally bypassed for PR validation),
+   and background paths that run outside an HTTP request (e.g.
+   `cacheBootstrap`).
+3. **Throw** — neither available; tools cannot proceed without an
+   identity.
+
+The LLM **never** sees or controls the resolved chatId/email — those
+are derived from a token the LLM cannot manufacture. This blocks
+prompt injection from escalating to "act as another user".
+
+### Web auth
+
+The web chat at `https://f1.kilzid.com` is gated by **Google Sign-In**
+(via `@react-oauth/google` on the frontend and `google-auth-library`
+on the backend). Anonymous visitors see only the login screen — no
+chat UI is mounted.
+
+**Flow:**
+
+```
+browser
+  │  <GoogleLogin /> → ID token (JWT)
+  │  AuthContext caches token in sessionStorage (NOT localStorage —
+  │  closes tab = sign out)
+  │  <CopilotKit headers={() => ({ Authorization: `Bearer …` })}>
+  │  useAuthFetchInterceptor watches window.fetch for 401s from
+  │  RUNTIME_URL → on 401 calls setRejection() + signOut()
+  ▼
+agentWebhook/index.js
+  │  authenticateRequest(req, { lookupAllowedUser })
+  │    ├── extracts Bearer
+  │    ├── verifies via google-auth-library (aud, iss, email_verified)
+  │    └── looks up the lowercased email in `WebUserAllowlist`
+  │  status → HTTP:
+  │    OK         → runWithRequestContext({ chatId, email, sub }, …)
+  │    BYPASSED   → falls through (GOOGLE_CLIENT_ID unset)
+  │    UNAUTHORIZED → 401 + JSON { error, reason }
+  │    FORBIDDEN  → 401 + JSON { error, reason, email }
+  ▼
+CopilotKit → BuiltInAgent → tool execute()
+  ▼
+getAgentChatId() reads ALS context → the right user's data
+```
+
+**Backend bypass:** when `GOOGLE_CLIENT_ID` is unset on the Function
+App, `authenticateRequest` returns `BYPASSED` and the webhook falls
+through to the legacy hardcoded-chatId path. Local dev, the test
+slot, and the initial production deploy all start in bypassed mode;
+enabling the gate is a one-line app-setting change. The frontend
+mirrors the bypass: when `VITE_GOOGLE_CLIENT_ID` is empty at build
+time, the login screen is skipped entirely (no Google client to
+authenticate against).
+
+**Allowlist storage (`src/webUserAllowlistService.js`):** Azure Table
+`WebUserAllowlist`, single partition `'WebUser'`. RowKey is the
+**lowercased email** (case-insensitive lookups). Schema:
+
+| Field          | Notes                                                       |
+| -------------- | ----------------------------------------------------------- |
+| `partitionKey` | always `'WebUser'`                                          |
+| `rowKey`       | lowercased Google email                                     |
+| `chatId`       | mapped Telegram chatId (required for v1; optional later)    |
+| `addedBy`      | admin chatId that added the entry                           |
+| `addedAt`      | ISO timestamp                                               |
+
+Until the agent has its own write actions, every allowlisted email
+MUST map to an existing Telegram `chatId` so the agent can serve that
+user's existing Telegram-side data (teams, leagues, live score, …).
+Once write actions land, this `chatId` field becomes optional and
+the email alone becomes the agent's identity.
+
+**Admin tooling (Telegram bot):** three new admin commands manage the
+allowlist via the existing Pending Reply Manager:
+
+- **`/allow_web_user`** — two-step flow:
+  1. Admin enters the Google email (validated by basic regex shape).
+  2. Admin enters the target chat ID (validated against `UserRegistry`).
+  3. Bot writes the allowlist row and confirms with
+     `{nickname || chatName} ({chatId})`.
+- **`/revoke_web_user`** — single-step: admin enters the email, bot
+  deletes the row. No-op (with friendly message) when the email
+  isn't on the allowlist.
+- **`/list_web_users`** — no reply; bot renders the full allowlist as
+  Markdown, joined against `UserRegistry` so admins see the linked
+  nickname/chatName for each row.
+
+**Environment variables (auth-specific):**
+
+| Var                     | Where               | Notes                                                                                                                                       |
+| ----------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GOOGLE_CLIENT_ID`      | Agent Function App  | OAuth 2.0 Web client ID. NOT a secret — safe in app settings. Unset = bypass mode.                                                          |
+| `VITE_GOOGLE_CLIENT_ID` | SWA build env       | Same value, baked into the bundle at build time (only on prod workflow, NOT PR previews). Unset at build time = chat renders without auth gate. |
+
+**Google Cloud Console setup (one-time):** create an OAuth 2.0 Web
+client. Authorized JavaScript origins must include the production
+SWA host (`https://f1.kilzid.com` + the SWA default hostname).
+Wildcards aren't supported by Google for authorized origins, so
+PR-preview hostnames intentionally don't get auth-gated; instead they
+use the test slot which also has `GOOGLE_CLIENT_ID` unset.
+
+**Rollout sequence (do NOT skip steps):**
+
+1. Backend ships with `GOOGLE_CLIENT_ID` unset on the prod slot —
+   `authenticateRequest` returns `BYPASSED`, nothing changes.
+2. Provision the Google OAuth Web client; copy the client ID.
+3. Set `VITE_GOOGLE_CLIENT_ID` in GitHub Actions secrets; redeploy
+   the SWA via the prod workflow. Users now see the login screen but
+   the backend still bypasses (so any signed-in user can chat).
+4. Set `GOOGLE_CLIENT_ID` on the prod slot of the agent Function App
+   (via `infra/agent-func/apply-settings.sh` with the env var set).
+   Auth gate is now live end-to-end.
+5. Allowlist yourself first via `/allow_web_user` (your Google email
+   → your Telegram chatId), soak, then widen the allowlist.
+
+**Token observability:** the Phase 6.1 token-usage middleware reads
+`getRequestContext()?.email` and appends `, email: <user>` to every
+per-step log line, so on-call can correlate Telegram log spikes to a
+specific user.
 
 ### Cores ↔ Telegram-adapter pattern
 
