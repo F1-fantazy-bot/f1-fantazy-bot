@@ -33,6 +33,7 @@ const { listUserLeagues } = require('../leagueRegistryService');
 const { getAgentChatId } = require('./identity');
 const { ensureCacheReady } = require('./cacheBootstrap');
 const { wrapToolExecute } = require('./wrapToolExecute');
+const { executeConfirmedWrite } = require('./writeToolHelpers');
 
 // Trim a best-teams calculator row down to the fields the React component
 // actually renders. Sending the full driver/constructor dictionaries (which
@@ -410,6 +411,37 @@ const tools = [
         chatId,
         leagueCode: args.leagueCode,
         leagueName: args.leagueName,
+      });
+    }),
+  }),
+
+  // ---------------------------------------------------------------
+  // Write tools (Phase 1+ — see src/agent/writeToolHelpers.js).
+  //
+  // Each write tool is registered via `defineWriteTool` in its own
+  // module and pushed into `tools` from there. The generic commit
+  // tool below consumes a server-issued writeNonce and executes the
+  // staged intent. The LLM may only call it AFTER the user clicks
+  // "Yes" on the <WriteConfirmCard> rendered in the chat stream.
+  // ---------------------------------------------------------------
+  defineTool({
+    name: 'confirm_write',
+    description:
+      'Commit a previously-proposed write operation. ONLY call this AFTER the user explicitly clicked "Yes" on the confirmation card the UI rendered in response to a prior write-tool call. The `writeNonce` MUST be the exact nonce returned by that prior call (single-use, expires in ~5 minutes). NEVER invent a nonce. NEVER call this in the same assistant turn as the propose call — wait for the user reply.',
+    parameters: z.object({
+      writeNonce: z
+        .string()
+        .min(1)
+        .describe(
+          'The exact writeNonce string returned by the prior write-tool call. Must come from the user\'s confirmation message.',
+        ),
+    }),
+    execute: wrapToolExecute('confirm_write', async (args) => {
+      const chatId = getAgentChatId();
+
+      return await executeConfirmedWrite({
+        chatId,
+        writeNonce: args.writeNonce,
       });
     }),
   }),

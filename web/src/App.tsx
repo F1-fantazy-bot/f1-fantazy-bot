@@ -20,6 +20,7 @@ import { useDeadlineCountdownAction } from './components/DeadlineCountdown';
 import { useCurrentTeamAction } from './components/CurrentTeamCard';
 import { useLiveScoreBreakdownAction } from './components/LiveScoreBreakdown';
 import { useLiveScoreLeaderboardAction } from './components/LiveScoreLeaderboard';
+import { useWriteAction } from './components/registerWriteAction';
 import { HistoryRestorer } from './components/HistoryRestorer';
 import { ClearHistoryButton } from './components/ClearHistoryButton';
 
@@ -43,6 +44,14 @@ function AgentActions() {
   useCurrentTeamAction();
   useLiveScoreBreakdownAction();
   useLiveScoreLeaderboardAction();
+  // Write tools register through the shared factory. PR-1 only wires
+  // `confirm_write`; the concrete write tools land in subsequent PRs.
+  useWriteAction({
+    name: 'confirm_write',
+    description:
+      'Commit a previously proposed write action by its writeNonce.',
+    loadingLabel: 'Applying change…',
+  });
   return null;
 }
 
