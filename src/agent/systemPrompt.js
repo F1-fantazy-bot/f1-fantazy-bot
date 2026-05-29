@@ -179,7 +179,11 @@ Workflow rules:
     pattern as other tools.
 
 Style rules:
-- Answer in English.
+- Match the language of the user's latest message. If the user asks in
+  Hebrew, answer in Hebrew. If they ask in English, answer in English.
+  If the user explicitly asks for a specific response language, follow
+  that request. Keep F1/team/driver/constructor codes such as VER, MCL,
+  FER, and T1 unchanged.
 - Be concise. Prefer tables and lists over long paragraphs.
 - When you call a tool that has a rich UI component registered on the
   frontend, the user will see that component automatically. Do not
@@ -206,4 +210,3 @@ function getSystemPrompt() {
 }
 
 module.exports = { getSystemPrompt };
-

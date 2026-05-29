@@ -53,3 +53,34 @@ body {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
+
+.chat-wrapper .copilotKitMessage,
+.chat-wrapper .copilotKitInput > textarea {
+  text-align: start;
+  unicode-bidi: plaintext;
+}
+
+.chat-wrapper .copilotKitMessage[data-text-direction='rtl'] ul.copilotKitMarkdownElement,
+.chat-wrapper .copilotKitMessage[data-text-direction='rtl'] ol.copilotKitMarkdownElement {
+  padding-left: 0;
+  padding-right: 20px;
+}
+
+.chat-wrapper .copilotKitMessage[data-text-direction='rtl'] blockquote.copilotKitMarkdownElement {
+  border-left: 0;
+  border-right: 2px solid rgb(142, 142, 160);
+  padding-left: 0;
+  padding-right: 10px;
+}
+
+.chat-wrapper .copilotKitMessage[data-text-direction='rtl'] .copilotKitMessageControls {
+  left: auto;
+  right: 0;
+}
+
+.chat-wrapper .copilotKitCodeBlock,
+.chat-wrapper .copilotKitInlineCode {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+}

@@ -22,6 +22,7 @@ import { useLiveScoreBreakdownAction } from './components/LiveScoreBreakdown';
 import { useLiveScoreLeaderboardAction } from './components/LiveScoreLeaderboard';
 import { HistoryRestorer } from './components/HistoryRestorer';
 import { ClearHistoryButton } from './components/ClearHistoryButton';
+import { RtlChatSupport } from './components/RtlChatSupport';
 
 const RUNTIME_URL =
   (import.meta.env.VITE_AGENT_API_URL as string | undefined) ??
@@ -91,6 +92,7 @@ function VerifiedAgentChat() {
       headers={() => ({ Authorization: `Bearer ${session.idToken}` })}
     >
       <HistoryRestorer />
+      <RtlChatSupport />
       <AgentActions />
       <div
         style={{
@@ -113,7 +115,7 @@ function VerifiedAgentChat() {
       </div>
       <div className="chat-wrapper">
         <CopilotChat
-          instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them."
+          instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
           labels={{
             title: 'F1 Fantasy Agent',
             initial:
@@ -133,6 +135,7 @@ function UnauthedAgent() {
   return (
     <CopilotKit runtimeUrl={RUNTIME_URL}>
       <HistoryRestorer />
+      <RtlChatSupport />
       <AgentActions />
       <div
         style={{
@@ -152,7 +155,7 @@ function UnauthedAgent() {
       </div>
       <div className="chat-wrapper">
         <CopilotChat
-          instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them."
+          instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
           labels={{
             title: 'F1 Fantasy Agent',
             initial:
