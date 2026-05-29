@@ -1,7 +1,6 @@
 {
   "name": "f1-fantazy-bot",
   "version": "1.0.0",
-  "main": "src/bot.js",
   "scripts": {
     "prepare": "husky install",
     "test": "jest",

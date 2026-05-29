@@ -352,7 +352,7 @@ The agent is a SEPARATE Function App (`f1-fantazy-agent-func`) and a Static Web 
 
 ### Steps
 
-1. **Add the new Key Vault secret** (the agent's hardcoded chatId, PII — kept in KV rather than as a plain app setting):
+1. **Add/verify the agent Key Vault secrets**:
 
    ```bash
    az keyvault secret set \
@@ -360,6 +360,8 @@ The agent is a SEPARATE Function App (`f1-fantazy-agent-func`) and a Static Web 
      --name agent-hardcoded-chat-id \
      --value <YOUR_CHAT_ID>
    ```
+
+   The agent also reads `TELEGRAM_BOT_TOKEN` from Key Vault secret `telegram-bot-token` for Telegram log/error notifications. Both agent slots use that same notifier token; the settings script distinguishes them in the message body by writing `LOG_ENV=production` on prod and `LOG_ENV=test` on the test slot, while keeping `NODE_ENV=production` for the Node runtime.
 
 2. **Provision the agent Function App** (creates `f1-fantazy-agent-func` + `test` slot + KV role assignments + app settings on both slots). Skips Telegram bot resources — verified via `az deployment group what-if`:
 
@@ -438,4 +440,3 @@ The agent is a SEPARATE Function App (`f1-fantazy-agent-func`) and a Static Web 
 | PR closed (with `web/**` changes)                          | `pr_test_f1-fantazy-agent-web.yml` (close job) | Tears down the PR preview environment                        |
 
 The Telegram bot workflows (`main_f1-fantazy-bot-func.yml`, `pr_test_f1-fantazy-bot-func.yml`) remain unchanged and continue to deploy to `f1-fantazy-bot-func` independently.
-

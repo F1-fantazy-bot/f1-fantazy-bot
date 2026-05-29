@@ -98,6 +98,7 @@ apply_to_slot() {
     "FUNCTIONS_WORKER_RUNTIME=node"
     "WEBSITE_NODE_DEFAULT_VERSION=~22"
     "NODE_ENV=production"
+    "LOG_ENV=${slot_label}"
     "AZURE_OPEN_AI_MODEL=${MODEL}"
     "AZURE_STORAGE_CONTAINER_NAME=${STORAGE_CONTAINER}"
     "AZURE_OPENAI_ENDPOINT=@Microsoft.KeyVault(SecretUri=${KV_BASE}/azure-openai-endpoint/)"

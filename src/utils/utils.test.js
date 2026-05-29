@@ -106,6 +106,7 @@ describe('utils', () => {
     });
 
     it('when NODE_ENV is production, log message contains prod', async () => {
+      delete process.env.LOG_ENV;
       process.env.NODE_ENV = 'production';
       const botMock = {
         sendMessage: jest.fn(),
@@ -121,6 +122,7 @@ describe('utils', () => {
     });
 
     it('when NODE_ENV is test, log message contains test', async () => {
+      delete process.env.LOG_ENV;
       process.env.NODE_ENV = 'test';
       const botMock = {
         sendMessage: jest.fn(),
@@ -136,6 +138,7 @@ describe('utils', () => {
     });
 
     it('when NODE_ENV is development, log message contains dev', async () => {
+      delete process.env.LOG_ENV;
       process.env.NODE_ENV = 'development';
       const botMock = {
         sendMessage: jest.fn(),
@@ -148,6 +151,24 @@ describe('utils', () => {
         expect.stringContaining('env: dev'),
         undefined, // options
       );
+    });
+
+    it('when LOG_ENV is set, it overrides NODE_ENV in log message', async () => {
+      process.env.NODE_ENV = 'production';
+      process.env.LOG_ENV = 'test';
+      const botMock = {
+        sendMessage: jest.fn(),
+      };
+
+      await sendLogMessage(botMock, 'Log message with explicit log env');
+
+      expect(botMock.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringContaining('env: test'),
+        undefined,
+      );
+
+      delete process.env.LOG_ENV;
     });
 
     it('logs error when sendMessage fails', async () => {
