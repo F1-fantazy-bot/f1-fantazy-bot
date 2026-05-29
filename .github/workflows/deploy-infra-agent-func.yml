@@ -6,6 +6,7 @@ on:
     paths:
       - 'infra/agent-func/azuredeploy.json'
       - 'infra/agent-func/azuredeploy.parameters.json'
+      - 'infra/agent-func/apply-settings.sh'
       - '.github/workflows/deploy-infra-agent-func.yml'
   workflow_dispatch:
 
