@@ -20,7 +20,7 @@ export function SignedInBadge() {
     // Wipe local history so a different user signing in on the
     // same browser doesn't see the previous conversation.
     clearChatHistory();
-    signOut();
+    signOut({ disableGoogleAutoSelect: true });
   };
 
   return (

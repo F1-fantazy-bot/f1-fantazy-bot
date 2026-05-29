@@ -49,7 +49,7 @@ export function AccessVerifier({
       if (result.status === 'forbidden') {
         // 401 from the backend → definitive rejection.
         setRejection({ reason: result.reason, email: result.email });
-        signOut();
+        signOut({ disableGoogleAutoSelect: true });
         // The parent will re-render with no session → LoginScreen.
         return;
       }
