@@ -8,8 +8,6 @@
 //      handing the request off to CopilotKit.
 //   2. The `AGENT_HARDCODED_CHAT_ID` env var. Used by:
 //        - local dev (`scripts/dev-agent-server.js`),
-//        - the test slot of the agent Function App (where Google auth
-//          is intentionally bypassed for PR validation),
 //        - any process running outside an HTTP request scope
 //          (e.g. background cache bootstrap).
 //

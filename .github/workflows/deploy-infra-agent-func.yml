@@ -31,4 +31,11 @@ jobs:
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_00873174CBBD48D3871911006820901C }}
 
       - name: Deploy agent Function App ARM template
+        env:
+          # Public OAuth client id, kept in a secret only to avoid
+          # hard-coding environment-specific config in the workflow.
+          # apply-settings.sh uses this for the backend GOOGLE_CLIENT_ID
+          # gate; without it, an infra deploy would preserve the existing
+          # value rather than clearing auth.
+          GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
         run: npm run deploy:agent-func
