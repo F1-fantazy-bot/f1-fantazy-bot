@@ -114,6 +114,8 @@ export function LoginScreen() {
           theme="filled_blue"
           size="large"
           shape="rectangular"
+          useOneTap
+          auto_select
         />
       </div>
     </div>
