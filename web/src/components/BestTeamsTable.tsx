@@ -113,10 +113,10 @@ function BestTeamsError({ result }: { result: GetBestTeamsErrorResult }) {
     <div
       style={{
         padding: 12,
-        border: '1px solid #f0d5d5',
+        border: '1px solid var(--app-danger-border)',
         borderRadius: 8,
-        background: '#fff7f7',
-        color: '#7a2222',
+        background: 'var(--app-danger-surface)',
+        color: 'var(--app-danger-text)',
         fontSize: 14,
       }}
     >
@@ -156,9 +156,11 @@ function HighlightedCode({
     borderRadius: 4,
     fontSize: 12,
     fontWeight: 600,
-    border: '1px solid #d5dbe7',
-    background: isIncluded ? '#e6f4ea' : '#fafbfd',
-    color: isIncluded ? '#1e4d2b' : '#222',
+    border: '1px solid var(--app-border)',
+    background: isIncluded
+      ? 'var(--app-success-surface)'
+      : 'var(--app-surface-subtle)',
+    color: isIncluded ? 'var(--app-success-text)' : 'var(--app-text)',
   };
   return (
     <span style={style}>
@@ -175,7 +177,7 @@ function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
   }
   if (!result.bestTeams || result.bestTeams.length === 0) {
     return (
-      <div style={{ padding: 12, color: '#555' }}>
+      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
         No teams match those filters.
       </div>
     );
@@ -189,25 +191,24 @@ function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
     <div
       style={{
         margin: '8px 0',
-        border: '1px solid #e2e6ee',
+        border: '1px solid var(--app-border)',
         borderRadius: 8,
-        background: '#fff',
+        background: 'var(--app-surface)',
         overflow: 'hidden',
       }}
     >
       <div
         style={{
           padding: '10px 14px',
-          borderBottom: '1px solid #e2e6ee',
-          background: '#f8fafc',
+          borderBottom: '1px solid var(--app-border)',
+          background: 'var(--app-surface-muted)',
           fontSize: 14,
         }}
       >
-        <div style={{ fontWeight: 600 }}>
-          Best teams — {result.teamName}
-        </div>
-        <div style={{ color: '#555', fontSize: 12, marginTop: 2 }}>
-          Ranked by {rankByLabel(result.rankBy, result.budgetChangePointsPerMillion)}
+        <div style={{ fontWeight: 600 }}>Best teams — {result.teamName}</div>
+        <div style={{ color: 'var(--app-muted)', fontSize: 12, marginTop: 2 }}>
+          Ranked by{' '}
+          {rankByLabel(result.rankBy, result.budgetChangePointsPerMillion)}
           {' · '}
           Chip: {chipLabel(result.chip)}
           {includeDrivers.size > 0
@@ -224,9 +225,16 @@ function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
             : ''}
         </div>
       </div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+      <table
+        style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}
+      >
         <thead>
-          <tr style={{ background: '#fafbfd', textAlign: 'left' }}>
+          <tr
+            style={{
+              background: 'var(--app-surface-subtle)',
+              textAlign: 'left',
+            }}
+          >
             <th style={cellHeader}>#</th>
             <th style={cellHeader}>Drivers</th>
             <th style={cellHeader}>Constructors</th>
@@ -239,11 +247,18 @@ function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
         </thead>
         <tbody>
           {result.bestTeams.map((team) => (
-            <tr key={team.row} style={{ borderTop: '1px solid #f0f2f7' }}>
+            <tr
+              key={team.row}
+              style={{ borderTop: '1px solid var(--app-border)' }}
+            >
               <td style={cellBody}>
                 <strong>{team.row}</strong>
                 {team.transfersNeeded === 0 ? (
-                  <div style={{ fontSize: 11, color: '#1e4d2b' }}>current</div>
+                  <div
+                    style={{ fontSize: 11, color: 'var(--app-success-text)' }}
+                  >
+                    current
+                  </div>
                 ) : null}
               </td>
               <td style={cellBody}>
@@ -272,7 +287,9 @@ function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
               <td style={cellBody}>
                 <strong>{team.projectedPoints.toFixed(1)}</strong>
                 {team.penalty > 0 ? (
-                  <div style={{ fontSize: 11, color: '#7a2222' }}>
+                  <div
+                    style={{ fontSize: 11, color: 'var(--app-danger-text)' }}
+                  >
                     -{team.penalty} pen
                   </div>
                 ) : null}
@@ -297,9 +314,9 @@ function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
       <div
         style={{
           padding: '6px 14px',
-          borderTop: '1px solid #e2e6ee',
+          borderTop: '1px solid var(--app-border)',
           fontSize: 12,
-          color: '#666',
+          color: 'var(--app-muted)',
         }}
       >
         ⭐ captain · ⭐⭐ mega captain · green = required by filter
@@ -313,8 +330,8 @@ const cellHeader: React.CSSProperties = {
   fontWeight: 600,
   fontSize: 12,
   textTransform: 'uppercase',
-  color: '#666',
-  letterSpacing: 0.4,
+  color: 'var(--app-muted)',
+  letterSpacing: 0,
 };
 
 const cellBody: React.CSSProperties = {
@@ -332,7 +349,7 @@ export function useBestTeamsAction() {
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return (
-          <div style={{ padding: 10, color: '#666' }}>
+          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
             Computing best teams…
           </div>
         );
@@ -341,7 +358,9 @@ export function useBestTeamsAction() {
       if (isToolErrorResult(parsed)) {
         return <ToolErrorFallback result={parsed} />;
       }
-      return <BestTeamsTable result={parsed as GetBestTeamsResult | undefined} />;
+      return (
+        <BestTeamsTable result={parsed as GetBestTeamsResult | undefined} />
+      );
     },
   });
 }

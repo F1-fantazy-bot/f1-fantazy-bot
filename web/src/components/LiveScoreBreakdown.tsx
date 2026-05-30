@@ -109,10 +109,12 @@ function MemberCard({
   return (
     <div
       style={{
-        border: '1px solid #eef0f5',
+        border: '1px solid var(--app-border)',
         borderRadius: 8,
         padding: '10px 12px',
-        background: member.missing ? '#fff5f5' : '#fafbfd',
+        background: member.missing
+          ? 'var(--app-danger-surface)'
+          : 'var(--app-surface-subtle)',
       }}
     >
       <div
@@ -133,8 +135,8 @@ function MemberCard({
               fontSize: 11,
               padding: '1px 6px',
               borderRadius: 999,
-              background: '#fff3c2',
-              color: '#7a5a00',
+              background: 'var(--app-warning-surface)',
+              color: 'var(--app-warning-text)',
               fontWeight: 700,
             }}
           >
@@ -146,24 +148,36 @@ function MemberCard({
               fontSize: 11,
               padding: '1px 6px',
               borderRadius: 999,
-              background: '#eef4ff',
-              color: '#1c4f99',
+              background: 'var(--app-primary-surface)',
+              color: 'var(--app-primary)',
               fontWeight: 700,
             }}
           >
             x2
           </span>
         ) : null}
-        <span style={{ marginLeft: 'auto', fontWeight: 700, color: '#1c3d70' }}>
+        <span
+          style={{
+            marginLeft: 'auto',
+            fontWeight: 700,
+            color: 'var(--app-primary-strong)',
+          }}
+        >
           {formatNumber(effective)} pts
         </span>
       </div>
-      <div style={{ fontSize: 12, color: '#5a6471' }}>
+      <div style={{ fontSize: 12, color: 'var(--app-muted)' }}>
         Δ {formatSigned(member.priceChange)}
         {member.missing ? ' · ⚠️ no live data yet' : ''}
       </div>
       {sessionLines.length > 0 ? (
-        <div style={{ marginTop: 6, fontSize: 12, color: '#37404f' }}>
+        <div
+          style={{
+            marginTop: 6,
+            fontSize: 12,
+            color: 'var(--app-control-text)',
+          }}
+        >
           {sessionLines.map((s) => (
             <div key={s.label}>
               <strong>{s.label}:</strong> {s.metrics.join(', ')}
@@ -178,14 +192,14 @@ function MemberCard({
 function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
   if (!result || result.status === 'invalid_input') {
     return (
-      <div style={{ padding: 12, color: '#555' }}>
+      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
         Live-score request was missing data. Tell me which league.
       </div>
     );
   }
   if (result.status === 'not_followed') {
     return (
-      <div style={{ padding: 12, color: '#7a1f1f' }}>
+      <div style={{ padding: 12, color: 'var(--app-danger-text)' }}>
         You don't follow that league. Run <code>/follow_league</code> in
         Telegram first.
       </div>
@@ -193,15 +207,15 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
   }
   if (result.status === 'not_found') {
     return (
-      <div style={{ padding: 12, color: '#555' }}>
-        No locked roster snapshot for this league yet. Wait for the next
-        session lock.
+      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
+        No locked roster snapshot for this league yet. Wait for the next session
+        lock.
       </div>
     );
   }
   if (result.status === 'team_not_found') {
     return (
-      <div style={{ padding: 12, color: '#7a1f1f' }}>
+      <div style={{ padding: 12, color: 'var(--app-danger-text)' }}>
         Couldn't match that team. Try one of:{' '}
         {(result.availableTeams || [])
           .map((t) => t.teamName || t.userName)
@@ -221,9 +235,9 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
     <div
       style={{
         margin: '8px 0',
-        border: '1px solid #e2e6ee',
+        border: '1px solid var(--app-border)',
         borderRadius: 10,
-        background: '#fff',
+        background: 'var(--app-surface)',
         overflow: 'hidden',
         fontSize: 13,
       }}
@@ -231,15 +245,15 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
       <div
         style={{
           padding: '12px 16px',
-          background: '#f8fafc',
-          borderBottom: '1px solid #e2e6ee',
+          background: 'var(--app-surface-muted)',
+          borderBottom: '1px solid var(--app-border)',
         }}
       >
         <div style={{ fontWeight: 700, fontSize: 15 }}>
           🏎️ Live score — {result.leagueName ?? result.leagueCode} ·{' '}
           {result.teamName}
         </div>
-        <div style={{ color: '#5a6471', marginTop: 2, fontSize: 12 }}>
+        <div style={{ color: 'var(--app-muted)', marginTop: 2, fontSize: 12 }}>
           Matchday {result.matchdayId ?? '?'} · updated{' '}
           {formatExtractedAt(result.extractedAt)}
         </div>
@@ -252,17 +266,23 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
               style={{
                 fontSize: 11,
                 textTransform: 'uppercase',
-                color: '#7d8693',
+                color: 'var(--app-subtle)',
               }}
             >
               Total live points
             </div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: '#1c3d70' }}>
+            <div
+              style={{
+                fontSize: 26,
+                fontWeight: 800,
+                color: 'var(--app-primary-strong)',
+              }}
+            >
               {formatNumber(breakdown.totalPoints)}
             </div>
             {typeof breakdown.transferPenalty === 'number' &&
             breakdown.transferPenalty > 0 ? (
-              <div style={{ fontSize: 12, color: '#7a1f1f' }}>
+              <div style={{ fontSize: 12, color: 'var(--app-danger-text)' }}>
                 Transfer penalty: -{breakdown.transferPenalty.toFixed(2)} (
                 pre-penalty {formatNumber(breakdown.pointsBeforePenalty)})
               </div>
@@ -273,12 +293,18 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
               style={{
                 fontSize: 11,
                 textTransform: 'uppercase',
-                color: '#7d8693',
+                color: 'var(--app-subtle)',
               }}
             >
               Live price Δ
             </div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#1c3d70' }}>
+            <div
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: 'var(--app-primary-strong)',
+              }}
+            >
               {formatSigned(breakdown.totalPriceChange)}
             </div>
           </div>
@@ -287,8 +313,8 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
               style={{
                 padding: '4px 10px',
                 borderRadius: 999,
-                background: '#eef4ff',
-                color: '#1c4f99',
+                background: 'var(--app-primary-surface)',
+                color: 'var(--app-primary)',
                 fontWeight: 700,
                 fontSize: 12,
                 alignSelf: 'center',
@@ -340,10 +366,10 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
         <div
           style={{
             padding: '8px 16px',
-            background: '#fff5f5',
-            color: '#7a1f1f',
+            background: 'var(--app-danger-surface)',
+            color: 'var(--app-danger-text)',
             fontSize: 12,
-            borderTop: '1px solid #f3c4c4',
+            borderTop: '1px solid var(--app-danger-border)',
           }}
         >
           ⚠️ Missing live data: {breakdown.missingMembers.join(', ')}
@@ -362,7 +388,7 @@ export function useLiveScoreBreakdownAction() {
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return (
-          <div style={{ padding: 10, color: '#666' }}>
+          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
             Loading live score…
           </div>
         );

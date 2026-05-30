@@ -2,11 +2,13 @@ import { CopilotKit } from '@copilotkit/react-core';
 import { CopilotChat } from '@copilotkit/react-ui';
 import '@copilotkit/react-ui/styles.css';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { useLayoutEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { useAuthFetchInterceptor } from './auth/useAuthFetchInterceptor';
 import { AccessVerifier } from './auth/AccessVerifier';
 import { LoginScreen } from './components/LoginScreen';
 import { SignedInBadge } from './components/SignedInBadge';
+import { ThemeToggle } from './components/ThemeToggle';
 import { setHistoryScope } from './lib/chatHistoryStore';
 import { useNextRacesAction } from './components/NextRacesTable';
 import { useBestTeamsAction } from './components/BestTeamsTable';
@@ -23,6 +25,12 @@ import { useLiveScoreLeaderboardAction } from './components/LiveScoreLeaderboard
 import { HistoryRestorer } from './components/HistoryRestorer';
 import { ClearHistoryButton } from './components/ClearHistoryButton';
 import { RtlChatSupport } from './components/RtlChatSupport';
+import {
+  applyTheme,
+  persistTheme,
+  resolveInitialTheme,
+  type ThemeMode,
+} from './theme';
 
 const RUNTIME_URL =
   (import.meta.env.VITE_AGENT_API_URL as string | undefined) ??
@@ -47,7 +55,13 @@ function AgentActions() {
   return null;
 }
 
-function AuthedAgent() {
+function AuthedAgent({
+  theme,
+  onToggleTheme,
+}: {
+  theme: ThemeMode;
+  onToggleTheme: () => void;
+}) {
   const { session } = useAuth();
   useAuthFetchInterceptor(RUNTIME_URL);
 
@@ -56,17 +70,23 @@ function AuthedAgent() {
     // renders. Defensive — `signOut()` clearing the session triggers
     // this branch even if a different user later signs in.
     setHistoryScope(null);
-    return <LoginScreen />;
+    return <LoginScreen theme={theme} onToggleTheme={onToggleTheme} />;
   }
 
   return (
     <AccessVerifier runtimeUrl={RUNTIME_URL}>
-      <VerifiedAgentChat />
+      <VerifiedAgentChat theme={theme} onToggleTheme={onToggleTheme} />
     </AccessVerifier>
   );
 }
 
-function VerifiedAgentChat() {
+function VerifiedAgentChat({
+  theme,
+  onToggleTheme,
+}: {
+  theme: ThemeMode;
+  onToggleTheme: () => void;
+}) {
   const { session } = useAuth();
 
   // Bind the chat-history scope SYNCHRONOUSLY during render — before
@@ -94,21 +114,16 @@ function VerifiedAgentChat() {
       <HistoryRestorer />
       <RtlChatSupport />
       <AgentActions />
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: 16,
-        }}
-      >
+      <div className="app-titlebar">
         <div>
           <h1 className="app-header">F1 Fantasy Agent</h1>
           <p className="app-subheader">
-            Ask about upcoming races or your best teams. The Telegram bot is unaffected.
+            Ask about upcoming races or your best teams. The Telegram bot is
+            unaffected.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="app-actions">
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
           <SignedInBadge />
           <ClearHistoryButton />
         </div>
@@ -131,27 +146,30 @@ function VerifiedAgentChat() {
 // we render the chat directly without any auth gate — backend bypasses
 // auth in that mode too (when GOOGLE_CLIENT_ID is unset on the
 // Function App). This keeps `npm run dev` frictionless.
-function UnauthedAgent() {
+function UnauthedAgent({
+  theme,
+  onToggleTheme,
+}: {
+  theme: ThemeMode;
+  onToggleTheme: () => void;
+}) {
   return (
     <CopilotKit runtimeUrl={RUNTIME_URL}>
       <HistoryRestorer />
       <RtlChatSupport />
       <AgentActions />
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: 16,
-        }}
-      >
+      <div className="app-titlebar">
         <div>
           <h1 className="app-header">F1 Fantasy Agent</h1>
           <p className="app-subheader">
-            Ask about upcoming races or your best teams. The Telegram bot is unaffected.
+            Ask about upcoming races or your best teams. The Telegram bot is
+            unaffected.
           </p>
         </div>
-        <ClearHistoryButton />
+        <div className="app-actions">
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+          <ClearHistoryButton />
+        </div>
       </div>
       <div className="chat-wrapper">
         <CopilotChat
@@ -168,10 +186,21 @@ function UnauthedAgent() {
 }
 
 export default function App() {
+  const [theme, setTheme] = useState<ThemeMode>(() => resolveInitialTheme());
+
+  useLayoutEffect(() => {
+    applyTheme(theme);
+    persistTheme(theme);
+  }, [theme]);
+
+  const onToggleTheme = () => {
+    setTheme((current) => (current === 'dark' ? 'light' : 'dark'));
+  };
+
   if (!GOOGLE_CLIENT_ID) {
     return (
       <div className="app-shell">
-        <UnauthedAgent />
+        <UnauthedAgent theme={theme} onToggleTheme={onToggleTheme} />
       </div>
     );
   }
@@ -180,7 +209,7 @@ export default function App() {
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <AuthProvider>
         <div className="app-shell">
-          <AuthedAgent />
+          <AuthedAgent theme={theme} onToggleTheme={onToggleTheme} />
         </div>
       </AuthProvider>
     </GoogleOAuthProvider>

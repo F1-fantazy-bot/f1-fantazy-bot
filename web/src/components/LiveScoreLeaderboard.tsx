@@ -49,14 +49,14 @@ function LiveScoreLeaderboard({
 }) {
   if (!result || result.status === 'invalid_input') {
     return (
-      <div style={{ padding: 12, color: '#555' }}>
+      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
         Live-score request was missing data. Tell me which league.
       </div>
     );
   }
   if (result.status === 'not_followed') {
     return (
-      <div style={{ padding: 12, color: '#7a1f1f' }}>
+      <div style={{ padding: 12, color: 'var(--app-danger-text)' }}>
         You don't follow that league. Run <code>/follow_league</code> in
         Telegram first.
       </div>
@@ -64,9 +64,9 @@ function LiveScoreLeaderboard({
   }
   if (result.status === 'not_found') {
     return (
-      <div style={{ padding: 12, color: '#555' }}>
-        No locked roster snapshot for this league yet. Wait for the next
-        session lock.
+      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
+        No locked roster snapshot for this league yet. Wait for the next session
+        lock.
       </div>
     );
   }
@@ -81,9 +81,9 @@ function LiveScoreLeaderboard({
     <div
       style={{
         margin: '8px 0',
-        border: '1px solid #e2e6ee',
+        border: '1px solid var(--app-border)',
         borderRadius: 10,
-        background: '#fff',
+        background: 'var(--app-surface)',
         overflow: 'hidden',
         fontSize: 13,
       }}
@@ -91,14 +91,14 @@ function LiveScoreLeaderboard({
       <div
         style={{
           padding: '12px 16px',
-          background: '#f8fafc',
-          borderBottom: '1px solid #e2e6ee',
+          background: 'var(--app-surface-muted)',
+          borderBottom: '1px solid var(--app-border)',
         }}
       >
         <div style={{ fontWeight: 700, fontSize: 15 }}>
           🏎️ Live leaderboard — {result.leagueName ?? result.leagueCode}
         </div>
-        <div style={{ color: '#5a6471', marginTop: 2, fontSize: 12 }}>
+        <div style={{ color: 'var(--app-muted)', marginTop: 2, fontSize: 12 }}>
           Matchday {result.matchdayId ?? '?'} · updated{' '}
           {formatExtractedAt(result.extractedAt)} · {rows.length} team
           {rows.length === 1 ? '' : 's'}
@@ -106,13 +106,18 @@ function LiveScoreLeaderboard({
       </div>
 
       {rows.length === 0 ? (
-        <div style={{ padding: 12, color: '#555' }}>
+        <div style={{ padding: 12, color: 'var(--app-muted)' }}>
           No teams in this league yet.
         </div>
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: '#fafbfd', textAlign: 'left' }}>
+            <tr
+              style={{
+                background: 'var(--app-surface-subtle)',
+                textAlign: 'left',
+              }}
+            >
               <th style={cellHeader}>#</th>
               <th style={cellHeader}>Team</th>
               <th style={{ ...cellHeader, textAlign: 'right' }}>Live pts</th>
@@ -124,8 +129,10 @@ function LiveScoreLeaderboard({
               <tr
                 key={row.teamId || `${row.userName}-${row.teamNo}`}
                 style={{
-                  borderTop: '1px solid #f0f2f7',
-                  background: row.isSelected ? '#eef4ff' : 'transparent',
+                  borderTop: '1px solid var(--app-border)',
+                  background: row.isSelected
+                    ? 'var(--app-primary-surface)'
+                    : 'transparent',
                   fontWeight: row.isSelected ? 700 : 500,
                 }}
               >
@@ -136,7 +143,7 @@ function LiveScoreLeaderboard({
                   row.transferPenalty > 0 ? (
                     <span
                       title={`Transfer penalty: -${row.transferPenalty}`}
-                      style={{ color: '#7a1f1f', marginLeft: 4 }}
+                      style={{ color: 'var(--app-danger-text)', marginLeft: 4 }}
                     >
                       †
                     </span>
@@ -146,8 +153,8 @@ function LiveScoreLeaderboard({
                       style={{
                         marginLeft: 6,
                         fontSize: 10,
-                        color: '#1c4f99',
-                        letterSpacing: 0.4,
+                        color: 'var(--app-primary)',
+                        letterSpacing: 0,
                       }}
                     >
                       YOU
@@ -159,7 +166,13 @@ function LiveScoreLeaderboard({
                     ? row.totalPoints.toFixed(2)
                     : '—'}
                 </td>
-                <td style={{ ...cellBody, textAlign: 'right', color: '#5a6471' }}>
+                <td
+                  style={{
+                    ...cellBody,
+                    textAlign: 'right',
+                    color: 'var(--app-muted)',
+                  }}
+                >
                   {formatSigned(row.totalPriceChange)}
                 </td>
               </tr>
@@ -172,9 +185,9 @@ function LiveScoreLeaderboard({
         <div
           style={{
             padding: '8px 16px',
-            color: '#5a6471',
+            color: 'var(--app-muted)',
             fontStyle: 'italic',
-            borderTop: '1px solid #eef0f5',
+            borderTop: '1px solid var(--app-border)',
             fontSize: 12,
           }}
         >
@@ -190,8 +203,8 @@ const cellHeader: React.CSSProperties = {
   fontWeight: 600,
   fontSize: 11,
   textTransform: 'uppercase',
-  color: '#666',
-  letterSpacing: 0.4,
+  color: 'var(--app-muted)',
+  letterSpacing: 0,
 };
 
 const cellBody: React.CSSProperties = {
@@ -208,7 +221,7 @@ export function useLiveScoreLeaderboardAction() {
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return (
-          <div style={{ padding: 10, color: '#666' }}>
+          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
             Loading live leaderboard…
           </div>
         );
