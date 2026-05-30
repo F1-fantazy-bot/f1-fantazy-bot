@@ -60,7 +60,7 @@ function rainEmoji(precipitation?: number): string {
 function WeatherForecast({ result }: { result?: WeatherResult }) {
   if (!result || result.status === 'unavailable') {
     return (
-      <div style={{ padding: 12, color: '#555' }}>
+      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
         Weather forecast isn't available right now.
       </div>
     );
@@ -70,7 +70,7 @@ function WeatherForecast({ result }: { result?: WeatherResult }) {
 
   if (sessions.length === 0) {
     return (
-      <div style={{ padding: 12, color: '#555' }}>
+      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
         No upcoming sessions to forecast.
       </div>
     );
@@ -80,9 +80,9 @@ function WeatherForecast({ result }: { result?: WeatherResult }) {
     <div
       style={{
         margin: '8px 0',
-        border: '1px solid #e2e6ee',
+        border: '1px solid var(--app-border)',
         borderRadius: 10,
-        background: '#fff',
+        background: 'var(--app-surface)',
         overflow: 'hidden',
         fontSize: 13,
       }}
@@ -90,15 +90,15 @@ function WeatherForecast({ result }: { result?: WeatherResult }) {
       <div
         style={{
           padding: '12px 16px',
-          background: '#f8fafc',
-          borderBottom: '1px solid #e2e6ee',
+          background: 'var(--app-surface-muted)',
+          borderBottom: '1px solid var(--app-border)',
         }}
       >
         <div style={{ fontWeight: 700, fontSize: 15 }}>
           Weather forecast — {result.raceName ?? 'Next race'}
         </div>
         {result.location ? (
-          <div style={{ color: '#5a6471', marginTop: 2 }}>
+          <div style={{ color: 'var(--app-muted)', marginTop: 2 }}>
             {result.location.locality}, {result.location.country}
             {result.circuitName ? ` · ${result.circuitName}` : ''}
           </div>
@@ -110,7 +110,7 @@ function WeatherForecast({ result }: { result?: WeatherResult }) {
           key={session.key}
           style={{
             padding: '12px 16px',
-            borderTop: '1px solid #f0f2f7',
+            borderTop: '1px solid var(--app-border)',
           }}
         >
           <div
@@ -124,12 +124,18 @@ function WeatherForecast({ result }: { result?: WeatherResult }) {
             }}
           >
             <span>{session.label}</span>
-            <span style={{ fontSize: 12, color: '#5a6471', fontWeight: 500 }}>
+            <span
+              style={{
+                fontSize: 12,
+                color: 'var(--app-muted)',
+                fontWeight: 500,
+              }}
+            >
               {formatSessionStart(session.startsAt)}
             </span>
           </div>
           {session.hours.length === 0 ? (
-            <div style={{ color: '#888' }}>(already underway)</div>
+            <div style={{ color: 'var(--app-subtle)' }}>(already underway)</div>
           ) : (
             <div
               style={{
@@ -144,16 +150,16 @@ function WeatherForecast({ result }: { result?: WeatherResult }) {
                   <div
                     key={hour}
                     style={{
-                      border: '1px solid #eef0f5',
+                      border: '1px solid var(--app-border)',
                       borderRadius: 8,
                       padding: '8px 10px',
-                      background: '#fafbfd',
+                      background: 'var(--app-surface-subtle)',
                     }}
                   >
                     <div
                       style={{
                         fontSize: 12,
-                        color: '#5a6471',
+                        color: 'var(--app-muted)',
                         marginBottom: 4,
                       }}
                     >
@@ -165,16 +171,16 @@ function WeatherForecast({ result }: { result?: WeatherResult }) {
                     <div style={{ fontWeight: 700 }}>
                       {f.temperature ?? '—'}°C
                     </div>
-                    <div style={{ color: '#5a6471', fontSize: 12 }}>
+                    <div style={{ color: 'var(--app-muted)', fontSize: 12 }}>
                       🌧 {f.precipitation ?? 0}%
                       {typeof f.precipitation_mm === 'number'
                         ? ` (${f.precipitation_mm}mm)`
                         : ''}
                     </div>
-                    <div style={{ color: '#5a6471', fontSize: 12 }}>
+                    <div style={{ color: 'var(--app-muted)', fontSize: 12 }}>
                       💨 {f.wind ?? '—'} km/h
                     </div>
-                    <div style={{ color: '#5a6471', fontSize: 12 }}>
+                    <div style={{ color: 'var(--app-muted)', fontSize: 12 }}>
                       💧 {f.humidity ?? '—'}% · ☁️ {f.cloudCover ?? '—'}%
                     </div>
                   </div>
@@ -198,7 +204,7 @@ export function useWeatherForecastAction() {
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return (
-          <div style={{ padding: 10, color: '#666' }}>
+          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
             Fetching weather forecast…
           </div>
         );

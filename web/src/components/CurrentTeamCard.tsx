@@ -39,16 +39,16 @@ function fmt(value: number | undefined | null, digits = 2): string {
 function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
   if (!result || result.status === 'no_teams') {
     return (
-      <div style={{ padding: 12, color: '#555' }}>
-        You don't have a saved team yet. Upload a team screenshot or JSON in
-        the Telegram bot first.
+      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
+        You don't have a saved team yet. Upload a team screenshot or JSON in the
+        Telegram bot first.
       </div>
     );
   }
 
   if (result.status === 'missing_cache') {
     return (
-      <div style={{ padding: 12, color: '#7a1f1f' }}>
+      <div style={{ padding: 12, color: 'var(--app-danger-text)' }}>
         Some of your team data isn't cached yet. Send drivers / constructors /
         current-team images or JSON in the Telegram bot first.
       </div>
@@ -57,7 +57,7 @@ function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
 
   if (result.status === 'ambiguous_team') {
     return (
-      <div style={{ padding: 12, color: '#555' }}>
+      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
         You have multiple teams ({result.teamIds?.join(', ') || '—'}). Tell me
         which one to show.
       </div>
@@ -66,7 +66,7 @@ function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
 
   if (result.status === 'unknown_team') {
     return (
-      <div style={{ padding: 12, color: '#7a1f1f' }}>
+      <div style={{ padding: 12, color: 'var(--app-danger-text)' }}>
         Couldn't find that team. Available: {result.teamIds?.join(', ') || '—'}.
       </div>
     );
@@ -87,9 +87,9 @@ function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
     <div
       style={{
         margin: '8px 0',
-        border: '1px solid #e2e6ee',
+        border: '1px solid var(--app-border)',
         borderRadius: 10,
-        background: '#fff',
+        background: 'var(--app-surface)',
         overflow: 'hidden',
         fontSize: 13,
       }}
@@ -97,8 +97,8 @@ function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
       <div
         style={{
           padding: '12px 16px',
-          background: '#f8fafc',
-          borderBottom: '1px solid #e2e6ee',
+          background: 'var(--app-surface-muted)',
+          borderBottom: '1px solid var(--app-border)',
           display: 'flex',
           alignItems: 'baseline',
           flexWrap: 'wrap',
@@ -108,7 +108,7 @@ function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
         <strong style={{ fontSize: 15 }}>
           {result.teamName || result.teamId}
         </strong>
-        <span style={{ color: '#7d8693', fontSize: 11 }}>
+        <span style={{ color: 'var(--app-subtle)', fontSize: 11 }}>
           id: <code>{result.teamId}</code>
         </span>
         {result.chip ? (
@@ -116,8 +116,8 @@ function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
             style={{
               padding: '2px 8px',
               borderRadius: 999,
-              background: '#fff3c2',
-              color: '#7a5a00',
+              background: 'var(--app-warning-surface)',
+              color: 'var(--app-warning-text)',
               fontWeight: 700,
               fontSize: 11,
             }}
@@ -140,11 +140,15 @@ function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
                   padding: '4px 10px',
                   borderRadius: 999,
                   background: isMega
-                    ? '#fff3c2'
+                    ? 'var(--app-warning-surface)'
                     : isCaptain
-                      ? '#eef4ff'
-                      : '#f1f3f7',
-                  color: isMega ? '#7a5a00' : isCaptain ? '#1c4f99' : '#37404f',
+                      ? 'var(--app-primary-surface)'
+                      : 'var(--app-control-bg)',
+                  color: isMega
+                    ? 'var(--app-warning-text)'
+                    : isCaptain
+                      ? 'var(--app-primary)'
+                      : 'var(--app-control-text)',
                   fontWeight: 700,
                   fontSize: 12,
                 }}
@@ -166,8 +170,8 @@ function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
               style={{
                 padding: '4px 10px',
                 borderRadius: 999,
-                background: '#f1f3f7',
-                color: '#37404f',
+                background: 'var(--app-control-bg)',
+                color: 'var(--app-control-text)',
                 fontWeight: 700,
                 fontSize: 12,
               }}
@@ -181,7 +185,7 @@ function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
       <div
         style={{
           padding: '12px 16px',
-          borderTop: '1px solid #eef0f5',
+          borderTop: '1px solid var(--app-border)',
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
           gap: '10px 16px',
@@ -229,20 +233,26 @@ function Metric({
         style={{
           fontSize: 11,
           textTransform: 'uppercase',
-          color: '#7d8693',
-          letterSpacing: 0.4,
+          color: 'var(--app-subtle)',
+          letterSpacing: 0,
         }}
       >
         {label}
       </div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: '#1c3d70' }}>
+      <div
+        style={{
+          fontSize: 16,
+          fontWeight: 700,
+          color: 'var(--app-primary-strong)',
+        }}
+      >
         {value}
         {unit ? (
           <span
             style={{
               fontSize: 11,
               marginLeft: 4,
-              color: '#7d8693',
+              color: 'var(--app-subtle)',
               fontWeight: 500,
             }}
           >
@@ -264,7 +274,7 @@ export function useCurrentTeamAction() {
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return (
-          <div style={{ padding: 10, color: '#666' }}>
+          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
             Loading your current team…
           </div>
         );

@@ -30,7 +30,7 @@ export function SignedInBadge() {
         alignItems: 'center',
         gap: 10,
         fontSize: 13,
-        color: '#37404f',
+        color: 'var(--app-control-text)',
       }}
     >
       {claims.picture ? (
@@ -51,9 +51,9 @@ export function SignedInBadge() {
           padding: '6px 10px',
           fontSize: 12,
           fontWeight: 600,
-          color: '#37404f',
-          background: '#f1f3f7',
-          border: '1px solid #d8dde6',
+          color: 'var(--app-control-text)',
+          background: 'var(--app-control-bg)',
+          border: '1px solid var(--app-control-border)',
           borderRadius: 6,
           cursor: 'pointer',
         }}

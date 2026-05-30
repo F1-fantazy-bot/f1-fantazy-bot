@@ -42,7 +42,7 @@ function formatRaceDate(race: Race): string {
 function NextRacesTable({ result }: { result?: NextRacesResult }) {
   if (!result || !result.races || result.races.length === 0) {
     return (
-      <div style={{ padding: 12, color: '#555' }}>
+      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
         No upcoming races found.
       </div>
     );
@@ -54,25 +54,32 @@ function NextRacesTable({ result }: { result?: NextRacesResult }) {
     <div
       style={{
         margin: '8px 0',
-        border: '1px solid #e2e6ee',
+        border: '1px solid var(--app-border)',
         borderRadius: 8,
-        background: '#fff',
+        background: 'var(--app-surface)',
         overflow: 'hidden',
       }}
     >
       <div
         style={{
           padding: '10px 14px',
-          borderBottom: '1px solid #e2e6ee',
-          background: '#f8fafc',
+          borderBottom: '1px solid var(--app-border)',
+          background: 'var(--app-surface-muted)',
           fontWeight: 600,
         }}
       >
         Upcoming Races{season ? ` — ${season}` : ''}
       </div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+      <table
+        style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}
+      >
         <thead>
-          <tr style={{ background: '#fafbfd', textAlign: 'left' }}>
+          <tr
+            style={{
+              background: 'var(--app-surface-subtle)',
+              textAlign: 'left',
+            }}
+          >
             <th style={cellHeader}>Rd</th>
             <th style={cellHeader}>Race</th>
             <th style={cellHeader}>Country</th>
@@ -87,7 +94,10 @@ function NextRacesTable({ result }: { result?: NextRacesResult }) {
             const circuit = race.Circuit?.circuitName ?? '';
             const isSprint = Boolean(race.Sprint);
             return (
-              <tr key={race.round} style={{ borderTop: '1px solid #f0f2f7' }}>
+              <tr
+                key={race.round}
+                style={{ borderTop: '1px solid var(--app-border)' }}
+              >
                 <td style={cellBody}>{race.round}</td>
                 <td style={cellBody}>{race.raceName}</td>
                 <td style={cellBody}>{country || '—'}</td>
@@ -105,9 +115,9 @@ function NextRacesTable({ result }: { result?: NextRacesResult }) {
         <div
           style={{
             padding: '8px 14px',
-            borderTop: '1px solid #e2e6ee',
+            borderTop: '1px solid var(--app-border)',
             fontSize: 13,
-            color: '#555',
+            color: 'var(--app-muted)',
           }}
         >
           {counts.total ?? races.length} race
@@ -126,8 +136,8 @@ const cellHeader: React.CSSProperties = {
   fontWeight: 600,
   fontSize: 12,
   textTransform: 'uppercase',
-  color: '#666',
-  letterSpacing: 0.4,
+  color: 'var(--app-muted)',
+  letterSpacing: 0,
 };
 
 const cellBody: React.CSSProperties = {
@@ -153,7 +163,7 @@ export function useNextRacesAction() {
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return (
-          <div style={{ padding: 10, color: '#666' }}>
+          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
             Loading upcoming races…
           </div>
         );

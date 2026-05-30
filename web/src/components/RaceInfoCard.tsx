@@ -87,14 +87,14 @@ function WeatherChip({
         gap: 4,
         padding: '4px 8px',
         borderRadius: 999,
-        background: '#eef4ff',
-        color: '#1c3d70',
+        background: 'var(--app-primary-surface)',
+        color: 'var(--app-primary-strong)',
         fontSize: 12,
         fontWeight: 600,
       }}
     >
       <span>{label}</span>
-      <span style={{ color: '#3b5d8e' }}>·</span>
+      <span style={{ color: 'var(--app-primary)' }}>·</span>
       <span>🌡 {entry.temperature}°C</span>
       <span>🌧 {entry.precipitation ?? 0}%</span>
       <span>💨 {entry.wind ?? 0} km/h</span>
@@ -105,7 +105,7 @@ function WeatherChip({
 function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
   if (!result || result.status === 'unavailable') {
     return (
-      <div style={{ padding: 12, color: '#555' }}>
+      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
         Race information isn't available right now. Try again in a moment.
       </div>
     );
@@ -123,9 +123,9 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
     <div
       style={{
         margin: '8px 0',
-        border: '1px solid #e2e6ee',
+        border: '1px solid var(--app-border)',
         borderRadius: 10,
-        background: '#fff',
+        background: 'var(--app-surface)',
         overflow: 'hidden',
         fontSize: 13,
       }}
@@ -133,12 +133,12 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
       <div
         style={{
           padding: '12px 16px',
-          background: '#f8fafc',
-          borderBottom: '1px solid #e2e6ee',
+          background: 'var(--app-surface-muted)',
+          borderBottom: '1px solid var(--app-border)',
         }}
       >
         <div style={{ fontWeight: 700, fontSize: 16 }}>{result.raceName}</div>
-        <div style={{ color: '#5a6471', marginTop: 2 }}>
+        <div style={{ color: 'var(--app-muted)', marginTop: 2 }}>
           {result.circuitName}
           {result.location
             ? ` · ${result.location.locality}, ${result.location.country}`
@@ -159,7 +159,7 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
               maxHeight: 260,
               objectFit: 'contain',
               borderRadius: 6,
-              border: '1px solid #eef0f5',
+              border: '1px solid var(--app-border)',
             }}
           />
         </div>
@@ -176,19 +176,19 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
         >
           {isSprint && sessions.sprintQualifying ? (
             <>
-              <div style={{ color: '#5a6471' }}>Sprint Qualifying</div>
+              <div style={{ color: 'var(--app-muted)' }}>Sprint Qualifying</div>
               <div>{formatIso(sessions.sprintQualifying)}</div>
             </>
           ) : null}
           {isSprint && sessions.sprint ? (
             <>
-              <div style={{ color: '#5a6471' }}>Sprint</div>
+              <div style={{ color: 'var(--app-muted)' }}>Sprint</div>
               <div>{formatIso(sessions.sprint)}</div>
             </>
           ) : null}
-          <div style={{ color: '#5a6471' }}>Qualifying</div>
+          <div style={{ color: 'var(--app-muted)' }}>Qualifying</div>
           <div>{formatIso(sessions.qualifying)}</div>
-          <div style={{ color: '#5a6471' }}>Race</div>
+          <div style={{ color: 'var(--app-muted)' }}>Race</div>
           <div>{formatIso(sessions.race)}</div>
         </div>
         {/* TODO: surface FP1/FP2/FP3 once nextRaceInfoCache tracks them. */}
@@ -228,28 +228,31 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
             }}
           >
             <thead>
-              <tr style={{ background: '#fafbfd', textAlign: 'left' }}>
+              <tr
+                style={{
+                  background: 'var(--app-surface-subtle)',
+                  textAlign: 'left',
+                }}
+              >
                 <th style={cellHeader}>Year</th>
                 <th style={cellHeader}>Pole</th>
                 <th style={cellHeader}>Winner</th>
                 <th style={cellHeader}>2nd</th>
                 <th style={cellHeader}>3rd</th>
-                <th style={{ ...cellHeader, textAlign: 'center' }}>
-                  Finished
-                </th>
+                <th style={{ ...cellHeader, textAlign: 'center' }}>Finished</th>
               </tr>
             </thead>
             <tbody>
               {stats.map((row) => (
                 <tr
                   key={String(row.season)}
-                  style={{ borderTop: '1px solid #f0f2f7' }}
+                  style={{ borderTop: '1px solid var(--app-border)' }}
                 >
                   <td style={cellBody}>{row.season ?? '—'}</td>
                   <td style={cellBody}>
                     {row.polePosition ?? '—'}
                     {row.poleConstructor ? (
-                      <span style={{ color: '#7d8693' }}>
+                      <span style={{ color: 'var(--app-subtle)' }}>
                         {' '}
                         ({row.poleConstructor})
                       </span>
@@ -258,7 +261,7 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
                   <td style={cellBody}>
                     {row.winner ?? '—'}
                     {row.constructor ? (
-                      <span style={{ color: '#7d8693' }}>
+                      <span style={{ color: 'var(--app-subtle)' }}>
                         {' '}
                         ({row.constructor})
                       </span>
@@ -280,9 +283,9 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
         <div
           style={{
             padding: '12px 16px',
-            background: '#fafbfd',
-            borderTop: '1px solid #eef0f5',
-            color: '#444',
+            background: 'var(--app-surface-subtle)',
+            borderTop: '1px solid var(--app-border)',
+            color: 'var(--app-muted)',
             whiteSpace: 'pre-wrap',
           }}
         >
@@ -290,7 +293,7 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
             style={{
               fontWeight: 700,
               marginBottom: 6,
-              color: '#222',
+              color: 'var(--app-text)',
             }}
           >
             Track history
@@ -307,8 +310,8 @@ const cellHeader: React.CSSProperties = {
   fontWeight: 600,
   fontSize: 11,
   textTransform: 'uppercase',
-  color: '#666',
-  letterSpacing: 0.4,
+  color: 'var(--app-muted)',
+  letterSpacing: 0,
 };
 
 const cellBody: React.CSSProperties = {
@@ -326,7 +329,7 @@ export function useRaceInfoAction() {
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return (
-          <div style={{ padding: 10, color: '#666' }}>
+          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
             Loading next race info…
           </div>
         );

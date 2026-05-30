@@ -28,8 +28,8 @@ function chipBadge(chip: string | null) {
         borderRadius: 999,
         fontSize: 11,
         fontWeight: 600,
-        background: '#fff4d6',
-        color: '#7a4a00',
+        background: 'var(--app-warning-surface)',
+        color: 'var(--app-warning-text)',
         marginLeft: 6,
       }}
     >
@@ -42,9 +42,9 @@ function UserTeamsList({ result }: { result?: ListUserTeamsResult }) {
   const teams = result?.teams ?? [];
   if (teams.length === 0) {
     return (
-      <div style={{ padding: 12, color: '#555' }}>
-        No tracked teams. Run <code>/follow_league</code> + <code>/teams_tracker</code> in the
-        Telegram bot first.
+      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
+        No tracked teams. Run <code>/follow_league</code> +{' '}
+        <code>/teams_tracker</code> in the Telegram bot first.
       </div>
     );
   }
@@ -62,21 +62,25 @@ function UserTeamsList({ result }: { result?: ListUserTeamsResult }) {
         <div
           key={team.teamId}
           style={{
-            border: team.isSelected ? '2px solid #2c6fd1' : '1px solid #e2e6ee',
+            border: team.isSelected
+              ? '2px solid var(--app-primary)'
+              : '1px solid var(--app-border)',
             borderRadius: 8,
             padding: '10px 12px',
-            background: '#fff',
+            background: 'var(--app-surface)',
             fontSize: 13,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div
+            style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}
+          >
             <strong style={{ fontSize: 15 }}>{team.teamName}</strong>
             {team.isSelected ? (
               <span
                 style={{
                   marginLeft: 6,
                   fontSize: 11,
-                  color: '#1c4f99',
+                  color: 'var(--app-primary)',
                   fontWeight: 600,
                 }}
               >
@@ -85,25 +89,39 @@ function UserTeamsList({ result }: { result?: ListUserTeamsResult }) {
             ) : null}
             {chipBadge(team.chip)}
           </div>
-          <div style={{ color: '#666', fontSize: 11, marginTop: 2 }}>
+          <div
+            style={{ color: 'var(--app-muted)', fontSize: 11, marginTop: 2 }}
+          >
             id: <code>{team.teamId}</code>
             {team.isLeague ? ' · league' : ' · screenshot'}
           </div>
-          <div style={{ marginTop: 6, color: '#444' }}>
+          <div style={{ marginTop: 6, color: 'var(--app-muted)' }}>
             <div>
-              <span style={{ color: '#888', fontSize: 11 }}>Drivers: </span>
+              <span style={{ color: 'var(--app-subtle)', fontSize: 11 }}>
+                Drivers:{' '}
+              </span>
               {team.drivers.length > 0 ? team.drivers.join(', ') : '—'}
             </div>
             <div>
-              <span style={{ color: '#888', fontSize: 11 }}>Constructors: </span>
-              {team.constructors.length > 0 ? team.constructors.join(', ') : '—'}
+              <span style={{ color: 'var(--app-subtle)', fontSize: 11 }}>
+                Constructors:{' '}
+              </span>
+              {team.constructors.length > 0
+                ? team.constructors.join(', ')
+                : '—'}
             </div>
             <div>
-              <span style={{ color: '#888', fontSize: 11 }}>Boost: </span>
+              <span style={{ color: 'var(--app-subtle)', fontSize: 11 }}>
+                Boost:{' '}
+              </span>
               {team.boost ?? '—'}
             </div>
-            <div style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
-              {team.freeTransfers != null ? `${team.freeTransfers} free transfers` : ''}
+            <div
+              style={{ color: 'var(--app-muted)', fontSize: 12, marginTop: 4 }}
+            >
+              {team.freeTransfers != null
+                ? `${team.freeTransfers} free transfers`
+                : ''}
               {team.costCapRemaining != null
                 ? ` · ${team.costCapRemaining.toFixed?.(1) ?? team.costCapRemaining} cap left`
                 : ''}
@@ -125,7 +143,7 @@ export function useUserTeamsAction() {
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return (
-          <div style={{ padding: 10, color: '#666' }}>
+          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
             Loading your teams…
           </div>
         );
@@ -134,7 +152,9 @@ export function useUserTeamsAction() {
       if (isToolErrorResult(parsed)) {
         return <ToolErrorFallback result={parsed} />;
       }
-      return <UserTeamsList result={parsed as ListUserTeamsResult | undefined} />;
+      return (
+        <UserTeamsList result={parsed as ListUserTeamsResult | undefined} />
+      );
     },
   });
 }
