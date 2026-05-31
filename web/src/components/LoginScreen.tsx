@@ -6,6 +6,8 @@
 
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../auth/AuthContext';
+import { ThemeToggle } from './ThemeToggle';
+import type { ThemeMode } from '../theme';
 
 const REJECTION_MESSAGES: Record<string, string> = {
   email_not_allowlisted:
@@ -30,7 +32,13 @@ function formatRejection(rejection: {
   return base;
 }
 
-export function LoginScreen() {
+export function LoginScreen({
+  theme,
+  onToggleTheme,
+}: {
+  theme?: ThemeMode;
+  onToggleTheme?: () => void;
+}) {
   const { signIn, rejection, setRejection } = useAuth();
 
   return (
@@ -41,18 +49,24 @@ export function LoginScreen() {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '60vh',
+        position: 'relative',
         gap: 24,
         padding: '32px 16px',
         textAlign: 'center',
       }}
     >
+      {theme && onToggleTheme ? (
+        <div className="login-theme-control">
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+        </div>
+      ) : null}
       <div style={{ maxWidth: 420 }}>
         <h1
           style={{
             margin: '0 0 12px',
             fontSize: 28,
             fontWeight: 700,
-            color: '#1a1a1a',
+            color: 'var(--app-text)',
           }}
         >
           🏎️ F1 Fantasy Agent
@@ -61,12 +75,12 @@ export function LoginScreen() {
           style={{
             margin: 0,
             fontSize: 15,
-            color: '#444',
+            color: 'var(--app-muted)',
             lineHeight: 1.45,
           }}
         >
-          Sign in with Google to chat with the agent. Access is invitation
-          only — ask the admin on Telegram if you'd like to be allowlisted.
+          Sign in with Google to chat with the agent. Access is invitation only
+          — ask the admin on Telegram if you'd like to be allowlisted.
         </p>
       </div>
 
@@ -76,10 +90,10 @@ export function LoginScreen() {
           style={{
             maxWidth: 420,
             padding: '12px 16px',
-            background: '#fff4f4',
-            border: '1px solid #f5c2c2',
+            background: 'var(--app-danger-surface)',
+            border: '1px solid var(--app-danger-border)',
             borderRadius: 8,
-            color: '#7a1f1f',
+            color: 'var(--app-danger-text)',
             fontSize: 13,
             lineHeight: 1.45,
           }}
@@ -91,9 +105,10 @@ export function LoginScreen() {
       <div
         style={{
           padding: 24,
-          background: '#fff',
+          background: 'var(--app-surface)',
+          border: '1px solid var(--app-border)',
           borderRadius: 12,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          boxShadow: 'var(--app-shadow)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -114,6 +129,8 @@ export function LoginScreen() {
           theme="filled_blue"
           size="large"
           shape="rectangular"
+          useOneTap
+          auto_select
         />
       </div>
     </div>

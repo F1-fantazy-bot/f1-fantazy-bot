@@ -39,10 +39,10 @@ export function ToolErrorFallback({ result }: { result: ToolErrorResult }) {
       role="alert"
       style={{
         padding: '12px 14px',
-        background: '#fff1f1',
-        border: '1px solid #f3c2c2',
+        background: 'var(--app-danger-surface)',
+        border: '1px solid var(--app-danger-border)',
         borderRadius: 8,
-        color: '#7a1f1f',
+        color: 'var(--app-danger-text)',
         margin: '6px 0',
       }}
     >
@@ -51,7 +51,13 @@ export function ToolErrorFallback({ result }: { result: ToolErrorResult }) {
       </div>
       <div style={{ fontSize: 13, lineHeight: 1.4 }}>{message}</div>
       {(result.tool || result.errorId) && (
-        <details style={{ marginTop: 8, fontSize: 11, color: '#a04545' }}>
+        <details
+          style={{
+            marginTop: 8,
+            fontSize: 11,
+            color: 'var(--app-danger-text)',
+          }}
+        >
           <summary style={{ cursor: 'pointer', userSelect: 'none' }}>
             Support details
           </summary>

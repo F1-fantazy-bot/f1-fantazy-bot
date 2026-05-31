@@ -76,6 +76,23 @@ const resolveLogPrefix = function (bot) {
   return 'BOT';
 };
 
+const resolveLogEnv = function () {
+  const rawEnv = process.env.LOG_ENV || process.env.NODE_ENV;
+
+  if (rawEnv === 'production' || rawEnv === 'prod') {
+    return 'prod';
+  }
+  if (rawEnv === 'test') {
+    return 'test';
+  }
+
+  return 'dev';
+};
+
+const shouldIncludePidInLog = function (env) {
+  return env === 'prod' || env === 'test';
+};
+
 exports.sendLogMessage = async function (bot, logMessage) {
   if (!LOG_CHANNEL_ID) {
     console.error('LOG_CHANNEL_ID is not set');
@@ -83,20 +100,11 @@ exports.sendLogMessage = async function (bot, logMessage) {
     return;
   }
 
-  let env = 'dev';
-  if (process.env.NODE_ENV === 'production') {
-    env = 'prod';
-  } else if (process.env.NODE_ENV === 'test') {
-    env = 'test';
-  }
-
+  const env = resolveLogEnv();
   let log = `${resolveLogPrefix(bot)}: ${logMessage}
 env: ${env}`;
 
-  if (
-    process.env.NODE_ENV === 'production' ||
-    process.env.NODE_ENV === 'test'
-  ) {
+  if (shouldIncludePidInLog(env)) {
     log += `
 pid: ${process.pid}`;
   }
@@ -114,20 +122,11 @@ exports.sendErrorMessage = async function (bot, errorMessage) {
   // Send to the log channel (reuse sendLogMessage)
   await exports.sendLogMessage(bot, errorMessage);
 
-  let env = 'dev';
-  if (process.env.NODE_ENV === 'production') {
-    env = 'prod';
-  } else if (process.env.NODE_ENV === 'test') {
-    env = 'test';
-  }
-
+  const env = resolveLogEnv();
   let log = `${resolveLogPrefix(bot)}: ${errorMessage}
 env: ${env}`;
 
-  if (
-    process.env.NODE_ENV === 'production' ||
-    process.env.NODE_ENV === 'test'
-  ) {
+  if (shouldIncludePidInLog(env)) {
     log += `
 pid: ${process.pid}`;
   }

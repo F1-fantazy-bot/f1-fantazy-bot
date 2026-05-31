@@ -12,7 +12,13 @@
 // chat, but they also MUSTN'T be bounced into a sign-in loop on a
 // cold-start blip.
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useAuth } from './AuthContext';
 import { verifyAccess, type VerifyAccessOk } from './whoami';
 
@@ -49,7 +55,7 @@ export function AccessVerifier({
       if (result.status === 'forbidden') {
         // 401 from the backend → definitive rejection.
         setRejection({ reason: result.reason, email: result.email });
-        signOut();
+        signOut({ disableGoogleAutoSelect: true });
         // The parent will re-render with no session → LoginScreen.
         return;
       }
@@ -88,7 +94,7 @@ function VerifyingSpinner() {
         justifyContent: 'center',
         minHeight: '60vh',
         gap: 16,
-        color: '#444',
+        color: 'var(--app-muted)',
         fontSize: 14,
       }}
     >
@@ -97,8 +103,8 @@ function VerifyingSpinner() {
         style={{
           width: 36,
           height: 36,
-          border: '3px solid #d8dde6',
-          borderTopColor: '#37404f',
+          border: '3px solid var(--app-control-border)',
+          borderTopColor: 'var(--app-control-text)',
           borderRadius: '50%',
           animation: 'f1-spin 0.8s linear infinite',
         }}
@@ -136,7 +142,14 @@ function UnavailableCard({
         <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 700 }}>
           🏎️ Agent unavailable
         </h2>
-        <p style={{ margin: 0, fontSize: 14, color: '#444', lineHeight: 1.45 }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 14,
+            color: 'var(--app-muted)',
+            lineHeight: 1.45,
+          }}
+        >
           {message}
         </p>
       </div>
@@ -147,8 +160,8 @@ function UnavailableCard({
           padding: '10px 18px',
           fontSize: 14,
           fontWeight: 600,
-          color: '#fff',
-          background: '#37404f',
+          color: 'var(--app-primary-contrast)',
+          background: 'var(--app-primary)',
           border: 'none',
           borderRadius: 8,
           cursor: 'pointer',

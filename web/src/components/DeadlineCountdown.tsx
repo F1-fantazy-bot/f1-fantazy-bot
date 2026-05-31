@@ -74,7 +74,7 @@ function DeadlineCountdown({ result }: { result?: DeadlineResult }) {
 
   if (!result || result.status === 'unavailable') {
     return (
-      <div style={{ padding: 12, color: '#555' }}>
+      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
         Next deadline isn't available right now.
       </div>
     );
@@ -99,35 +99,38 @@ function DeadlineCountdown({ result }: { result?: DeadlineResult }) {
     <div
       style={{
         margin: '8px 0',
-        border: '1px solid #e2e6ee',
+        border: '1px solid var(--app-border)',
         borderRadius: 12,
-        background:
-          'linear-gradient(135deg, #fff 0%, #f3f7ff 60%, #e8efff 100%)',
+        background: 'var(--app-deadline-bg)',
         padding: '16px 18px',
         fontSize: 13,
       }}
     >
-      <div style={{ fontWeight: 700, fontSize: 14, color: '#1c3d70' }}>
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: 14,
+          color: 'var(--app-primary-strong)',
+        }}
+      >
         Teams lock deadline
       </div>
-      <div style={{ marginTop: 4, color: '#37404f' }}>
+      <div style={{ marginTop: 4, color: 'var(--app-control-text)' }}>
         Race: <strong>{result.raceName ?? '—'}</strong>
       </div>
-      <div style={{ color: '#37404f', marginBottom: 12 }}>
+      <div style={{ color: 'var(--app-control-text)', marginBottom: 12 }}>
         Locks at start of <strong>{sessionLabel}</strong>
-        {sessionStartsAt
-          ? ` · ${formatSessionStart(sessionStartsAt)}`
-          : ''}
+        {sessionStartsAt ? ` · ${formatSessionStart(sessionStartsAt)}` : ''}
       </div>
 
       {hasStarted ? (
         <div
           style={{
             padding: '12px 14px',
-            background: '#fff5f5',
-            border: '1px solid #f3c4c4',
+            background: 'var(--app-danger-surface)',
+            border: '1px solid var(--app-danger-border)',
             borderRadius: 8,
-            color: '#7a1f1f',
+            color: 'var(--app-danger-text)',
             fontWeight: 600,
           }}
         >
@@ -148,7 +151,7 @@ function DeadlineCountdown({ result }: { result?: DeadlineResult }) {
         </div>
       )}
 
-      <div style={{ marginTop: 10, color: '#5a6471', fontSize: 12 }}>
+      <div style={{ marginTop: 10, color: 'var(--app-muted)', fontSize: 12 }}>
         Don't forget to lock your team before then.
       </div>
     </div>
@@ -165,22 +168,28 @@ function CountdownCell({
   return (
     <div
       style={{
-        background: '#fff',
-        border: '1px solid #d6e0f0',
+        background: 'var(--app-surface)',
+        border: '1px solid var(--app-border)',
         borderRadius: 8,
         textAlign: 'center',
         padding: '10px 6px',
       }}
     >
-      <div style={{ fontSize: 24, fontWeight: 800, color: '#1c3d70' }}>
+      <div
+        style={{
+          fontSize: 24,
+          fontWeight: 800,
+          color: 'var(--app-primary-strong)',
+        }}
+      >
         {value}
       </div>
       <div
         style={{
           fontSize: 11,
-          color: '#5a6471',
+          color: 'var(--app-muted)',
           textTransform: 'uppercase',
-          letterSpacing: 0.6,
+          letterSpacing: 0,
           marginTop: 2,
         }}
       >
@@ -200,7 +209,9 @@ export function useDeadlineCountdownAction() {
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return (
-          <div style={{ padding: 10, color: '#666' }}>Loading deadline…</div>
+          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
+            Loading deadline…
+          </div>
         );
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;

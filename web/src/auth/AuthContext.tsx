@@ -3,9 +3,10 @@
 // Holds the ID token returned by Google Identity Services (via
 // @react-oauth/google's <GoogleLogin /> button) plus the decoded
 // `email`, `name`, `picture`, and `sub` claims for UI display. The
-// token is cached in `sessionStorage` (NOT `localStorage`) so closing
-// the tab logs the user out — a low-cost mitigation for shared
-// browsers.
+// token is cached in `sessionStorage` (NOT `localStorage`) so stale
+// Google ID tokens are not kept beyond the browser session. The login
+// screen uses Google One Tap/auto-select to get a fresh token when the
+// browser still has an active Google session.
 //
 // The token is read by `<CopilotKit>` via a custom transport that
 // adds `Authorization: Bearer ${idToken}` to every backend request.
@@ -22,8 +23,13 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { googleLogout } from '@react-oauth/google';
 
 const STORAGE_KEY = 'f1-fantasy-agent-id-token';
+
+type SignOutOptions = {
+  disableGoogleAutoSelect?: boolean;
+};
 
 type IdTokenClaims = {
   email: string;
@@ -41,7 +47,7 @@ type AuthSession = {
 type AuthContextValue = {
   session: AuthSession | null;
   signIn: (idToken: string) => void;
-  signOut: () => void;
+  signOut: (options?: SignOutOptions) => void;
   rejection: { reason: string; email?: string } | null;
   setRejection: (rejection: { reason: string; email?: string } | null) => void;
 };
@@ -128,7 +134,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRejection(null);
   }, []);
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback((options?: SignOutOptions) => {
+    if (options?.disableGoogleAutoSelect) {
+      googleLogout();
+    }
     persistToken(null);
     setSession(null);
   }, []);

@@ -5,6 +5,12 @@
 local.settings.json
 test
 getting_started.md
+
+# Agent/web-chat runtime is deployed separately to f1-fantazy-agent-func.
+agentWebhook/
+src/agent/
+web/
+
 node_modules/@types/
 node_modules/azure-functions-core-tools/
 node_modules/typescript/

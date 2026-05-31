@@ -16,7 +16,12 @@ type ScenarioRow = {
 };
 
 type BestTeamScenariosResult = {
-  status?: 'ok' | 'no_teams' | 'unknown_team' | 'ambiguous_team' | 'missing_cache';
+  status?:
+    | 'ok'
+    | 'no_teams'
+    | 'unknown_team'
+    | 'ambiguous_team'
+    | 'missing_cache';
   teamId?: string;
   teamName?: string;
   chip?: string | null;
@@ -45,7 +50,7 @@ function BestTeamScenariosMatrix({
 
   if (result.status === 'no_teams') {
     return (
-      <div style={{ padding: 12, color: '#7a4a00' }}>
+      <div style={{ padding: 12, color: 'var(--app-warning-text)' }}>
         You don't have any tracked teams yet.
       </div>
     );
@@ -53,7 +58,7 @@ function BestTeamScenariosMatrix({
 
   if (result.status === 'missing_cache') {
     return (
-      <div style={{ padding: 12, color: '#7a4a00' }}>
+      <div style={{ padding: 12, color: 'var(--app-warning-text)' }}>
         Missing cached data for this team. Upload current team data via the
         Telegram bot first.
       </div>
@@ -62,7 +67,7 @@ function BestTeamScenariosMatrix({
 
   if (result.status === 'unknown_team') {
     return (
-      <div style={{ padding: 12, color: '#a32020' }}>
+      <div style={{ padding: 12, color: 'var(--app-danger-text)' }}>
         Couldn't find a matching team.
       </div>
     );
@@ -70,7 +75,7 @@ function BestTeamScenariosMatrix({
 
   if (result.status === 'ambiguous_team') {
     return (
-      <div style={{ padding: 12, color: '#7a4a00' }}>
+      <div style={{ padding: 12, color: 'var(--app-warning-text)' }}>
         Multiple tracked teams — specify which one.
       </div>
     );
@@ -85,23 +90,25 @@ function BestTeamScenariosMatrix({
     <div
       style={{
         margin: '8px 0',
-        border: '1px solid #e2e6ee',
+        border: '1px solid var(--app-border)',
         borderRadius: 10,
-        background: '#fff',
+        background: 'var(--app-surface)',
         overflow: 'hidden',
       }}
     >
       <div
         style={{
           padding: '10px 14px',
-          background: '#f6f8fb',
-          borderBottom: '1px solid #e2e6ee',
+          background: 'var(--app-surface-muted)',
+          borderBottom: '1px solid var(--app-border)',
         }}
       >
-        <div style={{ fontWeight: 700, fontSize: 14, color: '#1f2937' }}>
+        <div
+          style={{ fontWeight: 700, fontSize: 14, color: 'var(--app-text)' }}
+        >
           📊 Best Team Scenarios — {result.teamName}
         </div>
-        <div style={{ color: '#7d8693', fontSize: 11, marginTop: 2 }}>
+        <div style={{ color: 'var(--app-subtle)', fontSize: 11, marginTop: 2 }}>
           Top team per ppm preset × chip combination. 🟢/🟡 indicate chip lift
           vs. no-chip baseline of the same row.
         </div>
@@ -110,18 +117,21 @@ function BestTeamScenariosMatrix({
       {scenarios.map((row) => (
         <div
           key={row.ppm}
-          style={{ borderTop: '1px solid #f0f2f6', padding: '10px 14px' }}
+          style={{
+            borderTop: '1px solid var(--app-border)',
+            padding: '10px 14px',
+          }}
         >
           <div
             style={{
               fontWeight: 600,
               fontSize: 13,
-              color: '#1f2937',
+              color: 'var(--app-text)',
               marginBottom: 6,
             }}
           >
             {row.ppmLabel}{' '}
-            <span style={{ color: '#7d8693', fontWeight: 400 }}>
+            <span style={{ color: 'var(--app-subtle)', fontWeight: 400 }}>
               ({row.ppm} pts / $M)
             </span>
           </div>
@@ -133,15 +143,25 @@ function BestTeamScenariosMatrix({
             }}
           >
             <thead>
-              <tr style={{ color: '#7d8693', textAlign: 'left' }}>
-                <th style={{ padding: '4px 8px', fontWeight: 500 }}>Scenario</th>
+              <tr style={{ color: 'var(--app-subtle)', textAlign: 'left' }}>
+                <th style={{ padding: '4px 8px', fontWeight: 500 }}>
+                  Scenario
+                </th>
                 <th
-                  style={{ padding: '4px 8px', textAlign: 'right', fontWeight: 500 }}
+                  style={{
+                    padding: '4px 8px',
+                    textAlign: 'right',
+                    fontWeight: 500,
+                  }}
                 >
                   Pts
                 </th>
                 <th
-                  style={{ padding: '4px 8px', textAlign: 'right', fontWeight: 500 }}
+                  style={{
+                    padding: '4px 8px',
+                    textAlign: 'right',
+                    fontWeight: 500,
+                  }}
                 >
                   Δ price
                 </th>
@@ -155,15 +175,18 @@ function BestTeamScenariosMatrix({
                   <tr
                     key={cell.chipLabel}
                     style={{
-                      background: isBaseline ? 'transparent' : '#fafbfd',
-                      borderTop: idx === 0 ? 'none' : '1px solid #f5f7fa',
+                      background: isBaseline
+                        ? 'transparent'
+                        : 'var(--app-surface-subtle)',
+                      borderTop:
+                        idx === 0 ? 'none' : '1px solid var(--app-border)',
                     }}
                   >
                     <td
                       style={{
                         padding: '4px 8px',
                         fontWeight: isBaseline ? 600 : 400,
-                        color: '#1f2937',
+                        color: 'var(--app-text)',
                       }}
                     >
                       {cell.chipLabel}
@@ -185,7 +208,7 @@ function BestTeamScenariosMatrix({
                       style={{
                         padding: '4px 8px',
                         textAlign: 'right',
-                        color: '#7d8693',
+                        color: 'var(--app-subtle)',
                         fontVariantNumeric: 'tabular-nums',
                       }}
                     >
@@ -212,7 +235,7 @@ export function useBestTeamScenariosAction() {
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return (
-          <div style={{ padding: 10, color: '#666' }}>
+          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
             Computing scenarios…
           </div>
         );

@@ -1,8 +1,86 @@
 :root {
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   line-height: 1.5;
-  color: #1a1a1a;
-  background: #f6f7fb;
+  color: var(--app-text);
+  background: var(--app-bg);
+
+  --app-bg: #f6f7fb;
+  --app-surface: #ffffff;
+  --app-surface-muted: #f8fafc;
+  --app-surface-subtle: #fafbfd;
+  --app-text: #1a1a1a;
+  --app-muted: #555;
+  --app-subtle: #7d8693;
+  --app-border: #e2e6ee;
+  --app-control-bg: #f1f3f7;
+  --app-control-text: #37404f;
+  --app-control-border: #d8dde6;
+  --app-primary: #1c4f99;
+  --app-primary-strong: #1c3d70;
+  --app-primary-contrast: #ffffff;
+  --app-primary-surface: #eef4ff;
+  --app-danger-surface: #fff4f4;
+  --app-danger-border: #f5c2c2;
+  --app-danger-text: #7a1f1f;
+  --app-warning-surface: #fff3c2;
+  --app-warning-text: #7a5a00;
+  --app-success-surface: #e6f4ea;
+  --app-success-text: #1e4d2b;
+  --app-highlight-surface: #fff8d6;
+  --app-deadline-bg: linear-gradient(
+    135deg,
+    #ffffff 0%,
+    #f3f7ff 60%,
+    #e8efff 100%
+  );
+  --app-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+html[data-theme='dark'] {
+  --app-bg: #101318;
+  --app-surface: #171b22;
+  --app-surface-muted: #1e2430;
+  --app-surface-subtle: #202633;
+  --app-text: #f4f7fb;
+  --app-muted: #c7cfdb;
+  --app-subtle: #9aa6b8;
+  --app-border: #303847;
+  --app-control-bg: #222938;
+  --app-control-text: #edf2f9;
+  --app-control-border: #3a4557;
+  --app-primary: #8db8ff;
+  --app-primary-strong: #b7d2ff;
+  --app-primary-contrast: #101318;
+  --app-primary-surface: #1c3357;
+  --app-danger-surface: #3a1e24;
+  --app-danger-border: #81414a;
+  --app-danger-text: #ffb8bf;
+  --app-warning-surface: #3f3420;
+  --app-warning-text: #f4d178;
+  --app-success-surface: #193425;
+  --app-success-text: #9ee7b2;
+  --app-highlight-surface: #3d3520;
+  --app-deadline-bg: linear-gradient(
+    135deg,
+    #171b22 0%,
+    #1b2940 60%,
+    #20365e 100%
+  );
+  --app-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 10px 28px rgba(0, 0, 0, 0.3);
+
+  --copilot-kit-primary-color: #f4f7fb;
+  --copilot-kit-contrast-color: #101318;
+  --copilot-kit-background-color: #171b22;
+  --copilot-kit-input-background-color: #222938;
+  --copilot-kit-secondary-color: #171b22;
+  --copilot-kit-secondary-contrast-color: #f4f7fb;
+  --copilot-kit-separator-color: #303847;
+  --copilot-kit-muted-color: #3a4557;
 }
 
 * {
@@ -13,6 +91,7 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
+  background: var(--app-bg);
 }
 
 #root {
@@ -35,12 +114,85 @@ body {
   margin: 0 0 16px;
   font-size: 22px;
   font-weight: 600;
+  color: var(--app-text);
 }
 
 .app-subheader {
   margin: 0 0 24px;
   font-size: 14px;
-  color: #555;
+  color: var(--app-muted);
+}
+
+.app-titlebar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.app-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.theme-toggle {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--app-control-border);
+  border-radius: 999px;
+  background: var(--app-control-bg);
+  color: var(--app-control-text);
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.theme-toggle:hover {
+  border-color: var(--app-primary);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--app-primary);
+  outline-offset: 2px;
+}
+
+.theme-toggle__icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 2px currentColor;
+  transform: scale(0.68);
+}
+
+html[data-theme='light'] .theme-toggle__icon {
+  box-shadow:
+    0 -8px 0 -5px currentColor,
+    0 8px 0 -5px currentColor,
+    8px 0 0 -5px currentColor,
+    -8px 0 0 -5px currentColor,
+    6px 6px 0 -5px currentColor,
+    -6px -6px 0 -5px currentColor,
+    6px -6px 0 -5px currentColor,
+    -6px 6px 0 -5px currentColor;
+  transform: scale(0.86);
+}
+
+html[data-theme='dark'] .theme-toggle__icon {
+  background: transparent;
+  box-shadow: inset -4px -2px 0 0 currentColor;
+  transform: scale(1);
+}
+
+.login-theme-control {
+  position: absolute;
+  top: 24px;
+  right: 16px;
 }
 
 .chat-wrapper {
@@ -48,8 +200,59 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: #ffffff;
+  background: var(--app-surface);
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--app-border);
+  box-shadow: var(--app-shadow);
   overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .app-titlebar {
+    flex-direction: column;
+  }
+
+  .app-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+.chat-wrapper .copilotKitMessage,
+.chat-wrapper .copilotKitInput > textarea {
+  text-align: start;
+  unicode-bidi: plaintext;
+}
+
+.chat-wrapper
+  .copilotKitMessage[data-text-direction='rtl']
+  ul.copilotKitMarkdownElement,
+.chat-wrapper
+  .copilotKitMessage[data-text-direction='rtl']
+  ol.copilotKitMarkdownElement {
+  padding-left: 0;
+  padding-right: 20px;
+}
+
+.chat-wrapper
+  .copilotKitMessage[data-text-direction='rtl']
+  blockquote.copilotKitMarkdownElement {
+  border-left: 0;
+  border-right: 2px solid rgb(142, 142, 160);
+  padding-left: 0;
+  padding-right: 10px;
+}
+
+.chat-wrapper
+  .copilotKitMessage[data-text-direction='rtl']
+  .copilotKitMessageControls {
+  left: auto;
+  right: 0;
+}
+
+.chat-wrapper .copilotKitCodeBlock,
+.chat-wrapper .copilotKitInlineCode {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
 }

@@ -23,16 +23,30 @@ function positionStyle(position: number | null): {
   background: string;
   color: string;
 } {
-  if (position === 1) return { background: '#fff3c2', color: '#7a5a00' };
+  if (position === 1)
+    return {
+      background: 'var(--app-warning-surface)',
+      color: 'var(--app-warning-text)',
+    };
   if (position && position <= 3)
-    return { background: '#e6f1ff', color: '#0b3e88' };
-  return { background: '#f1f3f7', color: '#37404f' };
+    return {
+      background: 'var(--app-primary-surface)',
+      color: 'var(--app-primary-strong)',
+    };
+  return {
+    background: 'var(--app-control-bg)',
+    color: 'var(--app-control-text)',
+  };
 }
 
 function FollowedTeamsGrid({ result }: { result?: ListFollowedTeamsResult }) {
-  if (result?.status === 'empty' || !result?.teams || result.teams.length === 0) {
+  if (
+    result?.status === 'empty' ||
+    !result?.teams ||
+    result.teams.length === 0
+  ) {
     return (
-      <div style={{ padding: 12, color: '#555' }}>
+      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
         No tracked league teams yet. Run <code>/follow_league</code> +{' '}
         <code>/teams_tracker</code> in the Telegram bot first.
       </div>
@@ -52,10 +66,12 @@ function FollowedTeamsGrid({ result }: { result?: ListFollowedTeamsResult }) {
         <div
           key={team.teamId}
           style={{
-            border: team.isSelected ? '2px solid #2c6fd1' : '1px solid #e2e6ee',
+            border: team.isSelected
+              ? '2px solid var(--app-primary)'
+              : '1px solid var(--app-border)',
             borderRadius: 10,
             padding: '12px 14px',
-            background: '#fff',
+            background: 'var(--app-surface)',
             fontSize: 13,
           }}
         >
@@ -72,16 +88,18 @@ function FollowedTeamsGrid({ result }: { result?: ListFollowedTeamsResult }) {
               <span
                 style={{
                   fontSize: 11,
-                  color: '#1c4f99',
+                  color: 'var(--app-primary)',
                   fontWeight: 700,
-                  letterSpacing: 0.3,
+                  letterSpacing: 0,
                 }}
               >
                 ACTIVE
               </span>
             ) : null}
           </div>
-          <div style={{ color: '#7d8693', fontSize: 11, marginTop: 2 }}>
+          <div
+            style={{ color: 'var(--app-subtle)', fontSize: 11, marginTop: 2 }}
+          >
             id: <code>{team.teamId}</code>
           </div>
           <div
@@ -93,7 +111,7 @@ function FollowedTeamsGrid({ result }: { result?: ListFollowedTeamsResult }) {
             }}
           >
             {team.leagues.length === 0 ? (
-              <div style={{ color: '#888', fontSize: 12 }}>
+              <div style={{ color: 'var(--app-subtle)', fontSize: 12 }}>
                 (no leagues resolved for this team)
               </div>
             ) : (
@@ -110,7 +128,9 @@ function FollowedTeamsGrid({ result }: { result?: ListFollowedTeamsResult }) {
                       gap: 8,
                     }}
                   >
-                    <span style={{ color: '#37404f' }}>{row.leagueName}</span>
+                    <span style={{ color: 'var(--app-control-text)' }}>
+                      {row.leagueName}
+                    </span>
                     <span
                       style={{
                         padding: '2px 8px',
@@ -139,13 +159,13 @@ export function useFollowedTeamsAction() {
   useCopilotAction({
     name: 'list_followed_teams',
     description:
-      'List the user\'s followed F1 Fantasy teams enriched with each league they appear in and their current position.',
+      "List the user's followed F1 Fantasy teams enriched with each league they appear in and their current position.",
     parameters: [],
     available: 'frontend',
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return (
-          <div style={{ padding: 10, color: '#666' }}>
+          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
             Loading your tracked teams…
           </div>
         );

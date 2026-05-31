@@ -27,12 +27,15 @@
 #   PROD_PREVIEW_PATTERN   (default: empty)
 #   TEST_ALLOWED_ORIGINS   (default: https://test.f1.kilzid.com,https://proud-sky-035c6b003.7.azurestaticapps.net)
 #   TEST_PREVIEW_PATTERN   (default: empty)
-#   GOOGLE_CLIENT_ID       (default: empty — auth gate DISABLED on both
-#                           slots. Set to the OAuth 2.0 Web client ID to
-#                           enable Google sign-in on BOTH the production
-#                           AND test slots. The test slot additionally
-#                           runs an admin-only filter — see
-#                           AGENT_REQUIRE_ADMIN below.)
+#   GOOGLE_CLIENT_ID       OAuth 2.0 Web client ID. When set, enables Google
+#                           sign-in on BOTH the production AND test slots. The
+#                           test slot additionally runs an admin-only filter —
+#                           see AGENT_REQUIRE_ADMIN below.
+#                           When unset, this script preserves any existing
+#                           GOOGLE_CLIENT_ID app setting instead of clearing it.
+#   ALLOW_EMPTY_GOOGLE_CLIENT_ID
+#                           Set to "true" only when you intentionally want to
+#                           write an empty GOOGLE_CLIENT_ID and disable auth.
 
 set -euo pipefail
 
@@ -56,11 +59,10 @@ TEST_ORIGINS="${TEST_ALLOWED_ORIGINS:-https://test.f1.kilzid.com,https://proud-s
 TEST_PATTERN="${TEST_PREVIEW_PATTERN:-}"
 # When set, the Google auth gate runs on BOTH slots. The test slot
 # additionally requires AGENT_REQUIRE_ADMIN=true (see below) so only
-# admin chatIds (KILZI/DORSE) can reach the agent on PR previews. When
-# empty, both slots BYPASS auth and fall back to AGENT_HARDCODED_CHAT_ID
-# — kept ONLY for local-dev parity; do not ship empty to Azure.
+# admin chatIds (KILZI/DORSE) can reach the agent on PR previews.
 PROD_GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
 TEST_GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
+ALLOW_EMPTY_GOOGLE_CLIENT_ID="${ALLOW_EMPTY_GOOGLE_CLIENT_ID:-false}"
 
 KV_BASE="https://${KV_NAME}.vault.azure.net/secrets"
 
@@ -91,6 +93,32 @@ apply_to_slot() {
     slot_args+=(--slot "$slot_label")
   fi
 
+  local settings=(
+    "FUNCTIONS_EXTENSION_VERSION=~4"
+    "FUNCTIONS_WORKER_RUNTIME=node"
+    "WEBSITE_NODE_DEFAULT_VERSION=~22"
+    "NODE_ENV=production"
+    "LOG_ENV=${slot_label}"
+    "AZURE_OPEN_AI_MODEL=${MODEL}"
+    "AZURE_STORAGE_CONTAINER_NAME=${STORAGE_CONTAINER}"
+    "AZURE_OPENAI_ENDPOINT=@Microsoft.KeyVault(SecretUri=${KV_BASE}/azure-openai-endpoint/)"
+    "AZURE_OPENAI_API_KEY=@Microsoft.KeyVault(SecretUri=${KV_BASE}/azure-openai-api-key/)"
+    "AZURE_STORAGE_CONNECTION_STRING=@Microsoft.KeyVault(SecretUri=${KV_BASE}/azure-storage-connection-string/)"
+    "TELEGRAM_BOT_TOKEN=@Microsoft.KeyVault(SecretUri=${KV_BASE}/telegram-bot-token/)"
+    "AGENT_HARDCODED_CHAT_ID=@Microsoft.KeyVault(SecretUri=${KV_BASE}/agent-hardcoded-chat-id/)"
+    "AGENT_CORS_ALLOWED_ORIGINS=${cors_origins}"
+    "AGENT_CORS_PREVIEW_ORIGIN_PATTERN=${cors_pattern}"
+    "AGENT_REQUIRE_ADMIN=${require_admin}"
+    "AzureWebJobsStorage=${STORAGE_CS}"
+    "APPLICATIONINSIGHTS_CONNECTION_STRING=${APPINSIGHTS_CS}"
+  )
+
+  if [[ -n "$google_client_id" || "$ALLOW_EMPTY_GOOGLE_CLIENT_ID" == "true" ]]; then
+    settings+=("GOOGLE_CLIENT_ID=${google_client_id}")
+  else
+    echo "GOOGLE_CLIENT_ID is unset; preserving existing ${slot_label} app setting."
+  fi
+
   echo "Applying app settings to slot: ${slot_label}..."
   # Note: ${slot_args[@]+"${slot_args[@]}"} pattern is `set -u`-safe expansion
   # of a possibly-empty array (Bash treats `${empty_array[@]}` as unbound).
@@ -99,24 +127,7 @@ apply_to_slot() {
     --resource-group "$RG" \
     --subscription "$SUB" \
     ${slot_args[@]+"${slot_args[@]}"} \
-    --settings \
-      "FUNCTIONS_EXTENSION_VERSION=~4" \
-      "FUNCTIONS_WORKER_RUNTIME=node" \
-      "WEBSITE_NODE_DEFAULT_VERSION=~22" \
-      "NODE_ENV=production" \
-      "AZURE_OPEN_AI_MODEL=${MODEL}" \
-      "AZURE_STORAGE_CONTAINER_NAME=${STORAGE_CONTAINER}" \
-      "AZURE_OPENAI_ENDPOINT=@Microsoft.KeyVault(SecretUri=${KV_BASE}/azure-openai-endpoint/)" \
-      "AZURE_OPENAI_API_KEY=@Microsoft.KeyVault(SecretUri=${KV_BASE}/azure-openai-api-key/)" \
-      "AZURE_STORAGE_CONNECTION_STRING=@Microsoft.KeyVault(SecretUri=${KV_BASE}/azure-storage-connection-string/)" \
-      "TELEGRAM_BOT_TOKEN=@Microsoft.KeyVault(SecretUri=${KV_BASE}/telegram-bot-token/)" \
-      "AGENT_HARDCODED_CHAT_ID=@Microsoft.KeyVault(SecretUri=${KV_BASE}/agent-hardcoded-chat-id/)" \
-      "AGENT_CORS_ALLOWED_ORIGINS=${cors_origins}" \
-      "AGENT_CORS_PREVIEW_ORIGIN_PATTERN=${cors_pattern}" \
-      "GOOGLE_CLIENT_ID=${google_client_id}" \
-      "AGENT_REQUIRE_ADMIN=${require_admin}" \
-      "AzureWebJobsStorage=${STORAGE_CS}" \
-      "APPLICATIONINSIGHTS_CONNECTION_STRING=${APPINSIGHTS_CS}" \
+    --settings "${settings[@]}" \
     --output none --only-show-errors
 }
 

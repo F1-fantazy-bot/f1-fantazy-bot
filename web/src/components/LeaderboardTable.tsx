@@ -48,7 +48,7 @@ function LeaderboardTable({ result }: { result?: LeaderboardResult }) {
 
   if (result.status === 'not_followed') {
     return (
-      <div style={{ padding: 12, color: '#7a4a00' }}>
+      <div style={{ padding: 12, color: 'var(--app-warning-text)' }}>
         You don't follow league <code>{result.leagueCode}</code>. Run{' '}
         <code>/follow_league</code> in the Telegram bot first.
       </div>
@@ -57,7 +57,7 @@ function LeaderboardTable({ result }: { result?: LeaderboardResult }) {
 
   if (result.status === 'not_found') {
     return (
-      <div style={{ padding: 12, color: '#7a4a00' }}>
+      <div style={{ padding: 12, color: 'var(--app-warning-text)' }}>
         No standings available yet for league <code>{result.leagueCode}</code>.
         Try again after the next scrape.
       </div>
@@ -66,7 +66,7 @@ function LeaderboardTable({ result }: { result?: LeaderboardResult }) {
 
   if (result.status === 'invalid_input') {
     return (
-      <div style={{ padding: 12, color: '#a32020' }}>
+      <div style={{ padding: 12, color: 'var(--app-danger-text)' }}>
         Invalid league code.
       </div>
     );
@@ -75,7 +75,7 @@ function LeaderboardTable({ result }: { result?: LeaderboardResult }) {
   const rows = result.standings ?? [];
   if (rows.length === 0) {
     return (
-      <div style={{ padding: 12, color: '#555' }}>
+      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
         No teams in <strong>{result.leagueName}</strong> yet.
       </div>
     );
@@ -87,23 +87,25 @@ function LeaderboardTable({ result }: { result?: LeaderboardResult }) {
     <div
       style={{
         margin: '8px 0',
-        border: '1px solid #e2e6ee',
+        border: '1px solid var(--app-border)',
         borderRadius: 10,
-        background: '#fff',
+        background: 'var(--app-surface)',
         overflow: 'hidden',
       }}
     >
       <div
         style={{
           padding: '10px 14px',
-          background: '#f6f8fb',
-          borderBottom: '1px solid #e2e6ee',
+          background: 'var(--app-surface-muted)',
+          borderBottom: '1px solid var(--app-border)',
         }}
       >
-        <div style={{ fontWeight: 700, fontSize: 14, color: '#1f2937' }}>
+        <div
+          style={{ fontWeight: 700, fontSize: 14, color: 'var(--app-text)' }}
+        >
           🏆 {result.leagueName ?? result.leagueCode}
         </div>
-        <div style={{ color: '#7d8693', fontSize: 11, marginTop: 2 }}>
+        <div style={{ color: 'var(--app-subtle)', fontSize: 11, marginTop: 2 }}>
           {result.memberCount ?? rows.length} teams
           {fetchedAt ? ` · updated ${fetchedAt}` : ''}
         </div>
@@ -113,11 +115,16 @@ function LeaderboardTable({ result }: { result?: LeaderboardResult }) {
           width: '100%',
           borderCollapse: 'collapse',
           fontSize: 13,
-          color: '#1f2937',
+          color: 'var(--app-text)',
         }}
       >
         <thead>
-          <tr style={{ background: '#fafbfd', textAlign: 'left' }}>
+          <tr
+            style={{
+              background: 'var(--app-surface-subtle)',
+              textAlign: 'left',
+            }}
+          >
             <th style={{ padding: '6px 12px', width: 50 }}>#</th>
             <th style={{ padding: '6px 12px' }}>Team</th>
             <th style={{ padding: '6px 12px', textAlign: 'right', width: 90 }}>
@@ -135,12 +142,14 @@ function LeaderboardTable({ result }: { result?: LeaderboardResult }) {
               <tr
                 key={row.teamId ?? `${row.teamName}-${idx}`}
                 style={{
-                  background: highlight ? '#fff8d6' : 'transparent',
+                  background: highlight
+                    ? 'var(--app-highlight-surface)'
+                    : 'transparent',
                   fontWeight: highlight ? 700 : 400,
-                  borderTop: idx === 0 ? 'none' : '1px solid #f0f2f6',
+                  borderTop: idx === 0 ? 'none' : '1px solid var(--app-border)',
                 }}
               >
-                <td style={{ padding: '6px 12px', color: '#7d8693' }}>
+                <td style={{ padding: '6px 12px', color: 'var(--app-subtle)' }}>
                   {row.position ?? '—'}
                 </td>
                 <td style={{ padding: '6px 12px' }}>{row.teamName}</td>
@@ -157,7 +166,7 @@ function LeaderboardTable({ result }: { result?: LeaderboardResult }) {
                   style={{
                     padding: '6px 12px',
                     textAlign: 'right',
-                    color: '#7d8693',
+                    color: 'var(--app-subtle)',
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
@@ -176,13 +185,13 @@ export function useLeaderboardAction() {
   useCopilotAction({
     name: 'get_leaderboard',
     description:
-      'Show the standings for one of the user\'s followed F1 Fantasy leagues.',
+      "Show the standings for one of the user's followed F1 Fantasy leagues.",
     parameters: [],
     available: 'frontend',
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return (
-          <div style={{ padding: 10, color: '#666' }}>
+          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
             Loading league standings…
           </div>
         );

@@ -60,8 +60,18 @@ jobs:
           echo "COMMIT_MESSAGE=$COMMIT_TITLE" >> .env
           echo "COMMIT_LINK=${{ env.COMMIT_LINK }}" >> .env
 
+      - name: Strip non-Telegram paths from the package
+        shell: bash
+        run: |
+          rm -rf agentWebhook/ web/ src/agent/
+          test -f telegramWebhook/function.json
+          test -f telegramWebhook/index.js
+          test -f src/bot.js
+          test ! -d agentWebhook
+          test ! -d src/agent
+
       - name: Zip artifact for deployment
-        run: zip release.zip ./* -r
+        run: zip release.zip ./* .funcignore -r
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
