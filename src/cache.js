@@ -23,6 +23,8 @@ exports.constructorsCache = {};
 exports.pricesCache = {
   drivers: {},
   constructors: {},
+  driverEntries: [],
+  constructorEntries: [],
   metadata: null,
 };
 
@@ -315,10 +317,14 @@ function overlayCanonicalPrices(itemsByCode, pricesByCode) {
 exports.setPrices = function ({
   drivers = {},
   constructors = {},
+  driverEntries = [],
+  constructorEntries = [],
   metadata = null,
 } = {}) {
   exports.pricesCache.drivers = drivers;
   exports.pricesCache.constructors = constructors;
+  exports.pricesCache.driverEntries = driverEntries;
+  exports.pricesCache.constructorEntries = constructorEntries;
   exports.pricesCache.metadata = metadata;
 };
 

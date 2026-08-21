@@ -145,6 +145,8 @@ describe('cacheInitializer', () => {
     Object.keys(userCache).forEach((key) => delete userCache[key]);
     pricesCache.drivers = {};
     pricesCache.constructors = {};
+    pricesCache.driverEntries = [];
+    pricesCache.constructorEntries = [];
     pricesCache.metadata = null;
 
     // Setup mock implementations
@@ -208,6 +210,8 @@ describe('cacheInitializer', () => {
     expect(pricesCache).toEqual({
       drivers: { VER: 31.4, HAM: 24.2 },
       constructors: { RED: 21.3, MER: 16.4 },
+      driverEntries: mockPricesData.drivers,
+      constructorEntries: mockPricesData.constructors,
       metadata: {
         fetchedAt: mockPricesData.fetchedAt,
         matchdayId: mockPricesData.matchdayId,
@@ -342,6 +346,8 @@ describe('cacheInitializer', () => {
     expect(pricesCache).toEqual({
       drivers: {},
       constructors: {},
+      driverEntries: [],
+      constructorEntries: [],
       metadata: null,
     });
     expect(utils.sendErrorMessage).toHaveBeenCalledWith(

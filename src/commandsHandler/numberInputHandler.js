@@ -61,11 +61,13 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
       }
 
       // Build cachedJsonData object
-      const cachedJsonData = {
-        Drivers: getDriversForChat(chatId),
-        Constructors: getConstructorsForChat(chatId),
-        CurrentTeam: currentTeam,
-      };
+      const cachedJsonData =
+        bestTeamsCache[chatId][teamId].calculationData ||
+        {
+          Drivers: getDriversForChat(chatId),
+          Constructors: getConstructorsForChat(chatId),
+          CurrentTeam: currentTeam,
+        };
       const changesToTeam = calculateChangesToTeam(
         cachedJsonData,
         selectedTeam,
@@ -233,12 +235,20 @@ function getDriverAndConstructorsDetailsMessage(
   changesToTeam,
   chatId,
 ) {
+  const usesPlayerIds = Array.isArray(changesToTeam.driverKeysToAdd);
+  const driversToRemove = usesPlayerIds
+    ? changesToTeam.driverKeysToRemove
+    : changesToTeam.driversToRemove;
+  const driversToAdd = usesPlayerIds
+    ? changesToTeam.driverKeysToAdd
+    : changesToTeam.driversToAdd;
+
   // Get all drivers: current team drivers minus removed plus added
   const finalDrivers = [
     ...cachedJsonData.CurrentTeam.drivers.filter(
-      (driver) => !changesToTeam.driversToRemove.includes(driver),
+      (driver) => !driversToRemove.includes(driver),
     ),
-    ...changesToTeam.driversToAdd,
+    ...driversToAdd,
   ];
 
   // Get all constructors: current team constructors minus removed plus added
@@ -254,12 +264,18 @@ function getDriverAndConstructorsDetailsMessage(
     const driverData = cachedJsonData.Drivers[driverName];
     let displayName = driverData.DR;
     let points = parseFloat(driverData.expectedPoints);
-    let isNew = changesToTeam.driversToAdd.includes(driverName);
+    let isNew = driversToAdd.includes(driverName);
 
-    if (driverName === changesToTeam.extraBoostDriver) {
+    if (
+      driverName ===
+      (changesToTeam.extraBoostDriverKey || changesToTeam.extraBoostDriver)
+    ) {
       displayName += ` (${t('Extra Boost', chatId)})`;
       points *= 3;
-    } else if (driverName === changesToTeam.newBoost) {
+    } else if (
+      driverName ===
+      (changesToTeam.newBoostDriverKey || changesToTeam.newBoost)
+    ) {
       displayName += ` (${t('Boost', chatId)})`;
       isNew = true;
       points *= 2;

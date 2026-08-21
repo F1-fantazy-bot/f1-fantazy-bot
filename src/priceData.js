@@ -3,14 +3,29 @@ const {
   NAME_TO_CODE_CONSTRUCTORS_MAPPING,
 } = require('./constants');
 
-function buildPriceMap(entries, nameToCodeMapping) {
+function buildPriceMap(
+  entries,
+  nameToCodeMapping,
+  { useSuppliedCode = false } = {},
+) {
   const pricesByCode = {};
   const unmapped = [];
   const invalid = [];
+  const allEntries = Array.isArray(entries) ? entries : [];
+  const hasActivityMetadata = allEntries.some(
+    (entry) => typeof entry?.isActive === 'boolean',
+  );
+  const eligibleEntries = hasActivityMetadata
+    ? allEntries.filter((entry) => entry?.isActive === true)
+    : allEntries;
 
-  for (const entry of Array.isArray(entries) ? entries : []) {
+  for (const entry of eligibleEntries) {
     const name = typeof entry?.name === 'string' ? entry.name.trim() : '';
-    const code = nameToCodeMapping[name.toLowerCase()];
+    const suppliedCode =
+      typeof entry?.code === 'string' ? entry.code.trim().toUpperCase() : '';
+    const code =
+      (useSuppliedCode ? suppliedCode : '') ||
+      nameToCodeMapping[name.toLowerCase()];
     const rawPrice = entry?.price;
     const price =
       rawPrice === null || rawPrice === undefined || rawPrice === ''
@@ -56,6 +71,7 @@ function applyPrices({ drivers, constructors }, pricesData) {
   const driverPrices = buildPriceMap(
     pricesData?.drivers,
     NAME_TO_CODE_DRIVERS_MAPPING,
+    { useSuppliedCode: true },
   );
   const constructorPrices = buildPriceMap(
     pricesData?.constructors,

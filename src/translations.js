@@ -221,6 +221,10 @@ const translations = {
     'Balanced Budget Value': 'איזון עם ערך לתקציב',
     'Remaining race count is unavailable right now. Switch to Pure Points or try again later.':
       'מספר המרוצים שנותרו אינו זמין כרגע. עבור לנקודות בלבד או נסה שוב מאוחר יותר.',
+    'Next race weekend format is unavailable. Please refresh the next race data and try again.':
+      'פורמט סוף השבוע של המרוץ הבא אינו זמין. רענן את נתוני המרוץ הבא ונסה שוב.',
+    'Driver activity data is unavailable or inconsistent. Please refresh the API data and try again.':
+      'נתוני פעילות הנהגים אינם זמינים או אינם עקביים. רענן את נתוני ה-API ונסה שוב.',
     'Please provide a question.': 'אנא ספק שאלה.',
     '❓ Support & Info': '❓ תמיכה ומידע',
     'Help, updates, and feedback': 'עזרה, עדכונים ומשוב',

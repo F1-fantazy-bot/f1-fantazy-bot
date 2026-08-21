@@ -202,6 +202,8 @@ async function loadSimulationData(bot) {
     setPrices({
       drivers: pricedData.priceMaps.drivers,
       constructors: pricedData.priceMaps.constructors,
+      driverEntries: pricesData.drivers,
+      constructorEntries: pricesData.constructors,
       metadata: {
         fetchedAt: pricesData.fetchedAt || null,
         matchdayId: pricesData.matchdayId || null,

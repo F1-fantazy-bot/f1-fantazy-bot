@@ -10,11 +10,14 @@ const {
   selectedChipCache,
   sharedKey,
   remainingRaceCountCache,
+  nextRaceInfoCache,
+  pricesCache,
   getDriversForChat,
   getConstructorsForChat,
   getSelectedTeam,
   getUserTeamIds,
 } = require('../cache');
+const { prepareBestTeamsData } = require('../utils/bestTeamsData');
 const {
   EXTRA_BOOST_CHIP,
   LIMITLESS_CHIP,
@@ -123,11 +126,17 @@ function computeBestTeamScenarios({ chatId, teamId, teamName }) {
     return { status: 'missing_cache', teamId: resolvedTeamId };
   }
 
-  const cachedJsonData = {
-    Drivers: drivers,
-    Constructors: constructors,
-    CurrentTeam: currentTeam,
-  };
+  const prepared = prepareBestTeamsData({
+    drivers,
+    constructors,
+    currentTeam,
+    driverEntries: pricesCache.driverEntries,
+    nextRaceInfo: nextRaceInfoCache[sharedKey],
+  });
+  if (prepared.status !== 'ok') {
+    return { ...prepared, teamId: resolvedTeamId };
+  }
+  const cachedJsonData = prepared.calculationData;
   const selectedChip = selectedChipCache[chatId]?.[resolvedTeamId] || null;
   const remainingRaceCount = remainingRaceCountCache[sharedKey];
   const safeRemainingRaceCount = Number.isFinite(remainingRaceCount)

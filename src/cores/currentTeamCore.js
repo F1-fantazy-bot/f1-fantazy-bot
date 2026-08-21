@@ -18,12 +18,15 @@ const {
   selectedChipCache,
   sharedKey,
   remainingRaceCountCache,
+  nextRaceInfoCache,
+  pricesCache,
   getSelectedTeam,
   getUserTeamIds,
   getBestTeamBudgetChangePointsPerMillion,
   getDriversForChat,
   getConstructorsForChat,
 } = require('../cache');
+const { prepareBestTeamsData } = require('../utils/bestTeamsData');
 
 function pickTeamId({ chatId, requestedTeamId, requestedTeamName }) {
   const teamIds = getUserTeamIds(chatId);
@@ -92,7 +95,22 @@ async function getCurrentTeam({ chatId, teamId, teamName } = {}) {
     };
   }
 
-  const teamInfo = calculateTeamInfo(currentTeam, drivers, constructors);
+  const prepared = prepareBestTeamsData({
+    drivers,
+    constructors,
+    currentTeam,
+    driverEntries: pricesCache.driverEntries,
+    nextRaceInfo: nextRaceInfoCache[sharedKey],
+  });
+  if (prepared.status !== 'ok') {
+    return { ...prepared, teamId: resolvedTeamId };
+  }
+  const calculationData = prepared.calculationData;
+  const teamInfo = calculateTeamInfo(
+    calculationData.CurrentTeam,
+    calculationData.Drivers,
+    calculationData.Constructors,
+  );
   const budgetChangePointsPerMillion = getBestTeamBudgetChangePointsPerMillion(
     chatId,
     resolvedTeamId,
