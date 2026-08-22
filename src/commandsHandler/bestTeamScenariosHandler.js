@@ -6,9 +6,12 @@ const {
   sharedKey,
   resolveSelectedTeam,
   remainingRaceCountCache,
+  nextRaceInfoCache,
+  pricesCache,
   getDriversForChat,
   getConstructorsForChat,
 } = require('../cache');
+const { prepareBestTeamsData } = require('../utils/bestTeamsData');
 const { t } = require('../i18n');
 const {
   EXTRA_BOOST_CHIP,
@@ -106,12 +109,6 @@ async function handleBestTeamScenariosMessage(bot, chatId) {
     return;
   }
 
-  const cachedJsonData = {
-    Drivers: drivers,
-    Constructors: constructors,
-    CurrentTeam: currentTeam,
-  };
-
   if (
     !validateJsonData(
       bot,
@@ -125,6 +122,26 @@ async function handleBestTeamScenariosMessage(bot, chatId) {
   ) {
     return;
   }
+
+  const prepared = prepareBestTeamsData({
+    drivers,
+    constructors,
+    currentTeam,
+    driverEntries: pricesCache.driverEntries,
+    nextRaceInfo: nextRaceInfoCache[sharedKey],
+  });
+  if (prepared.status !== 'ok') {
+    await bot.sendMessage(
+      chatId,
+      t(
+        'Driver activity data is unavailable or inconsistent. Please refresh the API data and try again.',
+        chatId,
+      ),
+    );
+
+    return;
+  }
+  const cachedJsonData = prepared.calculationData;
 
   const selectedChip = selectedChipCache[chatId]?.[teamId];
   const remainingRaceCount = remainingRaceCountCache[sharedKey];

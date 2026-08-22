@@ -11,6 +11,8 @@ const {
   selectedChipCache,
   sharedKey,
   remainingRaceCountCache,
+  nextRaceInfoCache,
+  pricesCache,
   getSelectedTeam,
   getUserTeamIds,
   getBestTeamBudgetChangePointsPerMillion,
@@ -18,6 +20,7 @@ const {
   getConstructorsForChat,
 } = require('../cache');
 const { NAME_TO_CODE_MAPPING } = require('../constants');
+const { prepareBestTeamsData } = require('../utils/bestTeamsData');
 
 // Normalize a single user-supplied driver / constructor token to its canonical
 // 3-letter code. Accepts already-uppercase codes (`'VER'`) and lowercased
@@ -197,11 +200,17 @@ async function computeBestTeams({
   }
 
   const chip = selectedChipCache[chatId]?.[teamId];
-  const cachedJsonData = {
-    Drivers: drivers,
-    Constructors: constructors,
-    CurrentTeam: currentTeam,
-  };
+  const prepared = prepareBestTeamsData({
+    drivers,
+    constructors,
+    currentTeam,
+    driverEntries: pricesCache.driverEntries,
+    nextRaceInfo: nextRaceInfoCache[sharedKey],
+  });
+  if (prepared.status !== 'ok') {
+    return { ...prepared, teamId };
+  }
+  const cachedJsonData = prepared.calculationData;
   const calculatorOptions = buildCalculatorOptions({
     filters,
     rankBy,
@@ -233,6 +242,9 @@ async function computeBestTeams({
     rankBy,
     budgetChangePointsPerMillion,
     filters,
+    ...(prepared.usesPlayerIds
+      ? { calculationData: cachedJsonData }
+      : {}),
   };
 }
 

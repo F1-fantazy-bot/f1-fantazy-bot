@@ -388,6 +388,79 @@ describe('calculateBestTeams', () => {
     expect(result.some((team) => team.total_price === 102.5)).toBe(true);
   });
 
+  it('distinguishes active and inactive records that share a driver code', () => {
+    const idAwareData = {
+      Drivers: {
+        114: {
+          DR: 'LAW',
+          price: 10.3,
+          expectedPoints: -25,
+          expectedPriceChange: 0,
+          isActive: false,
+        },
+        116: {
+          DR: 'LAW',
+          price: 14.5,
+          expectedPoints: 20,
+          expectedPriceChange: 0.1,
+          isActive: true,
+        },
+        1: { DR: 'A', price: 10, expectedPoints: 10, expectedPriceChange: 0 },
+        2: { DR: 'B', price: 10, expectedPoints: 9, expectedPriceChange: 0 },
+        3: { DR: 'C', price: 10, expectedPoints: 8, expectedPriceChange: 0 },
+        4: { DR: 'D', price: 10, expectedPoints: 7, expectedPriceChange: 0 },
+        5: { DR: 'E', price: 10, expectedPoints: 6, expectedPriceChange: 0 },
+      },
+      Constructors: {
+        X: { CN: 'X', price: 5, expectedPoints: 5, expectedPriceChange: 0 },
+        Y: { CN: 'Y', price: 5, expectedPoints: 4, expectedPriceChange: 0 },
+      },
+      CurrentTeam: {
+        drivers: ['114', '1', '2', '3', '4'],
+        constructors: ['X', 'Y'],
+        boost: '1',
+        freeTransfers: 7,
+        costCapRemaining: 50,
+      },
+    };
+
+    const result = calculateBestTeams(
+      idAwareData,
+      undefined,
+      0,
+      0,
+      { resultCount: 100 },
+    );
+
+    expect(
+      result.every(
+        (team) =>
+          !(
+            team.driver_ids.includes('114') &&
+            team.driver_ids.includes('116')
+          ),
+      ),
+    ).toBe(true);
+
+    const replacementTeam = result.find(
+      (team) =>
+        team.driver_ids.includes('116') &&
+        ['1', '2', '3', '4'].every((id) => team.driver_ids.includes(id)),
+    );
+    expect(replacementTeam).toMatchObject({
+      drivers: ['LAW', 'A', 'B', 'C', 'D'],
+      transfers_needed: 1,
+    });
+
+    const changes = calculateChangesToTeam(idAwareData, replacementTeam);
+    expect(changes).toMatchObject({
+      driversToAdd: ['LAW'],
+      driversToRemove: ['LAW'],
+      driverKeysToAdd: ['116'],
+      driverKeysToRemove: ['114'],
+    });
+  });
+
   describe('calculateChangesToTeam', () => {
     it('should correctly identify drivers and constructors to add/remove', () => {
       const targetTeam = {

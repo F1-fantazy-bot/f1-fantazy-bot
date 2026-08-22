@@ -26,6 +26,23 @@ async function calcCurrentTeamInfo(bot, chatId) {
     return;
   }
 
+  if (
+    result.status === 'projection_mismatch' ||
+    result.status === 'missing_weekend_format'
+  ) {
+    await bot.sendMessage(
+      chatId,
+      t(
+        result.status === 'missing_weekend_format'
+          ? 'Next race weekend format is unavailable. Please refresh the next race data and try again.'
+          : 'Driver activity data is unavailable or inconsistent. Please refresh the API data and try again.',
+        chatId,
+      ),
+    );
+
+    return;
+  }
+
   if (result.status !== 'ok') {
     // resolveSelectedTeam already handled the no_teams / ambiguous_team
     // user paths. Any other status here would mean a coding error.
