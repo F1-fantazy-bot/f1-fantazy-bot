@@ -44,6 +44,7 @@ const {
   COMMAND_TEAMS_TRACKER,
   COMMAND_LEAGUE_GRAPHS,
   COMMAND_LEAGUE_CHANGES,
+  COMMAND_RACE_SUMMARY,
   COMMAND_WHATS_NEW,
   COMMAND_ALLOW_WEB_USER,
   COMMAND_REVOKE_WEB_USER,
@@ -51,7 +52,9 @@ const {
 } = require('../constants');
 
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
-const { handleBestTeamScenariosMessage } = require('./bestTeamScenariosHandler');
+const {
+  handleBestTeamScenariosMessage,
+} = require('./bestTeamScenariosHandler');
 const { handleChipsMessage } = require('./chipsHandler');
 const { calcCurrentTeamInfo } = require('./currentTeamInfoHandler');
 const { handleGetBotfatherCommands } = require('./getBotfatherCommandsHandler');
@@ -88,7 +91,9 @@ const {
 } = require('./sendMessageToUserHandler');
 const { handleBroadcastCommand } = require('./broadcastHandler');
 const { handleSetNicknameCommand } = require('./setNicknameHandler');
-const { handleUploadDriversPhotoCommand } = require('./uploadDriversPhotoHandler');
+const {
+  handleUploadDriversPhotoCommand,
+} = require('./uploadDriversPhotoHandler');
 const {
   handleUploadConstructorsPhotoCommand,
 } = require('./uploadConstructorsPhotoHandler');
@@ -97,18 +102,13 @@ const { handleSetBestTeamRanking } = require('./setBestTeamRankingHandler');
 const { handleLiveScoreCommand } = require('./liveScoreHandler');
 const { handleDeadlineCommand } = require('./deadlineHandler');
 const { handleFollowLeagueCommand } = require('./followLeagueHandler');
-const {
-  handleUnfollowLeagueCommand,
-} = require('./unfollowLeagueHandler');
+const { handleUnfollowLeagueCommand } = require('./unfollowLeagueHandler');
 const { handleLeaderboardCommand } = require('./leaderboardHandler');
-const {
-  handleTeamsTrackerCommand,
-} = require('./teamsTrackerHandler');
+const { handleTeamsTrackerCommand } = require('./teamsTrackerHandler');
 const { handleLeagueGraphsCommand } = require('./leagueGraphHandler');
-const {
-  handleLeagueChangesCommand,
-} = require('./leagueChangesHandler');
+const { handleLeagueChangesCommand } = require('./leagueChangesHandler');
 const { handleWhatsNewCommand } = require('./whatsNewHandler');
+const { handleRaceSummaryCommand } = require('./raceSummaryHandler');
 const { handleAllowWebUserCommand } = require('./allowWebUserHandler');
 const { handleRevokeWebUserCommand } = require('./revokeWebUserHandler');
 const { handleListWebUsersCommand } = require('./listWebUsersHandler');
@@ -161,6 +161,7 @@ const COMMAND_HANDLERS = {
   [COMMAND_TEAMS_TRACKER]: handleTeamsTrackerCommand,
   [COMMAND_LEAGUE_GRAPHS]: handleLeagueGraphsCommand,
   [COMMAND_LEAGUE_CHANGES]: handleLeagueChangesCommand,
+  [COMMAND_RACE_SUMMARY]: handleRaceSummaryCommand,
   [COMMAND_WHATS_NEW]: handleWhatsNewCommand,
   [COMMAND_ALLOW_WEB_USER]: handleAllowWebUserCommand,
   [COMMAND_REVOKE_WEB_USER]: handleRevokeWebUserCommand,
