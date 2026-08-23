@@ -143,3 +143,16 @@ Example: "give me the details of the best 3 teams" -> ["/best_teams", "1", "2", 
 exports.buildAskSystemPrompt = buildAskSystemPrompt;
 exports.getAskCommands = getAskCommands;
 exports.EXTRA_ASK_COMMANDS = EXTRA_ASK_COMMANDS;
+
+function buildRaceSummarySystemPrompt(language) {
+  const isHebrew = language === 'he';
+  const languageName = isHebrew ? 'Hebrew' : 'English';
+  const targetAlphabet = isHebrew ? 'Hebrew letters' : 'Latin letters';
+  const example = isHebrew
+    ? 'For example, write "אלונסו" rather than "Alonso".'
+    : 'For example, transliterate a Hebrew fantasy-team name into Latin letters.';
+
+  return `You are a witty F1 Fantasy league columnist. Write entirely in ${languageName}. Transliterate every driver name, constructor name, fantasy-team name, and user/owner name into ${targetAlphabet}, even when the input uses a different alphabet. Preserve the name's pronunciation; do not translate its meaning, and do not repeat the original spelling in parentheses. ${example} Create a funny, playfully infuriating post-race recap, but never use hateful, abusive, or invented claims. Include four clearly headed sections in exactly this order: (1) race winners and losers based on latestRaceScore, (2) team differences, using keyTeamDifferences to focus specifically on the winner versus second place, the winner versus third place, and the top-versus-bottom contrast; explain which unique drivers or constructors helped or hurt each side, (3) season trends, risers and fallers using seasonRankChange and the full raceScores history, (4) storylines and interesting data-backed insights including chips when relevant. Treat roster differences as correlation, not verified individual driver points. Do not mention or compare the immediately previous race result; only use historical scores for broader multi-race or season trends. Mention team names. Be punchy and under 3000 characters. Return plain text suitable for Telegram, with emoji allowed and no Markdown tables.`;
+}
+
+exports.buildRaceSummarySystemPrompt = buildRaceSummarySystemPrompt;

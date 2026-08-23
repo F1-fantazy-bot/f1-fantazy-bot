@@ -27,16 +27,12 @@ const {
   LEAGUE_GRAPH_TYPE_CALLBACK_TYPE,
   LEAGUE_GRAPH_TYPES,
   LEAGUE_CHANGES_CALLBACK_TYPE,
+  RACE_SUMMARY_CALLBACK_TYPE,
   LIVE_SCORE_CALLBACK_TYPE,
 } = require('./constants');
 
-const {
-  sendLogMessage,
-  sendMessageToUser,
-} = require('./utils');
-const {
-  ensureSourceIsScreenshot,
-} = require('./utils/teamSourceSwitcher');
+const { sendLogMessage, sendMessageToUser } = require('./utils');
+const { ensureSourceIsScreenshot } = require('./utils/teamSourceSwitcher');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
 const { t, setLanguage, getLanguageName } = require('./i18n');
 const {
@@ -46,12 +42,9 @@ const {
   getDeadlinePayload,
   getRefreshMarkup,
 } = require('./commandsHandler/deadlineHandler');
-const {
-  sendLeaderboard,
-} = require('./commandsHandler/leaderboardHandler');
-const {
-  sendLeagueChanges,
-} = require('./commandsHandler/leagueChangesHandler');
+const { sendLeaderboard } = require('./commandsHandler/leaderboardHandler');
+const { sendLeagueChanges } = require('./commandsHandler/leagueChangesHandler');
+const { sendRaceSummary } = require('./commandsHandler/raceSummaryHandler');
 const {
   handleLiveScoreCallback,
 } = require('./commandsHandler/liveScoreHandler');
@@ -100,6 +93,8 @@ exports.handleCallbackQuery = async function (bot, query) {
       return await handleLeagueGraphTypeCallback(bot, query);
     case LEAGUE_CHANGES_CALLBACK_TYPE:
       return await handleLeagueChangesCallback(bot, query);
+    case RACE_SUMMARY_CALLBACK_TYPE:
+      return await handleRaceSummaryCallback(bot, query);
     case LIVE_SCORE_CALLBACK_TYPE:
       return await handleLiveScoreCallback(bot, query);
     default:
@@ -107,13 +102,9 @@ exports.handleCallbackQuery = async function (bot, query) {
   }
 };
 
-
-
 function isTelegramMessageNotModifiedError(error) {
   const description =
-    error?.response?.body?.description ||
-    error?.message ||
-    '';
+    error?.response?.body?.description || error?.message || '';
 
   return description.toLowerCase().includes('message is not modified');
 }
@@ -197,14 +188,15 @@ async function handleLanguageCallback(bot, query) {
   await bot.answerCallbackQuery(query.id);
 }
 
-
 async function handleBestTeamRankingCallback(bot, query) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
   const teamId = query.data.split(':')[1];
   const presetId = query.data.split(':')[2];
 
-  const preset = BEST_TEAM_RANKING_PRESETS.find((option) => option.id === presetId);
+  const preset = BEST_TEAM_RANKING_PRESETS.find(
+    (option) => option.id === presetId,
+  );
 
   if (!preset) {
     await bot.answerCallbackQuery(query.id);
@@ -438,4 +430,12 @@ async function handleLeagueGraphTypeCallback(bot, query) {
   }
 
   await bot.answerCallbackQuery(query.id);
+}
+
+async function handleRaceSummaryCallback(bot, query) {
+  const chatId = query.message.chat.id;
+  const leagueCode = query.data.split(':').slice(1).join(':');
+  await bot.answerCallbackQuery(query.id);
+
+  return sendRaceSummary(bot, chatId, leagueCode);
 }
