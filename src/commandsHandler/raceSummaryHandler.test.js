@@ -4,7 +4,10 @@ jest.mock('openai', () => ({
   })),
 }));
 jest.mock('../leagueRegistryService', () => ({ listUserLeagues: jest.fn() }));
-jest.mock('../azureStorageService', () => ({ getLeagueData: jest.fn() }));
+jest.mock('../azureStorageService', () => ({
+  getLeagueData: jest.fn(),
+  getLockedTeamsData: jest.fn(),
+}));
 jest.mock('../utils', () => ({
   sendErrorMessage: jest.fn().mockResolvedValue(),
   sendLogMessage: jest.fn().mockResolvedValue(),
@@ -21,7 +24,7 @@ jest.mock('../i18n', () => ({
 
 const { AzureOpenAI } = require('openai');
 const { listUserLeagues } = require('../leagueRegistryService');
-const { getLeagueData } = require('../azureStorageService');
+const { getLeagueData, getLockedTeamsData } = require('../azureStorageService');
 const {
   buildRaceSummaryData,
   sendRaceSummary,
@@ -51,6 +54,23 @@ const fixture = {
     },
   ],
 };
+const lockedFixture = {
+  matchdayId: 2,
+  teams: [
+    {
+      teamName: 'Rocket',
+      teamNo: 1,
+      drivers: [{ name: 'Alonso' }, { name: 'Norris' }],
+      constructors: [{ name: 'McLaren' }],
+    },
+    {
+      teamName: 'Turtle',
+      teamNo: 1,
+      drivers: [{ name: 'Hamilton' }, { name: 'Norris' }],
+      constructors: [{ name: 'Ferrari' }],
+    },
+  ],
+};
 
 const openAiClient = { chat: { completions: { create: jest.fn() } } };
 AzureOpenAI.mockImplementation(() => openAiClient);
@@ -61,7 +81,7 @@ describe('raceSummaryHandler', () => {
   });
 
   it('builds latest-race and season movement facts and excludes the graph bot', () => {
-    const data = buildRaceSummaryData(fixture);
+    const data = buildRaceSummaryData(fixture, lockedFixture);
     expect(data.latestMatchday).toBe('matchday_2');
     expect(data.teams.map((team) => team.teamName)).toEqual([
       'Rocket',
@@ -69,14 +89,21 @@ describe('raceSummaryHandler', () => {
     ]);
     expect(data.teams[0]).toMatchObject({
       latestRaceScore: 250,
-      previousRaceScore: 100,
       seasonRankChange: 1,
     });
+    expect(data.teams[0]).not.toHaveProperty('previousRaceScore');
     expect(data.teams[1].seasonRankChange).toBe(-1);
+    expect(data.rosterDifferentials[0]).toMatchObject({
+      name: 'Alonso',
+      owners: ['Rocket'],
+      nonOwners: ['Turtle'],
+      averageScoreDifference: 150,
+    });
   });
 
   it('asks OpenAI for and sends a generated summary', async () => {
     getLeagueData.mockResolvedValue(fixture);
+    getLockedTeamsData.mockResolvedValue(lockedFixture);
     openAiClient.chat.completions.create.mockResolvedValue({
       choices: [{ message: { content: '🏁 Rocket wins!' } }],
       usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
@@ -84,10 +111,16 @@ describe('raceSummaryHandler', () => {
     const bot = { sendMessage: jest.fn().mockResolvedValue() };
     await sendRaceSummary(bot, 42, 'ABC');
     expect(getLeagueData).toHaveBeenCalledWith('ABC');
+    expect(getLockedTeamsData).toHaveBeenCalledWith('ABC');
     expect(bot.sendMessage).toHaveBeenCalledWith(42, '🏁 Rocket wins!');
     const request = openAiClient.chat.completions.create.mock.calls[0][0];
     expect(request.messages[0].content).toContain('English');
+    expect(request.messages[0].content).toContain('main roster differences');
+    expect(request.messages[0].content).toContain(
+      'Do not mention or compare the immediately previous race result',
+    );
     expect(request.messages[1].content).not.toContain('The Best Bot');
+    expect(request.messages[1].content).toContain('Alonso');
   });
 
   it('offers a league picker when the user follows multiple leagues', async () => {

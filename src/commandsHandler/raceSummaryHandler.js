@@ -2,7 +2,7 @@ const { AzureOpenAI } = require('openai');
 const { t, getLanguage } = require('../i18n');
 const { sendErrorMessage, sendLogMessage } = require('../utils');
 const { listUserLeagues } = require('../leagueRegistryService');
-const { getLeagueData } = require('../azureStorageService');
+const { getLeagueData, getLockedTeamsData } = require('../azureStorageService');
 const { filterExcludedGraphTeams } = require('../utils/leagueGraphFilter');
 const {
   COMMAND_FOLLOW_LEAGUE,
@@ -18,7 +18,61 @@ function createOpenAiClient() {
   });
 }
 
-function buildRaceSummaryData(leagueData) {
+function rosterKey(team) {
+  return `${team?.userName || team?.teamName || ''}:${team?.teamNo || 1}`;
+}
+
+function memberName(member) {
+  return typeof member === 'string' ? member : member?.name;
+}
+
+function buildRosterDifferentials(teams) {
+  const entities = new Map();
+
+  for (const team of teams) {
+    for (const [type, members] of [
+      ['driver', team.drivers],
+      ['constructor', team.constructors],
+    ]) {
+      for (const member of Array.isArray(members) ? members : []) {
+        const name = memberName(member);
+        if (!name) {
+          continue;
+        }
+        const key = `${type}:${name}`;
+        if (!entities.has(key)) {
+          entities.set(key, { type, name, owners: [] });
+        }
+        entities.get(key).owners.push(team.teamName);
+      }
+    }
+  }
+
+  return [...entities.values()]
+    .filter((entity) => entity.owners.length < teams.length)
+    .map((entity) => {
+      const ownerSet = new Set(entity.owners);
+      const owners = teams.filter((team) => ownerSet.has(team.teamName));
+      const nonOwners = teams.filter((team) => !ownerSet.has(team.teamName));
+      const average = (rows) =>
+        rows.reduce((sum, team) => sum + team.latestRaceScore, 0) / rows.length;
+
+      return {
+        ...entity,
+        nonOwners: nonOwners.map((team) => team.teamName),
+        ownerAverageRaceScore: Math.round(average(owners) * 10) / 10,
+        nonOwnerAverageRaceScore: Math.round(average(nonOwners) * 10) / 10,
+        averageScoreDifference:
+          Math.round((average(owners) - average(nonOwners)) * 10) / 10,
+      };
+    })
+    .sort(
+      (a, b) =>
+        Math.abs(b.averageScoreDifference) - Math.abs(a.averageScoreDifference),
+    );
+}
+
+function buildRaceSummaryData(leagueData, lockedTeamsData) {
   const teams = filterExcludedGraphTeams(leagueData?.teams);
   const matchdays = [
     ...new Set(teams.flatMap((team) => Object.keys(team.raceScores || {}))),
@@ -46,10 +100,20 @@ function buildRaceSummaryData(leagueData) {
     );
   }
 
-  return {
-    leagueName: leagueData?.leagueName || leagueData?.leagueCode,
-    latestMatchday,
-    teams: teams.map((team) => ({
+  const latestMatchdayNumber = Number(
+    String(latestMatchday).replace(/^matchday_/, ''),
+  );
+  const lockedMatchesRace =
+    Number(lockedTeamsData?.matchdayId) === latestMatchdayNumber;
+  const lockedByTeam = new Map(
+    filterExcludedGraphTeams(
+      lockedMatchesRace ? lockedTeamsData?.teams : [],
+    ).map((team) => [rosterKey(team), team]),
+  );
+  const summaryTeams = teams.map((team) => {
+    const lockedTeam = lockedByTeam.get(rosterKey(team));
+
+    return {
       teamName: team.teamName || team.userName,
       userName: team.userName,
       currentPosition: team.position,
@@ -57,17 +121,22 @@ function buildRaceSummaryData(leagueData) {
       latestRaceScore: latestMatchday
         ? Number(team.raceScores?.[latestMatchday]) || 0
         : null,
-      previousRaceScore:
-        matchdays.length > 1
-          ? Number(team.raceScores?.[matchdays.at(-2)]) || 0
-          : null,
       seasonRankChange:
         ranksByRound.length > 1
           ? ranksByRound.at(-2).get(team) - ranksByRound.at(-1).get(team)
           : 0,
       raceScores: team.raceScores || {},
-      chipsUsed: team.chipsUsed || [],
-    })),
+      drivers: lockedTeam?.drivers || team.drivers || [],
+      constructors: lockedTeam?.constructors || team.constructors || [],
+      chipsUsed: lockedTeam?.chipsUsed || team.chipsUsed || [],
+    };
+  });
+
+  return {
+    leagueName: leagueData?.leagueName || leagueData?.leagueCode,
+    latestMatchday,
+    teams: summaryTeams,
+    rosterDifferentials: buildRosterDifferentials(summaryTeams),
   };
 }
 
@@ -77,7 +146,7 @@ async function generateRaceSummary(summaryData, language) {
     messages: [
       {
         role: 'system',
-        content: `You are a witty F1 Fantasy league columnist. Write entirely in ${language === 'he' ? 'Hebrew' : 'English'}. Create a funny, playfully infuriating post-race recap, but never use hateful, abusive, or invented claims. Include three clearly headed sections: (1) race winners and losers based on latestRaceScore, (2) season trends, risers and fallers using rank changes and score history, (3) storylines and interesting data-backed insights including chips when relevant. Mention team names. Be punchy and under 3000 characters. Return plain text suitable for Telegram, with emoji allowed and no Markdown tables.`,
+        content: `You are a witty F1 Fantasy league columnist. Write entirely in ${language === 'he' ? 'Hebrew' : 'English'}. Create a funny, playfully infuriating post-race recap, but never use hateful, abusive, or invented claims. Include four clearly headed sections: (1) race winners and losers based on latestRaceScore, (2) season trends, risers and fallers using seasonRankChange and the full raceScores history, (3) main roster differences explaining which drivers or constructors separated teams this race, using rosterDifferentials and naming both beneficiaries and sufferers, (4) storylines and interesting data-backed insights including chips when relevant. Treat roster differential score differences as correlation, not an individual driver's verified points. Do not mention or compare the immediately previous race result; only use historical scores for broader multi-race or season trends. Mention team names. Be punchy and under 3000 characters. Return plain text suitable for Telegram, with emoji allowed and no Markdown tables.`,
       },
       { role: 'user', content: JSON.stringify(summaryData) },
     ],
@@ -91,8 +160,12 @@ async function generateRaceSummary(summaryData, language) {
 
 async function sendRaceSummary(bot, chatId, leagueCode) {
   let leagueData;
+  let lockedTeamsData;
   try {
-    leagueData = await getLeagueData(leagueCode);
+    [leagueData, lockedTeamsData] = await Promise.all([
+      getLeagueData(leagueCode),
+      getLockedTeamsData(leagueCode),
+    ]);
   } catch (error) {
     await sendErrorMessage(
       bot,
@@ -108,7 +181,7 @@ async function sendRaceSummary(bot, chatId, leagueCode) {
     return;
   }
 
-  const data = buildRaceSummaryData(leagueData);
+  const data = buildRaceSummaryData(leagueData, lockedTeamsData);
   if (!leagueData || !data.latestMatchday || data.teams.length === 0) {
     await bot.sendMessage(
       chatId,
