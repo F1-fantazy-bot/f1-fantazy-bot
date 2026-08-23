@@ -27,6 +27,7 @@ const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData, getLockedTeamsData } = require('../azureStorageService');
 const {
   buildRaceSummaryData,
+  buildRaceSummarySystemPrompt,
   sendRaceSummary,
   handleRaceSummaryCommand,
 } = require('./raceSummaryHandler');
@@ -78,6 +79,23 @@ AzureOpenAI.mockImplementation(() => openAiClient);
 describe('raceSummaryHandler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('requires names to be transliterated into the user language alphabet', () => {
+    const hebrewPrompt = buildRaceSummarySystemPrompt('he');
+    expect(hebrewPrompt).toContain(
+      'every driver name, constructor name, fantasy-team name, and user/owner name into Hebrew letters',
+    );
+    expect(hebrewPrompt).toContain('write "אלונסו" rather than "Alonso"');
+    expect(hebrewPrompt).toContain(
+      'do not repeat the original spelling in parentheses',
+    );
+
+    const englishPrompt = buildRaceSummarySystemPrompt('en');
+    expect(englishPrompt).toContain('into Latin letters');
+    expect(englishPrompt).toContain(
+      'transliterate a Hebrew fantasy-team name into Latin letters',
+    );
   });
 
   it('builds latest-race and season movement facts and excludes the graph bot', () => {
