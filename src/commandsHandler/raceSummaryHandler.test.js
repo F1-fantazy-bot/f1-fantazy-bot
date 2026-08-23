@@ -26,6 +26,7 @@ const { AzureOpenAI } = require('openai');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData, getLockedTeamsData } = require('../azureStorageService');
 const {
+  buildKeyTeamDifferences,
   buildRaceSummaryData,
   buildRaceSummarySystemPrompt,
   sendRaceSummary,
@@ -98,6 +99,55 @@ describe('raceSummaryHandler', () => {
     );
   });
 
+  it('compares the race winner with second, third, and bottom teams', () => {
+    const teams = [
+      {
+        teamName: 'Winner',
+        latestRaceScore: 300,
+        drivers: [{ name: 'Alonso' }, { name: 'Norris' }],
+        constructors: [{ name: 'McLaren' }],
+      },
+      {
+        teamName: 'Second',
+        latestRaceScore: 280,
+        drivers: [{ name: 'Hamilton' }, { name: 'Norris' }],
+        constructors: [{ name: 'McLaren' }],
+      },
+      {
+        teamName: 'Third',
+        latestRaceScore: 260,
+        drivers: [{ name: 'Leclerc' }, { name: 'Norris' }],
+        constructors: [{ name: 'Ferrari' }],
+      },
+      {
+        teamName: 'Bottom',
+        latestRaceScore: 100,
+        drivers: [{ name: 'Stroll' }, { name: 'Norris' }],
+        constructors: [{ name: 'Aston Martin' }],
+      },
+    ];
+
+    const differences = buildKeyTeamDifferences(teams);
+    expect(differences.map(({ label }) => label)).toEqual([
+      'winner_vs_2nd',
+      'winner_vs_3rd',
+      'top_vs_bottom',
+    ]);
+    expect(differences[0]).toMatchObject({
+      subject: { teamName: 'Winner', uniqueDrivers: ['Alonso'] },
+      comparison: { teamName: 'Second', uniqueDrivers: ['Hamilton'] },
+      scoreGap: 20,
+    });
+    expect(differences[2]).toMatchObject({
+      comparison: {
+        teamName: 'Bottom',
+        uniqueDrivers: ['Stroll'],
+        uniqueConstructors: ['Aston Martin'],
+      },
+      scoreGap: 200,
+    });
+  });
+
   it('builds latest-race and season movement facts and excludes the graph bot', () => {
     const data = buildRaceSummaryData(fixture, lockedFixture);
     expect(data.latestMatchday).toBe('matchday_2');
@@ -111,11 +161,11 @@ describe('raceSummaryHandler', () => {
     });
     expect(data.teams[0]).not.toHaveProperty('previousRaceScore');
     expect(data.teams[1].seasonRankChange).toBe(-1);
-    expect(data.rosterDifferentials[0]).toMatchObject({
-      name: 'Alonso',
-      owners: ['Rocket'],
-      nonOwners: ['Turtle'],
-      averageScoreDifference: 150,
+    expect(data.keyTeamDifferences[0]).toMatchObject({
+      label: 'winner_vs_2nd',
+      subject: { teamName: 'Rocket', uniqueDrivers: ['Alonso'] },
+      comparison: { teamName: 'Turtle', uniqueDrivers: ['Hamilton'] },
+      scoreGap: 150,
     });
   });
 
@@ -133,7 +183,10 @@ describe('raceSummaryHandler', () => {
     expect(bot.sendMessage).toHaveBeenCalledWith(42, '🏁 Rocket wins!');
     const request = openAiClient.chat.completions.create.mock.calls[0][0];
     expect(request.messages[0].content).toContain('English');
-    expect(request.messages[0].content).toContain('main roster differences');
+    expect(request.messages[0].content).toContain(
+      '(2) team differences, using keyTeamDifferences',
+    );
+    expect(request.messages[0].content).toContain('(3) season trends');
     expect(request.messages[0].content).toContain(
       'Do not mention or compare the immediately previous race result',
     );

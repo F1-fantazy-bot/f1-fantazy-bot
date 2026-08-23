@@ -26,50 +26,65 @@ function memberName(member) {
   return typeof member === 'string' ? member : member?.name;
 }
 
-function buildRosterDifferentials(teams) {
-  const entities = new Map();
+function rosterNames(team, field) {
+  return (Array.isArray(team?.[field]) ? team[field] : [])
+    .map(memberName)
+    .filter(Boolean);
+}
 
-  for (const team of teams) {
-    for (const [type, members] of [
-      ['driver', team.drivers],
-      ['constructor', team.constructors],
-    ]) {
-      for (const member of Array.isArray(members) ? members : []) {
-        const name = memberName(member);
-        if (!name) {
-          continue;
-        }
-        const key = `${type}:${name}`;
-        if (!entities.has(key)) {
-          entities.set(key, { type, name, owners: [] });
-        }
-        entities.get(key).owners.push(team.teamName);
-      }
-    }
+function buildTeamDifference(subject, comparison, label) {
+  const uniqueMembers = (field, first, second) => {
+    const secondNames = new Set(rosterNames(second, field));
+
+    return rosterNames(first, field).filter((name) => !secondNames.has(name));
+  };
+
+  return {
+    label,
+    subject: {
+      teamName: subject.teamName,
+      racePlace: subject.racePlace,
+      raceScore: subject.latestRaceScore,
+      uniqueDrivers: uniqueMembers('drivers', subject, comparison),
+      uniqueConstructors: uniqueMembers('constructors', subject, comparison),
+    },
+    comparison: {
+      teamName: comparison.teamName,
+      racePlace: comparison.racePlace,
+      raceScore: comparison.latestRaceScore,
+      uniqueDrivers: uniqueMembers('drivers', comparison, subject),
+      uniqueConstructors: uniqueMembers('constructors', comparison, subject),
+    },
+    scoreGap: subject.latestRaceScore - comparison.latestRaceScore,
+  };
+}
+
+function buildKeyTeamDifferences(teams) {
+  const raceOrder = [...teams]
+    .sort((a, b) => b.latestRaceScore - a.latestRaceScore)
+    .map((team, index) => ({ ...team, racePlace: index + 1 }));
+  const winner = raceOrder[0];
+  if (!winner) {
+    return [];
   }
 
-  return [...entities.values()]
-    .filter((entity) => entity.owners.length < teams.length)
-    .map((entity) => {
-      const ownerSet = new Set(entity.owners);
-      const owners = teams.filter((team) => ownerSet.has(team.teamName));
-      const nonOwners = teams.filter((team) => !ownerSet.has(team.teamName));
-      const average = (rows) =>
-        rows.reduce((sum, team) => sum + team.latestRaceScore, 0) / rows.length;
-
-      return {
-        ...entity,
-        nonOwners: nonOwners.map((team) => team.teamName),
-        ownerAverageRaceScore: Math.round(average(owners) * 10) / 10,
-        nonOwnerAverageRaceScore: Math.round(average(nonOwners) * 10) / 10,
-        averageScoreDifference:
-          Math.round((average(owners) - average(nonOwners)) * 10) / 10,
-      };
-    })
-    .sort(
-      (a, b) =>
-        Math.abs(b.averageScoreDifference) - Math.abs(a.averageScoreDifference),
+  const comparisons = [];
+  if (raceOrder[1]) {
+    comparisons.push(
+      buildTeamDifference(winner, raceOrder[1], 'winner_vs_2nd'),
     );
+  }
+  if (raceOrder[2]) {
+    comparisons.push(
+      buildTeamDifference(winner, raceOrder[2], 'winner_vs_3rd'),
+    );
+  }
+  const bottom = raceOrder.at(-1);
+  if (bottom && bottom.teamName !== winner.teamName) {
+    comparisons.push(buildTeamDifference(winner, bottom, 'top_vs_bottom'));
+  }
+
+  return comparisons;
 }
 
 function buildRaceSummaryData(leagueData, lockedTeamsData) {
@@ -136,7 +151,7 @@ function buildRaceSummaryData(leagueData, lockedTeamsData) {
     leagueName: leagueData?.leagueName || leagueData?.leagueCode,
     latestMatchday,
     teams: summaryTeams,
-    rosterDifferentials: buildRosterDifferentials(summaryTeams),
+    keyTeamDifferences: buildKeyTeamDifferences(summaryTeams),
   };
 }
 
@@ -148,7 +163,7 @@ function buildRaceSummarySystemPrompt(language) {
     ? 'For example, write "אלונסו" rather than "Alonso".'
     : 'For example, transliterate a Hebrew fantasy-team name into Latin letters.';
 
-  return `You are a witty F1 Fantasy league columnist. Write entirely in ${languageName}. Transliterate every driver name, constructor name, fantasy-team name, and user/owner name into ${targetAlphabet}, even when the input uses a different alphabet. Preserve the name's pronunciation; do not translate its meaning, and do not repeat the original spelling in parentheses. ${example} Create a funny, playfully infuriating post-race recap, but never use hateful, abusive, or invented claims. Include four clearly headed sections: (1) race winners and losers based on latestRaceScore, (2) season trends, risers and fallers using seasonRankChange and the full raceScores history, (3) main roster differences explaining which drivers or constructors separated teams this race, using rosterDifferentials and naming both beneficiaries and sufferers, (4) storylines and interesting data-backed insights including chips when relevant. Treat roster differential score differences as correlation, not an individual driver's verified points. Do not mention or compare the immediately previous race result; only use historical scores for broader multi-race or season trends. Mention team names. Be punchy and under 3000 characters. Return plain text suitable for Telegram, with emoji allowed and no Markdown tables.`;
+  return `You are a witty F1 Fantasy league columnist. Write entirely in ${languageName}. Transliterate every driver name, constructor name, fantasy-team name, and user/owner name into ${targetAlphabet}, even when the input uses a different alphabet. Preserve the name's pronunciation; do not translate its meaning, and do not repeat the original spelling in parentheses. ${example} Create a funny, playfully infuriating post-race recap, but never use hateful, abusive, or invented claims. Include four clearly headed sections in exactly this order: (1) race winners and losers based on latestRaceScore, (2) team differences, using keyTeamDifferences to focus specifically on the winner versus second place, the winner versus third place, and the top-versus-bottom contrast; explain which unique drivers or constructors helped or hurt each side, (3) season trends, risers and fallers using seasonRankChange and the full raceScores history, (4) storylines and interesting data-backed insights including chips when relevant. Treat roster differences as correlation, not verified individual driver points. Do not mention or compare the immediately previous race result; only use historical scores for broader multi-race or season trends. Mention team names. Be punchy and under 3000 characters. Return plain text suitable for Telegram, with emoji allowed and no Markdown tables.`;
 }
 
 async function generateRaceSummary(summaryData, language) {
@@ -280,6 +295,7 @@ async function handleRaceSummaryCommand(bot, msg) {
 }
 
 module.exports = {
+  buildKeyTeamDifferences,
   buildRaceSummaryData,
   buildRaceSummarySystemPrompt,
   generateRaceSummary,
