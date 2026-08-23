@@ -28,10 +28,10 @@ const { getLeagueData, getLockedTeamsData } = require('../azureStorageService');
 const {
   buildKeyTeamDifferences,
   buildRaceSummaryData,
-  buildRaceSummarySystemPrompt,
   sendRaceSummary,
   handleRaceSummaryCommand,
 } = require('./raceSummaryHandler');
+const { buildRaceSummarySystemPrompt } = require('../prompts');
 
 const fixture = {
   leagueName: 'Fast Friends',
