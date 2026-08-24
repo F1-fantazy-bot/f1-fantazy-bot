@@ -22,7 +22,7 @@
 #   KEY_VAULT_NAME         (default: f1-fantasy-kv)
 #   STORAGE_ACCOUNT_NAME   (default: f1fantazybot9eca)
 #   APPINSIGHTS_NAME       (default: f1-fantazy-bot-func)
-#   AZURE_OPEN_AI_MODEL    (default: gpt-5.4)
+#   AZURE_OPEN_AI_MODEL    (default: gpt-5.6-terra)
 #   PROD_ALLOWED_ORIGINS   (default: https://calm-beach-055be4603.7.azurestaticapps.net)
 #   PROD_PREVIEW_PATTERN   (default: empty)
 #   TEST_ALLOWED_ORIGINS   (default: https://test.f1.kilzid.com,https://proud-sky-035c6b003.7.azurestaticapps.net)
@@ -45,7 +45,7 @@ APP="${FUNCTIONAPP_NAME:-f1-fantazy-agent-func}"
 KV_NAME="${KEY_VAULT_NAME:-f1-fantasy-kv}"
 STORAGE_NAME="${STORAGE_ACCOUNT_NAME:-f1fantazybot9eca}"
 APPINSIGHTS_NAME="${APPINSIGHTS_NAME:-f1-fantazy-bot-func}"
-MODEL="${AZURE_OPEN_AI_MODEL:-gpt-5.4}"
+MODEL="${AZURE_OPEN_AI_MODEL:-gpt-5.6-terra}"
 STORAGE_CONTAINER="${AZURE_STORAGE_CONTAINER_NAME:-f1-fantasy-scraper-json}"
 PROD_ORIGINS="${PROD_ALLOWED_ORIGINS:-https://calm-beach-055be4603.7.azurestaticapps.net}"
 PROD_PATTERN="${PROD_PREVIEW_PATTERN:-}"
