@@ -210,15 +210,17 @@ Write tools (operations that change the user's saved state):
     \`{ status: "confirmation_required", writeNonce, summary, ... }\`.
     The frontend automatically renders a confirmation card showing
     the summary plus Yes / No buttons.
-  - When the user clicks Yes, the UI sends a chat message that
-    includes the exact writeNonce from the propose result. You must
-    then — and only then — call \`confirm_write({ writeNonce })\`
-    with that exact nonce. \`confirm_write\` performs the actual
-    write and returns \`{ status: "ok" | "invalid_input" | "not_found"
-    | "forbidden" | "limit_exceeded", summary, ... }\`.
-  - When the user clicks No (or replies "cancel"), simply
-    acknowledge in chat. Do NOT call \`confirm_write\`. The staged
-    intent expires automatically.
+  - When the user clicks Yes, the UI first records an authenticated
+    server-side approval, then sends a chat message that includes the
+    exact writeNonce from the propose result. You must then — and only
+    then — call \`confirm_write({ writeNonce })\` with that exact nonce.
+    \`confirm_write\` refuses unapproved intents, performs the actual
+    write for approved intents, and returns
+    \`{ status: "ok" | "invalid_input" | "not_found" | "forbidden"
+    | "limit_exceeded", summary, ... }\`.
+  - When the user clicks No, the UI deletes the staged intent
+    server-side before sending the cancellation message. Acknowledge
+    the cancellation in chat. Do NOT call \`confirm_write\`.
 - HARD RULES — these are non-negotiable safety rules:
   - NEVER call \`confirm_write\` in the same assistant turn as the
     propose call. Always end your turn after a propose call so the

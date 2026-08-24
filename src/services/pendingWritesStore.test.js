@@ -1,154 +1,351 @@
 const {
   stagePendingWrite,
-  consumePendingWrite,
+  approvePendingWrite,
+  cancelPendingWrite,
+  consumeApprovedPendingWrite,
   peekPendingWrite,
+  sweepExpiredPendingWrites,
+  setTableClientForTests,
   resetForTests,
-  DEFAULT_TTL_MS,
+  INTENT_STATE,
+  CONSUME_STATUS,
 } = require('./pendingWritesStore');
+
+function storageError(statusCode) {
+  const err = new Error(`storage ${statusCode}`);
+  err.statusCode = statusCode;
+
+  return err;
+}
+
+class FakeTableClient {
+  constructor(shared = new Map()) {
+    this.shared = shared;
+  }
+
+  async createTable() {}
+
+  key(partitionKey, rowKey) {
+    return `${partitionKey}::${rowKey}`;
+  }
+
+  clone(entity) {
+    return JSON.parse(JSON.stringify(entity));
+  }
+
+  async createEntity(entity) {
+    const key = this.key(entity.partitionKey, entity.rowKey);
+    if (this.shared.has(key)) {throw storageError(409);}
+    this.shared.set(key, { ...this.clone(entity), etag: String(++etagCounter) });
+  }
+
+  async getEntity(partitionKey, rowKey) {
+    const entity = this.shared.get(this.key(partitionKey, rowKey));
+    if (!entity) {throw storageError(404);}
+
+    return this.clone(entity);
+  }
+
+  async updateEntity(entity, mode, options = {}) {
+    const key = this.key(entity.partitionKey, entity.rowKey);
+    const current = this.shared.get(key);
+    if (!current) {throw storageError(404);}
+    if (
+      options.etag &&
+      options.etag !== '*' &&
+      options.etag !== current.etag
+    ) {
+      throw storageError(412);
+    }
+    const next =
+      mode === 'Merge'
+        ? { ...current, ...this.clone(entity) }
+        : this.clone(entity);
+    next.etag = String(++etagCounter);
+    this.shared.set(key, next);
+  }
+
+  async deleteEntity(partitionKey, rowKey, options = {}) {
+    const key = this.key(partitionKey, rowKey);
+    const current = this.shared.get(key);
+    if (!current) {throw storageError(404);}
+    if (
+      options.etag &&
+      options.etag !== '*' &&
+      options.etag !== current.etag
+    ) {
+      throw storageError(412);
+    }
+    this.shared.delete(key);
+  }
+
+  async *listEntities() {
+    for (const entity of this.shared.values()) {
+      yield this.clone(entity);
+    }
+  }
+}
+
+let shared;
+let client;
+let etagCounter;
 
 beforeEach(() => {
   resetForTests();
+  etagCounter = 0;
+  shared = new Map();
+  client = new FakeTableClient(shared);
+  setTableClientForTests(client);
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 describe('stagePendingWrite', () => {
-  test('returns a non-empty nonce string', () => {
-    const nonce = stagePendingWrite({
+  test('persists a staged intent and returns a unique nonce', async () => {
+    const a = await stagePendingWrite({
       chatId: 1,
       tool: 'set_language',
       args: { lang: 'he' },
-      summary: 'Change language to Hebrew.',
+      summary: 'Change language.',
     });
-    expect(typeof nonce).toBe('string');
-    expect(nonce.length).toBeGreaterThan(0);
-  });
+    const b = await stagePendingWrite({
+      chatId: 1,
+      tool: 'set_language',
+      args: { lang: 'en' },
+    });
 
-  test('different intents get different nonces', () => {
-    const a = stagePendingWrite({ chatId: 1, tool: 'set_language', args: { lang: 'he' } });
-    const b = stagePendingWrite({ chatId: 1, tool: 'set_language', args: { lang: 'en' } });
     expect(a).not.toBe(b);
+    await expect(
+      peekPendingWrite({ chatId: 1, writeNonce: a }),
+    ).resolves.toMatchObject({
+      chatId: 1,
+      tool: 'set_language',
+      args: { lang: 'he' },
+      summary: 'Change language.',
+      state: INTENT_STATE.STAGED,
+    });
   });
 
-  test('throws on non-numeric chatId', () => {
-    expect(() =>
+  test('rejects invalid chatId and tool names', async () => {
+    await expect(
       stagePendingWrite({ chatId: 'nope', tool: 'set_language' }),
-    ).toThrow(/chatId must be a finite number/);
+    ).rejects.toThrow(/chatId must be a finite number/);
+    await expect(
+      stagePendingWrite({ chatId: 1, tool: '' }),
+    ).rejects.toThrow(/tool must be a non-empty string/);
   });
 
-  test('throws on missing tool name', () => {
-    expect(() => stagePendingWrite({ chatId: 1, tool: '' })).toThrow(
-      /tool must be a non-empty string/,
-    );
+  test('survives a process/client replacement', async () => {
+    const nonce = await stagePendingWrite({
+      chatId: 42,
+      tool: 'set_language',
+      args: { lang: 'he' },
+    });
+
+    // New client instance, same durable backing store: models Azure routing the
+    // confirmation turn to a different Function worker.
+    setTableClientForTests(new FakeTableClient(shared));
+
+    await expect(
+      peekPendingWrite({ chatId: 42, writeNonce: nonce }),
+    ).resolves.toMatchObject({ tool: 'set_language' });
   });
 });
 
-describe('consumePendingWrite', () => {
-  test('returns the staged intent verbatim', () => {
-    const nonce = stagePendingWrite({
+describe('approval and cancellation', () => {
+  test('an unapproved nonce cannot be consumed', async () => {
+    const nonce = await stagePendingWrite({
+      chatId: 1,
+      tool: 'set_language',
+      args: { lang: 'he' },
+    });
+
+    await expect(
+      consumeApprovedPendingWrite({ chatId: 1, writeNonce: nonce }),
+    ).resolves.toEqual({ status: CONSUME_STATUS.NOT_APPROVED });
+    // The model's premature attempt does not destroy the intent; the real UI
+    // can still approve it.
+    await expect(
+      approvePendingWrite({ chatId: 1, writeNonce: nonce }),
+    ).resolves.toMatchObject({ state: INTENT_STATE.APPROVED });
+  });
+
+  test('approval is isolated by chatId', async () => {
+    const nonce = await stagePendingWrite({
+      chatId: 1,
+      tool: 'set_language',
+      args: { lang: 'he' },
+    });
+
+    await expect(
+      approvePendingWrite({ chatId: 2, writeNonce: nonce }),
+    ).resolves.toBeNull();
+    await expect(
+      approvePendingWrite({ chatId: 1, writeNonce: nonce }),
+    ).resolves.toMatchObject({ chatId: 1 });
+  });
+
+  test('cancellation deletes the nonce immediately', async () => {
+    const nonce = await stagePendingWrite({
+      chatId: 1,
+      tool: 'set_language',
+      args: { lang: 'he' },
+    });
+
+    await expect(
+      cancelPendingWrite({ chatId: 1, writeNonce: nonce }),
+    ).resolves.toBe(true);
+    await expect(
+      approvePendingWrite({ chatId: 1, writeNonce: nonce }),
+    ).resolves.toBeNull();
+    await expect(
+      consumeApprovedPendingWrite({ chatId: 1, writeNonce: nonce }),
+    ).resolves.toEqual({ status: CONSUME_STATUS.NOT_FOUND });
+  });
+
+  test('acknowledged cancellation wins against concurrent approval', async () => {
+    const nonce = await stagePendingWrite({
+      chatId: 1,
+      tool: 'set_language',
+      args: { lang: 'he' },
+    });
+
+    const [approved, cancelled] = await Promise.all([
+      approvePendingWrite({ chatId: 1, writeNonce: nonce }),
+      cancelPendingWrite({ chatId: 1, writeNonce: nonce }),
+    ]);
+
+    expect(cancelled).toBe(true);
+    // Approval may have linearized before the delete, but the final state must
+    // always be absent once cancellation has been acknowledged.
+    expect(approved === null || approved.state === INTENT_STATE.APPROVED).toBe(
+      true,
+    );
+    await expect(
+      consumeApprovedPendingWrite({ chatId: 1, writeNonce: nonce }),
+    ).resolves.toEqual({ status: CONSUME_STATUS.NOT_FOUND });
+  });
+});
+
+describe('consumeApprovedPendingWrite', () => {
+  test('consumes an approved intent exactly once', async () => {
+    const nonce = await stagePendingWrite({
       chatId: 42,
       tool: 'follow_league',
       args: { leagueCode: 'ABC' },
       summary: 'Follow league ABC.',
     });
-    const intent = consumePendingWrite({ chatId: 42, writeNonce: nonce });
-    expect(intent).toMatchObject({
+    await approvePendingWrite({ chatId: 42, writeNonce: nonce });
+
+    const first = await consumeApprovedPendingWrite({
       chatId: 42,
-      tool: 'follow_league',
-      args: { leagueCode: 'ABC' },
-      summary: 'Follow league ABC.',
+      writeNonce: nonce,
     });
-    expect(typeof intent.createdAt).toBe('number');
-    expect(typeof intent.expiresAt).toBe('number');
+    expect(first).toMatchObject({
+      status: CONSUME_STATUS.CONSUMED,
+      intent: {
+        chatId: 42,
+        tool: 'follow_league',
+        args: { leagueCode: 'ABC' },
+      },
+    });
+    await expect(
+      consumeApprovedPendingWrite({ chatId: 42, writeNonce: nonce }),
+    ).resolves.toEqual({ status: CONSUME_STATUS.NOT_FOUND });
   });
 
-  test('is single-use — the second consume returns null', () => {
-    const nonce = stagePendingWrite({ chatId: 1, tool: 'set_language', args: { lang: 'he' } });
-    expect(consumePendingWrite({ chatId: 1, writeNonce: nonce })).not.toBeNull();
-    expect(consumePendingWrite({ chatId: 1, writeNonce: nonce })).toBeNull();
+  test('ETag-protected delete lets only one concurrent consumer win', async () => {
+    const nonce = await stagePendingWrite({
+      chatId: 42,
+      tool: 'set_language',
+      args: { lang: 'he' },
+    });
+    await approvePendingWrite({ chatId: 42, writeNonce: nonce });
+
+    const results = await Promise.all([
+      consumeApprovedPendingWrite({ chatId: 42, writeNonce: nonce }),
+      consumeApprovedPendingWrite({ chatId: 42, writeNonce: nonce }),
+    ]);
+
+    expect(results.filter((r) => r.status === CONSUME_STATUS.CONSUMED)).toHaveLength(1);
+    expect(results.filter((r) => r.status === CONSUME_STATUS.NOT_FOUND)).toHaveLength(1);
   });
 
-  test('rejects nonces from other chats', () => {
-    const nonce = stagePendingWrite({ chatId: 1, tool: 'set_language', args: { lang: 'he' } });
-    // Different chatId — must NOT consume.
-    expect(consumePendingWrite({ chatId: 2, writeNonce: nonce })).toBeNull();
-    // Original chat still can — proves the intent is intact.
-    expect(consumePendingWrite({ chatId: 1, writeNonce: nonce })).not.toBeNull();
-  });
-
-  test('returns null for unknown nonce', () => {
-    expect(consumePendingWrite({ chatId: 1, writeNonce: 'no-such-nonce' })).toBeNull();
-  });
-
-  test('returns null for bad inputs', () => {
-    expect(consumePendingWrite({ chatId: 'x', writeNonce: 'y' })).toBeNull();
-    expect(consumePendingWrite({ chatId: 1, writeNonce: '' })).toBeNull();
-    expect(consumePendingWrite({ chatId: 1, writeNonce: null })).toBeNull();
-  });
-
-  test('expired intents are not returned', () => {
+  test('expired intents cannot be approved or consumed', async () => {
     const realNow = Date.now;
     let fakeNow = 1_000_000;
     Date.now = () => fakeNow;
     try {
-      const nonce = stagePendingWrite({ chatId: 1, tool: 'set_language', args: { lang: 'he' } });
-      fakeNow += DEFAULT_TTL_MS + 1;
-      expect(consumePendingWrite({ chatId: 1, writeNonce: nonce })).toBeNull();
-    } finally {
-      Date.now = realNow;
-    }
-  });
-
-  test('custom ttlMs takes effect', () => {
-    const realNow = Date.now;
-    let fakeNow = 1_000_000;
-    Date.now = () => fakeNow;
-    try {
-      const nonce = stagePendingWrite({
+      const nonce = await stagePendingWrite({
         chatId: 1,
         tool: 'set_language',
         args: { lang: 'he' },
         ttlMs: 50,
       });
       fakeNow += 51;
-      expect(consumePendingWrite({ chatId: 1, writeNonce: nonce })).toBeNull();
-    } finally {
-      Date.now = realNow;
-    }
-  });
-
-  test('staging a new intent purges previously-expired ones for the same chat', () => {
-    const realNow = Date.now;
-    let fakeNow = 1_000_000;
-    Date.now = () => fakeNow;
-    try {
-      const stale = stagePendingWrite({
-        chatId: 1,
-        tool: 'set_language',
-        args: { lang: 'he' },
-        ttlMs: 10,
-      });
-      fakeNow += 100;
-      stagePendingWrite({ chatId: 1, tool: 'set_language', args: { lang: 'en' } });
-      // The stale nonce should be gone even though we never consumed it.
-      expect(consumePendingWrite({ chatId: 1, writeNonce: stale })).toBeNull();
+      await expect(
+        approvePendingWrite({ chatId: 1, writeNonce: nonce }),
+      ).resolves.toBeNull();
+      await expect(
+        consumeApprovedPendingWrite({ chatId: 1, writeNonce: nonce }),
+      ).resolves.toEqual({ status: CONSUME_STATUS.NOT_FOUND });
     } finally {
       Date.now = realNow;
     }
   });
 });
 
-describe('peekPendingWrite', () => {
-  test('returns a copy without consuming', () => {
-    const nonce = stagePendingWrite({
-      chatId: 7,
-      tool: 'set_language',
-      args: { lang: 'he' },
-      summary: 'Change language.',
-    });
-    const peek1 = peekPendingWrite({ chatId: 7, writeNonce: nonce });
-    const peek2 = peekPendingWrite({ chatId: 7, writeNonce: nonce });
-    expect(peek1.tool).toBe('set_language');
-    expect(peek2.tool).toBe('set_language');
-    // Still consumable afterwards.
-    expect(consumePendingWrite({ chatId: 7, writeNonce: nonce })).not.toBeNull();
+describe('expired-entry sweeping', () => {
+  test('removes abandoned expired entries without consuming them', async () => {
+    const realNow = Date.now;
+    let fakeNow = 1_000_000;
+    Date.now = () => fakeNow;
+    try {
+      const stale = await stagePendingWrite({
+        chatId: 1,
+        tool: 'set_language',
+        args: { lang: 'he' },
+        ttlMs: 10,
+      });
+      await stagePendingWrite({
+        chatId: 2,
+        tool: 'set_language',
+        args: { lang: 'en' },
+      });
+      fakeNow += 100;
+
+      await expect(
+        sweepExpiredPendingWrites({ now: fakeNow, force: true }),
+      ).resolves.toBe(1);
+      await expect(
+        peekPendingWrite({ chatId: 1, writeNonce: stale }),
+      ).resolves.toBeNull();
+      expect(shared.size).toBe(1);
+    } finally {
+      Date.now = realNow;
+    }
+  });
+
+  test('sweep failures are logged but do not block a new stage', async () => {
+    const failingClient = new FakeTableClient(shared);
+    failingClient.listEntities = () => {
+      throw new Error('query unavailable');
+    };
+    setTableClientForTests(failingClient);
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(
+      stagePendingWrite({
+        chatId: 1,
+        tool: 'set_language',
+        args: { lang: 'he' },
+      }),
+    ).resolves.toEqual(expect.any(String));
+    expect(console.error).toHaveBeenCalledWith(
+      'Failed to sweep expired pending writes:',
+      expect.any(Error),
+    );
   });
 });

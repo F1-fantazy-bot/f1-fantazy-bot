@@ -23,6 +23,52 @@ jest.mock('./identity', () => ({
   getAgentChatId: jest.fn(() => 42),
 }));
 
+jest.mock('../services/pendingWritesStore', () => {
+  const intents = new Map();
+  let nonceCounter = 0;
+  const CONSUME_STATUS = {
+    CONSUMED: 'consumed',
+    NOT_FOUND: 'not_found',
+    NOT_APPROVED: 'not_approved',
+  };
+
+  return {
+    CONSUME_STATUS,
+    stagePendingWrite: jest.fn(async (intent) => {
+      const writeNonce = `nonce-${++nonceCounter}`;
+      intents.set(`${intent.chatId}:${writeNonce}`, {
+        ...intent,
+        state: 'staged',
+      });
+
+      return writeNonce;
+    }),
+    approvePendingWrite: jest.fn(async ({ chatId, writeNonce }) => {
+      const key = `${chatId}:${writeNonce}`;
+      const intent = intents.get(key);
+      if (!intent) {return null;}
+      intent.state = 'approved';
+
+      return intent;
+    }),
+    consumeApprovedPendingWrite: jest.fn(async ({ chatId, writeNonce }) => {
+      const key = `${chatId}:${writeNonce}`;
+      const intent = intents.get(key);
+      if (!intent) {return { status: CONSUME_STATUS.NOT_FOUND };}
+      if (intent.state !== 'approved') {
+        return { status: CONSUME_STATUS.NOT_APPROVED };
+      }
+      intents.delete(key);
+
+      return { status: CONSUME_STATUS.CONSUMED, intent };
+    }),
+    resetForTests: () => {
+      intents.clear();
+      nonceCounter = 0;
+    },
+  };
+});
+
 const z = require('zod');
 const {
   defineWriteTool,
@@ -32,7 +78,10 @@ const {
 } = require('./writeToolHelpers');
 const { ensureCacheReady } = require('./cacheBootstrap');
 const { getAgentChatId } = require('./identity');
-const { resetForTests: resetStore } = require('../services/pendingWritesStore');
+const {
+  approvePendingWrite,
+  resetForTests: resetStore,
+} = require('../services/pendingWritesStore');
 
 beforeEach(() => {
   resetWriteToolRegistryForTests();
@@ -122,7 +171,21 @@ describe('defineWriteTool — propose-call behaviour', () => {
 });
 
 describe('executeConfirmedWrite — confirm-call behaviour', () => {
-  test('consumes the staged intent and invokes commit with the staged args', async () => {
+  test('rejects confirmation until the UI approval endpoint marks the intent approved', async () => {
+    const commit = jest.fn();
+    const tool = buildTool({ commit });
+    const proposed = await tool.execute({ lang: 'he' });
+
+    const result = await executeConfirmedWrite({
+      chatId: 42,
+      writeNonce: proposed.writeNonce,
+    });
+
+    expect(result.status).toBe(WRITE_RESULT_STATUSES.FORBIDDEN);
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  test('consumes an approved intent and invokes commit with the staged args', async () => {
     const commit = jest.fn().mockResolvedValue({
       status: WRITE_RESULT_STATUSES.OK,
       summary: 'Language updated.',
@@ -131,6 +194,7 @@ describe('executeConfirmedWrite — confirm-call behaviour', () => {
 
     const proposed = await tool.execute({ lang: 'he' });
     const writeNonce = proposed.writeNonce;
+    await approvePendingWrite({ chatId: 42, writeNonce });
 
     const result = await executeConfirmedWrite({ chatId: 42, writeNonce });
     expect(commit).toHaveBeenCalledTimes(1);
@@ -155,6 +219,10 @@ describe('executeConfirmedWrite — confirm-call behaviour', () => {
     const commit = jest.fn();
     const tool = buildTool({ commit });
     const proposed = await tool.execute({ lang: 'he' });
+    await approvePendingWrite({
+      chatId: 42,
+      writeNonce: proposed.writeNonce,
+    });
 
     const result = await executeConfirmedWrite({
       chatId: 99,
@@ -171,6 +239,10 @@ describe('executeConfirmedWrite — confirm-call behaviour', () => {
     });
     const tool = buildTool({ commit });
     const proposed = await tool.execute({ lang: 'he' });
+    await approvePendingWrite({
+      chatId: 42,
+      writeNonce: proposed.writeNonce,
+    });
 
     const first = await executeConfirmedWrite({
       chatId: 42,
@@ -193,6 +265,10 @@ describe('executeConfirmedWrite — confirm-call behaviour', () => {
     });
     const tool = buildTool({ commit });
     const proposed = await tool.execute({ lang: 'he' });
+    await approvePendingWrite({
+      chatId: 42,
+      writeNonce: proposed.writeNonce,
+    });
     ensureCacheReady.mockClear();
     await executeConfirmedWrite({ chatId: 42, writeNonce: proposed.writeNonce });
     expect(ensureCacheReady).toHaveBeenCalledTimes(1);

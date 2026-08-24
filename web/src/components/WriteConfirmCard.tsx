@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useCopilotChat } from '@copilotkit/react-core';
 import { Role, TextMessage } from '@copilotkit/runtime-client-gql';
+import { useWriteDecision } from './WriteDecisionContext';
 
 // Result envelope the backend returns from a write-tool *propose* call.
 // Lives here (rather than in writeToolHelpers) to keep the frontend
@@ -27,20 +28,22 @@ export function isConfirmationRequired(
 }
 
 // Card rendered immediately after a write-tool propose call returns.
-// The card prompts the user with a Yes / No choice. On Yes we send a
-// chat message containing the writeNonce so the LLM can call
-// `confirm_write({ writeNonce })`. On No we send a cancel message so
-// the conversation logs the user's decision; the staged intent then
-// just expires server-side.
+// The card prompts the user with a Yes / No choice. The click is first
+// recorded through the authenticated `/write-decision` endpoint, which the
+// model cannot call. Only after the server marks the intent approved do we
+// append a message containing the nonce for `confirm_write`. Cancel deletes
+// the intent server-side immediately.
 export function WriteConfirmCard({
   result,
 }: {
   result: WriteConfirmationRequired;
 }) {
   const { appendMessage } = useCopilotChat();
-  const [decision, setDecision] = useState<'pending' | 'confirmed' | 'cancelled'>(
-    'pending',
-  );
+  const { decide } = useWriteDecision();
+  const [decision, setDecision] = useState<
+    'pending' | 'submitting' | 'confirmed' | 'cancelled' | 'error'
+  >('pending');
+  const [errorMessage, setErrorMessage] = useState('');
 
   async function send(content: string) {
     await appendMessage(
@@ -49,20 +52,47 @@ export function WriteConfirmCard({
   }
 
   async function onConfirm() {
-    if (decision !== 'pending') return;
-    setDecision('confirmed');
-    await send(
-      `Yes — please proceed. Use writeNonce ${result.writeNonce} with confirm_write.`,
-    );
+    if (decision !== 'pending' && decision !== 'error') return;
+    setDecision('submitting');
+    setErrorMessage('');
+    try {
+      await decide(result.writeNonce, 'approve');
+      await send(
+        `Yes — I approved this change. Use writeNonce ${result.writeNonce} with confirm_write.`,
+      );
+      setDecision('confirmed');
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : 'Unable to approve this change. Please try again.',
+      );
+      setDecision('error');
+    }
   }
 
   async function onCancel() {
-    if (decision !== 'pending') return;
-    setDecision('cancelled');
-    await send('No — cancel that change. Do not call confirm_write.');
+    if (decision !== 'pending' && decision !== 'error') return;
+    setDecision('submitting');
+    setErrorMessage('');
+    try {
+      await decide(result.writeNonce, 'cancel');
+      await send('No — I cancelled that change.');
+      setDecision('cancelled');
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : 'Unable to cancel this change. Please try again.',
+      );
+      setDecision('error');
+    }
   }
 
-  const disabled = decision !== 'pending';
+  const disabled =
+    decision === 'submitting' ||
+    decision === 'confirmed' ||
+    decision === 'cancelled';
 
   return (
     <div
@@ -83,6 +113,14 @@ export function WriteConfirmCard({
       <div style={{ fontSize: 13, lineHeight: 1.4, marginBottom: 10 }}>
         {result.summary}
       </div>
+      {errorMessage ? (
+        <div
+          role="alert"
+          style={{ color: '#8a1f1f', fontSize: 12, marginBottom: 8 }}
+        >
+          {errorMessage}
+        </div>
+      ) : null}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button
           type="button"
@@ -99,7 +137,11 @@ export function WriteConfirmCard({
             fontWeight: 600,
           }}
         >
-          {decision === 'confirmed' ? 'Confirmed…' : 'Yes, do it'}
+          {decision === 'confirmed'
+            ? 'Confirmed…'
+            : decision === 'submitting'
+              ? 'Saving decision…'
+              : 'Yes, do it'}
         </button>
         <button
           type="button"
@@ -124,9 +166,9 @@ export function WriteConfirmCard({
           What will happen
         </summary>
         <div style={{ marginTop: 4 }}>
-          The agent will call <code>confirm_write</code> with a one-time
-          token (writeNonce). Clicking Cancel discards the token without
-          performing the change.
+          Yes records an authenticated approval before the agent can call{' '}
+          <code>confirm_write</code>. Cancel deletes the one-time token
+          immediately without performing the change.
         </div>
       </details>
     </div>

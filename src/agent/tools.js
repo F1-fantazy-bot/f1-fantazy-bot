@@ -427,7 +427,7 @@ const tools = [
   defineTool({
     name: 'confirm_write',
     description:
-      'Commit a previously-proposed write operation. ONLY call this AFTER the user explicitly clicked "Yes" on the confirmation card the UI rendered in response to a prior write-tool call. The `writeNonce` MUST be the exact nonce returned by that prior call (single-use, expires in ~5 minutes). NEVER invent a nonce. NEVER call this in the same assistant turn as the propose call — wait for the user reply.',
+      'Commit a previously-proposed write operation. The server rejects this call unless the authenticated user first clicked "Yes" on the confirmation card. The `writeNonce` MUST be the exact nonce echoed by the UI after that approval (single-use, expires in ~5 minutes). NEVER invent a nonce. NEVER call this in the same assistant turn as the propose call — wait for the user reply.',
     parameters: z.object({
       writeNonce: z
         .string()
@@ -448,4 +448,3 @@ const tools = [
 ];
 
 module.exports = { tools };
-

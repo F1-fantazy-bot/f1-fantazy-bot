@@ -7,17 +7,19 @@ team, set language, follow league, activate chip, …). This document is
 the working plan for closing that gap — exposing the same set of writes
 as agent tools without breaking the Telegram bot.
 
-**Current state (2026-05-24):** **PR-1 (shared write-tool
-infrastructure) is merged**
-([#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207)).
-That PR ships the per-chat nonce store, the `defineWriteTool` factory,
-the supporting `confirm_write` agent tool, the shared
-`<WriteConfirmCard>` / `<WriteResultCard>` React components, the
-`registerWriteAction` factory hook, and the write-semantics paragraph
-in `systemPrompt.js`. No user-visible behaviour changed in Telegram or
-the web agent — `confirm_write` is registered but is a no-op until the
-first concrete write tool lands. **PR-2 (`set_language`)** is the
-vertical-slice proof and is next.
+**Current state (2026-08-24):** **PR-1 (shared write-tool
+infrastructure) is delivered by
+[#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207).**
+The review-hardening pass replaced the original process-local Map with
+durable Azure Table Storage and made UI confirmation server-enforced:
+the authenticated `/api/agent/write-decision` endpoint must mark a
+nonce approved before `confirm_write` can consume it. Cancellation
+deletes the nonce immediately. The PR also ships the `defineWriteTool`
+factory, shared `<WriteConfirmCard>` / `<WriteResultCard>` React
+components, `registerWriteAction`, and write-semantics prompt. No
+concrete write operation is registered yet, so Telegram and web-agent
+user behaviour remain unchanged. **PR-2 (`set_language`)** is the
+vertical-slice proof and is next after #207 merges.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -46,13 +48,15 @@ explicit, visible user confirmation.
    agent tool call the same service. The service is the single source
    of truth for "do the thing"; the adapter only translates inputs and
    outputs.
-2. **UI confirmation via a server-side nonce, not just an LLM-supplied
-   `confirmed` flag.** Each write tool issues a one-time `writeNonce`
-   on its first call (**no side effect**). A shared `confirm_write`
-   tool then commits the pending intent by nonce. This closes the loop
-   the LLM cannot fake — the model never sees the nonce until the
-   propose call returns, and even if it sets a hypothetical `confirmed`
-   arg, the service is only reachable through a valid nonce.
+2. **UI confirmation via a durable nonce plus authenticated approval,
+   not just an LLM-supplied `confirmed` flag.** Each write tool stages a
+   one-time `writeNonce` in Azure Table Storage on its first call (**no
+   side effect**). Possession of the nonce is insufficient:
+   `confirm_write` consumes only records whose state was changed from
+   `staged` to `approved` by the authenticated
+   `/api/agent/write-decision` endpoint after the user clicks Yes. The
+   model has no tool that can call that endpoint. Cancellation deletes
+   the record immediately.
 3. **Phased rollout, one vertical slice at a time.** After each phase:
    full `npm test` stays green, the Telegram smoke checklist passes
    for the affected commands, and the web-agent smoke passes for the
@@ -85,13 +89,13 @@ Plus a 9th supporting tool, shipped in PR-1:
 
 ## Cross-cutting design decisions
 
-### Confirmation protocol (server-side nonce)
+### Confirmation protocol (durable nonce + server-enforced approval)
 
 1. The user asks the agent to do a write.
 2. The LLM calls e.g. `follow_league({ leagueCode: "ABC" })`.
 3. The tool validates args, awaits `ensureCacheReady()`, stages the
-   pending intent in `pendingWritesStore[chatId][nonce] = { tool, args,
-   expiresAt }`, and returns
+   serializable intent in Azure Table `PendingAgentWrites` under
+   `{ partitionKey: chatId, rowKey: nonce, state: "staged" }`, and returns
    ```json
    {
      "status": "confirmation_required",
@@ -104,19 +108,29 @@ Plus a 9th supporting tool, shipped in PR-1:
 4. The frontend's render hook detects `confirmation_required` and shows
    `<WriteConfirmCard>` (summary + Yes / No buttons). The UI does not
    auto-call the LLM.
-5. On **Yes**, the UI appends a user message like *"Yes — please
-   proceed. Use writeNonce `<nonce>` with confirm_write."* The LLM then
-   calls `confirm_write({ writeNonce })`.
-6. `confirm_write` looks up the intent, validates ownership (chatId
-   match), invokes the registered service, deletes the nonce
-   (single-use), returns `{ status: 'ok' | …, summary, … }`.
-7. On **No**, the UI sends a cancel message and the LLM acknowledges;
-   the staged nonce expires on its TTL (~5 min) so it cannot be re-used.
+5. On **Yes**, the card POSTs `{ writeNonce, decision: "approve" }` to
+   `/api/agent/write-decision` with the user's Google bearer token. The
+   webhook runs the same auth + allowlist pipeline as chat traffic and
+   updates the matching chatId-owned row to `state: "approved"` with an
+   ETag condition. Only after that succeeds does the UI append *"Yes —
+   I approved this change. Use writeNonce `<nonce>` with
+   confirm_write."*
+6. The LLM calls `confirm_write({ writeNonce })`. The tool returns
+   `forbidden` for a still-staged row. For an approved row it performs
+   an ETag-protected delete; only the Function instance that wins that
+   atomic delete invokes the registered service. This gives single-use
+   semantics across scale-out and returns `{ status: 'ok' | …,
+   summary, … }`.
+7. On **No**, the card POSTs `decision: "cancel"` to the same
+   authenticated endpoint. The server deletes the row immediately,
+   then the UI appends a nonce-free cancellation message.
+8. A throttled table sweep deletes abandoned expired rows. Every point
+   lookup also enforces the ~5 minute expiry.
 
-Because the nonce is only ever known to the server after the propose
-call has already run (without side effect), the LLM **cannot
-self-confirm** — there is no path from "model decides to skip the
-confirm card" to "service runs".
+The model sees the nonce in the proposal result, but it **cannot
+self-confirm**: an immediate same-run `confirm_write` sees
+`state: "staged"` and returns `forbidden`; no LLM-accessible tool can
+transition the durable row to `approved`.
 
 ### Shared result envelope
 
@@ -210,7 +224,7 @@ reviewed, manually verified, and merged before the next phase starts.
 
 ## Phases / PRs
 
-### PR-1 — Shared write infrastructure ✅ Merged
+### PR-1 — Shared write infrastructure (#207)
 
 Originally Phase 0 (audit-only) and Phase 1 (infrastructure) combined.
 The cache-coherence audit findings are folded into the table above and
@@ -221,11 +235,15 @@ into the per-tool sections below. Shipped as
 
 - New `src/services/` directory (currently holding only the store; PRs
   2–9 fill it out).
-- `src/services/pendingWritesStore.js` — in-process
-  `Map<chatId, Map<nonce, intent>>` with TTL ~5 min, single-use
-  semantics, `stagePendingWrite({ chatId, tool, args, buildSummary })`,
-  `consumePendingWrite({ chatId, writeNonce })`, `peekPendingWrite`,
-  `resetForTests`.
+- `src/services/pendingWritesStore.js` — Azure Table-backed durable
+  intents with TTL ~5 min, chatId partitioning, explicit
+  `staged`/`approved` states, immediate cancellation, throttled expiry
+  sweep, and ETag-protected atomic consume. Propose and confirm can run
+  on different Function instances or across a host recycle.
+- `src/agent/writeDecision.js` + authenticated webhook route
+  `/api/agent/write-decision` — the only path that can approve or
+  cancel an intent. Runs after Google auth + allowlist resolution;
+  local bypass uses the configured hardcoded chatId.
 - `src/agent/writeToolHelpers.js` — `defineWriteTool({ name,
   parameters, validate, buildSummary, execute })` factory wiring
   `ensureCacheReady`, the nonce stage, `wrapToolExecute`, and the
@@ -234,24 +252,25 @@ into the per-tool sections below. Shipped as
 - `src/agent/tools.js` — registers the supporting `confirm_write`
   tool. Tool count: 14 → 15.
 - Frontend shared primitives in `web/src/components/`: `safeParse.ts`,
-  `WriteConfirmCard.tsx` (Yes / No buttons via
-  `useCopilotChat().appendMessage(new TextMessage({ role: Role.User,
-  content }))`), `WriteResultCard.tsx` (five status styles),
+  `WriteDecisionContext.tsx` (authenticated decision client/provider),
+  `WriteConfirmCard.tsx` (server decision first, then
+  `appendMessage`), `WriteResultCard.tsx` (five status styles), and
   `registerWriteAction.tsx` (the `useWriteAction({ name, description,
   loadingLabel? })` factory hook).
 - `web/src/App.tsx#AgentActions` registers
   `useWriteAction({ name: 'confirm_write', … })`.
 - `src/agent/systemPrompt.js` — write-semantics paragraph appended
   before the "Today's date:" line, all backticks escaped.
-- Unit tests for `pendingWritesStore` (TTL, single-use, chatId
-  isolation) and `defineWriteTool` (propose envelope, validate gate,
-  ownership check on confirm, registry lookup). +28 backend tests; web
-  Vitest 14/14 still green.
+- Unit tests cover durable cross-client/process behavior, approval
+  enforcement, cancellation invalidation, ETag concurrency,
+  abandoned-entry sweeping, webhook auth/routing, `defineWriteTool`,
+  and frontend ordering (the nonce is not appended until authenticated
+  approval succeeds).
 - `web/package.json` — adds `@copilotkit/runtime-client-gql ^1.57.1`
   (already a transitive of `react-core@1.57.x`; needed as a direct
   dep for `TextMessage` + `Role`).
 
-**Verification gate (met before merge):**
+**Verification gate:**
 
 - All tests green; `npm ci` + `npm run build` green on CI.
 - `confirm_write` registered but a no-op (nothing to confirm yet) —
@@ -260,7 +279,7 @@ into the per-tool sections below. Shipped as
 
 #### Lessons learned during PR-1
 
-Two CI gotchas surfaced and are documented here so future write-tool
+Three CI gotchas surfaced and are documented here so future write-tool
 PRs can avoid them.
 
 1. **Lockfile platform-binary pruning.** Local `npm install` on
@@ -275,7 +294,12 @@ PRs can avoid them.
    will prune again. Long-term mitigation (separate PR): pin
    `engines.npm` in `web/package.json` and add `engine-strict=true` in
    `web/.npmrc`, or downgrade the dev machine to npm 10.x.
-2. **SWA deploy intermittent timeout.** The
+2. **SWA CLI production-environment name.** The dedicated test SWA's
+   default environment is named `production` by the SWA CLI. Passing
+   `--env default` builds successfully but the content service rejects
+   deployment with `BadRequest: environment name "default" is
+   invalid`. The PR workflow now uses `--env production`.
+3. **SWA deploy intermittent timeout.** The
    "Build and deploy web frontend … (PR validation)" job uses
    `npx -y @azure/static-web-apps-cli@latest deploy`. The CLI
    downloads `StaticSitesClient`, which has a hard-coded ~10 min

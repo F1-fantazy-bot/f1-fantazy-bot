@@ -32,7 +32,8 @@
 const { defineTool } = require('@copilotkit/runtime/v2');
 const {
   stagePendingWrite,
-  consumePendingWrite,
+  consumeApprovedPendingWrite,
+  CONSUME_STATUS,
 } = require('../services/pendingWritesStore');
 const { getAgentChatId } = require('./identity');
 const { ensureCacheReady } = require('./cacheBootstrap');
@@ -140,7 +141,7 @@ function defineWriteTool({
       }
 
       const summary = buildSummary({ chatId, args });
-      const writeNonce = stagePendingWrite({
+      const writeNonce = await stagePendingWrite({
         chatId,
         tool: name,
         args,
@@ -162,8 +163,20 @@ function defineWriteTool({
 
 // Internal — exported for `confirm_write` to call.
 async function executeConfirmedWrite({ chatId, writeNonce }) {
-  const intent = consumePendingWrite({ chatId, writeNonce });
-  if (!intent) {
+  const consumed = await consumeApprovedPendingWrite({
+    chatId,
+    writeNonce,
+  });
+  if (consumed.status === CONSUME_STATUS.NOT_APPROVED) {
+    return {
+      status: WRITE_RESULT_STATUSES.FORBIDDEN,
+      tool: 'confirm_write',
+      summary:
+        'This change has not been approved in the confirmation card. ' +
+        'Ask the user to click Yes before trying again.',
+    };
+  }
+  if (consumed.status !== CONSUME_STATUS.CONSUMED) {
     return {
       status: WRITE_RESULT_STATUSES.NOT_FOUND,
       tool: 'confirm_write',
@@ -172,6 +185,7 @@ async function executeConfirmedWrite({ chatId, writeNonce }) {
         'already been confirmed, or been issued for a different user.',
     };
   }
+  const { intent } = consumed;
 
   const commit = getWriteToolCommitFor(intent.tool);
   if (!commit) {

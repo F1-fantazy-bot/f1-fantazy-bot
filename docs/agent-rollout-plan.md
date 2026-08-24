@@ -642,8 +642,8 @@ The full per-tool checklist (including the **cache bootstrap** and
 - MCP server façade so Copilot/Claude/Cursor can call the same tools.
 - Write capabilities (e.g. set chip, switch team) — see
   [`agent-write-tools-plan.md`](./agent-write-tools-plan.md). PR-1
-  (shared infrastructure) is merged; PR-2..PR-10 add the concrete
-  tools one vertical slice at a time.
+  (shared infrastructure) is delivered by #207; PR-2..PR-10 add the
+  concrete tools one vertical slice at a time after it merges.
 - **Rate-limiting on the agent endpoint** (Azure API Management or a CDN-layer policy) — defense in depth even after proper auth lands; relevant if abuse appears in App Insights before proper auth ships.
 
 ---

@@ -23,6 +23,8 @@ const { getCopilotRuntimeHandler } = require('../src/agent/runtime');
 const { buildCorsHeadersFromEnv } = require('../src/agent/corsAllowList');
 const { authenticateRequest, STATUS } = require('../src/agent/auth');
 const { runWithRequestContext } = require('../src/agent/requestContext');
+const { getAgentChatId } = require('../src/agent/identity');
+const { applyWriteDecision } = require('../src/agent/writeDecision');
 const {
   getAllowedUserByEmail,
 } = require('../src/webUserAllowlistService');
@@ -178,6 +180,50 @@ function isWhoamiPath(req) {
   }
 }
 
+function isWriteDecisionPath(req) {
+  try {
+    return buildRequestUrl(req).pathname === '/api/agent/write-decision';
+  } catch {
+    return false;
+  }
+}
+
+function parseRequestBody(req) {
+  if (
+    req.body &&
+    typeof req.body === 'object' &&
+    !Buffer.isBuffer(req.body)
+  ) {
+    return req.body;
+  }
+
+  const raw = req.rawBody ?? req.body;
+  if (typeof raw !== 'string' && !Buffer.isBuffer(raw)) {
+    return null;
+  }
+  try {
+    return JSON.parse(Buffer.isBuffer(raw) ? raw.toString('utf8') : raw);
+  } catch {
+    return null;
+  }
+}
+
+async function buildWriteDecisionResponse(req, chatId) {
+  const result = await applyWriteDecision({
+    chatId,
+    payload: parseRequestBody(req),
+  });
+
+  return {
+    status: result.status,
+    headers: {
+      ...buildResponseCorsHeaders(req),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(result.body),
+  };
+}
+
 async function runCopilotHandler(req) {
   const handler = getCopilotRuntimeHandler();
   const webRequest = buildWebRequest(req);
@@ -205,12 +251,25 @@ module.exports = async function (context, req) {
   }
 
   const whoami = isWhoamiPath(req);
+  const writeDecision = isWriteDecisionPath(req);
   if (whoami && (req.method || '').toUpperCase() !== 'GET') {
     context.res = {
       status: 405,
       headers: {
         ...buildResponseCorsHeaders(req),
         Allow: 'GET, OPTIONS',
+      },
+      body: 'Method Not Allowed',
+    };
+
+    return;
+  }
+  if (writeDecision && (req.method || '').toUpperCase() !== 'POST') {
+    context.res = {
+      status: 405,
+      headers: {
+        ...buildResponseCorsHeaders(req),
+        Allow: 'POST, OPTIONS',
       },
       body: 'Method Not Allowed',
     };
@@ -241,6 +300,29 @@ module.exports = async function (context, req) {
       // Cheap path — never invokes CopilotKit, never establishes the
       // request context. Both `ok` and `bypassed` map to a 200 here.
       context.res = buildWhoamiOkResponse(req, authResult);
+
+      return;
+    }
+
+    if (writeDecision) {
+      if (authResult.status === STATUS.OK) {
+        context.res = await runWithRequestContext(
+          {
+            chatId: authResult.chatId,
+            email: authResult.email,
+            name: authResult.name,
+            sub: authResult.sub,
+          },
+          () => buildWriteDecisionResponse(req, authResult.chatId),
+        );
+      } else {
+        // BYPASSED is the local-dev-only path. Resolve the configured
+        // hardcoded chat id exactly as the regular tool runtime does.
+        context.res = await buildWriteDecisionResponse(
+          req,
+          getAgentChatId(),
+        );
+      }
 
       return;
     }
