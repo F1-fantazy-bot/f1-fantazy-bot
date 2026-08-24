@@ -41,7 +41,7 @@ A **web-chat agent** (preview) provides a second channel for the same functional
   - Circuit image of the track
 - **Next Race Weather**: Detailed hourly weather forecast for qualifying, race and sprint sessions
 - **Automated Data Updates**: Trigger web scraping for the latest F1 Fantasy data (admin feature)
-- **Price Updates**: Use the latest global F1 Fantasy prices, with simulation/imported prices as fallback
+- **Price Updates**: Use the latest global F1 Fantasy prices and player activity metadata, with simulation/imported prices as fallback. Active drivers are available as transfer targets; owned inactive drivers remain in best-team calculations with the official non-classification penalty (-25 regular / -35 sprint).
 
 ### League Leaderboards
 

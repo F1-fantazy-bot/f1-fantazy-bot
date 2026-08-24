@@ -12,6 +12,7 @@ const {
   selectedChipCache,
   sharedKey,
   remainingRaceCountCache,
+  nextRaceInfoCache,
   userCache,
   pricesCache,
 } = require('../cache');
@@ -46,9 +47,12 @@ function clearCaches() {
   delete currentTeamCache[KILZI_CHAT_ID];
   delete selectedChipCache[KILZI_CHAT_ID];
   delete remainingRaceCountCache[sharedKey];
+  delete nextRaceInfoCache[sharedKey];
   delete userCache[String(KILZI_CHAT_ID)];
   pricesCache.drivers = {};
   pricesCache.constructors = {};
+  pricesCache.driverEntries = [];
+  pricesCache.constructorEntries = [];
   pricesCache.metadata = null;
 }
 
@@ -233,6 +237,50 @@ describe('computeBestTeams', () => {
       Constructors: { RED: { price: 21.3, expectedPoints: 30 } },
       CurrentTeam: currentTeamCache[KILZI_CHAT_ID][TEAM_ID],
     });
+  });
+
+  it('uses IDs and the inactive-driver penalty for an enriched league team', async () => {
+    seedValidCache({
+      drivers: {
+        LAW: { DR: 'LAW', price: 14.5, expectedPoints: 9, expectedPriceChange: 0.1 },
+        TSU: { DR: 'TSU', price: 10.3, expectedPoints: 3, expectedPriceChange: 0 },
+      },
+      constructors: { RED: { price: 20, expectedPoints: 30 } },
+      currentTeam: {
+        drivers: ['HAD', 'LAW'],
+        driverIds: ['11032', '114'],
+        constructors: ['RED'],
+        boost: 'LAW',
+        boostDriverId: '114',
+        freeTransfers: 2,
+        costCapRemaining: 5,
+      },
+    });
+    pricesCache.driverEntries = [
+      { id: '11032', code: 'HAD', price: 14.5, isActive: false },
+      { id: '116', code: 'LAW', price: 14.5, isActive: true },
+      { id: '114', code: 'LAW', price: 10.3, isActive: false },
+      { id: '130', code: 'TSU', price: 10.3, isActive: true },
+    ];
+    nextRaceInfoCache[sharedKey] = { weekendFormat: 'regular' };
+    mockCalculateBestTeams.mockReturnValue([]);
+
+    const result = await computeBestTeams({ chatId: KILZI_CHAT_ID });
+
+    expect(result.status).toBe('ok');
+    expect(mockCalculateBestTeams.mock.calls[0][0]).toMatchObject({
+      Drivers: {
+        11032: { DR: 'HAD', expectedPoints: -25, expectedPriceChange: 0 },
+        114: { DR: 'LAW', expectedPoints: -25, expectedPriceChange: 0 },
+        116: { DR: 'LAW', expectedPoints: 9, price: 14.5 },
+        130: { DR: 'TSU', expectedPoints: 3, price: 10.3 },
+      },
+      CurrentTeam: {
+        drivers: ['11032', '114'],
+        boost: '114',
+      },
+    });
+    expect(result.calculationData).toBe(mockCalculateBestTeams.mock.calls[0][0]);
   });
 
   it('returns teamName from cache when status is ok', async () => {

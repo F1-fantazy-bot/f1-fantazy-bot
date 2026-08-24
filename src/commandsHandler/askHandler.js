@@ -1,41 +1,36 @@
-const { AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPEN_AI_MODEL } = process.env;
-const { AzureOpenAI } = require('openai');
+const { AZURE_OPEN_AI_MODEL } = process.env;
+const { getAzureOpenAiClient } = require('../azureOpenAiClient');
 const { t } = require('../i18n');
-const { sendLogMessage, sendErrorMessage, isAdminMessage } = require('../utils');
+const {
+  sendLogMessage,
+  sendErrorMessage,
+  isAdminMessage,
+} = require('../utils');
 const { handleNumberMessage } = require('./numberInputHandler');
 const { executeCommand } = require('./commandHandlers');
 
 const { buildAskSystemPrompt } = require('../prompts');
-
-const apiVersion = '2024-04-01-preview';
-const client = new AzureOpenAI({
-  AZURE_OPENAI_ENDPOINT,
-  AZURE_OPENAI_API_KEY,
-  AZURE_OPEN_AI_MODEL,
-  apiVersion,
-});
-
 
 async function handleAskCommand(bot, msg) {
   const chatId = msg.chat.id;
   const text = msg.text.trim();
 
   if (!text) {
-    await bot.sendMessage(
-      chatId,
-      t('Please provide a question.', chatId)
-    );
+    await bot.sendMessage(chatId, t('Please provide a question.', chatId));
 
     return;
   }
 
   const isAdmin = isAdminMessage(msg);
-  const systemMessage = { role: 'system', content: buildAskSystemPrompt(isAdmin) };
+  const systemMessage = {
+    role: 'system',
+    content: buildAskSystemPrompt(isAdmin),
+  };
   const userMessage = { role: 'user', content: text };
 
   let completion;
   try {
-    completion = await client.chat.completions.create({
+    completion = await getAzureOpenAiClient().chat.completions.create({
       model: AZURE_OPEN_AI_MODEL,
       messages: [systemMessage, userMessage],
     });
@@ -56,7 +51,7 @@ async function handleAskCommand(bot, msg) {
   } catch (err) {
     await sendErrorMessage(
       bot,
-      `Failed to parse AI response: ${completion.choices[0].message.content}`
+      `Failed to parse AI response: ${completion.choices[0].message.content}`,
     );
     await bot.sendMessage(chatId, t('Error executing command', chatId));
 

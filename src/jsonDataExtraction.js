@@ -1,17 +1,7 @@
-const { AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPEN_AI_MODEL } =
-  process.env;
-const { AzureOpenAI } = require('openai');
+const { AZURE_OPEN_AI_MODEL } = process.env;
+const { getAzureOpenAiClient } = require('./azureOpenAiClient');
 const { mapPhotoTypeToSystemPrompt } = require('./utils');
 const { sendLogMessage } = require('./utils');
-
-const apiVersion = '2024-04-01-preview';
-const options = {
-  AZURE_OPENAI_ENDPOINT,
-  AZURE_OPENAI_API_KEY,
-  AZURE_OPEN_AI_MODEL,
-  apiVersion,
-};
-const client = new AzureOpenAI(options);
 
 exports.extractJsonDataFromPhotos = async function (bot, type, fileLinks) {
   const systemPrompt = mapPhotoTypeToSystemPrompt[type];
@@ -34,7 +24,7 @@ exports.extractJsonDataFromPhotos = async function (bot, type, fileLinks) {
     content: [...photoMessages],
   };
 
-  const completion = await client.chat.completions.create({
+  const completion = await getAzureOpenAiClient().chat.completions.create({
     model: AZURE_OPEN_AI_MODEL,
     messages: [systemMessage, userMessage],
   });

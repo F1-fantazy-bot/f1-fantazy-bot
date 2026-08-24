@@ -47,6 +47,7 @@ const {
   handleTeamsTrackerCommand,
   handleLeagueGraphsCommand,
   handleLeagueChangesCommand,
+  handleRaceSummaryCommand,
   handleWhatsNewCommand,
   handleAllowWebUserCommand,
   handleRevokeWebUserCommand,
@@ -100,6 +101,7 @@ const {
   COMMAND_TEAMS_TRACKER,
   COMMAND_LEAGUE_GRAPHS,
   COMMAND_LEAGUE_CHANGES,
+  COMMAND_RACE_SUMMARY,
   COMMAND_WHATS_NEW,
   COMMAND_ALLOW_WEB_USER,
   COMMAND_REVOKE_WEB_USER,
@@ -210,6 +212,8 @@ exports.handleTextMessage = async function (bot, msg) {
       return await handleLeagueGraphsCommand(bot, msg);
     case msg.text === COMMAND_LEAGUE_CHANGES:
       return await handleLeagueChangesCommand(bot, msg);
+    case msg.text === COMMAND_RACE_SUMMARY:
+      return await handleRaceSummaryCommand(bot, msg);
     case msg.text === COMMAND_WHATS_NEW:
       return await handleWhatsNewCommand(bot, msg);
     case msg.text === COMMAND_ALLOW_WEB_USER:

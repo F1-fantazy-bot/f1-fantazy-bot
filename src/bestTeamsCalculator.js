@@ -108,6 +108,17 @@ exports.calculateBestTeams = function (
 
   // Iterate over all combinations: 5 drivers and 2 constructors
   for (const driverCombo of driverCombos) {
+    // Driver IDs are used as keys when activity metadata is available. A
+    // mid-season move can leave an owned inactive record and a new active
+    // record with the same display code; those records are alternatives and
+    // must never appear together in one fantasy team.
+    const displayCodes = driverCombo.map(
+      (driverKey) => drivers_dict[driverKey].DR || driverKey,
+    );
+    if (new Set(displayCodes).size !== displayCodes.length) {
+      continue;
+    }
+
     // Calculate total price, points, and expected price change for drivers
     const driver_prices = driverCombo.reduce(
       (sum, dr) => sum + drivers_dict[dr].price,
@@ -246,7 +257,11 @@ exports.calculateBestTeams = function (
     const includeConstructors = new Set(mustIncludeConstructors);
     const excludeConstructors = new Set(mustExcludeConstructors);
     candidateTeams = teams.filter((team) => {
-      const driverSet = new Set(team.drivers);
+      const driverSet = new Set(
+        team.drivers.map(
+          (driverKey) => drivers_dict[driverKey].DR || driverKey,
+        ),
+      );
       const consSet = new Set(team.constructors);
       for (const code of includeDrivers) {
         if (!driverSet.has(code)) {return false;}
@@ -274,11 +289,39 @@ exports.calculateBestTeams = function (
   }
 
   // Add a row number to each team and rearrange the output fields
-  const finalTeams = top_teams.map((team, index) => ({
-    ...team,
-    budget_adjusted_points: team.ranking_score,
-    row: index + 1,
-  }));
+  const finalTeams = top_teams.map((team, index) => {
+    const driverKeys = [...team.drivers];
+    const boostDriverKey = team.boost_driver;
+    const extraBoostDriverKey = team.extra_boost_driver;
+    const driverCodes = driverKeys.map(
+      (driverKey) => drivers_dict[driverKey].DR || driverKey,
+    );
+    const usesPlayerIds = driverKeys.some(
+      (driverKey, driverIndex) => driverKey !== driverCodes[driverIndex],
+    );
+    const finalTeam = {
+      ...team,
+      drivers: driverCodes,
+      boost_driver:
+        drivers_dict[boostDriverKey]?.DR || boostDriverKey,
+      budget_adjusted_points: team.ranking_score,
+      row: index + 1,
+    };
+
+    if (extraBoostDriverKey) {
+      finalTeam.extra_boost_driver =
+        drivers_dict[extraBoostDriverKey]?.DR || extraBoostDriverKey;
+    }
+    if (usesPlayerIds) {
+      finalTeam.driver_ids = driverKeys;
+      finalTeam.boost_driver_id = boostDriverKey;
+      if (extraBoostDriverKey) {
+        finalTeam.extra_boost_driver_id = extraBoostDriverKey;
+      }
+    }
+
+    return finalTeam;
+  });
 
   finalTeams.forEach((team) => {
     delete team.ranking_score;
@@ -302,13 +345,19 @@ exports.calculateChangesToTeam = function (
     cachedJsonData.Constructors
   );
 
+  const targetDriverKeys = targetTeam.driver_ids || targetTeam.drivers;
+  const displayDriver = (driverKey) =>
+    cachedJsonData.Drivers[driverKey]?.DR || driverKey;
+
   // Determine drivers that need to be added and removed
-  const driversToAdd = targetTeam.drivers.filter(
+  const driverKeysToAdd = targetDriverKeys.filter(
     (driver) => !currentTeam.drivers.includes(driver)
   );
-  const driversToRemove = currentTeam.drivers.filter(
-    (driver) => !targetTeam.drivers.includes(driver)
+  const driverKeysToRemove = currentTeam.drivers.filter(
+    (driver) => !targetDriverKeys.includes(driver)
   );
+  const driversToAdd = driverKeysToAdd.map(displayDriver);
+  const driversToRemove = driverKeysToRemove.map(displayDriver);
 
   // Determine constructors that need to be added and removed
   const constructorsToAdd = targetTeam.constructors.filter(
@@ -319,8 +368,15 @@ exports.calculateChangesToTeam = function (
   );
 
   // Calculate boost driver change:
-  const boostDriverChange = currentTeam.boost !== targetTeam.boost_driver;
-  let newBoost = boostDriverChange ? targetTeam.boost_driver : undefined;
+  const targetBoostDriverKey =
+    targetTeam.boost_driver_id || targetTeam.boost_driver;
+  const boostDriverChange = currentTeam.boost !== targetBoostDriverKey;
+  let newBoost = boostDriverChange
+    ? displayDriver(targetBoostDriverKey)
+    : undefined;
+  let newBoostDriverKey = boostDriverChange
+    ? targetBoostDriverKey
+    : undefined;
 
   // Handle special chips
   let chipToActivate;
@@ -337,10 +393,14 @@ exports.calculateChangesToTeam = function (
   }
 
   let extraBoostDriver;
+  let extraBoostDriverKey;
   if (selectedChip === EXTRA_BOOST_CHIP) {
     chipToActivate = EXTRA_BOOST_CHIP;
-    extraBoostDriver = targetTeam.extra_boost_driver;
-    newBoost = targetTeam.boost_driver;
+    extraBoostDriverKey =
+      targetTeam.extra_boost_driver_id || targetTeam.extra_boost_driver;
+    extraBoostDriver = displayDriver(extraBoostDriverKey);
+    newBoostDriverKey = targetBoostDriverKey;
+    newBoost = displayDriver(targetBoostDriverKey);
   }
 
   const deltaPoints =
@@ -367,10 +427,16 @@ exports.calculateChangesToTeam = function (
   return {
     driversToAdd,
     driversToRemove,
+    ...(targetTeam.driver_ids
+      ? { driverKeysToAdd, driverKeysToRemove }
+      : {}),
     constructorsToAdd,
     constructorsToRemove,
     newBoost,
     extraBoostDriver,
+    ...(targetTeam.driver_ids
+      ? { newBoostDriverKey, extraBoostDriverKey }
+      : {}),
     chipToActivate,
     deltaPoints,
     deltaPrice,

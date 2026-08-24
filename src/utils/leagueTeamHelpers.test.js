@@ -33,8 +33,11 @@ describe('mapLeagueTeamToBotTeam', () => {
     const result = mapLeagueTeamToBotTeam(fixture());
     expect(result).toEqual({
       drivers: ['VER', 'NOR', 'HAM', 'BEA', 'STR'],
+      driverIds: ['1', '2', '3', '4', '5'],
       constructors: ['MCL', 'FER'],
+      constructorIds: ['6', '7'],
       boost: 'VER',
+      boostDriverId: '1',
       freeTransfers: 2,
       costCapRemaining: 2.4,
       teamName: 'Kilzid',
@@ -132,4 +135,3 @@ describe('mapLeagueTeamToBotTeam', () => {
     expect(result).not.toHaveProperty('teamNo');
   });
 });
-

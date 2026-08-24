@@ -1,6 +1,8 @@
 // Export all command handler functions from a central index file
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
-const { handleBestTeamScenariosMessage } = require('./bestTeamScenariosHandler');
+const {
+  handleBestTeamScenariosMessage,
+} = require('./bestTeamScenariosHandler');
 const { handleChipsMessage } = require('./chipsHandler');
 const { calcCurrentTeamInfo } = require('./currentTeamInfoHandler');
 const { handleGetBotfatherCommands } = require('./getBotfatherCommandsHandler');
@@ -40,7 +42,9 @@ const {
 } = require('./sendMessageToUserHandler');
 const { handleBroadcastCommand } = require('./broadcastHandler');
 const { handleSetNicknameCommand } = require('./setNicknameHandler');
-const { handleUploadDriversPhotoCommand } = require('./uploadDriversPhotoHandler');
+const {
+  handleUploadDriversPhotoCommand,
+} = require('./uploadDriversPhotoHandler');
 const {
   handleUploadConstructorsPhotoCommand,
 } = require('./uploadConstructorsPhotoHandler');
@@ -49,27 +53,16 @@ const { handleSetBestTeamRanking } = require('./setBestTeamRankingHandler');
 const { handleLiveScoreCommand } = require('./liveScoreHandler');
 const { handleDeadlineCommand } = require('./deadlineHandler');
 const { handleFollowLeagueCommand } = require('./followLeagueHandler');
-const {
-  handleUnfollowLeagueCommand,
-} = require('./unfollowLeagueHandler');
+const { handleUnfollowLeagueCommand } = require('./unfollowLeagueHandler');
 const { handleLeaderboardCommand } = require('./leaderboardHandler');
-const {
-  handleTeamsTrackerCommand,
-} = require('./teamsTrackerHandler');
+const { handleTeamsTrackerCommand } = require('./teamsTrackerHandler');
 const { handleLeagueGraphsCommand } = require('./leagueGraphHandler');
-const {
-  handleLeagueChangesCommand,
-} = require('./leagueChangesHandler');
+const { handleLeagueChangesCommand } = require('./leagueChangesHandler');
 const { handleWhatsNewCommand } = require('./whatsNewHandler');
-const {
-  handleAllowWebUserCommand,
-} = require('./allowWebUserHandler');
-const {
-  handleRevokeWebUserCommand,
-} = require('./revokeWebUserHandler');
-const {
-  handleListWebUsersCommand,
-} = require('./listWebUsersHandler');
+const { handleRaceSummaryCommand } = require('./raceSummaryHandler');
+const { handleAllowWebUserCommand } = require('./allowWebUserHandler');
+const { handleRevokeWebUserCommand } = require('./revokeWebUserHandler');
+const { handleListWebUsersCommand } = require('./listWebUsersHandler');
 
 module.exports = {
   handleBestTeamsMessage,
@@ -119,6 +112,7 @@ module.exports = {
   handleTeamsTrackerCommand,
   handleLeagueGraphsCommand,
   handleLeagueChangesCommand,
+  handleRaceSummaryCommand,
   handleWhatsNewCommand,
   handleAllowWebUserCommand,
   handleRevokeWebUserCommand,

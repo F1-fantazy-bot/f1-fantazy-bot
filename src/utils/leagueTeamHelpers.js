@@ -60,6 +60,20 @@ function mapLeagueTeamToBotTeam(leagueTeam) {
     drivers.find((d) => d.isMegaCaptain) ||
     drivers[0];
   const boost = captain ? mapNameToCode(captain.name) : null;
+  const boostDriverId =
+    captain?.id === undefined || captain?.id === null
+      ? null
+      : String(captain.id);
+  const driverIds = drivers.map((driver) =>
+    driver?.id === undefined || driver?.id === null
+      ? null
+      : String(driver.id),
+  );
+  const constructorIds = constructors.map((constructor) =>
+    constructor?.id === undefined || constructor?.id === null
+      ? null
+      : String(constructor.id),
+  );
 
   const teamValue = sumPrices(drivers) + sumPrices(constructors);
   const cap = Number(leagueTeam.budget);
@@ -74,8 +88,11 @@ function mapLeagueTeamToBotTeam(leagueTeam) {
 
   return {
     drivers: drivers.map((d) => mapNameToCode(d.name)),
+    ...(driverIds.every(Boolean) ? { driverIds } : {}),
     constructors: constructors.map((c) => mapNameToCode(c.name)),
+    ...(constructorIds.every(Boolean) ? { constructorIds } : {}),
     boost,
+    ...(boostDriverId ? { boostDriverId } : {}),
     freeTransfers,
     costCapRemaining,
     // Display + identity metadata. Optional fields the consumers can use to

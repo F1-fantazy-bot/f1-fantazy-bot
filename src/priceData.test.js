@@ -80,4 +80,56 @@ describe('priceData', () => {
       },
     });
   });
+
+  it('uses active price entries when duplicate driver codes exist', () => {
+    const result = applyPrices(
+      {
+        drivers: {
+          LAW: {
+            DR: 'LAW',
+            price: 14.5,
+            expectedPoints: 8.9,
+            expectedPriceChange: 0.09,
+          },
+          TSU: {
+            DR: 'TSU',
+            price: 10.3,
+            expectedPoints: -0.7,
+            expectedPriceChange: -0.35,
+          },
+        },
+        constructors: {},
+      },
+      {
+        drivers: [
+          {
+            id: '116',
+            name: 'L. Lawson',
+            code: 'LAW',
+            price: 14.5,
+            isActive: true,
+          },
+          {
+            id: '114',
+            name: 'L. Lawson',
+            code: 'LAW',
+            price: 10.3,
+            isActive: false,
+          },
+          {
+            id: '130',
+            name: 'Y. Tsunoda',
+            code: 'TSU',
+            price: 10.3,
+            isActive: true,
+          },
+        ],
+        constructors: [],
+      },
+    );
+
+    expect(result.drivers.LAW.price).toBe(14.5);
+    expect(result.drivers.TSU.price).toBe(10.3);
+    expect(result.report.drivers.missing).toEqual([]);
+  });
 });

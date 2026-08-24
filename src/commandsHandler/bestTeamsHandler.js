@@ -74,6 +74,30 @@ async function handleBestTeamsMessage(bot, chatId) {
     return;
   }
 
+  if (result.status === 'missing_weekend_format') {
+    await bot.sendMessage(
+      chatId,
+      t(
+        'Next race weekend format is unavailable. Please refresh the next race data and try again.',
+        chatId,
+      ),
+    );
+
+    return;
+  }
+
+  if (result.status === 'projection_mismatch') {
+    await bot.sendMessage(
+      chatId,
+      t(
+        'Driver activity data is unavailable or inconsistent. Please refresh the API data and try again.',
+        chatId,
+      ),
+    );
+
+    return;
+  }
+
   // Any other non-ok status here would only fire if cache state changed
   // between our pre-checks above and the core's checks — defensive guard.
   if (result.status !== 'ok') {
@@ -87,6 +111,9 @@ async function handleBestTeamsMessage(bot, chatId) {
   bestTeamsCache[chatId][teamId] = {
     currentTeam,
     bestTeams,
+    ...(result.calculationData
+      ? { calculationData: result.calculationData }
+      : {}),
   };
 
   // Create the Markdown message by mapping over the bestTeams array

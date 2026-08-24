@@ -207,8 +207,7 @@ const translations = {
     '{ICON} {LABEL} ({VALUE})': '{ICON} {LABEL} ({VALUE})',
     'Best-team ranking set: {LABEL} ({VALUE} pts per 1M per remaining race).':
       'דירוג הקבוצות המיטביות עודכן: {LABEL} ({VALUE} נק׳ לכל 1M לכל מרוץ שנותר).',
-    'Choose best-team ranking preference:':
-      'בחר העדפת דירוג לקבוצות המיטביות:',
+    'Choose best-team ranking preference:': 'בחר העדפת דירוג לקבוצות המיטביות:',
     'Value = points added for each 1M budget change per race left.':
       'ערך = כמה נקודות מתווספות על כל שינוי של 1M לכל מרוץ שנותר.',
     'Remaining races used now: {COUNT}.':
@@ -221,6 +220,10 @@ const translations = {
     'Balanced Budget Value': 'איזון עם ערך לתקציב',
     'Remaining race count is unavailable right now. Switch to Pure Points or try again later.':
       'מספר המרוצים שנותרו אינו זמין כרגע. עבור לנקודות בלבד או נסה שוב מאוחר יותר.',
+    'Next race weekend format is unavailable. Please refresh the next race data and try again.':
+      'פורמט סוף השבוע של המרוץ הבא אינו זמין. רענן את נתוני המרוץ הבא ונסה שוב.',
+    'Driver activity data is unavailable or inconsistent. Please refresh the API data and try again.':
+      'נתוני פעילות הנהגים אינם זמינים או אינם עקביים. רענן את נתוני ה-API ונסה שוב.',
     'Please provide a question.': 'אנא ספק שאלה.',
     '❓ Support & Info': '❓ תמיכה ומידע',
     'Help, updates, and feedback': 'עזרה, עדכונים ומשוב',
@@ -282,10 +285,8 @@ const translations = {
       'הרץ את Logic App של מתזמן הניקוד החי; הוא עשוי להפעיל או לעצור ACI לפי חלון המרוץ',
     'Sorry, only admins can trigger manual jobs.':
       'מצטער, רק מנהלים יכולים להפעיל משימות ידניות.',
-    'API data trigger started successfully.':
-      'הפעלת נתוני API התחילה בהצלחה.',
-    'Failed to trigger API data: {ERROR}':
-      'הפעלת נתוני API נכשלה: {ERROR}',
+    'API data trigger started successfully.': 'הפעלת נתוני API התחילה בהצלחה.',
+    'Failed to trigger API data: {ERROR}': 'הפעלת נתוני API נכשלה: {ERROR}',
     'API data locked trigger started successfully.':
       'הפעלת נתוני API נעולים התחילה בהצלחה.',
     'Failed to trigger API data locked: {ERROR}':
@@ -346,8 +347,7 @@ const translations = {
     pts: 'נק׳',
     Adj: 'מותאם',
     'Boost x2': 'בוסט כפול',
-    '❌ Error fetching live score: {ERROR}':
-      '❌ שגיאה בקבלת ניקוד חי: {ERROR}',
+    '❌ Error fetching live score: {ERROR}': '❌ שגיאה בקבלת ניקוד חי: {ERROR}',
     'Invalid JSON data. Please ensure it contains 22 drivers under "Drivers" property.':
       'נתוני JSON אינם תקינים. ודא שהם מכילים 22 נהגים תחת "Drivers".',
     'Invalid JSON data. Please ensure it contains 11 constructors under "Constructors" property.':
@@ -402,8 +402,7 @@ const translations = {
       'אנא הזן את מזהה הצ׳אט של המשתמש שאליו תרצה לשלוח הודעה או תמונה:',
     'What message or image do you want to send to {NAME}?':
       'איזו הודעה או תמונה תרצה לשלוח ל{NAME}?',
-    'Content sent successfully to user {ID}.':
-      'התוכן נשלח בהצלחה למשתמש {ID}.',
+    'Content sent successfully to user {ID}.': 'התוכן נשלח בהצלחה למשתמש {ID}.',
     'User with ID {ID} not found. Please enter a valid chat ID:':
       'משתמש עם מזהה {ID} לא נמצא. אנא הזן מזהה צ׳אט תקין:',
     'Failed to send content to user {ID}: {ERROR}':
@@ -413,8 +412,7 @@ const translations = {
       'שלח הודעה או תמונה למשתמש ספציפי של הבוט',
     'User not found. Please enter a valid chat ID:':
       'משתמש לא נמצא. אנא הזן מזהה צ׳אט תקין:',
-    'Please enter text or a photo to send.':
-      'אנא הזן טקסט או תמונה לשליחה.',
+    'Please enter text or a photo to send.': 'אנא הזן טקסט או תמונה לשליחה.',
     '📩 Message from bot admin:\n\n{MESSAGE}':
       '📩 הודעה ממנהל הבוט:\n\n{MESSAGE}',
     'Please enter the message or image you want to broadcast to all users:':
@@ -454,7 +452,7 @@ const translations = {
     'Active team switched to {TEAM}.': 'הקבוצה הפעילה הוחלפה ל-{TEAM}.',
     '🔄 Active team auto-switched to {TEAM}.':
       '🔄 הקבוצה הפעילה הוחלפה אוטומטית ל-{TEAM}.',
-    'No teams found. Please run /follow_league to follow your F1 Fantasy league (if you haven\'t yet), then /teams_tracker to pick teams to track.':
+    "No teams found. Please run /follow_league to follow your F1 Fantasy league (if you haven't yet), then /teams_tracker to pick teams to track.":
       'לא נמצאו קבוצות. אנא הפעל /follow_league כדי לעקוב אחרי הליגה שלך (אם עוד לא עשית זאת), ולאחר מכן /teams_tracker כדי לבחור קבוצות לעקוב אחריהן.',
     'You have multiple teams. Please run /select_team to choose your active team.':
       'יש לך מספר קבוצות. אנא הפעל /select_team כדי לבחור קבוצה פעילה.',
@@ -470,16 +468,14 @@ const translations = {
       'ליגה "{CODE}" לא נמצאה. אנא הזן קוד ליגה תקין:',
     '❌ Failed to load league data: {ERROR}':
       '❌ טעינת נתוני הליגה נכשלה: {ERROR}',
-    '❌ Failed to follow league: {ERROR}':
-      '❌ מעקב אחר הליגה נכשל: {ERROR}',
+    '❌ Failed to follow league: {ERROR}': '❌ מעקב אחר הליגה נכשל: {ERROR}',
     'Now following league "{NAME}" ({CODE}).':
       'עוקב כעת אחר הליגה "{NAME}" ({CODE}).',
     'You are not following any league. Run {CMD} to follow one first.':
       'אינך עוקב אחר אף ליגה. הפעל {CMD} כדי לעקוב אחר ליגה.',
     'Which league leaderboard do you want to see?':
       'איזו טבלת ליגה ברצונך לראות?',
-    'Which league do you want to unfollow?':
-      'איזו ליגה להפסיק לעקוב?',
+    'Which league do you want to unfollow?': 'איזו ליגה להפסיק לעקוב?',
     'Unfollowed league {CODE}.': 'הופסק המעקב אחר הליגה {CODE}.',
     '❌ Failed to unfollow league: {ERROR}':
       '❌ הפסקת המעקב אחר הליגה נכשלה: {ERROR}',
@@ -488,8 +484,7 @@ const translations = {
     'No leaderboard data is available yet for this league. Please try again later.':
       'עדיין אין נתוני טבלה עבור הליגה הזו. נסה שוב מאוחר יותר.',
     'No teams in this league yet.': 'אין עדיין קבוצות בליגה הזו.',
-    '👥 {COUNT} teams · updated {TIME}':
-      '👥 {COUNT} קבוצות · עודכן {TIME}',
+    '👥 {COUNT} teams · updated {TIME}': '👥 {COUNT} קבוצות · עודכן {TIME}',
     '➕ Follow League': '➕ מעקב אחר ליגה',
     'Follow an F1 Fantasy league by its code':
       'עקוב אחר ליגת F1 Fantasy לפי קוד',
@@ -499,6 +494,9 @@ const translations = {
     'View the leaderboard of a followed league':
       'צפה בטבלה של ליגה שאתה עוקב אחריה',
     '🔄 League Changes': '🔄 שינויי ליגה',
+    '🏎️ Race Summary': '🏎️ סיכום מרוץ',
+    'Get a funny post-race league recap with winners, losers, and season trends':
+      'קבל סיכום ליגה מצחיק אחרי המרוץ עם מנצחים, מפסידים ומגמות עונתיות',
     'Show what each league team changed between the last two race weekends':
       'הצג מה כל קבוצה בליגה שינתה בין שני סופי השבוע האחרונים',
     'Which league live score do you want to see?':
@@ -518,6 +516,12 @@ const translations = {
     '† transfer penalty applied': '† הוחל קנס העברות',
     'Which league changes do you want to see?':
       'שינויים של איזו ליגה ברצונך לראות?',
+    'Which league race summary do you want to see?':
+      'סיכום מרוץ של איזו ליגה ברצונך לראות?',
+    'Not enough race data yet to create a summary for this league.':
+      'אין עדיין מספיק נתוני מרוץ כדי ליצור סיכום לליגה הזו.',
+    '❌ Failed to create the race summary. Please try again later.':
+      '❌ יצירת סיכום המרוץ נכשלה. נסה שוב מאוחר יותר.',
     'No locked-roster snapshots are available yet for this league. Wait until the next race weekend.':
       'אין עדיין צילומי הרכב נעולים עבור הליגה הזו. נסה שוב אחרי סוף השבוע הבא.',
     'League data is not yet available. Wait for the next weekly refresh.':
@@ -530,13 +534,11 @@ const translations = {
     '↪ Mega captain: {FROM} → {TO}': '↪ מגה קפטן: {FROM} → {TO}',
     '↪ Chip: {CHIP}': "↪ צ'יפ: {CHIP}",
     '🆕 new team': '🆕 קבוצה חדשה',
-    'No team changes for matchday {N}.':
-      'אין שינויי קבוצות עבור סבב {N}.',
+    'No team changes for matchday {N}.': 'אין שינויי קבוצות עבור סבב {N}.',
     '({COUNT} other team(s) had no changes)':
       '({COUNT} קבוצות נוספות ללא שינוי)',
     '🏁 League Management': '🏁 ניהול ליגות',
-    'Follow and view F1 Fantasy leagues':
-      'עקוב וצפה בליגות F1 Fantasy',
+    'Follow and view F1 Fantasy leagues': 'עקוב וצפה בליגות F1 Fantasy',
     '🎯 Select Team From League': '🎯 בחר קבוצה מליגה',
     'Follow a team roster from a followed league (up to 6 followed teams)':
       'עקוב אחר קבוצה מליגה שאתה עוקב אחריה (עד 6 קבוצות במקביל)',
@@ -621,14 +623,12 @@ const translations = {
       'הבנתי: {EMAIL}. כעת אנא הזן את ה-chat ID שאליו תמופה כתובת זו:',
     'Chat ID not found in the registry. Please enter a valid chat ID:':
       'ה-chat ID לא נמצא ברישום. אנא הזן chat ID תקין:',
-    '❌ Error fetching user: {ERROR}':
-      '❌ שגיאה באחזור המשתמש: {ERROR}',
+    '❌ Error fetching user: {ERROR}': '❌ שגיאה באחזור המשתמש: {ERROR}',
     '❌ Error allowlisting user: {ERROR}':
       '❌ שגיאה בהוספה לרשימה המורשית: {ERROR}',
     '❌ Error looking up web user: {ERROR}':
       '❌ שגיאה בחיפוש משתמש האתר: {ERROR}',
-    '❌ Error revoking web user: {ERROR}':
-      '❌ שגיאה בהסרת משתמש האתר: {ERROR}',
+    '❌ Error revoking web user: {ERROR}': '❌ שגיאה בהסרת משתמש האתר: {ERROR}',
     '❌ Error fetching web allowlist: {ERROR}':
       '❌ שגיאה באחזור רשימת המשתמשים המורשים: {ERROR}',
     '✅ Allowed {EMAIL} on the web agent, mapped to {NAME} ({ID}).':
@@ -637,10 +637,9 @@ const translations = {
       '🚫 {EMAIL} הוסר מרשימת המשתמשים המורשים באתר.',
     '{EMAIL} was not on the web allowlist — nothing to do.':
       '{EMAIL} לא היה ברשימת המשתמשים המורשים — אין צורך בפעולה.',
-    'No web users allowlisted yet.':
-      'אין עדיין משתמשים מורשים באתר.',
+    'No web users allowlisted yet.': 'אין עדיין משתמשים מורשים באתר.',
     'Web Allowlist': 'רשימת משתמשים מורשים באתר',
-    'Added': 'נוסף',
+    Added: 'נוסף',
     'Added by': 'נוסף על ידי',
     '(unknown)': '(לא ידוע)',
     '🔐 Allow Web User': '🔐 אישור משתמש לאתר',
@@ -652,8 +651,7 @@ const translations = {
       'הסרת כתובת Google מרשימת המשתמשים המורשים באתר',
     'List Google emails currently allowed on the web agent':
       'הצגת כתובות ה-Google המורשות כעת באתר הסוכן',
-    'Which league graph do you want to see?':
-      'איזה גרף ליגה תרצה לראות?',
+    'Which league graph do you want to see?': 'איזה גרף ליגה תרצה לראות?',
     'Which graph do you want to see?': 'איזה גרף תרצה לראות?',
     '📉 Gap to Leader': '📉 פער מהמוביל',
     '🏆 Standings': '🏆 דירוג',
@@ -668,10 +666,8 @@ const translations = {
       '❌ שליחת גרף הליגה נכשלה: {ERROR}',
     '🏆 {LEAGUE} — gap to leader per race':
       '🏆 {LEAGUE} — פער מהמוביל לפי מרוץ',
-    '💰 {LEAGUE} — budget per race':
-      '💰 {LEAGUE} — תקציב לפי מרוץ',
-    '🏆 {LEAGUE} — standings per race':
-      '🏆 {LEAGUE} — דירוג לפי מרוץ',
+    '💰 {LEAGUE} — budget per race': '💰 {LEAGUE} — תקציב לפי מרוץ',
+    '🏆 {LEAGUE} — standings per race': '🏆 {LEAGUE} — דירוג לפי מרוץ',
   },
 };
 

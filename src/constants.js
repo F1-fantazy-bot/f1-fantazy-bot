@@ -36,6 +36,7 @@ exports.LEAGUE_UNFOLLOW_CALLBACK_TYPE = 'LEAGUE_UNFOLLOW';
 exports.LEAGUE_GRAPH_CALLBACK_TYPE = 'LEAGUE_GRAPH';
 exports.LEAGUE_GRAPH_TYPE_CALLBACK_TYPE = 'LEAGUE_GRAPH_TYPE';
 exports.LEAGUE_CHANGES_CALLBACK_TYPE = 'LEAGUE_CHANGES';
+exports.RACE_SUMMARY_CALLBACK_TYPE = 'RACE_SUMMARY';
 // Kept short (2 chars) so the callback data `LS:T:{leagueCode}:{slug}`
 // stays under Telegram's 64-byte callback_data limit.
 exports.LIVE_SCORE_CALLBACK_TYPE = 'LS';
@@ -90,8 +91,7 @@ exports.COMMAND_TRIGGER_SCRAPING = '/trigger_scraping';
 exports.COMMAND_TRIGGER_API_DATA = '/trigger_api_data';
 exports.COMMAND_TRIGGER_API_DATA_LOCKED = '/trigger_api_data_locked';
 exports.COMMAND_TRIGGER_NEXT_RACE_INFO = '/trigger_next_race_info';
-exports.COMMAND_TRIGGER_LIVE_SCORE_SCHEDULER =
-  '/trigger_live_score_scheduler';
+exports.COMMAND_TRIGGER_LIVE_SCORE_SCHEDULER = '/trigger_live_score_scheduler';
 exports.COMMAND_LOAD_SIMULATION = '/load_simulation';
 exports.COMMAND_GET_CURRENT_SIMULATION = '/get_current_simulation';
 exports.COMMAND_GET_BOTFATHER_COMMANDS = '/get_botfather_commands';
@@ -126,6 +126,7 @@ exports.COMMAND_LEADERBOARD = '/leaderboard';
 exports.COMMAND_TEAMS_TRACKER = '/teams_tracker';
 exports.COMMAND_LEAGUE_GRAPHS = '/league_graphs';
 exports.COMMAND_LEAGUE_CHANGES = '/league_changes';
+exports.COMMAND_RACE_SUMMARY = '/race_summary';
 exports.COMMAND_WHATS_NEW = '/whats_new';
 exports.COMMAND_ALLOW_WEB_USER = '/allow_web_user';
 exports.COMMAND_REVOKE_WEB_USER = '/revoke_web_user';
@@ -414,6 +415,12 @@ exports.MENU_CATEGORIES = {
         title: '🔄 League Changes',
         description:
           'Show what each league team changed between the last two race weekends',
+      },
+      {
+        constant: exports.COMMAND_RACE_SUMMARY,
+        title: '🏎️ Race Summary',
+        description:
+          'Get a funny post-race league recap with winners, losers, and season trends',
       },
     ],
   },
