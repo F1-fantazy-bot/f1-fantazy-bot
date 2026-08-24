@@ -194,6 +194,8 @@ const translations = {
       'שפה לא תקינה. השפות הזמינות: {LANGS}',
     'Usage: {CMD} <LANG>': 'שימוש: {CMD} <שפה>',
     'Please select a language:': 'אנא בחר שפה:',
+    'Change your saved language to {LANG} ({CODE}).':
+      'לשנות את השפה השמורה ל{LANG} ({CODE}).',
     English: 'אנגלית',
     Hebrew: 'עברית',
     '🌐 Set Language': '🌐 הגדר שפה',

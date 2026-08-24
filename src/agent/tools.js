@@ -34,6 +34,7 @@ const { getAgentChatId } = require('./identity');
 const { ensureCacheReady } = require('./cacheBootstrap');
 const { wrapToolExecute } = require('./wrapToolExecute');
 const { executeConfirmedWrite } = require('./writeToolHelpers');
+const { setLanguageTool } = require('./writeTools/setLanguageTool');
 
 // Trim a best-teams calculator row down to the fields the React component
 // actually renders. Sending the full driver/constructor dictionaries (which
@@ -424,6 +425,8 @@ const tools = [
   // staged intent. The LLM may only call it AFTER the user clicks
   // "Yes" on the <WriteConfirmCard> rendered in the chat stream.
   // ---------------------------------------------------------------
+  setLanguageTool,
+
   defineTool({
     name: 'confirm_write',
     description:

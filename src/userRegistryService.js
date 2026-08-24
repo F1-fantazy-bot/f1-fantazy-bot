@@ -161,15 +161,21 @@ async function updateUserAttributes(chatId, attributes) {
  * Get a single user by their chat ID.
  * Uses a direct Azure Table Storage point lookup (getEntity) — much more efficient than listing all users.
  * @param {number|string} chatId - The chat ID of the user to look up
+ * @param {Object} [options]
+ * @param {AbortSignal} [options.abortSignal] - Optional cancellation signal for bounded point reads
  * @returns {Promise<Object|null>} User object with chatId and all stored attributes, or null if not found
  */
-async function getUserById(chatId) {
+async function getUserById(chatId, options = {}) {
   await ensureTable();
 
   const rowKey = String(chatId);
 
   try {
-    const entity = await tableClient.getEntity(PARTITION_KEY, rowKey);
+    const entity = options.abortSignal
+      ? await tableClient.getEntity(PARTITION_KEY, rowKey, {
+          abortSignal: options.abortSignal,
+        })
+      : await tableClient.getEntity(PARTITION_KEY, rowKey);
 
     const user = { chatId: entity.rowKey };
 

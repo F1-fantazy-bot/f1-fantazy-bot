@@ -13,7 +13,10 @@ const {
 const cache = require('./cache');
 const azureStorageService = require('./azureStorageService');
 const { updateUserAttributes } = require('./userRegistryService');
-const { setLanguage } = require('./i18n');
+const {
+  setLanguagePreference,
+  refreshLanguagePreference,
+} = require('./services/setLanguageService');
 const { selectChip } = require('./commandsHandler/selectChipHandlers');
 const {
   getDeadlinePayload,
@@ -45,6 +48,11 @@ jest.mock('./userRegistryService', () => ({
 
 jest.mock('./commandsHandler/selectChipHandlers', () => ({
   selectChip: jest.fn().mockResolvedValue('chip selected'),
+}));
+
+jest.mock('./services/setLanguageService', () => ({
+  setLanguagePreference: jest.fn(),
+  refreshLanguagePreference: jest.fn(),
 }));
 
 jest.mock('./commandsHandler/deadlineHandler', () => ({
@@ -94,11 +102,21 @@ describe('handleCallbackQuery', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    setLanguagePreference.mockResolvedValue({
+      status: 'ok',
+      lang: 'he',
+      languageName: 'English',
+    });
+    refreshLanguagePreference.mockResolvedValue(false);
     bot = {
       editMessageText: jest.fn().mockResolvedValue(undefined),
       answerCallbackQuery: jest.fn().mockResolvedValue(undefined),
       sendMessage: jest.fn().mockResolvedValue(undefined),
     };
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('should treat PHOTO callback as unknown callback type', async () => {
@@ -142,9 +160,31 @@ describe('handleCallbackQuery', () => {
 
     await handleCallbackQuery(bot, query);
 
-    expect(setLanguage).toHaveBeenCalledWith('he', 123);
-    expect(updateUserAttributes).toHaveBeenCalledWith(123, { lang: 'he' });
+    expect(setLanguagePreference).toHaveBeenCalledWith({
+      chatId: 123,
+      lang: 'he',
+    });
+    expect(refreshLanguagePreference).toHaveBeenCalledWith(123);
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q3');
+  });
+
+  it('continues callback handling when the language refresh times out', async () => {
+    const error = new Error('aborted');
+    refreshLanguagePreference.mockRejectedValue(error);
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const query = {
+      id: 'q2-timeout',
+      data: `${CHIP_CALLBACK_TYPE}:${EXTRA_BOOST_CHIP}`,
+      message: { chat: { id: 123 }, message_id: 456 },
+    };
+
+    await handleCallbackQuery(bot, query);
+
+    expect(console.error).toHaveBeenCalledWith(
+      'Error refreshing user language from registry:',
+      error,
+    );
+    expect(selectChip).toHaveBeenCalledWith(bot, 123, EXTRA_BOOST_CHIP);
   });
 
   it('should handle team callback', async () => {

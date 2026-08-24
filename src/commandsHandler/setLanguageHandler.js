@@ -1,6 +1,8 @@
-const { t, setLanguage, getSupportedLanguages, getLanguageName } = require('../i18n');
+const { t, getSupportedLanguages, getLanguageName } = require('../i18n');
 const { LANG_CALLBACK_TYPE } = require('../constants');
-const { updateUserAttributes } = require('../userRegistryService');
+const {
+  setLanguagePreference,
+} = require('../services/setLanguageService');
 
 async function handleSetLanguage(bot, msg) {
   const chatId = msg.chat.id;
@@ -25,8 +27,8 @@ async function handleSetLanguage(bot, msg) {
     return;
   }
 
-  if (setLanguage(lang, chatId)) {
-    await updateUserAttributes(chatId, { lang });
+  const result = await setLanguagePreference({ chatId, lang });
+  if (result.status === 'ok') {
     await bot
       .sendMessage(
         chatId,
@@ -34,7 +36,7 @@ async function handleSetLanguage(bot, msg) {
       )
       .catch((err) => console.error('Error sending language changed message:', err));
   } else {
-    const langs = getSupportedLanguages().join(', ');
+    const langs = result.supportedLanguages.join(', ');
     await bot
       .sendMessage(
         chatId,

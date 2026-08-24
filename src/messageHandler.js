@@ -10,6 +10,9 @@ const { t } = require('./i18n');
 const { getPendingReply, clearPendingReply } = require('./pendingReplyManager');
 const { upsertUser } = require('./userRegistryService');
 const { userCache } = require('./cache');
+const {
+  refreshLanguagePreference,
+} = require('./services/setLanguageService');
 
 exports.handleMessage = async function (bot, msg) {
   const chatId = msg.chat.id;
@@ -23,9 +26,8 @@ exports.handleMessage = async function (bot, msg) {
 
   userCache[key].chatName = chatName;
 
-  const displayName = getDisplayName(chatId);
-
   if (!isMessageFromAllowedUser(msg)) {
+    const displayName = getDisplayName(chatId);
     await sendLogMessage(
       bot,
       `Message from unknown chat: ${displayName} (${chatId})`,
@@ -33,6 +35,17 @@ exports.handleMessage = async function (bot, msg) {
 
     return;
   }
+
+  try {
+    await refreshLanguagePreference(chatId);
+  } catch (err) {
+    // A transient UserRegistry read must not block Telegram message
+    // handling; retain the current in-memory language and retry on the next
+    // message.
+    console.error('Error refreshing user language from registry:', err);
+  }
+
+  const displayName = getDisplayName(chatId);
 
   // Track user in registry (fire-and-forget — errors are logged silently)
   upsertUser(chatId, chatName);

@@ -8,7 +8,7 @@ the working plan for closing that gap — exposing the same set of writes
 as agent tools without breaking the Telegram bot.
 
 **Current state (2026-08-24):** **PR-1 (shared write-tool
-infrastructure) is delivered by
+infrastructure) is merged and delivered by
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207).**
 The review-hardening pass replaced the original process-local Map with
 durable Azure Table Storage and made UI confirmation server-enforced:
@@ -17,9 +17,12 @@ nonce approved before `confirm_write` can consume it. Cancellation
 deletes the nonce immediately. The PR also ships the `defineWriteTool`
 factory, shared `<WriteConfirmCard>` / `<WriteResultCard>` React
 components, `registerWriteAction`, and write-semantics prompt. No
-concrete write operation is registered yet, so Telegram and web-agent
-user behaviour remain unchanged. **PR-2 (`set_language`)** is the
-vertical-slice proof and is next after #207 merges.
+**PR-2 (`set_language`) is the current phase.** It adds the first
+concrete write tool, extracts the shared language service, keeps the
+Telegram `/lang` command and callback output unchanged, and refreshes
+Telegram's persisted language before routing each allowed message so
+an agent-side change crosses the separate Function-process boundary.
+PR-3 (`select_team`) is next after PR-2 merges.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -163,7 +166,7 @@ classified for cross-process behaviour:
 | Op                     | Durable today                                                                          | Notes                                                                                            |
 | ---------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `select_team`          | Yes (`updateUserAttributes`) + in-mem `userCache`                                      | Telegram's `userCache` re-reads on `/start` etc. — confirm reload happens before reads.          |
-| `set_language`         | Yes (`updateUserAttributes`) + in-mem `i18n` map                                       | Telegram's i18n map re-reads on first `t()` call per chatId. **Verify in PR-2.**                 |
+| `set_language`         | Yes (`updateUserAttributes`) + in-mem `userCache.lang`                                  | PR-2 uses an outer 750 ms deadline plus a per-chat generation guard while refreshing persisted language before Telegram routes messages **and** callbacks. |
 | `set_best_team_ranking`| Yes (`updateUserAttributes`) + invalidates `bestTeamsCache`                            | Telegram recomputes on next `/best_teams`. OK.                                                   |
 | `activate_chip`        | **Partly:** only `selectedBestTeamByTeam` is persisted; `selectedChipCache` is in-mem. | Closed in PR-5: persist `selectedChipByTeam` so the bot/agent restart path is consistent.        |
 | `follow_league`        | Yes (`addUserLeague` → Azure Tables)                                                   | Each surface reads on demand. OK.                                                                |
@@ -318,20 +321,38 @@ Chosen as the first concrete write because it has no team validation,
 is idempotent, already persists durably, and exercises every layer
 end-to-end.
 
-- Extract `src/services/setLanguageService.js`: `{ chatId, lang }` →
-  validate `lang` is in `getSupportedLanguages()`, call
-  `setLanguage(lang, chatId)` + `updateUserAttributes`. Returns
-  `{ status, summary, lang, languageName }`.
-- Refactor `setLanguageHandler.js` and the `LANG_CALLBACK_TYPE` branch
-  in `callbackQueryHandler.js` to call the service. The Telegram
-  adapter handles `editMessageText` and the localised phrasing.
-- Register `set_language` agent tool via `defineWriteTool`.
-- Register the frontend write action
-  (`useWriteAction({ name: 'set_language', … })` in `App.tsx`).
-- Unit tests: service, agent tool (propose envelope + confirm path),
-  handler / callback regression.
-- Smoke: happy path, invalid lang, cancel from confirm card,
-  agent → Telegram read-back.
+- `src/services/setLanguageService.js` owns validation, durable
+  `updateUserAttributes({ lang })`, local `setLanguage`, and
+  cross-process `refreshLanguagePreference(chatId)`. Persistence runs
+  before local mutation so a storage outage cannot create a
+  success-looking one-process-only change.
+- `setLanguageHandler.js` and the `LANG_CALLBACK_TYPE` branch in
+  `callbackQueryHandler.js` delegate to the service. Telegram still
+  formats the same localized success/invalid text and owns
+  `sendMessage` / `editMessageText`.
+- `messageHandler.js` and `callbackQueryHandler.js` refresh the
+  persisted language before routing allowed Telegram messages and
+  inline-button callbacks. An outer 750 ms deadline wraps table
+  initialization plus the point read (and also aborts the SDK request);
+  failure logs and falls back to the current cache so a UserRegistry
+  outage cannot block Telegram indefinitely. Every refresh and local
+  write claims a monotonically increasing per-chat operation token;
+  only the latest token may update the cache. This prevents both stale
+  refresh-vs-write and refresh-vs-refresh overwrites. This is the
+  cross-process read-back proof: a write in the agent Function becomes
+  visible to the separate Telegram Function without requiring a host
+  restart.
+- `src/agent/writeTools/setLanguageTool.js` registers
+  `set_language({ lang: "en" | "he" })` via `defineWriteTool`.
+  Invalid language values return the standard `invalid_input` envelope
+  before staging.
+- `web/src/App.tsx` registers the generic write renderer for
+  `set_language`; the shared confirmation/result cards from PR-1 need
+  no tool-specific component.
+- Tests cover service persistence ordering, invalid input, cross-process
+  hydration, unchanged Telegram handler/callback routing, tool
+  configuration, and the complete propose → rejected-premature-confirm
+  → authenticated approval → commit flow.
 
 **Verification gate:** the full propose → confirm → commit flow
 demonstrably works end-to-end via the web agent, **and** `/lang` +
@@ -474,10 +495,12 @@ LANG callback behave identically in Telegram.
 
 ## Risks accepted
 
-- **Pending-writes store is per-process / in-memory.** Acceptable
-  because a confirm card only needs to survive one chat turn
-  (~seconds), the store has TTL, and a server restart between propose
-  and confirm is rare and recoverable (the user just re-proposes).
+- **Pending-write cleanup is traffic-triggered.** Intents are durable
+  in Azure Table Storage and rejected immediately after expiry. A
+  throttled global sweep runs when new proposals arrive; during a
+  completely idle period, expired rows may remain stored until the
+  next proposal, but they are never consumable and do not retain
+  process memory.
 - **Chip cache cross-process divergence pre-PR-5.** PR-5 closes this.
 - **System prompt token cost.** Mitigated by a single shared
   write-semantics paragraph plus short per-tool descriptions.
