@@ -22,6 +22,8 @@ import { useDeadlineCountdownAction } from './components/DeadlineCountdown';
 import { useCurrentTeamAction } from './components/CurrentTeamCard';
 import { useLiveScoreBreakdownAction } from './components/LiveScoreBreakdown';
 import { useLiveScoreLeaderboardAction } from './components/LiveScoreLeaderboard';
+import { useWriteAction } from './components/registerWriteAction';
+import { WriteDecisionProvider } from './components/WriteDecisionContext';
 import { HistoryRestorer } from './components/HistoryRestorer';
 import { ClearHistoryButton } from './components/ClearHistoryButton';
 import { RtlChatSupport } from './components/RtlChatSupport';
@@ -52,6 +54,14 @@ function AgentActions() {
   useCurrentTeamAction();
   useLiveScoreBreakdownAction();
   useLiveScoreLeaderboardAction();
+  // Write tools register through the shared factory. PR-1 only wires
+  // `confirm_write`; the concrete write tools land in subsequent PRs.
+  useWriteAction({
+    name: 'confirm_write',
+    description:
+      'Commit a previously proposed write action by its writeNonce.',
+    loadingLabel: 'Applying change…',
+  });
   return null;
 }
 
@@ -107,38 +117,43 @@ function VerifiedAgentChat({
   }
 
   return (
-    <CopilotKit
+    <WriteDecisionProvider
       runtimeUrl={RUNTIME_URL}
-      headers={() => ({ Authorization: `Bearer ${session.idToken}` })}
+      idToken={session.idToken}
     >
-      <HistoryRestorer />
-      <RtlChatSupport />
-      <AgentActions />
-      <div className="app-titlebar">
-        <div>
-          <h1 className="app-header">F1 Fantasy Agent</h1>
-          <p className="app-subheader">
-            Ask about upcoming races or your best teams. The Telegram bot is
-            unaffected.
-          </p>
+      <CopilotKit
+        runtimeUrl={RUNTIME_URL}
+        headers={() => ({ Authorization: `Bearer ${session.idToken}` })}
+      >
+        <HistoryRestorer />
+        <RtlChatSupport />
+        <AgentActions />
+        <div className="app-titlebar">
+          <div>
+            <h1 className="app-header">F1 Fantasy Agent</h1>
+            <p className="app-subheader">
+              Ask about upcoming races or your best teams. The Telegram bot is
+              unaffected.
+            </p>
+          </div>
+          <div className="app-actions">
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+            <SignedInBadge />
+            <ClearHistoryButton />
+          </div>
         </div>
-        <div className="app-actions">
-          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-          <SignedInBadge />
-          <ClearHistoryButton />
+        <div className="chat-wrapper">
+          <CopilotChat
+            instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
+            labels={{
+              title: 'F1 Fantasy Agent',
+              initial:
+                'Hi! Try: "best teams for kilzid3 with Verstappen but no Alonso".',
+            }}
+          />
         </div>
-      </div>
-      <div className="chat-wrapper">
-        <CopilotChat
-          instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
-          labels={{
-            title: 'F1 Fantasy Agent',
-            initial:
-              'Hi! Try: "best teams for kilzid3 with Verstappen but no Alonso".',
-          }}
-        />
-      </div>
-    </CopilotKit>
+      </CopilotKit>
+    </WriteDecisionProvider>
   );
 }
 
@@ -154,34 +169,36 @@ function UnauthedAgent({
   onToggleTheme: () => void;
 }) {
   return (
-    <CopilotKit runtimeUrl={RUNTIME_URL}>
-      <HistoryRestorer />
-      <RtlChatSupport />
-      <AgentActions />
-      <div className="app-titlebar">
-        <div>
-          <h1 className="app-header">F1 Fantasy Agent</h1>
-          <p className="app-subheader">
-            Ask about upcoming races or your best teams. The Telegram bot is
-            unaffected.
-          </p>
+    <WriteDecisionProvider runtimeUrl={RUNTIME_URL}>
+      <CopilotKit runtimeUrl={RUNTIME_URL}>
+        <HistoryRestorer />
+        <RtlChatSupport />
+        <AgentActions />
+        <div className="app-titlebar">
+          <div>
+            <h1 className="app-header">F1 Fantasy Agent</h1>
+            <p className="app-subheader">
+              Ask about upcoming races or your best teams. The Telegram bot is
+              unaffected.
+            </p>
+          </div>
+          <div className="app-actions">
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+            <ClearHistoryButton />
+          </div>
         </div>
-        <div className="app-actions">
-          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-          <ClearHistoryButton />
+        <div className="chat-wrapper">
+          <CopilotChat
+            instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
+            labels={{
+              title: 'F1 Fantasy Agent',
+              initial:
+                'Hi! Try: "best teams for kilzid3 with Verstappen but no Alonso".',
+            }}
+          />
         </div>
-      </div>
-      <div className="chat-wrapper">
-        <CopilotChat
-          instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
-          labels={{
-            title: 'F1 Fantasy Agent',
-            initial:
-              'Hi! Try: "best teams for kilzid3 with Verstappen but no Alonso".',
-          }}
-        />
-      </div>
-    </CopilotKit>
+      </CopilotKit>
+    </WriteDecisionProvider>
   );
 }
 

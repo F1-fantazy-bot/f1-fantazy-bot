@@ -1,0 +1,111 @@
+// Generic result card rendered when a write tool (or `confirm_write`)
+// returns a non-`confirmation_required` status. Mirrors the visual
+// language of `ToolErrorFallback` so success / failure feel like one
+// design system.
+
+export type WriteResultStatus =
+  | 'ok'
+  | 'invalid_input'
+  | 'not_found'
+  | 'forbidden'
+  | 'limit_exceeded';
+
+export type WriteResult = {
+  status?: WriteResultStatus | string;
+  tool?: string;
+  summary?: string;
+  details?: unknown;
+};
+
+const STATUS_STYLES: Record<
+  WriteResultStatus,
+  { bg: string; border: string; fg: string; icon: string; title: string }
+> = {
+  ok: {
+    bg: '#eefaf0',
+    border: '#bfe5c7',
+    fg: '#1e5b2d',
+    icon: '✅',
+    title: 'Done',
+  },
+  invalid_input: {
+    bg: '#fff7e6',
+    border: '#f1d28a',
+    fg: '#7a4f10',
+    icon: '⚠️',
+    title: "Couldn't apply that change",
+  },
+  not_found: {
+    bg: '#f4f4f6',
+    border: '#d5d5dc',
+    fg: '#4a4a52',
+    icon: 'ℹ️',
+    title: 'Nothing to do',
+  },
+  forbidden: {
+    bg: '#fff1f1',
+    border: '#f3c2c2',
+    fg: '#7a1f1f',
+    icon: '🚫',
+    title: 'Not allowed',
+  },
+  limit_exceeded: {
+    bg: '#fff1f1',
+    border: '#f3c2c2',
+    fg: '#7a1f1f',
+    icon: '🚦',
+    title: 'Limit reached',
+  },
+};
+
+function isKnownStatus(value: unknown): value is WriteResultStatus {
+  return (
+    typeof value === 'string' &&
+    Object.prototype.hasOwnProperty.call(STATUS_STYLES, value)
+  );
+}
+
+export function isWriteResult(value: unknown): value is WriteResult {
+  if (value === null || typeof value !== 'object') return false;
+  const status = (value as { status?: unknown }).status;
+  return isKnownStatus(status);
+}
+
+export function WriteResultCard({ result }: { result: WriteResult }) {
+  const status = isKnownStatus(result.status) ? result.status : 'ok';
+  const style = STATUS_STYLES[status];
+  const summary =
+    typeof result.summary === 'string' && result.summary.length > 0
+      ? result.summary
+      : 'No details provided.';
+
+  return (
+    <div
+      role="status"
+      style={{
+        padding: '12px 14px',
+        background: style.bg,
+        border: `1px solid ${style.border}`,
+        borderRadius: 8,
+        color: style.fg,
+        margin: '6px 0',
+      }}
+    >
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>
+        {style.icon} {style.title}
+      </div>
+      <div style={{ fontSize: 13, lineHeight: 1.4 }}>{summary}</div>
+      {result.tool ? (
+        <details style={{ marginTop: 6, fontSize: 11, opacity: 0.8 }}>
+          <summary style={{ cursor: 'pointer', userSelect: 'none' }}>
+            Details
+          </summary>
+          <div style={{ marginTop: 4, fontFamily: 'monospace' }}>
+            <div>tool: {result.tool}</div>
+            <div>status: {String(result.status ?? '')}</div>
+          </div>
+        </details>
+      ) : null}
+    </div>
+  );
+}

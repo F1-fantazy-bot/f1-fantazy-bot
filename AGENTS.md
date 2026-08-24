@@ -665,7 +665,11 @@ f1-fantazy-bot/
 │   │   ├── notifierBot.js            # Singleton non-polling TelegramBot for the agent process (Phase 6.1)
 │   │   ├── tokenUsageMiddleware.js   # LanguageModelV3 middleware that logs per-step token usage (Phase 6.1)
 │   │   ├── wrapToolExecute.js        # try/catch wrapper that returns `{status:'tool_error', errorId, ...}` (Phase 6.2)
+│   │   ├── writeToolHelpers.js       # defineWriteTool + approved-intent consume/commit registry
+│   │   ├── writeDecision.js          # authenticated approve/cancel application for staged writes
 │   │   └── runtime.js                # BuiltInAgent + CopilotRuntime + createCopilotRuntimeHandler (+ wrapLanguageModel)
+│   ├── services/
+│   │   └── pendingWritesStore.js     # Azure Table-backed staged/approved intents + TTL + ETag consume
 │   ├── bestTeamsCalculator.js        # exports an optional `options` arg: filters + rankBy + resultCount
 │   └── commandsHandler/
 │       ├── nextRacesHandler.js       # refactored: thin Telegram adapter over the core
@@ -835,6 +839,53 @@ wrapToolExecute(name, fn) catches → generates 8-char errorId (slice of randomU
 - The user-facing return value of `wrapToolExecute` MUST NOT include `err.message` or any derived form of the original error. The 8-char `errorId` is the only correlation surface the user sees.
 - There is a regression test in `wrapToolExecute.test.js` titled _"NEVER includes the raw technical message in the returned user-facing result"_ that asserts URLs / SAS tokens / `sig=` query params cannot leak into the serialized result. **Do not weaken this test** — it's the guard rail that catches a future contributor who tries to "be helpful" by passing `err.message` to the UI.
 - The full error (with stack) DOES go to `ERRORS_CHANNEL_ID` so on-call has everything they need to debug; the channel is private. The `errorId` is the same in both places, so support → channel correlation is one grep.
+
+### Write-tool confirmation infrastructure
+
+Agent writes use a two-step propose/confirm protocol, but **the model's
+possession of a nonce is not authorization**:
+
+1. `defineWriteTool(...)` validates a proposal and stores a serializable
+   intent in Azure Table `PendingAgentWrites` with
+   `{ partitionKey: chatId, rowKey: nonce, state: 'staged', tool, args,
+   summary, expiresAt }`. No mutation runs.
+2. `<WriteConfirmCard>` shows Yes / Cancel. The button calls the exact
+   authenticated webhook route `/api/agent/write-decision`; it runs the
+   same Google token + allowlist pipeline as CopilotKit traffic.
+3. **Yes** changes the matching chat-owned row to `approved` using its
+   ETag. Only after that succeeds does the UI append the nonce-bearing
+   user message that lets the model call `confirm_write`.
+4. **Cancel** deletes the row immediately and appends a nonce-free
+   cancellation message.
+5. `confirm_write` returns `forbidden` for a staged row. For an approved
+   row it performs an ETag-protected delete; only the Function instance
+   that wins that atomic single-use consume may invoke the registered
+   commit handler.
+
+The durable table is required because proposal and confirmation are
+separate HTTP turns: Azure Functions Consumption may route them to
+different workers or recycle the first worker. Commit functions remain
+process-local code in `WRITE_TOOL_REGISTRY`; the table stores only
+`tool` + JSON args and resolves the handler by tool name after consume.
+
+Expired rows are rejected on every point lookup and removed by a
+throttled table sweep started by new proposals. Never replace this with
+a module-level Map or rely on the system prompt's “never auto-confirm”
+instruction as the security boundary.
+
+Key files:
+
+- `src/services/pendingWritesStore.js` — durable staging, approval,
+  cancellation, TTL sweep, ETag consume.
+- `src/agent/writeToolHelpers.js` — `defineWriteTool` and commit
+  registry.
+- `src/agent/writeDecision.js` + `agentWebhook/index.js` — authenticated
+  decision endpoint.
+- `web/src/components/WriteDecisionContext.tsx` — decision HTTP client
+  and provider.
+- `web/src/components/WriteConfirmCard.tsx` — server decision first,
+  then chat message.
+- `docs/agent-write-tools-plan.md` — per-write-tool rollout.
 
 ### Environment variables
 
@@ -1259,6 +1310,11 @@ messages must go through `clear()` first, then through
 | `src/agent/notifierBot.js` | Singleton non-polling `TelegramBot` for the agent process (Phase 6.1). Real bot when `TELEGRAM_BOT_TOKEN` set, noop fallback otherwise. Polling stays disabled so it never conflicts with the main bot's poller on the same token. |
 | `src/agent/tokenUsageMiddleware.js` | `LanguageModelV3Middleware` that pipes the stream through a `TransformStream` and logs every `finish` chunk's per-step token usage (Phase 6.1). Reads the V3 NESTED usage shape (`usage.inputTokens.total` / `usage.outputTokens.total`). Logging is fire-and-forget — a Telegram outage cannot break the LLM stream. |
 | `src/agent/wrapToolExecute.js` | `wrapToolExecute(toolName, fn)` try/catches the execute and returns `{ status: 'tool_error', tool, errorId, userMessage }` on throw (Phase 6.2). Full error → `ERRORS_CHANNEL_ID` via `sendErrorMessage(notifierBot, …)`. The 8-char `errorId` is the user-visible correlation token. Raw `err.message` is NEVER included in the returned UI shape. |
+| `src/agent/writeToolHelpers.js` | `defineWriteTool(...)` stages serializable intents and registers commit handlers; `executeConfirmedWrite` consumes only server-approved intents. |
+| `src/agent/writeDecision.js` | Applies authenticated UI `approve` / `cancel` decisions to the durable pending-write row. |
+| `src/services/pendingWritesStore.js` | Azure Table `PendingAgentWrites`: chat-isolated staged/approved intents, ~5-minute TTL, immediate cancel, throttled expiry sweep, ETag-protected single-use consume. |
+| `web/src/components/WriteDecisionContext.tsx` | Builds `/api/agent/write-decision`, attaches the Google bearer token, and exposes the decision client to confirmation cards. |
+| `web/src/components/WriteConfirmCard.tsx` | Yes/Cancel UI. Records the authenticated server decision before appending any chat message; never sends a nonce on cancellation. |
 | `web/src/components/ToolErrorFallback.tsx` | Shared red-banner fallback + `isToolErrorResult()` type-guard (Phase 6.2). All 12 render hooks short-circuit on `tool_error` via this component — no JSX duplication. |
 | `agentWebhook/function.json` | Azure Functions httpTrigger config (route `agent/{*restOfPath}`). |
 | `agentWebhook/index.js` | Bridges Azure Functions v3 (context, req) onto a Web Request; handles OPTIONS preflight + CORS; tolerant of both `Uint8Array` and string body chunks. |

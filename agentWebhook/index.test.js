@@ -24,8 +24,18 @@ jest.mock('../src/agent/auth', () => {
   };
 });
 
+jest.mock('../src/agent/writeDecision', () => ({
+  applyWriteDecision: jest.fn(),
+}));
+
+jest.mock('../src/agent/identity', () => ({
+  getAgentChatId: jest.fn(() => 999),
+}));
+
 const { __handler: copilotHandler } = require('../src/agent/runtime');
 const { authenticateRequest, STATUS } = require('../src/agent/auth');
+const { applyWriteDecision } = require('../src/agent/writeDecision');
+const { getAgentChatId } = require('../src/agent/identity');
 const { getRequestContext } = require('../src/agent/requestContext');
 const webhook = require('./index');
 
@@ -54,6 +64,15 @@ function makeWhoamiReq(overrides = {}) {
   });
 }
 
+function makeWriteDecisionReq(overrides = {}) {
+  return makeReq({
+    method: 'POST',
+    url: '/api/agent/write-decision',
+    body: { writeNonce: 'n1', decision: 'approve' },
+    ...overrides,
+  });
+}
+
 function makeCtx() {
   const logs = [];
 
@@ -68,6 +87,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   copilotHandler.mockReset();
   authenticateRequest.mockReset();
+  applyWriteDecision.mockReset();
+  getAgentChatId.mockClear();
 });
 
 describe('agentWebhook', () => {
@@ -296,5 +317,84 @@ describe('agentWebhook → /whoami', () => {
     expect(copilotHandler).toHaveBeenCalledTimes(1);
     expect(ctx.res.status).toBe(200);
     expect(ctx.res.body).toBe('agent-ok');
+  });
+});
+
+describe('agentWebhook → /write-decision', () => {
+  test('authenticated approval uses the allowlisted chatId and never invokes CopilotKit', async () => {
+    authenticateRequest.mockResolvedValueOnce({
+      status: STATUS.OK,
+      chatId: 12345,
+      email: 'foo@example.com',
+      name: 'Foo',
+      sub: 's1',
+    });
+    applyWriteDecision.mockResolvedValueOnce({
+      status: 200,
+      body: { status: 'approved', writeNonce: 'n1' },
+    });
+
+    const ctx = makeCtx();
+    await webhook(ctx, makeWriteDecisionReq());
+
+    expect(applyWriteDecision).toHaveBeenCalledWith({
+      chatId: 12345,
+      payload: { writeNonce: 'n1', decision: 'approve' },
+    });
+    expect(copilotHandler).not.toHaveBeenCalled();
+    expect(ctx.res.status).toBe(200);
+    expect(JSON.parse(ctx.res.body)).toEqual({
+      status: 'approved',
+      writeNonce: 'n1',
+    });
+  });
+
+  test('bypassed local-dev decision uses the configured fallback chatId', async () => {
+    authenticateRequest.mockResolvedValueOnce({ status: STATUS.BYPASSED });
+    getAgentChatId.mockReturnValueOnce(999);
+    applyWriteDecision.mockResolvedValueOnce({
+      status: 200,
+      body: { status: 'cancelled', writeNonce: 'n1' },
+    });
+
+    const ctx = makeCtx();
+    await webhook(
+      ctx,
+      makeWriteDecisionReq({
+        body: { writeNonce: 'n1', decision: 'cancel' },
+      }),
+    );
+
+    expect(applyWriteDecision).toHaveBeenCalledWith({
+      chatId: 999,
+      payload: { writeNonce: 'n1', decision: 'cancel' },
+    });
+    expect(ctx.res.status).toBe(200);
+  });
+
+  test('auth rejection happens before the decision handler', async () => {
+    authenticateRequest.mockResolvedValueOnce({
+      status: STATUS.UNAUTHORIZED,
+      reason: 'invalid_token',
+    });
+
+    const ctx = makeCtx();
+    await webhook(ctx, makeWriteDecisionReq());
+
+    expect(ctx.res.status).toBe(401);
+    expect(applyWriteDecision).not.toHaveBeenCalled();
+  });
+
+  test('GET returns 405 before auth and advertises POST', async () => {
+    const ctx = makeCtx();
+    await webhook(
+      ctx,
+      makeWriteDecisionReq({ method: 'GET', body: undefined }),
+    );
+
+    expect(ctx.res.status).toBe(405);
+    expect(ctx.res.headers.Allow).toBe('POST, OPTIONS');
+    expect(authenticateRequest).not.toHaveBeenCalled();
+    expect(applyWriteDecision).not.toHaveBeenCalled();
   });
 });

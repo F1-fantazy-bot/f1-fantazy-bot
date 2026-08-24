@@ -6,7 +6,7 @@
 # The `f1-fantazy-agent-web-test` SWA (provisioned via
 # infra/agent-web-test/azuredeploy.json) is dedicated to PR validation
 # — every PR build replaces its content. PRs deploy directly to the
-# test SWA's `default` (production) environment, which means:
+# test SWA's default production environment, which means:
 # - The URL is a fixed `test.f1.kilzid.com` (Google OAuth-allowlisted).
 # - We never fight the SWA action's `pull_request`-event behavior
 #   (which silently auto-creates per-PR preview environments).
@@ -73,15 +73,16 @@ jobs:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
         run: npm run build
 
-      - name: Deploy to f1-fantazy-agent-web-test SWA (default env, via SWA CLI)
+      - name: Deploy to f1-fantazy-agent-web-test SWA (production env, via SWA CLI)
         # Why the SWA CLI and not Azure/static-web-apps-deploy@v1?
         # On `pull_request` events the action silently overrides any
         # environment target and creates a per-PR-numbered preview
         # environment on the SWA. We need the deploy to land in the
-        # test SWA's `default` (production) environment so it's
+        # test SWA's production environment so it's
         # reachable at the fixed `test.f1.kilzid.com` URL that's
         # allowlisted in Google OAuth + the test slot CORS. The SWA
-        # CLI honours `--env default` regardless of trigger context.
+        # CLI names the default environment `production`; passing
+        # `--env default` is rejected by the deployment service.
         #
         # AZURE_STATIC_WEB_APPS_API_TOKEN_TEST is a separate secret
         # bound to the test SWA's deployment token (NOT the prod SWA's
@@ -90,7 +91,7 @@ jobs:
         # then re-set the GH secret.
         run: |
           npx -y @azure/static-web-apps-cli@latest deploy web/dist \
-            --env default \
+            --env production \
             --deployment-token "${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_TEST }}" \
             --no-use-keychain
 
