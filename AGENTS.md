@@ -276,6 +276,19 @@ All methods are **async** — they interact with Azure Table Storage. The table 
 3. Errors are caught and logged silently (`console.error`) — the user registry never blocks or breaks message handling.
 4. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) calls `listAllUsers()` to fetch all registered users. `listAllUsers()` automatically returns all non-system fields from each entity, so new attributes are included without code changes. Nicknames are displayed when present.
 5. User attributes (e.g., language preferences, nicknames) are stored via `updateUserAttributes(chatId, { lang })` or `updateUserAttributes(chatId, { nickname })` — called by `setLanguageHandler.js`, `callbackQueryHandler.js`, and the `set_nickname` pending reply handler. This generic function uses Merge mode so it only writes the specified attributes without reading or overwriting others. On startup, `cacheInitializer.js` calls `listAllUsers()` once and populates the unified in-memory `userCache` with all user data (lang, nickname, chatName, etc.).
+6. Language is also refreshed from `getUserById(chatId, {
+   abortSignal })` before `messageHandler.js` routes each allowed
+   Telegram message and before `callbackQueryHandler.js` dispatches an
+   inline-button callback. This is required because the web agent and
+   Telegram bot are separate Function processes: an agent-side
+   `set_language` write updates Azure and the agent's cache, while this
+   point read hydrates the Telegram process without waiting for a
+   restart. An outer 750 ms deadline covers table initialization plus
+   the point read (and aborts the SDK request); failures are logged and
+   routing continues with the existing in-memory language. Concurrent
+   refreshes for one chat share one in-flight lookup; local writes
+   advance a per-chat operation generation that invalidates older reads
+   before they can update cache.
 
 ### Generic Merge Pattern
 
@@ -550,7 +563,14 @@ Blob naming includes the team ID:
 
 A second user-facing surface that runs the same business logic as the Telegram bot through tool calls. Architecture, code layout, and the patterns for adding new capabilities live in this section.
 
-**Status (2026-05-18):** v1 capability scope is COMPLETE; Phase 6 (polish & hardening) is in flight. Phase 6.1 (per-step token-usage logging via AI SDK middleware, PR [#188](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/188)) and Phase 6.2 (friendly tool-error UX with opaque `errorId`, PR [#189](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/189)) are merged. See [Token usage logging](#token-usage-logging-phase-61) and [Tool error handling](#tool-error-handling-phase-62) below.
+**Status (2026-08-24):** the read-only v1 capability scope, Phase 6
+hardening, Azure deployment, Google auth, and CORS rollout are complete.
+The effectful write-tools rollout is now active: PR
+[#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207)
+merged the durable confirmation infrastructure; `set_language` is the
+first concrete write tool. See [Write-tool confirmation
+infrastructure](#write-tool-confirmation-infrastructure) and
+[`docs/agent-write-tools-plan.md`](docs/agent-write-tools-plan.md).
 
 Phase-5 capabilities (shipped — v1 capability scope is now COMPLETE):
 
@@ -667,9 +687,14 @@ f1-fantazy-bot/
 │   │   ├── wrapToolExecute.js        # try/catch wrapper that returns `{status:'tool_error', errorId, ...}` (Phase 6.2)
 │   │   ├── writeToolHelpers.js       # defineWriteTool + approved-intent consume/commit registry
 │   │   ├── writeDecision.js          # authenticated approve/cancel application for staged writes
+│   │   ├── readTools/
+│   │   │   └── getLanguageTool.js    # read current persisted account language
+│   │   ├── writeTools/
+│   │   │   └── setLanguageTool.js    # first concrete write tool: en/he preference
 │   │   └── runtime.js                # BuiltInAgent + CopilotRuntime + createCopilotRuntimeHandler (+ wrapLanguageModel)
 │   ├── services/
-│   │   └── pendingWritesStore.js     # Azure Table-backed staged/approved intents + TTL + ETag consume
+│   │   ├── pendingWritesStore.js     # Azure Table-backed staged/approved intents + TTL + ETag consume
+│   │   └── setLanguageService.js     # shared Telegram/agent language persistence + hydration
 │   ├── bestTeamsCalculator.js        # exports an optional `options` arg: filters + rankBy + resultCount
 │   └── commandsHandler/
 │       ├── nextRacesHandler.js       # refactored: thin Telegram adapter over the core
@@ -853,8 +878,18 @@ possession of a nonce is not authorization**:
    authenticated webhook route `/api/agent/write-decision`; it runs the
    same Google token + allowlist pipeline as CopilotKit traffic.
 3. **Yes** changes the matching chat-owned row to `approved` using its
-   ETag. Only after that succeeds does the UI append the nonce-bearing
-   user message that lets the model call `confirm_write`.
+   ETag. Only after that succeeds does the UI add the nonce-bearing
+   instruction as an AG-UI `developer` message directly to the v2 agent
+   and call
+   `copilotkit.runAgent({ agent })` with that SAME instance. This
+   coordinated runner detaches an active proposal run before starting
+   the confirmation turn. CopilotKit renders only `user`/`assistant`
+   messages, and `chatHistoryStore` drops developer rows, so the nonce is
+   neither shown nor persisted. Do not mix legacy `appendMessage` with a
+   separately acquired agent, call `agent.runAgent()` directly, or use
+   `runChatCompletion` (declared but absent at runtime in 1.57.4).
+   `BuiltInAgent` MUST retain `forwardDeveloperMessages: true`; without
+   it, CopilotKit drops this hidden instruction before model conversion.
 4. **Cancel** deletes the row immediately and appends a nonce-free
    cancellation message.
 5. `confirm_write` returns `forbidden` for a staged row. For an approved
@@ -884,8 +919,40 @@ Key files:
 - `web/src/components/WriteDecisionContext.tsx` — decision HTTP client
   and provider.
 - `web/src/components/WriteConfirmCard.tsx` — server decision first,
-  then chat message.
+  then hidden developer `agent.addMessage` + coordinated
+  `copilotkit.runAgent({ agent })` follow-up.
 - `docs/agent-write-tools-plan.md` — per-write-tool rollout.
+
+Concrete write tools currently available:
+
+- `set_language({ lang: 'en' | 'he' })` — shared
+  `src/services/setLanguageService.js`. Both `/lang` and the LANG
+  callback delegate to the service; the web agent uses
+  `src/agent/writeTools/setLanguageTool.js`. Because Telegram and the
+  agent run in separate Function processes, both message and callback
+  dispatch refresh persisted `userCache.lang` through a `getUserById`
+  operation with an outer 750 ms deadline covering initialization and
+  lookup. Concurrent refreshes are coalesced, and local writes invalidate
+  older reads through a per-chat operation generation. Do not remove this
+  refresh without replacing it with another cross-process invalidation
+  mechanism.
+- `get_language()` — read-only companion for questions about the
+  currently configured account language. Never route those questions
+  through `set_language`; requesting the already-active language from
+  `set_language` is a no-op (`changed: false`) and must not stage a
+  confirmation. Both the read tool and the no-op check perform the
+  bounded durable refresh first, so a warm agent instance does not rely
+  on stale startup cache. A same-language no-op is allowed only when
+  that durable refresh succeeds; on timeout, the write proceeds through
+  confirmation rather than trusting cache as durable proof.
+
+Write-tool envelopes carry `uiLang` on success and expected failure
+paths, which localizes the shared confirmation/result card shell.
+`get_next_race_info` refreshes and returns the saved language so
+`RaceInfoCard` can render Hebrew labels, `he-IL` dates, Hebrew track
+history, and RTL layout. When adding another rich component, do not
+assume the assistant's text language automatically localizes hardcoded
+React labels — pass/consume the saved language explicitly.
 
 ### Environment variables
 

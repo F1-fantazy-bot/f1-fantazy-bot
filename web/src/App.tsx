@@ -54,8 +54,12 @@ function AgentActions() {
   useCurrentTeamAction();
   useLiveScoreBreakdownAction();
   useLiveScoreLeaderboardAction();
-  // Write tools register through the shared factory. PR-1 only wires
-  // `confirm_write`; the concrete write tools land in subsequent PRs.
+  // Write tools register through the shared confirmation/result factory.
+  useWriteAction({
+    name: 'set_language',
+    description: 'Change the signed-in user language to English or Hebrew.',
+    loadingLabel: 'Preparing language change…',
+  });
   useWriteAction({
     name: 'confirm_write',
     description:

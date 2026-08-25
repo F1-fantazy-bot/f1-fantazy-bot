@@ -23,6 +23,10 @@ jest.mock('./identity', () => ({
   getAgentChatId: jest.fn(() => 42),
 }));
 
+jest.mock('../services/setLanguageService', () => ({
+  getFreshLanguagePreference: jest.fn(async () => ({ lang: 'en' })),
+}));
+
 jest.mock('../services/pendingWritesStore', () => {
   const intents = new Map();
   let nonceCounter = 0;
@@ -79,6 +83,10 @@ const {
 const { ensureCacheReady } = require('./cacheBootstrap');
 const { getAgentChatId } = require('./identity');
 const {
+  getFreshLanguagePreference,
+} = require('../services/setLanguageService');
+const { userCache } = require('../cache');
+const {
   approvePendingWrite,
   resetForTests: resetStore,
 } = require('../services/pendingWritesStore');
@@ -89,6 +97,10 @@ beforeEach(() => {
   ensureCacheReady.mockClear();
   getAgentChatId.mockReset();
   getAgentChatId.mockReturnValue(42);
+  getFreshLanguagePreference.mockResolvedValue({ lang: 'en', fresh: true });
+  for (const key of Object.keys(userCache)) {
+    delete userCache[key];
+  }
 });
 
 function buildTool(overrides = {}) {
@@ -115,6 +127,7 @@ describe('defineWriteTool — propose-call behaviour', () => {
     expect(result.writeNonce.length).toBeGreaterThan(0);
     expect(result.summary).toBe('Change language to "he".');
     expect(result.args).toEqual({ lang: 'he' });
+    expect(result.uiLang).toBe('en');
   });
 
   test('does NOT call commit on the propose call', async () => {
@@ -182,6 +195,7 @@ describe('executeConfirmedWrite — confirm-call behaviour', () => {
     });
 
     expect(result.status).toBe(WRITE_RESULT_STATUSES.FORBIDDEN);
+    expect(result.uiLang).toBe('en');
     expect(commit).not.toHaveBeenCalled();
   });
 
@@ -213,6 +227,20 @@ describe('executeConfirmedWrite — confirm-call behaviour', () => {
       writeNonce: 'no-such-nonce',
     });
     expect(result.status).toBe(WRITE_RESULT_STATUSES.NOT_FOUND);
+    expect(result.uiLang).toBe('en');
+  });
+
+  test('localizes expected confirmation failures from the refreshed language', async () => {
+    userCache['42'] = { lang: 'he' };
+    getFreshLanguagePreference.mockResolvedValue({ lang: 'he', fresh: true });
+
+    const result = await executeConfirmedWrite({
+      chatId: 42,
+      writeNonce: 'no-such-nonce',
+    });
+
+    expect(result.uiLang).toBe('he');
+    expect(result.summary).toContain('לא נמצא שינוי ממתין');
   });
 
   test('rejects a nonce that was issued for a different chatId', async () => {

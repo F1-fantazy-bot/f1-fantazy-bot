@@ -30,10 +30,15 @@ const {
   listLeagueTeams,
 } = require('../cores/liveScoreCore');
 const { listUserLeagues } = require('../leagueRegistryService');
+const {
+  getFreshLanguagePreference,
+} = require('../services/setLanguageService');
 const { getAgentChatId } = require('./identity');
 const { ensureCacheReady } = require('./cacheBootstrap');
 const { wrapToolExecute } = require('./wrapToolExecute');
 const { executeConfirmedWrite } = require('./writeToolHelpers');
+const { setLanguageTool } = require('./writeTools/setLanguageTool');
+const { getLanguageTool } = require('./readTools/getLanguageTool');
 
 // Trim a best-teams calculator row down to the fields the React component
 // actually renders. Sending the full driver/constructor dictionaries (which
@@ -256,6 +261,8 @@ const tools = [
     }),
   }),
 
+  getLanguageTool,
+
   defineTool({
     name: 'get_next_race_info',
     description:
@@ -263,8 +270,14 @@ const tools = [
     parameters: z.object({}),
     execute: wrapToolExecute('get_next_race_info', async () => {
       await ensureCacheReady();
+      const chatId = getAgentChatId();
+      const result = await getNextRaceInfo();
+      const { lang } = await getFreshLanguagePreference(chatId);
 
-      return await getNextRaceInfo();
+      return {
+        ...result,
+        lang,
+      };
     }),
   }),
 
@@ -424,6 +437,8 @@ const tools = [
   // staged intent. The LLM may only call it AFTER the user clicks
   // "Yes" on the <WriteConfirmCard> rendered in the chat stream.
   // ---------------------------------------------------------------
+  setLanguageTool,
+
   defineTool({
     name: 'confirm_write',
     description:

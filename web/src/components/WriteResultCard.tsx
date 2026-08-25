@@ -15,6 +15,7 @@ export type WriteResult = {
   tool?: string;
   summary?: string;
   details?: unknown;
+  uiLang?: string;
 };
 
 const STATUS_STYLES: Record<
@@ -74,14 +75,33 @@ export function isWriteResult(value: unknown): value is WriteResult {
 export function WriteResultCard({ result }: { result: WriteResult }) {
   const status = isKnownStatus(result.status) ? result.status : 'ok';
   const style = STATUS_STYLES[status];
+  const isHebrew = result.uiLang === 'he';
+  const titles: Record<WriteResultStatus, string> = isHebrew
+    ? {
+        ok: 'בוצע',
+        invalid_input: 'לא ניתן לבצע את השינוי',
+        not_found: 'אין מה לבצע',
+        forbidden: 'הפעולה אינה מורשית',
+        limit_exceeded: 'הגעת למגבלה',
+      }
+    : {
+        ok: style.title,
+        invalid_input: STATUS_STYLES.invalid_input.title,
+        not_found: STATUS_STYLES.not_found.title,
+        forbidden: STATUS_STYLES.forbidden.title,
+        limit_exceeded: STATUS_STYLES.limit_exceeded.title,
+      };
   const summary =
     typeof result.summary === 'string' && result.summary.length > 0
       ? result.summary
-      : 'No details provided.';
+      : isHebrew
+        ? 'לא סופקו פרטים.'
+        : 'No details provided.';
 
   return (
     <div
       role="status"
+      dir={isHebrew ? 'rtl' : 'ltr'}
       style={{
         padding: '12px 14px',
         background: style.bg,
@@ -92,17 +112,21 @@ export function WriteResultCard({ result }: { result: WriteResult }) {
       }}
     >
       <div style={{ fontWeight: 700, marginBottom: 4 }}>
-        {style.icon} {style.title}
+        {style.icon} {titles[status]}
       </div>
       <div style={{ fontSize: 13, lineHeight: 1.4 }}>{summary}</div>
       {result.tool ? (
         <details style={{ marginTop: 6, fontSize: 11, opacity: 0.8 }}>
           <summary style={{ cursor: 'pointer', userSelect: 'none' }}>
-            Details
+            {isHebrew ? 'פרטים' : 'Details'}
           </summary>
           <div style={{ marginTop: 4, fontFamily: 'monospace' }}>
-            <div>tool: {result.tool}</div>
-            <div>status: {String(result.status ?? '')}</div>
+            <div>
+              {isHebrew ? 'כלי' : 'tool'}: {result.tool}
+            </div>
+            <div>
+              {isHebrew ? 'מצב' : 'status'}: {String(result.status ?? '')}
+            </div>
           </div>
         </details>
       ) : null}

@@ -332,6 +332,24 @@ describe('userRegistryService', () => {
       });
     });
 
+    it('should forward an optional abort signal to the table point read', async () => {
+      mockGetEntity.mockResolvedValueOnce({
+        partitionKey: 'User',
+        rowKey: '456',
+        lang: 'he',
+      });
+      const controller = new AbortController();
+
+      const result = await userRegistryService.getUserById(456, {
+        abortSignal: controller.signal,
+      });
+
+      expect(mockGetEntity).toHaveBeenCalledWith('User', '456', {
+        abortSignal: controller.signal,
+      });
+      expect(result.lang).toBe('he');
+    });
+
     it('should exclude Azure system fields from returned data', async () => {
       mockGetEntity.mockResolvedValueOnce({
         partitionKey: 'User',

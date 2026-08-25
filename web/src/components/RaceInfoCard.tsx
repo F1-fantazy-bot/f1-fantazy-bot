@@ -31,9 +31,11 @@ type HistoricalRow = {
 };
 
 type TrackHistory = { lang?: string; text?: string };
+type UiLanguage = 'en' | 'he';
 
 type RaceInfoResult = {
   status?: 'ok' | 'unavailable';
+  lang?: string;
   raceName?: string;
   circuitName?: string;
   circuitImageUrl?: string;
@@ -52,11 +54,57 @@ type RaceInfoResult = {
   };
 };
 
-function formatIso(iso?: string): string {
+const copy = {
+  en: {
+    unavailable:
+      "Race information isn't available right now. Try again in a moment.",
+    regularWeekend: 'REGULAR weekend',
+    sprintWeekend: 'SPRINT weekend',
+    circuitMap: 'Circuit map',
+    schedule: 'Schedule',
+    sprintQualifying: 'Sprint Qualifying',
+    sprint: 'Sprint',
+    qualifying: 'Qualifying',
+    race: 'Race',
+    weather: 'Weather forecast',
+    qualiShort: 'Quali',
+    historical: 'Historical results',
+    year: 'Year',
+    pole: 'Pole',
+    winner: 'Winner',
+    second: '2nd',
+    third: '3rd',
+    finished: 'Finished',
+    trackHistory: 'Track history',
+  },
+  he: {
+    unavailable: 'מידע על המרוץ אינו זמין כרגע. נסה שוב בעוד רגע.',
+    regularWeekend: 'סוף שבוע רגיל',
+    sprintWeekend: 'סוף שבוע ספרינט',
+    circuitMap: 'מפת המסלול',
+    schedule: 'לוח זמנים',
+    sprintQualifying: 'מקצה דירוג ספרינט',
+    sprint: 'ספרינט',
+    qualifying: 'דירוג',
+    race: 'מרוץ',
+    weather: 'תחזית מזג האוויר',
+    qualiShort: 'דירוג',
+    historical: 'תוצאות היסטוריות',
+    year: 'שנה',
+    pole: 'פול פוזישן',
+    winner: 'מנצח',
+    second: 'מקום 2',
+    third: 'מקום 3',
+    finished: 'סיימו',
+    trackHistory: 'היסטוריית המסלול',
+  },
+} as const;
+
+function formatIso(iso: string | undefined, lang: UiLanguage): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString(lang === 'he' ? 'he-IL' : 'en-GB', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -65,10 +113,14 @@ function formatIso(iso?: string): string {
   });
 }
 
-function pickTrackHistory(entries?: TrackHistory[]): string | null {
+function pickTrackHistory(
+  entries: TrackHistory[] | undefined,
+  lang: UiLanguage,
+): string | null {
   if (!entries || entries.length === 0) return null;
-  const en = entries.find((h) => h.lang === 'en');
-  return (en ?? entries[0]).text ?? null;
+  const preferred = entries.find((h) => h.lang === lang);
+  const english = entries.find((h) => h.lang === 'en');
+  return (preferred ?? english ?? entries[0]).text ?? null;
 }
 
 function WeatherChip({
@@ -102,16 +154,19 @@ function WeatherChip({
   );
 }
 
-function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
+export function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
+  const lang: UiLanguage = result?.lang === 'he' ? 'he' : 'en';
+  const labels = copy[lang];
+
   if (!result || result.status === 'unavailable') {
     return (
       <div style={{ padding: 12, color: 'var(--app-muted)' }}>
-        Race information isn't available right now. Try again in a moment.
+        {labels.unavailable}
       </div>
     );
   }
 
-  const trackText = pickTrackHistory(result.trackHistory);
+  const trackText = pickTrackHistory(result.trackHistory, lang);
   const stats = (result.historicalRaceStats || [])
     .slice()
     .sort((a, b) => Number(b.season ?? 0) - Number(a.season ?? 0));
@@ -121,6 +176,7 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
 
   return (
     <div
+      dir={lang === 'he' ? 'rtl' : 'ltr'}
       style={{
         margin: '8px 0',
         border: '1px solid var(--app-border)',
@@ -144,7 +200,11 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
             ? ` · ${result.location.locality}, ${result.location.country}`
             : ''}
           {result.weekendFormat
-            ? ` · ${result.weekendFormat.toUpperCase()} weekend`
+            ? ` · ${
+                result.isSprintWeekend
+                  ? labels.sprintWeekend
+                  : labels.regularWeekend
+              }`
             : ''}
         </div>
       </div>
@@ -153,7 +213,7 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
         <div style={{ padding: '12px 16px 0' }}>
           <img
             src={result.circuitImageUrl}
-            alt={`${result.circuitName ?? 'Circuit'} map`}
+            alt={`${result.circuitName ?? ''} ${labels.circuitMap}`.trim()}
             style={{
               maxWidth: '100%',
               maxHeight: 260,
@@ -166,7 +226,9 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
       ) : null}
 
       <div style={{ padding: '12px 16px' }}>
-        <div style={{ fontWeight: 700, marginBottom: 6 }}>Schedule</div>
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>
+          {labels.schedule}
+        </div>
         <div
           style={{
             display: 'grid',
@@ -176,20 +238,22 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
         >
           {isSprint && sessions.sprintQualifying ? (
             <>
-              <div style={{ color: 'var(--app-muted)' }}>Sprint Qualifying</div>
-              <div>{formatIso(sessions.sprintQualifying)}</div>
+              <div style={{ color: 'var(--app-muted)' }}>
+                {labels.sprintQualifying}
+              </div>
+              <div>{formatIso(sessions.sprintQualifying, lang)}</div>
             </>
           ) : null}
           {isSprint && sessions.sprint ? (
             <>
-              <div style={{ color: 'var(--app-muted)' }}>Sprint</div>
-              <div>{formatIso(sessions.sprint)}</div>
+              <div style={{ color: 'var(--app-muted)' }}>{labels.sprint}</div>
+              <div>{formatIso(sessions.sprint, lang)}</div>
             </>
           ) : null}
-          <div style={{ color: 'var(--app-muted)' }}>Qualifying</div>
-          <div>{formatIso(sessions.qualifying)}</div>
-          <div style={{ color: 'var(--app-muted)' }}>Race</div>
-          <div>{formatIso(sessions.race)}</div>
+          <div style={{ color: 'var(--app-muted)' }}>{labels.qualifying}</div>
+          <div>{formatIso(sessions.qualifying, lang)}</div>
+          <div style={{ color: 'var(--app-muted)' }}>{labels.race}</div>
+          <div>{formatIso(sessions.race, lang)}</div>
         </div>
         {/* TODO: surface FP1/FP2/FP3 once nextRaceInfoCache tracks them. */}
       </div>
@@ -197,7 +261,7 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
       {weather.qualifyingWeather && weather.raceWeather ? (
         <div style={{ padding: '0 16px 12px' }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>
-            Weather forecast
+            {labels.weather}
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {isSprint ? (
@@ -206,11 +270,17 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
                   label="SQ"
                   entry={weather.sprintQualifyingWeather}
                 />
-                <WeatherChip label="Sprint" entry={weather.sprintWeather} />
+                <WeatherChip
+                  label={labels.sprint}
+                  entry={weather.sprintWeather}
+                />
               </>
             ) : null}
-            <WeatherChip label="Quali" entry={weather.qualifyingWeather} />
-            <WeatherChip label="Race" entry={weather.raceWeather} />
+            <WeatherChip
+              label={labels.qualiShort}
+              entry={weather.qualifyingWeather}
+            />
+            <WeatherChip label={labels.race} entry={weather.raceWeather} />
           </div>
         </div>
       ) : null}
@@ -218,7 +288,7 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
       {stats.length > 0 ? (
         <div style={{ padding: '0 16px 12px' }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>
-            Historical results
+            {labels.historical}
           </div>
           <table
             style={{
@@ -231,15 +301,17 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
               <tr
                 style={{
                   background: 'var(--app-surface-subtle)',
-                  textAlign: 'left',
+                  textAlign: 'start',
                 }}
               >
-                <th style={cellHeader}>Year</th>
-                <th style={cellHeader}>Pole</th>
-                <th style={cellHeader}>Winner</th>
-                <th style={cellHeader}>2nd</th>
-                <th style={cellHeader}>3rd</th>
-                <th style={{ ...cellHeader, textAlign: 'center' }}>Finished</th>
+                <th style={cellHeader}>{labels.year}</th>
+                <th style={cellHeader}>{labels.pole}</th>
+                <th style={cellHeader}>{labels.winner}</th>
+                <th style={cellHeader}>{labels.second}</th>
+                <th style={cellHeader}>{labels.third}</th>
+                <th style={{ ...cellHeader, textAlign: 'center' }}>
+                  {labels.finished}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -296,7 +368,7 @@ function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
               color: 'var(--app-text)',
             }}
           >
-            Track history
+            {labels.trackHistory}
           </div>
           {trackText}
         </div>

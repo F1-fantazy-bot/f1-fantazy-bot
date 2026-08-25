@@ -34,7 +34,11 @@ const {
 const { sendLogMessage, sendMessageToUser } = require('./utils');
 const { ensureSourceIsScreenshot } = require('./utils/teamSourceSwitcher');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
-const { t, setLanguage, getLanguageName } = require('./i18n');
+const { t, getLanguageName } = require('./i18n');
+const {
+  setLanguagePreference,
+  refreshLanguagePreference,
+} = require('./services/setLanguageService');
 const {
   BEST_TEAM_RANKING_PRESETS,
 } = require('./commandsHandler/setBestTeamRankingHandler');
@@ -64,6 +68,15 @@ const {
 } = require('./commandsHandler/teamsTrackerHandler');
 
 exports.handleCallbackQuery = async function (bot, query) {
+  const chatId = query.message?.chat?.id;
+  if (Number.isFinite(chatId)) {
+    try {
+      await refreshLanguagePreference(chatId);
+    } catch (err) {
+      console.error('Error refreshing user language from registry:', err);
+    }
+  }
+
   const callbackType = query.data.split(':')[0];
 
   switch (callbackType) {
@@ -172,8 +185,22 @@ async function handleLanguageCallback(bot, query) {
   const messageId = query.message.message_id;
   const lang = query.data.split(':')[1];
 
-  setLanguage(lang, chatId);
-  await updateUserAttributes(chatId, { lang });
+  const result = await setLanguagePreference({ chatId, lang });
+
+  if (result.status !== 'ok') {
+    await bot.editMessageText(
+      t('Invalid language. Supported languages: {LANGS}', chatId, {
+        LANGS: result.supportedLanguages.join(', '),
+      }),
+      {
+        chat_id: chatId,
+        message_id: messageId,
+      },
+    );
+    await bot.answerCallbackQuery(query.id);
+
+    return;
+  }
 
   await bot.editMessageText(
     t('Language changed to {LANG}.', chatId, {

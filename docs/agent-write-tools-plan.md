@@ -8,7 +8,7 @@ the working plan for closing that gap — exposing the same set of writes
 as agent tools without breaking the Telegram bot.
 
 **Current state (2026-08-24):** **PR-1 (shared write-tool
-infrastructure) is delivered by
+infrastructure) is merged and delivered by
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207).**
 The review-hardening pass replaced the original process-local Map with
 durable Azure Table Storage and made UI confirmation server-enforced:
@@ -17,9 +17,12 @@ nonce approved before `confirm_write` can consume it. Cancellation
 deletes the nonce immediately. The PR also ships the `defineWriteTool`
 factory, shared `<WriteConfirmCard>` / `<WriteResultCard>` React
 components, `registerWriteAction`, and write-semantics prompt. No
-concrete write operation is registered yet, so Telegram and web-agent
-user behaviour remain unchanged. **PR-2 (`set_language`)** is the
-vertical-slice proof and is next after #207 merges.
+**PR-2 (`set_language`) is the current phase.** It adds the first
+concrete write tool, extracts the shared language service, keeps the
+Telegram `/lang` command and callback output unchanged, and refreshes
+Telegram's persisted language before routing each allowed message so
+an agent-side change crosses the separate Function-process boundary.
+PR-3 (`select_team`) is next after PR-2 merges.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -114,7 +117,20 @@ Plus a 9th supporting tool, shipped in PR-1:
    updates the matching chatId-owned row to `state: "approved"` with an
    ETag condition. Only after that succeeds does the UI append *"Yes —
    I approved this change. Use writeNonce `<nonce>` with
-   confirm_write."*
+   confirm_write."* as an AG-UI `developer` message directly to the v2
+   agent, then calls
+   `copilotkit.runAgent({ agent })` with that SAME instance. The
+   coordinated runner detaches any active proposal run before starting
+   the confirmation turn. CopilotKit's chat renderer returns `null` for
+   developer messages and the history store drops them, so the nonce
+   remains model-visible but never user-visible or persisted. Do not mix
+   legacy `appendMessage` with a
+   separately acquired agent (provisional instances can differ during
+   reconnect), call `agent.runAgent()` directly (it can overlap the
+   proposal run), or use `runChatCompletion` (declared but absent at
+   runtime in CopilotKit 1.57.4).
+   `BuiltInAgent` MUST keep `forwardDeveloperMessages: true`; otherwise
+   CopilotKit drops the hidden instruction before model conversion.
 6. The LLM calls `confirm_write({ writeNonce })`. The tool returns
    `forbidden` for a still-staged row. For an approved row it performs
    an ETag-protected delete; only the Function instance that wins that
@@ -163,7 +179,7 @@ classified for cross-process behaviour:
 | Op                     | Durable today                                                                          | Notes                                                                                            |
 | ---------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `select_team`          | Yes (`updateUserAttributes`) + in-mem `userCache`                                      | Telegram's `userCache` re-reads on `/start` etc. — confirm reload happens before reads.          |
-| `set_language`         | Yes (`updateUserAttributes`) + in-mem `i18n` map                                       | Telegram's i18n map re-reads on first `t()` call per chatId. **Verify in PR-2.**                 |
+| `set_language`         | Yes (`updateUserAttributes`) + in-mem `userCache.lang`                                  | PR-2 uses an outer 750 ms deadline plus a per-chat generation guard while refreshing persisted language before Telegram routes messages **and** callbacks. |
 | `set_best_team_ranking`| Yes (`updateUserAttributes`) + invalidates `bestTeamsCache`                            | Telegram recomputes on next `/best_teams`. OK.                                                   |
 | `activate_chip`        | **Partly:** only `selectedBestTeamByTeam` is persisted; `selectedChipCache` is in-mem. | Closed in PR-5: persist `selectedChipByTeam` so the bot/agent restart path is consistent.        |
 | `follow_league`        | Yes (`addUserLeague` → Azure Tables)                                                   | Each surface reads on demand. OK.                                                                |
@@ -253,10 +269,15 @@ into the per-tool sections below. Shipped as
   tool. Tool count: 14 → 15.
 - Frontend shared primitives in `web/src/components/`: `safeParse.ts`,
   `WriteDecisionContext.tsx` (authenticated decision client/provider),
-  `WriteConfirmCard.tsx` (server decision first, then
-  `appendMessage`), `WriteResultCard.tsx` (five status styles), and
+  `WriteConfirmCard.tsx` (server decision, hidden developer message via
+  `agent.addMessage`, then coordinated
+  `copilotkit.runAgent({ agent })`),
+  `WriteResultCard.tsx` (five status styles), and
   `registerWriteAction.tsx` (the `useWriteAction({ name, description,
   loadingLabel? })` factory hook).
+- `src/agent/runtime.js` enables `forwardDeveloperMessages: true` so
+  hidden nonce instructions reach the model as system messages while
+  remaining absent from the chat renderer/history.
 - `web/src/App.tsx#AgentActions` registers
   `useWriteAction({ name: 'confirm_write', … })`.
 - `src/agent/systemPrompt.js` — write-semantics paragraph appended
@@ -266,9 +287,9 @@ into the per-tool sections below. Shipped as
   abandoned-entry sweeping, webhook auth/routing, `defineWriteTool`,
   and frontend ordering (the nonce is not appended until authenticated
   approval succeeds).
-- `web/package.json` — adds `@copilotkit/runtime-client-gql ^1.57.1`
-  (already a transitive of `react-core@1.57.x`; needed as a direct
-  dep for `TextMessage` + `Role`).
+- The confirmation card uses the v2 AG-UI agent's native
+  `addMessage` API, so no direct `@copilotkit/runtime-client-gql`
+  dependency is needed.
 
 **Verification gate:**
 
@@ -318,20 +339,63 @@ Chosen as the first concrete write because it has no team validation,
 is idempotent, already persists durably, and exercises every layer
 end-to-end.
 
-- Extract `src/services/setLanguageService.js`: `{ chatId, lang }` →
-  validate `lang` is in `getSupportedLanguages()`, call
-  `setLanguage(lang, chatId)` + `updateUserAttributes`. Returns
-  `{ status, summary, lang, languageName }`.
-- Refactor `setLanguageHandler.js` and the `LANG_CALLBACK_TYPE` branch
-  in `callbackQueryHandler.js` to call the service. The Telegram
-  adapter handles `editMessageText` and the localised phrasing.
-- Register `set_language` agent tool via `defineWriteTool`.
-- Register the frontend write action
-  (`useWriteAction({ name: 'set_language', … })` in `App.tsx`).
-- Unit tests: service, agent tool (propose envelope + confirm path),
-  handler / callback regression.
-- Smoke: happy path, invalid lang, cancel from confirm card,
-  agent → Telegram read-back.
+- `src/services/setLanguageService.js` owns validation, durable
+  `updateUserAttributes({ lang })`, local `setLanguage`, and
+  cross-process `refreshLanguagePreference(chatId)`. Persistence runs
+  before local mutation so a storage outage cannot create a
+  success-looking one-process-only change.
+- `setLanguageHandler.js` and the `LANG_CALLBACK_TYPE` branch in
+  `callbackQueryHandler.js` delegate to the service. Telegram still
+  formats the same localized success/invalid text and owns
+  `sendMessage` / `editMessageText`.
+- `messageHandler.js` and `callbackQueryHandler.js` refresh the
+  persisted language before routing allowed Telegram messages and
+  inline-button callbacks. An outer 750 ms deadline wraps table
+  initialization plus the point read (and also aborts the SDK request);
+  failure logs and falls back to the current cache so a UserRegistry
+  outage cannot block Telegram indefinitely. Concurrent refreshes for
+  one chat share a single in-flight Azure lookup; local writes advance a
+  per-chat generation token that invalidates any older read before it
+  can mutate cache. This prevents both stale refresh-vs-write and
+  refresh-vs-refresh overwrites. This is the
+  cross-process read-back proof: a write in the agent Function becomes
+  visible to the separate Telegram Function without requiring a host
+  restart.
+- `src/agent/writeTools/setLanguageTool.js` registers
+  `set_language({ lang: "en" | "he" })` via `defineWriteTool`.
+  Invalid language values return the standard `invalid_input` envelope
+  before staging. Requesting the already-active language returns
+  `{ status: "ok", changed: false }` immediately — no confirmation
+  nonce or redundant Azure write — but only when a successful durable
+  refresh confirms the match. If freshness cannot be established, the
+  tool proceeds through confirmation and persists the requested value.
+- The read-only `get_language` tool answers "what language is configured
+  on my account?" without routing through `set_language`. It performs
+  the same bounded durable refresh first, so a warm agent instance
+  cannot answer from stale startup cache.
+  If the durable refresh times out, the tool returns the cached language
+  with an explicit "could not verify" summary instead of presenting it
+  as confirmed durable state.
+- `web/src/App.tsx` registers the generic write renderer for
+  `set_language`; the shared confirmation/result cards from PR-1 need
+  no tool-specific component. The write envelopes carry `uiLang`, so
+  the full confirmation/result shells (titles, buttons, details) render
+  in Hebrew when the current saved language is Hebrew.
+- `get_next_race_info` enriches its tool result with the saved language;
+  it refreshes that preference before rendering so warm instances stay
+  current. `RaceInfoCard` localizes schedule/weather/history/table
+  labels, uses `he-IL` date formatting, selects Hebrew track history,
+  and renders RTL.
+- `confirm_write` refreshes the durable preference before building
+  expected failure envelopes (`forbidden`, expired/missing nonce,
+  missing handler), so Hebrew users do not get an English result shell
+  or English failure summary from a warm worker with stale startup
+  cache.
+- Tests cover service persistence ordering, invalid input, cross-process
+  hydration, unchanged Telegram handler/callback routing, tool
+  configuration, and the complete propose → rejected-premature-confirm
+  → authenticated approval → commit flow. UI tests cover Hebrew
+  confirmation/result shells and Hebrew race-info rendering.
 
 **Verification gate:** the full propose → confirm → commit flow
 demonstrably works end-to-end via the web agent, **and** `/lang` +
@@ -474,10 +538,12 @@ LANG callback behave identically in Telegram.
 
 ## Risks accepted
 
-- **Pending-writes store is per-process / in-memory.** Acceptable
-  because a confirm card only needs to survive one chat turn
-  (~seconds), the store has TTL, and a server restart between propose
-  and confirm is rare and recoverable (the user just re-proposes).
+- **Pending-write cleanup is traffic-triggered.** Intents are durable
+  in Azure Table Storage and rejected immediately after expiry. A
+  throttled global sweep runs when new proposals arrive; during a
+  completely idle period, expired rows may remain stored until the
+  next proposal, but they are never consumable and do not retain
+  process memory.
 - **Chip cache cross-process divergence pre-PR-5.** PR-5 closes this.
 - **System prompt token cost.** Mitigated by a single shared
   write-semantics paragraph plus short per-tool descriptions.
