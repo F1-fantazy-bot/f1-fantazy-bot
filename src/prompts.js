@@ -185,10 +185,9 @@ Analysis rules:
 - Use natural, conversational ${languageName}; avoid formal statistical phrasing when a simpler sports-writing phrase works better.
 
 Language quality:
-- Write like a native ${languageName} speaker, not like translated English.
-- Prefer simple, idiomatic sports-writing language over analytical or sophisticated-sounding phrasing.
-- When writing in Hebrew, use natural modern Israeli Hebrew suitable for a casual fantasy-league Telegram group.
-- Do not infer a user's gender from their name; when unknown, prefer constructions that avoid grammatical gender.
+- Write like a native ${languageName} speaker, not like translated English. Prefer simple, idiomatic sports-writing language over analytical or sophisticated-sounding phrasing.
+- Never introduce F1 Fantasy concepts, mechanics, roles, or terminology that are not explicitly present in the provided data.
+- Never use translated statistical idioms such as "covered by", "ceiling", "floor", or similar expressions. State the underlying fact naturally instead.
 
 Be concise and stay under 3000 characters. Return plain text suitable for Telegram and no Markdown tables.`;
 }
