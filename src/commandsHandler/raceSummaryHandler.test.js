@@ -112,7 +112,11 @@ describe('raceSummaryHandler', () => {
     expect(hebrewPrompt).toContain(
       'do not repeat the original spelling in parentheses',
     );
-    expect(hebrewPrompt).toContain('Write like a native Hebrew speaker');
+    expect(hebrewPrompt).toContain('Write like a native Hebrew sports writer');
+    expect(hebrewPrompt).toContain('"מרוץ" rather than a generic sports "מחזור"');
+    expect(hebrewPrompt).toContain(
+      'fantasy teams using masculine grammatical forms',
+    );
 
     const englishPrompt = buildRaceSummarySystemPrompt('en');
     expect(englishPrompt).toContain('into Latin letters');
@@ -214,28 +218,34 @@ describe('raceSummaryHandler', () => {
       'leagueName, raceName, and raceNumber',
     );
     expect(request.messages[0].content).toContain(
-      'section its own short title line, prefixed with a relevant emoji',
+      'section its own short title line prefixed with a relevant emoji',
     );
     expect(request.messages[0].content).toContain(
       'Prioritize meaningful insights over jokes',
     );
     expect(request.messages[0].content).toContain(
-      'Do not describe a single high or low score as a "trend"',
+      'Do not describe a single high or low score as a trend',
     );
     expect(request.messages[0].content).toContain(
-      'Use emojis naturally and selectively',
+      'Use emojis naturally and sparingly',
     );
     expect(request.messages[0].content).toContain(
-      'Write like a native English speaker, not like translated English',
+      'Write like a native English sports writer, not like translated English',
     );
     expect(request.messages[0].content).toContain(
-      'Never introduce F1 Fantasy concepts, mechanics, roles, or terminology',
+      'Use only fantasy-game mechanics, roles, chips, and terminology',
     );
     expect(request.messages[0].content).toContain(
       'Never use translated statistical idioms such as "covered by", "ceiling", "floor"',
     );
     expect(request.messages[0].content).toContain(
-      'Do not mention or compare the immediately previous race result',
+      'Do not mention or directly compare the immediately previous race result',
+    );
+    expect(request.messages[0].content).toContain(
+      'never call a DRS-boosted driver a "captain"',
+    );
+    expect(request.messages[0].content).toContain(
+      'Verify that names were not unnecessarily abbreviated',
     );
     expect(request.messages[1].content).not.toContain('The Best Bot');
     expect(request.messages[1].content).toContain('Alonso');
