@@ -954,6 +954,34 @@ history, and RTL layout. When adding another rich component, do not
 assume the assistant's text language automatically localizes hardcoded
 React labels — pass/consume the saved language explicitly.
 
+`get_best_teams` also returns the refreshed `lang` on success and
+error results. `BestTeamsTable` uses it for Hebrew title, ranking/chip
+summary, filters, column headers, penalties, legend, errors, and RTL
+layout. F1 driver/constructor codes and proper names remain unchanged.
+
+**All rich UI must follow the same saved-language contract.**
+`src/agent/tools.js#withUiLanguage` enriches every read-tool payload
+with the refreshed account `lang`. The twelve feature renderers
+(`NextRacesTable`, `UserTeamsList`, `FollowedTeamsGrid`,
+`LeaderboardTable`, `BestTeamsTable`, `BestTeamScenariosMatrix`,
+`RaceInfoCard`, `WeatherForecast`, `DeadlineCountdown`,
+`CurrentTeamCard`, `LiveScoreBreakdown`, `LiveScoreLeaderboard`) and
+the shared error/write cards consume that field for English vs
+Hebrew/RTL labels and locale-aware dates. Proper names and F1 codes
+remain unchanged. `web/src/components/AllRichComponentsHebrew.test.tsx`
+is the completeness gate: any new rich renderer MUST be added to it.
+
+Loading states render before a tool payload exists, so they use
+`UiLanguageProvider`. Authenticated `/api/agent/whoami` includes the
+durable `lang`; `AccessVerifier` initializes the provider from it, and
+successful write results synchronize it after `set_language`.
+`ToolLoading` is the only loading-state renderer—do not add hardcoded
+English loading `<div>` blocks. `ToolLoading.test.tsx` covers every
+registered loading kind. Bypass/local-dev mode also calls `/whoami`,
+which resolves the hardcoded user's language through the same bounded
+refresh. The whoami language lookup must remain bounded—never add an
+unbounded UserRegistry read to the login path.
+
 ### Environment variables
 
 | Var | Required for | Purpose |
@@ -1387,7 +1415,7 @@ messages must go through `clear()` first, then through
 | `agentWebhook/index.js` | Bridges Azure Functions v3 (context, req) onto a Web Request; handles OPTIONS preflight + CORS; tolerant of both `Uint8Array` and string body chunks. |
 | `web/src/App.tsx` | Mounts `<CopilotKit>` + `<CopilotChat />`; reads `VITE_AGENT_API_URL`. |
 | `web/src/components/NextRacesTable.tsx` | `get_next_races` rich render. |
-| `web/src/components/BestTeamsTable.tsx` | `get_best_teams` rich render (top-10 table, captain badge, must-include highlights, penalty markers). |
+| `web/src/components/BestTeamsTable.tsx` | `get_best_teams` rich render (top-10 table, captain badge, must-include highlights, penalty markers), localized via the tool result's refreshed `lang`. |
 | `web/src/components/UserTeamsList.tsx` | `list_user_teams` rich render (card grid). |
 | `web/src/components/FollowedTeamsGrid.tsx` | `list_followed_teams` rich render — card per team with `leagueName: position` chips, active-team highlight. |
 | `web/src/components/LeaderboardTable.tsx` | `get_leaderboard` rich render — sortable standings table with the user's row highlighted; status fallbacks for `not_followed` / `not_found`. |

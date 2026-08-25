@@ -1,5 +1,7 @@
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
+import { directionFor, localeFor, uiLanguageOf, type UiLanguage } from './uiLanguage';
+import { ToolLoading } from './ToolLoading';
 
 type Forecast = {
   temperature?: number;
@@ -19,6 +21,7 @@ type SessionForecast = {
 };
 
 type WeatherResult = {
+  lang?: string;
   status?: 'ok' | 'unavailable';
   raceName?: string;
   circuitName?: string;
@@ -28,19 +31,19 @@ type WeatherResult = {
   fetchFailed?: boolean;
 };
 
-function formatTime(iso: string): string {
+function formatTime(iso: string, lang: UiLanguage): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString(localeFor(lang), {
     hour: 'numeric',
     minute: '2-digit',
   });
 }
 
-function formatSessionStart(iso: string): string {
+function formatSessionStart(iso: string, lang: UiLanguage): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString(localeFor(lang), {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -57,11 +60,42 @@ function rainEmoji(precipitation?: number): string {
   return '☀️';
 }
 
-function WeatherForecast({ result }: { result?: WeatherResult }) {
+function sessionLabel(label: string, lang: UiLanguage): string {
+  if (lang !== 'he') return label;
+  const labels: Record<string, string> = {
+    'Sprint Qualifying': 'מקצה דירוג ספרינט',
+    Sprint: 'ספרינט',
+    Qualifying: 'דירוג',
+    Race: 'מרוץ',
+  };
+  return labels[label] ?? label;
+}
+
+export function WeatherForecast({ result }: { result?: WeatherResult }) {
+  const lang = uiLanguageOf(result);
+  const labels =
+    lang === 'he'
+      ? {
+          unavailable: 'תחזית מזג האוויר אינה זמינה כרגע.',
+          noSessions: 'אין מקצים קרובים להצגת תחזית.',
+          title: 'תחזית מזג האוויר',
+          nextRace: 'המרוץ הבא',
+          underway: '(כבר התחיל)',
+        }
+      : {
+          unavailable: "Weather forecast isn't available right now.",
+          noSessions: 'No upcoming sessions to forecast.',
+          title: 'Weather forecast',
+          nextRace: 'Next race',
+          underway: '(already underway)',
+        };
   if (!result || result.status === 'unavailable') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
-        Weather forecast isn't available right now.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-muted)' }}
+      >
+        {labels.unavailable}
       </div>
     );
   }
@@ -70,14 +104,18 @@ function WeatherForecast({ result }: { result?: WeatherResult }) {
 
   if (sessions.length === 0) {
     return (
-      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
-        No upcoming sessions to forecast.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-muted)' }}
+      >
+        {labels.noSessions}
       </div>
     );
   }
 
   return (
     <div
+      dir={directionFor(lang)}
       style={{
         margin: '8px 0',
         border: '1px solid var(--app-border)',
@@ -95,7 +133,7 @@ function WeatherForecast({ result }: { result?: WeatherResult }) {
         }}
       >
         <div style={{ fontWeight: 700, fontSize: 15 }}>
-          Weather forecast — {result.raceName ?? 'Next race'}
+          {labels.title} — {result.raceName ?? labels.nextRace}
         </div>
         {result.location ? (
           <div style={{ color: 'var(--app-muted)', marginTop: 2 }}>
@@ -123,7 +161,7 @@ function WeatherForecast({ result }: { result?: WeatherResult }) {
               alignItems: 'baseline',
             }}
           >
-            <span>{session.label}</span>
+            <span>{sessionLabel(session.label, lang)}</span>
             <span
               style={{
                 fontSize: 12,
@@ -131,11 +169,13 @@ function WeatherForecast({ result }: { result?: WeatherResult }) {
                 fontWeight: 500,
               }}
             >
-              {formatSessionStart(session.startsAt)}
+              {formatSessionStart(session.startsAt, lang)}
             </span>
           </div>
           {session.hours.length === 0 ? (
-            <div style={{ color: 'var(--app-subtle)' }}>(already underway)</div>
+            <div style={{ color: 'var(--app-subtle)' }}>
+              {labels.underway}
+            </div>
           ) : (
             <div
               style={{
@@ -163,7 +203,7 @@ function WeatherForecast({ result }: { result?: WeatherResult }) {
                         marginBottom: 4,
                       }}
                     >
-                      {formatTime(hour)}
+                      {formatTime(hour, lang)}
                     </div>
                     <div style={{ fontSize: 18, marginBottom: 2 }}>
                       {rainEmoji(f.precipitation)}
@@ -203,11 +243,7 @@ export function useWeatherForecastAction() {
     available: 'frontend',
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
-        return (
-          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
-            Fetching weather forecast…
-          </div>
-        );
+        return <ToolLoading kind="weather" />;
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
       if (isToolErrorResult(parsed)) {

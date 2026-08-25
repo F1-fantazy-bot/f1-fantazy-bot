@@ -21,10 +21,11 @@ import {
 } from 'react';
 import { useAuth } from './AuthContext';
 import { verifyAccess, type VerifyAccessOk } from './whoami';
+import { UiLanguageProvider, type UiLanguage } from '../components/uiLanguage';
 
 type VerifyState =
   | { kind: 'verifying' }
-  | { kind: 'ok'; mode: VerifyAccessOk['mode'] }
+  | { kind: 'ok'; mode: VerifyAccessOk['mode']; lang: UiLanguage }
   | { kind: 'unavailable'; cause: string };
 
 export function AccessVerifier({
@@ -48,7 +49,11 @@ export function AccessVerifier({
       if (cancelled) return;
 
       if (result.status === 'ok') {
-        setState({ kind: 'ok', mode: result.mode });
+        setState({
+          kind: 'ok',
+          mode: result.mode,
+          lang: result.lang === 'he' ? 'he' : 'en',
+        });
         return;
       }
 
@@ -81,7 +86,11 @@ export function AccessVerifier({
     return <UnavailableCard cause={state.cause} onRetry={onRetry} />;
   }
 
-  return <>{children}</>;
+  return (
+    <UiLanguageProvider initialLanguage={state.lang}>
+      {children}
+    </UiLanguageProvider>
+  );
 }
 
 function VerifyingSpinner() {

@@ -68,6 +68,12 @@ function summariseBestTeam(team) {
   };
 }
 
+async function withUiLanguage(chatId, result) {
+  const { lang } = await getFreshLanguagePreference(chatId);
+
+  return { ...result, lang };
+}
+
 const tools = [
   defineTool({
     name: 'get_next_races',
@@ -75,7 +81,9 @@ const tools = [
       'Get the list of upcoming F1 races for the current season. Returns the season, an array of race objects (each with round, raceName, date/time, Circuit.circuitName, Circuit.Location.locality, Circuit.Location.country, and per-session schedules), and counts {total, sprint}. Use this for any question about upcoming races, race dates, locations, or country filtering — apply filters and sorting yourself on the returned array.',
     parameters: z.object({}),
     execute: wrapToolExecute('get_next_races', async () => {
-      return getNextRaces();
+      const chatId = getAgentChatId();
+
+      return await withUiLanguage(chatId, await getNextRaces());
     }),
   }),
 
@@ -88,7 +96,9 @@ const tools = [
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
-      return { teams: listUserTeams({ chatId }) };
+      return await withUiLanguage(chatId, {
+        teams: listUserTeams({ chatId }),
+      });
     }),
   }),
 
@@ -137,6 +147,7 @@ const tools = [
     execute: wrapToolExecute('get_best_teams', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
+      const language = await getFreshLanguagePreference(chatId);
       // Web component renders up to 10 teams at a time — anything beyond
       // that bloats the streamed tool payload and the LLM context.
       const result = await computeBestTeams({
@@ -156,11 +167,12 @@ const tools = [
         // needs the status + the identifiers to phrase its reply.
         const { currentTeam: _currentTeam, ...rest } = result;
 
-        return rest;
+        return { ...rest, lang: language.lang };
       }
 
       return {
         status: 'ok',
+        lang: language.lang,
         teamId: result.teamId,
         teamName: result.teamName,
         chip: result.chip || null,
@@ -201,11 +213,13 @@ const tools = [
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
-      return computeBestTeamScenarios({
+      const result = await computeBestTeamScenarios({
         chatId,
         teamId: args.teamId,
         teamName: args.teamName,
       });
+
+      return await withUiLanguage(chatId, result);
     }),
   }),
 
@@ -218,7 +232,10 @@ const tools = [
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
-      return await listFollowedTeams({ chatId });
+      return await withUiLanguage(
+        chatId,
+        await listFollowedTeams({ chatId }),
+      );
     }),
   }),
 
@@ -232,13 +249,13 @@ const tools = [
       const chatId = getAgentChatId();
       const leagues = await listUserLeagues(chatId);
 
-      return {
+      return await withUiLanguage(chatId, {
         leagues: (leagues || []).map((l) => ({
           leagueCode: l.leagueCode,
           leagueName: l.leagueName || l.leagueCode,
           registeredAt: l.registeredAt || null,
         })),
-      };
+      });
     }),
   }),
 
@@ -257,7 +274,10 @@ const tools = [
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
-      return await getLeaderboard({ chatId, leagueCode: args.leagueCode });
+      return await withUiLanguage(
+        chatId,
+        await getLeaderboard({ chatId, leagueCode: args.leagueCode }),
+      );
     }),
   }),
 
@@ -274,10 +294,7 @@ const tools = [
       const result = await getNextRaceInfo();
       const { lang } = await getFreshLanguagePreference(chatId);
 
-      return {
-        ...result,
-        lang,
-      };
+      return { ...result, lang };
     }),
   }),
 
@@ -288,8 +305,9 @@ const tools = [
     parameters: z.object({}),
     execute: wrapToolExecute('get_race_weather', async () => {
       await ensureCacheReady();
+      const chatId = getAgentChatId();
 
-      return await getRaceWeather();
+      return await withUiLanguage(chatId, await getRaceWeather());
     }),
   }),
 
@@ -300,7 +318,9 @@ const tools = [
     parameters: z.object({}),
     execute: wrapToolExecute('get_deadline', async () => {
       // No cache needed — fetchNextRace pulls fresh from the schedule service.
-      return await getDeadlineSnapshot();
+      const chatId = getAgentChatId();
+
+      return await withUiLanguage(chatId, await getDeadlineSnapshot());
     }),
   }),
 
@@ -326,11 +346,14 @@ const tools = [
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
-      return await getCurrentTeam({
+      return await withUiLanguage(
         chatId,
-        teamId: args.teamId,
-        teamName: args.teamName,
-      });
+        await getCurrentTeam({
+          chatId,
+          teamId: args.teamId,
+          teamName: args.teamName,
+        }),
+      );
     }),
   }),
 
@@ -346,11 +369,14 @@ const tools = [
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
-      return await listLeagueTeams({
+      return await withUiLanguage(
         chatId,
-        leagueCode: args.leagueCode,
-        leagueName: args.leagueName,
-      });
+        await listLeagueTeams({
+          chatId,
+          leagueCode: args.leagueCode,
+          leagueName: args.leagueName,
+        }),
+      );
     }),
   }),
 
@@ -388,13 +414,16 @@ const tools = [
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
-      return await getLiveScoreForTeam({
+      return await withUiLanguage(
         chatId,
-        leagueCode: args.leagueCode,
-        leagueName: args.leagueName,
-        teamId: args.teamId,
-        teamName: args.teamName,
-      });
+        await getLiveScoreForTeam({
+          chatId,
+          leagueCode: args.leagueCode,
+          leagueName: args.leagueName,
+          teamId: args.teamId,
+          teamName: args.teamName,
+        }),
+      );
     }),
   }),
 
@@ -420,11 +449,14 @@ const tools = [
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
-      return await getLiveScoreLeaderboard({
+      return await withUiLanguage(
         chatId,
-        leagueCode: args.leagueCode,
-        leagueName: args.leagueName,
-      });
+        await getLiveScoreLeaderboard({
+          chatId,
+          leagueCode: args.leagueCode,
+          leagueName: args.leagueName,
+        }),
+      );
     }),
   }),
 

@@ -6,6 +6,7 @@ import {
 } from './WriteConfirmCard';
 import { WriteResultCard, isWriteResult, type WriteResult } from './WriteResultCard';
 import { safeParse } from './safeParse';
+import { ToolLoading } from './ToolLoading';
 
 // Shared factory for registering the frontend render hook of any
 // write tool (or `confirm_write`). Centralises the propose/confirm
@@ -37,11 +38,7 @@ export function useWriteAction({
     available: 'frontend',
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
-        return (
-          <div style={{ padding: 10, color: '#666' }}>
-            {loadingLabel ?? 'Working on it…'}
-          </div>
-        );
+        return <ToolLoading kind="write" englishLabel={loadingLabel} />;
       }
       const parsed = safeParse(result);
 

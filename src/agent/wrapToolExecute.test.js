@@ -13,6 +13,17 @@ jest.mock('./notifierBot', () => ({
   getNotifierBot: () => ({ sendMessage: jest.fn() }),
 }));
 
+jest.mock('./identity', () => ({
+  getAgentChatId: jest.fn(() => 42),
+}));
+
+jest.mock('../services/setLanguageService', () => ({
+  getFreshLanguagePreference: jest.fn(async () => ({
+    lang: 'en',
+    fresh: true,
+  })),
+}));
+
 const { sendErrorMessage } = require('../utils/utils');
 const {
   wrapToolExecute,
@@ -195,5 +206,23 @@ describe('wrapToolExecute — error path', () => {
       ids.add(r.errorId);
     }
     expect(ids.size).toBe(50);
+  });
+
+  test('localizes tool errors from the durable saved language', async () => {
+    const {
+      getFreshLanguagePreference,
+    } = require('../services/setLanguageService');
+    getFreshLanguagePreference.mockResolvedValueOnce({
+      lang: 'he',
+      fresh: true,
+    });
+    const wrapped = wrapToolExecute('t', async () => {
+      throw new Error('boom');
+    });
+
+    const result = await wrapped();
+
+    expect(result.uiLang).toBe('he');
+    expect(result.userMessage).toContain('אירעה שגיאה');
   });
 });

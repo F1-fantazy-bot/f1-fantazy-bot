@@ -1,5 +1,7 @@
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
+import { directionFor, localeFor, uiLanguageOf } from './uiLanguage';
+import { ToolLoading } from './ToolLoading';
 
 type LeaderboardRow = {
   teamId?: string;
@@ -14,6 +16,7 @@ type LeaderboardRow = {
 };
 
 type LiveScoreLeaderboardResult = {
+  lang?: string;
   status?: 'ok' | 'not_followed' | 'not_found' | 'invalid_input';
   leagueCode?: string;
   leagueName?: string;
@@ -29,11 +32,14 @@ function formatSigned(value: number | undefined): string {
   return value >= 0 ? `+${fixed}` : fixed;
 }
 
-function formatExtractedAt(iso?: string | null): string {
+function formatExtractedAt(
+  iso: string | null | undefined,
+  locale: string,
+): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString(locale, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -42,31 +48,78 @@ function formatExtractedAt(iso?: string | null): string {
   });
 }
 
-function LiveScoreLeaderboard({
+export function LiveScoreLeaderboard({
   result,
 }: {
   result?: LiveScoreLeaderboardResult;
 }) {
+  const lang = uiLanguageOf(result);
+  const labels =
+    lang === 'he'
+      ? {
+          invalid: 'חסרים נתונים לבקשת הניקוד החי. נא לציין איזו ליגה.',
+          notFollowed: 'אינך עוקב אחר הליגה הזו. יש לעקוב אחריה בטלגרם.',
+          notFound:
+            'עדיין אין צילום מצב נעול לליגה. יש להמתין לנעילת המקצה הבא.',
+          title: 'טבלת ניקוד חי',
+          matchday: 'מחזור',
+          updated: 'עודכן',
+          teamSingular: 'קבוצה',
+          teamPlural: 'קבוצות',
+          empty: 'עדיין אין קבוצות בליגה.',
+          team: 'קבוצה',
+          livePoints: 'נקודות חי',
+          priceChange: 'שינוי מחיר',
+          penalty: 'קנס העברות',
+          you: 'אתה',
+          penaltyFooter: 'הופעל קנס העברות',
+        }
+      : {
+          invalid: 'Live-score request was missing data. Tell me which league.',
+          notFollowed:
+            "You don't follow that league. Follow it in Telegram first.",
+          notFound:
+            'No locked roster snapshot for this league yet. Wait for the next session lock.',
+          title: 'Live leaderboard',
+          matchday: 'Matchday',
+          updated: 'updated',
+          teamSingular: 'team',
+          teamPlural: 'teams',
+          empty: 'No teams in this league yet.',
+          team: 'Team',
+          livePoints: 'Live pts',
+          priceChange: 'Δ price',
+          penalty: 'Transfer penalty',
+          you: 'YOU',
+          penaltyFooter: 'transfer penalty applied',
+        };
   if (!result || result.status === 'invalid_input') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
-        Live-score request was missing data. Tell me which league.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-muted)' }}
+      >
+        {labels.invalid}
       </div>
     );
   }
   if (result.status === 'not_followed') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-danger-text)' }}>
-        You don't follow that league. Run <code>/follow_league</code> in
-        Telegram first.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-danger-text)' }}
+      >
+        {labels.notFollowed}
       </div>
     );
   }
   if (result.status === 'not_found') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
-        No locked roster snapshot for this league yet. Wait for the next session
-        lock.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-muted)' }}
+      >
+        {labels.notFound}
       </div>
     );
   }
@@ -79,6 +132,7 @@ function LiveScoreLeaderboard({
 
   return (
     <div
+      dir={directionFor(lang)}
       style={{
         margin: '8px 0',
         border: '1px solid var(--app-border)',
@@ -96,18 +150,19 @@ function LiveScoreLeaderboard({
         }}
       >
         <div style={{ fontWeight: 700, fontSize: 15 }}>
-          🏎️ Live leaderboard — {result.leagueName ?? result.leagueCode}
+          🏎️ {labels.title} — {result.leagueName ?? result.leagueCode}
         </div>
         <div style={{ color: 'var(--app-muted)', marginTop: 2, fontSize: 12 }}>
-          Matchday {result.matchdayId ?? '?'} · updated{' '}
-          {formatExtractedAt(result.extractedAt)} · {rows.length} team
-          {rows.length === 1 ? '' : 's'}
+          {labels.matchday} {result.matchdayId ?? '?'} · {labels.updated}{' '}
+          {formatExtractedAt(result.extractedAt, localeFor(lang))} ·{' '}
+          {rows.length}{' '}
+          {rows.length === 1 ? labels.teamSingular : labels.teamPlural}
         </div>
       </div>
 
       {rows.length === 0 ? (
         <div style={{ padding: 12, color: 'var(--app-muted)' }}>
-          No teams in this league yet.
+          {labels.empty}
         </div>
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -115,13 +170,17 @@ function LiveScoreLeaderboard({
             <tr
               style={{
                 background: 'var(--app-surface-subtle)',
-                textAlign: 'left',
+                textAlign: 'start',
               }}
             >
               <th style={cellHeader}>#</th>
-              <th style={cellHeader}>Team</th>
-              <th style={{ ...cellHeader, textAlign: 'right' }}>Live pts</th>
-              <th style={{ ...cellHeader, textAlign: 'right' }}>Δ price</th>
+              <th style={cellHeader}>{labels.team}</th>
+              <th style={{ ...cellHeader, textAlign: 'end' }}>
+                {labels.livePoints}
+              </th>
+              <th style={{ ...cellHeader, textAlign: 'end' }}>
+                {labels.priceChange}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -142,7 +201,7 @@ function LiveScoreLeaderboard({
                   {typeof row.transferPenalty === 'number' &&
                   row.transferPenalty > 0 ? (
                     <span
-                      title={`Transfer penalty: -${row.transferPenalty}`}
+                      title={`${labels.penalty}: -${row.transferPenalty}`}
                       style={{ color: 'var(--app-danger-text)', marginLeft: 4 }}
                     >
                       †
@@ -157,11 +216,11 @@ function LiveScoreLeaderboard({
                         letterSpacing: 0,
                       }}
                     >
-                      YOU
+                      {labels.you}
                     </span>
                   ) : null}
                 </td>
-                <td style={{ ...cellBody, textAlign: 'right' }}>
+                <td style={{ ...cellBody, textAlign: 'end' }}>
                   {typeof row.totalPoints === 'number'
                     ? row.totalPoints.toFixed(2)
                     : '—'}
@@ -169,7 +228,7 @@ function LiveScoreLeaderboard({
                 <td
                   style={{
                     ...cellBody,
-                    textAlign: 'right',
+                    textAlign: 'end',
                     color: 'var(--app-muted)',
                   }}
                 >
@@ -191,7 +250,7 @@ function LiveScoreLeaderboard({
             fontSize: 12,
           }}
         >
-          † transfer penalty applied
+          † {labels.penaltyFooter}
         </div>
       ) : null}
     </div>
@@ -220,11 +279,7 @@ export function useLiveScoreLeaderboardAction() {
     available: 'frontend',
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
-        return (
-          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
-            Loading live leaderboard…
-          </div>
-        );
+        return <ToolLoading kind="liveLeaderboard" />;
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
       if (isToolErrorResult(parsed)) {

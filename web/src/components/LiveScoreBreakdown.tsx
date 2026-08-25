@@ -1,5 +1,7 @@
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
+import { directionFor, localeFor, uiLanguageOf, type UiLanguage } from './uiLanguage';
+import { ToolLoading } from './ToolLoading';
 
 type SessionDetails = Record<string, number | undefined>;
 
@@ -25,6 +27,7 @@ type LiveScoreBreakdownData = {
 };
 
 type LiveScoreTeamResult = {
+  lang?: string;
   status?:
     | 'ok'
     | 'not_followed'
@@ -63,11 +66,14 @@ function formatNumber(value: number | undefined, digits = 2): string {
   return value.toFixed(digits);
 }
 
-function formatExtractedAt(iso?: string | null): string {
+function formatExtractedAt(
+  iso: string | null | undefined,
+  lang: UiLanguage,
+): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString(localeFor(lang), {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -78,11 +84,29 @@ function formatExtractedAt(iso?: string | null): string {
 
 function MemberCard({
   member,
+  lang,
   isConstructor = false,
 }: {
   member: MemberBreakdown;
+  lang: UiLanguage;
   isConstructor?: boolean;
 }) {
+  const labels =
+    lang === 'he'
+      ? {
+          points: "נק'",
+          noData: 'אין עדיין נתונים חיים',
+          sessions: {
+            Sprint: 'ספרינט',
+            Qualifying: 'דירוג',
+            Race: 'מרוץ',
+          } as Record<string, string>,
+        }
+      : {
+          points: 'pts',
+          noData: 'no live data yet',
+          sessions: {} as Record<string, string>,
+        };
   const base = typeof member.points === 'number' ? member.points : 0;
   const effective = member.isExtraBoost
     ? base * 3
@@ -163,12 +187,12 @@ function MemberCard({
             color: 'var(--app-primary-strong)',
           }}
         >
-          {formatNumber(effective)} pts
+          {formatNumber(effective)} {labels.points}
         </span>
       </div>
       <div style={{ fontSize: 12, color: 'var(--app-muted)' }}>
         Δ {formatSigned(member.priceChange)}
-        {member.missing ? ' · ⚠️ no live data yet' : ''}
+        {member.missing ? ` · ⚠️ ${labels.noData}` : ''}
       </div>
       {sessionLines.length > 0 ? (
         <div
@@ -180,7 +204,8 @@ function MemberCard({
         >
           {sessionLines.map((s) => (
             <div key={s.label}>
-              <strong>{s.label}:</strong> {s.metrics.join(', ')}
+              <strong>{labels.sessions[s.label] ?? s.label}:</strong>{' '}
+              {s.metrics.join(', ')}
             </div>
           ))}
         </div>
@@ -189,34 +214,88 @@ function MemberCard({
   );
 }
 
-function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
+export function LiveScoreBreakdown({
+  result,
+}: {
+  result?: LiveScoreTeamResult;
+}) {
+  const lang = uiLanguageOf(result);
+  const labels =
+    lang === 'he'
+      ? {
+          invalid: 'חסרים נתונים לבקשת הניקוד החי. נא לציין איזו ליגה.',
+          notFollowed: 'אינך עוקב אחר הליגה הזו. יש לעקוב אחריה בטלגרם.',
+          notFound:
+            'עדיין אין צילום מצב נעול לליגה. יש להמתין לנעילת המקצה הבא.',
+          teamNotFound: 'לא נמצאה קבוצה מתאימה. נסה אחת מהאפשרויות:',
+          title: 'ניקוד חי',
+          matchday: 'מחזור',
+          updated: 'עודכן',
+          totalPoints: 'סך נקודות חי',
+          transferPenalty: 'קנס העברות',
+          beforePenalty: 'לפני הקנס',
+          priceChange: 'שינוי מחיר חי',
+          noNegative: "צ'יפ ללא שלילי פעיל",
+          drivers: 'נהגים',
+          constructors: 'קבוצות',
+          missing: 'חסרים נתוני ניקוד חי',
+        }
+      : {
+          invalid: 'Live-score request was missing data. Tell me which league.',
+          notFollowed:
+            "You don't follow that league. Follow it in Telegram first.",
+          notFound:
+            'No locked roster snapshot for this league yet. Wait for the next session lock.',
+          teamNotFound: "Couldn't match that team. Try one of:",
+          title: 'Live score',
+          matchday: 'Matchday',
+          updated: 'updated',
+          totalPoints: 'Total live points',
+          transferPenalty: 'Transfer penalty',
+          beforePenalty: 'pre-penalty',
+          priceChange: 'Live price Δ',
+          noNegative: 'No Negative active',
+          drivers: 'Drivers',
+          constructors: 'Constructors',
+          missing: 'Missing live data',
+        };
   if (!result || result.status === 'invalid_input') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
-        Live-score request was missing data. Tell me which league.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-muted)' }}
+      >
+        {labels.invalid}
       </div>
     );
   }
   if (result.status === 'not_followed') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-danger-text)' }}>
-        You don't follow that league. Run <code>/follow_league</code> in
-        Telegram first.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-danger-text)' }}
+      >
+        {labels.notFollowed}
       </div>
     );
   }
   if (result.status === 'not_found') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
-        No locked roster snapshot for this league yet. Wait for the next session
-        lock.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-muted)' }}
+      >
+        {labels.notFound}
       </div>
     );
   }
   if (result.status === 'team_not_found') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-danger-text)' }}>
-        Couldn't match that team. Try one of:{' '}
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-danger-text)' }}
+      >
+        {labels.teamNotFound}{' '}
         {(result.availableTeams || [])
           .map((t) => t.teamName || t.userName)
           .filter(Boolean)
@@ -233,6 +312,7 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
 
   return (
     <div
+      dir={directionFor(lang)}
       style={{
         margin: '8px 0',
         border: '1px solid var(--app-border)',
@@ -250,12 +330,12 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
         }}
       >
         <div style={{ fontWeight: 700, fontSize: 15 }}>
-          🏎️ Live score — {result.leagueName ?? result.leagueCode} ·{' '}
+          🏎️ {labels.title} — {result.leagueName ?? result.leagueCode} ·{' '}
           {result.teamName}
         </div>
         <div style={{ color: 'var(--app-muted)', marginTop: 2, fontSize: 12 }}>
-          Matchday {result.matchdayId ?? '?'} · updated{' '}
-          {formatExtractedAt(result.extractedAt)}
+          {labels.matchday} {result.matchdayId ?? '?'} · {labels.updated}{' '}
+          {formatExtractedAt(result.extractedAt, lang)}
         </div>
       </div>
 
@@ -269,7 +349,7 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
                 color: 'var(--app-subtle)',
               }}
             >
-              Total live points
+              {labels.totalPoints}
             </div>
             <div
               style={{
@@ -283,8 +363,8 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
             {typeof breakdown.transferPenalty === 'number' &&
             breakdown.transferPenalty > 0 ? (
               <div style={{ fontSize: 12, color: 'var(--app-danger-text)' }}>
-                Transfer penalty: -{breakdown.transferPenalty.toFixed(2)} (
-                pre-penalty {formatNumber(breakdown.pointsBeforePenalty)})
+                {labels.transferPenalty}: -{breakdown.transferPenalty.toFixed(2)} (
+                {labels.beforePenalty} {formatNumber(breakdown.pointsBeforePenalty)})
               </div>
             ) : null}
           </div>
@@ -296,7 +376,7 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
                 color: 'var(--app-subtle)',
               }}
             >
-              Live price Δ
+              {labels.priceChange}
             </div>
             <div
               style={{
@@ -320,7 +400,7 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
                 alignSelf: 'center',
               }}
             >
-              🛡️ No Negative active
+              🛡️ {labels.noNegative}
             </div>
           ) : null}
         </div>
@@ -328,7 +408,9 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
 
       {drivers.length > 0 ? (
         <div style={{ padding: '0 16px 12px' }}>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>👤 Drivers</div>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>
+            👤 {labels.drivers}
+          </div>
           <div
             style={{
               display: 'grid',
@@ -337,7 +419,7 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
             }}
           >
             {drivers.map((m) => (
-              <MemberCard key={m.code} member={m} />
+              <MemberCard key={m.code} member={m} lang={lang} />
             ))}
           </div>
         </div>
@@ -346,7 +428,7 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
       {constructors.length > 0 ? (
         <div style={{ padding: '0 16px 12px' }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>
-            🛠️ Constructors
+            🛠️ {labels.constructors}
           </div>
           <div
             style={{
@@ -356,7 +438,12 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
             }}
           >
             {constructors.map((m) => (
-              <MemberCard key={m.code} member={m} isConstructor />
+              <MemberCard
+                key={m.code}
+                member={m}
+                lang={lang}
+                isConstructor
+              />
             ))}
           </div>
         </div>
@@ -372,7 +459,7 @@ function LiveScoreBreakdown({ result }: { result?: LiveScoreTeamResult }) {
             borderTop: '1px solid var(--app-danger-border)',
           }}
         >
-          ⚠️ Missing live data: {breakdown.missingMembers.join(', ')}
+          ⚠️ {labels.missing}: {breakdown.missingMembers.join(', ')}
         </div>
       ) : null}
     </div>
@@ -387,11 +474,7 @@ export function useLiveScoreBreakdownAction() {
     available: 'frontend',
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
-        return (
-          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
-            Loading live score…
-          </div>
-        );
+        return <ToolLoading kind="liveScore" />;
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
       if (isToolErrorResult(parsed)) {

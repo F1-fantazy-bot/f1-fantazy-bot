@@ -15,6 +15,7 @@ export type ToolErrorResult = {
   tool?: string;
   errorId?: string;
   userMessage?: string;
+  uiLang?: string;
 };
 
 export function isToolErrorResult(value: unknown): value is ToolErrorResult {
@@ -29,14 +30,17 @@ const DEFAULT_USER_MESSAGE =
   'Something went wrong while looking that up. Please try again in a moment.';
 
 export function ToolErrorFallback({ result }: { result: ToolErrorResult }) {
-  const message =
-    typeof result.userMessage === 'string' && result.userMessage.length > 0
+  const isHebrew = result.uiLang === 'he';
+  const message = isHebrew
+    ? 'אירעה שגיאה בעת הבדיקה. נסה שוב בעוד רגע.'
+    : typeof result.userMessage === 'string' && result.userMessage.length > 0
       ? result.userMessage
       : DEFAULT_USER_MESSAGE;
 
   return (
     <div
       role="alert"
+      dir={isHebrew ? 'rtl' : 'ltr'}
       style={{
         padding: '12px 14px',
         background: 'var(--app-danger-surface)',
@@ -47,7 +51,7 @@ export function ToolErrorFallback({ result }: { result: ToolErrorResult }) {
       }}
     >
       <div style={{ fontWeight: 700, marginBottom: 4 }}>
-        ⚠️ Something went wrong
+        ⚠️ {isHebrew ? 'משהו השתבש' : 'Something went wrong'}
       </div>
       <div style={{ fontSize: 13, lineHeight: 1.4 }}>{message}</div>
       {(result.tool || result.errorId) && (
@@ -59,11 +63,19 @@ export function ToolErrorFallback({ result }: { result: ToolErrorResult }) {
           }}
         >
           <summary style={{ cursor: 'pointer', userSelect: 'none' }}>
-            Support details
+            {isHebrew ? 'פרטי תמיכה' : 'Support details'}
           </summary>
           <div style={{ marginTop: 4, fontFamily: 'monospace' }}>
-            {result.tool ? <div>tool: {result.tool}</div> : null}
-            {result.errorId ? <div>errorId: {result.errorId}</div> : null}
+            {result.tool ? (
+              <div>
+                {isHebrew ? 'כלי' : 'tool'}: {result.tool}
+              </div>
+            ) : null}
+            {result.errorId ? (
+              <div>
+                {isHebrew ? 'מזהה שגיאה' : 'errorId'}: {result.errorId}
+              </div>
+            ) : null}
           </div>
         </details>
       )}

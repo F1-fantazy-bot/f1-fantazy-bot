@@ -1,0 +1,58 @@
+import { directionFor, useUiLanguage } from './uiLanguage';
+
+export type ToolLoadingKind =
+  | 'nextRaces'
+  | 'userTeams'
+  | 'followedTeams'
+  | 'leaderboard'
+  | 'bestTeams'
+  | 'scenarios'
+  | 'raceInfo'
+  | 'weather'
+  | 'deadline'
+  | 'currentTeam'
+  | 'liveScore'
+  | 'liveLeaderboard'
+  | 'write';
+
+const copy: Record<ToolLoadingKind, { en: string; he: string }> = {
+  nextRaces: { en: 'Loading upcoming races…', he: 'טוען מרוצים קרובים…' },
+  userTeams: { en: 'Loading your teams…', he: 'טוען את הקבוצות שלך…' },
+  followedTeams: {
+    en: 'Loading your tracked teams…',
+    he: 'טוען קבוצות במעקב…',
+  },
+  leaderboard: { en: 'Loading league standings…', he: 'טוען טבלת ליגה…' },
+  bestTeams: { en: 'Computing best teams…', he: 'מחשב קבוצות מומלצות…' },
+  scenarios: { en: 'Computing scenarios…', he: 'מחשב תרחישים…' },
+  raceInfo: { en: 'Loading next race info…', he: 'טוען מידע על המרוץ הבא…' },
+  weather: { en: 'Fetching weather forecast…', he: 'טוען תחזית מזג אוויר…' },
+  deadline: { en: 'Loading deadline…', he: 'טוען מועד נעילה…' },
+  currentTeam: { en: 'Loading your current team…', he: 'טוען את הקבוצה הנוכחית…' },
+  liveScore: { en: 'Loading live score…', he: 'טוען ניקוד חי…' },
+  liveLeaderboard: {
+    en: 'Loading live leaderboard…',
+    he: 'טוען טבלת ניקוד חי…',
+  },
+  write: { en: 'Working on it…', he: 'מבצע את הפעולה…' },
+};
+
+export function ToolLoading({
+  kind,
+  englishLabel,
+}: {
+  kind: ToolLoadingKind;
+  englishLabel?: string;
+}) {
+  const { lang } = useUiLanguage();
+  const text = lang === 'he' ? copy[kind].he : (englishLabel ?? copy[kind].en);
+
+  return (
+    <div
+      dir={directionFor(lang)}
+      style={{ padding: 10, color: 'var(--app-muted)' }}
+    >
+      {text}
+    </div>
+  );
+}

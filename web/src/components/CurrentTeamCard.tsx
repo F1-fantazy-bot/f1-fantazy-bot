@@ -1,5 +1,7 @@
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
+import { directionFor, uiLanguageOf } from './uiLanguage';
+import { ToolLoading } from './ToolLoading';
 
 type TeamInfo = {
   totalPrice?: number;
@@ -10,12 +12,15 @@ type TeamInfo = {
 };
 
 type CurrentTeamResult = {
+  lang?: string;
   status?:
     | 'ok'
     | 'no_teams'
     | 'unknown_team'
     | 'ambiguous_team'
-    | 'missing_cache';
+    | 'missing_cache'
+    | 'projection_mismatch'
+    | 'missing_weekend_format';
   teamId?: string;
   teamName?: string | null;
   chip?: string | null;
@@ -36,38 +41,127 @@ function fmt(value: number | undefined | null, digits = 2): string {
   return value.toFixed(digits);
 }
 
-function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
+function localizedChip(chip: string, lang: 'en' | 'he'): string {
+  if (lang !== 'he') return chip;
+  const labels: Record<string, string> = {
+    EXTRA_BOOST: 'אקסטרה בוסט',
+    WILDCARD: 'ווילדקארד',
+    LIMITLESS: 'ללא הגבלה',
+    WITHOUT_CHIP: "ללא צ'יפ",
+  };
+  return labels[chip] ?? chip;
+}
+
+export function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
+  const lang = uiLanguageOf(result);
+  const labels =
+    lang === 'he'
+      ? {
+          noTeam:
+            'עדיין אין לך קבוצה שמורה. יש להעלות צילום מסך או JSON בבוט הטלגרם.',
+          missing:
+            'חלק מנתוני הקבוצה עדיין אינם שמורים. יש לשלוח נתוני נהגים, קבוצות והקבוצה הנוכחית.',
+          ambiguous: 'יש לך כמה קבוצות. נא לציין איזו קבוצה להציג.',
+          unknown: 'לא נמצאה הקבוצה. האפשרויות הזמינות:',
+          projectionMismatch:
+            'נתוני התחזית אינם תואמים לרשימת המשתתפים הפעילים. נסה שוב לאחר עדכון הנתונים.',
+          missingWeekend:
+            'פורמט סוף השבוע של המרוץ הבא אינו זמין. נסה שוב לאחר עדכון נתוני המרוץ.',
+          chip: "צ'יפ",
+          drivers: 'נהגים',
+          constructors: 'קבוצות',
+          totalPrice: 'מחיר כולל',
+          capRemaining: 'תקציב נותר',
+          overallBudget: 'תקציב כולל',
+          expectedPoints: 'נקודות חזויות',
+          budgetAdjusted: 'מותאם תקציב',
+          priceChange: 'שינוי מחיר חזוי',
+          freeTransfers: 'העברות חינם',
+        }
+      : {
+          noTeam:
+            "You don't have a saved team yet. Upload a team screenshot or JSON in the Telegram bot first.",
+          missing:
+            "Some of your team data isn't cached yet. Send drivers, constructors, and current-team data first.",
+          ambiguous: 'You have multiple teams. Tell me which one to show.',
+          unknown: "Couldn't find that team. Available:",
+          projectionMismatch:
+            'Projection data does not match the active player list. Try after the next data refresh.',
+          missingWeekend:
+            'The next-race weekend format is unavailable. Try after race data refreshes.',
+          chip: 'CHIP',
+          drivers: 'Drivers',
+          constructors: 'Constructors',
+          totalPrice: 'Total price',
+          capRemaining: 'Cost cap remaining',
+          overallBudget: 'Overall budget',
+          expectedPoints: 'Expected points',
+          budgetAdjusted: 'Budget-adjusted',
+          priceChange: 'Expected price Δ',
+          freeTransfers: 'Free transfers',
+        };
   if (!result || result.status === 'no_teams') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
-        You don't have a saved team yet. Upload a team screenshot or JSON in the
-        Telegram bot first.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-muted)' }}
+      >
+        {labels.noTeam}
       </div>
     );
   }
 
   if (result.status === 'missing_cache') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-danger-text)' }}>
-        Some of your team data isn't cached yet. Send drivers / constructors /
-        current-team images or JSON in the Telegram bot first.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-danger-text)' }}
+      >
+        {labels.missing}
       </div>
     );
   }
 
   if (result.status === 'ambiguous_team') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
-        You have multiple teams ({result.teamIds?.join(', ') || '—'}). Tell me
-        which one to show.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-muted)' }}
+      >
+        {labels.ambiguous} ({result.teamIds?.join(', ') || '—'})
       </div>
     );
   }
 
   if (result.status === 'unknown_team') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-danger-text)' }}>
-        Couldn't find that team. Available: {result.teamIds?.join(', ') || '—'}.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-danger-text)' }}
+      >
+        {labels.unknown} {result.teamIds?.join(', ') || '—'}.
+      </div>
+    );
+  }
+
+  if (result.status === 'projection_mismatch') {
+    return (
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-danger-text)' }}
+      >
+        {labels.projectionMismatch}
+      </div>
+    );
+  }
+
+  if (result.status === 'missing_weekend_format') {
+    return (
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-warning-text)' }}
+      >
+        {labels.missingWeekend}
       </div>
     );
   }
@@ -85,6 +179,7 @@ function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
 
   return (
     <div
+      dir={directionFor(lang)}
       style={{
         margin: '8px 0',
         border: '1px solid var(--app-border)',
@@ -122,13 +217,15 @@ function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
               fontSize: 11,
             }}
           >
-            CHIP: {result.chip}
+            {labels.chip}: {localizedChip(result.chip, lang)}
           </span>
         ) : null}
       </div>
 
       <div style={{ padding: '12px 16px' }}>
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>Drivers</div>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>
+          {labels.drivers}
+        </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {drivers.map((d) => {
             const isCaptain = d === result.boostDriver;
@@ -161,7 +258,7 @@ function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
         </div>
 
         <div style={{ fontWeight: 700, margin: '12px 0 4px' }}>
-          Constructors
+          {labels.constructors}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {constructors.map((c) => (
@@ -191,27 +288,33 @@ function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
           gap: '10px 16px',
         }}
       >
-        <Metric label="Total price" value={fmt(ti.totalPrice)} unit="$M" />
+        <Metric label={labels.totalPrice} value={fmt(ti.totalPrice)} unit="$M" />
         <Metric
-          label="Cost cap remaining"
+          label={labels.capRemaining}
           value={fmt(ti.costCapRemaining)}
           unit="$M"
         />
         <Metric
-          label="Overall budget"
+          label={labels.overallBudget}
           value={fmt(ti.overallBudget)}
           unit="$M"
         />
-        <Metric label="Expected points" value={fmt(ti.teamExpectedPoints)} />
+        <Metric
+          label={labels.expectedPoints}
+          value={fmt(ti.teamExpectedPoints)}
+        />
         {ppmActive && typeof result.budgetAdjustedPoints === 'number' ? (
           <Metric
-            label={`Budget-adjusted (ppm=${result.budgetChangePointsPerMillion})`}
+            label={`${labels.budgetAdjusted} (ppm=${result.budgetChangePointsPerMillion})`}
             value={fmt(result.budgetAdjustedPoints)}
           />
         ) : null}
-        <Metric label="Expected price Δ" value={fmt(ti.teamPriceChange)} />
+        <Metric label={labels.priceChange} value={fmt(ti.teamPriceChange)} />
         {typeof result.freeTransfers === 'number' ? (
-          <Metric label="Free transfers" value={String(result.freeTransfers)} />
+          <Metric
+            label={labels.freeTransfers}
+            value={String(result.freeTransfers)}
+          />
         ) : null}
       </div>
     </div>
@@ -273,11 +376,7 @@ export function useCurrentTeamAction() {
     available: 'frontend',
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
-        return (
-          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
-            Loading your current team…
-          </div>
-        );
+        return <ToolLoading kind="currentTeam" />;
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
       if (isToolErrorResult(parsed)) {

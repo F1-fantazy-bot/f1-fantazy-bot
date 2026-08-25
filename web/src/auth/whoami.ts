@@ -24,6 +24,7 @@ export type VerifyAccessOk = {
   mode: 'authenticated' | 'bypassed';
   email?: string;
   name?: string;
+  lang?: 'en' | 'he';
 };
 
 export type VerifyAccessForbidden = {
@@ -129,6 +130,7 @@ async function attemptVerifyAccess(
       mode?: 'authenticated' | 'bypassed';
       email?: string;
       name?: string;
+      lang?: 'en' | 'he';
     } = {};
     try {
       body = await response.json();
@@ -137,12 +139,14 @@ async function attemptVerifyAccess(
       return { retry: 'http_5xx' };
     }
     if (body.status === 'ok' && (body.mode === 'authenticated' || body.mode === 'bypassed')) {
-      return {
+      const result: VerifyAccessOk = {
         status: 'ok',
         mode: body.mode,
-        email: body.email,
-        name: body.name,
+        lang: body.lang === 'he' ? 'he' : 'en',
       };
+      if (body.email) result.email = body.email;
+      if (body.name) result.name = body.name;
+      return result;
     }
     return { retry: 'http_5xx' };
   }

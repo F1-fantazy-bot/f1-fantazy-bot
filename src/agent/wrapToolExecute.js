@@ -29,6 +29,11 @@
 const { randomUUID } = require('crypto');
 const { sendErrorMessage } = require('../utils/utils');
 const { getNotifierBot } = require('./notifierBot');
+const { getAgentChatId } = require('./identity');
+const { getLanguage } = require('../i18n');
+const {
+  getFreshLanguagePreference,
+} = require('../services/setLanguageService');
 
 const TOOL_ERROR_STATUS = 'tool_error';
 const DEFAULT_USER_MESSAGE =
@@ -82,11 +87,27 @@ function wrapToolExecute(toolName, fn) {
         );
       }
 
+      let uiLang = 'en';
+      try {
+        const chatId = getAgentChatId();
+        uiLang = (await getFreshLanguagePreference(chatId)).lang;
+      } catch {
+        try {
+          uiLang = getLanguage(getAgentChatId());
+        } catch {
+          uiLang = 'en';
+        }
+      }
+
       return {
         status: TOOL_ERROR_STATUS,
         tool: toolName,
         errorId,
-        userMessage: DEFAULT_USER_MESSAGE,
+        userMessage:
+          uiLang === 'he'
+            ? 'אירעה שגיאה בעת הבדיקה. נסה שוב בעוד רגע.'
+            : DEFAULT_USER_MESSAGE,
+        uiLang,
       };
     }
   };

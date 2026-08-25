@@ -1,5 +1,7 @@
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
+import { directionFor, localeFor, uiLanguageOf } from './uiLanguage';
+import { ToolLoading } from './ToolLoading';
 
 type Session = { date?: string; time?: string };
 
@@ -21,17 +23,18 @@ type Race = {
 };
 
 type NextRacesResult = {
+  lang?: string;
   season?: string;
   races?: Race[];
   counts?: { total?: number; sprint?: number };
 };
 
-function formatRaceDate(race: Race): string {
-  if (!race.date) return 'TBD';
+function formatRaceDate(race: Race, locale: string): string {
+  if (!race.date) return locale === 'he-IL' ? 'טרם נקבע' : 'TBD';
   const iso = race.time ? `${race.date}T${race.time}` : race.date;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return race.date;
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString(locale, {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
@@ -39,11 +42,43 @@ function formatRaceDate(race: Race): string {
   });
 }
 
-function NextRacesTable({ result }: { result?: NextRacesResult }) {
+export function NextRacesTable({ result }: { result?: NextRacesResult }) {
+  const lang = uiLanguageOf(result);
+  const labels =
+    lang === 'he'
+      ? {
+          empty: 'לא נמצאו מרוצים קרובים.',
+          title: 'המרוצים הקרובים',
+          round: 'סבב',
+          race: 'מרוץ',
+          country: 'מדינה',
+          circuit: 'מסלול',
+          date: 'תאריך המרוץ',
+          sprint: 'ספרינט?',
+          raceSingular: 'מרוץ נותר',
+          racePlural: 'מרוצים נותרו',
+          sprintFormat: 'בפורמט ספרינט',
+        }
+      : {
+          empty: 'No upcoming races found.',
+          title: 'Upcoming Races',
+          round: 'Rd',
+          race: 'Race',
+          country: 'Country',
+          circuit: 'Circuit',
+          date: 'Race date',
+          sprint: 'Sprint?',
+          raceSingular: 'race left',
+          racePlural: 'races left',
+          sprintFormat: 'sprint format',
+        };
   if (!result || !result.races || result.races.length === 0) {
     return (
-      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
-        No upcoming races found.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-muted)' }}
+      >
+        {labels.empty}
       </div>
     );
   }
@@ -52,6 +87,7 @@ function NextRacesTable({ result }: { result?: NextRacesResult }) {
 
   return (
     <div
+      dir={directionFor(lang)}
       style={{
         margin: '8px 0',
         border: '1px solid var(--app-border)',
@@ -68,7 +104,8 @@ function NextRacesTable({ result }: { result?: NextRacesResult }) {
           fontWeight: 600,
         }}
       >
-        Upcoming Races{season ? ` — ${season}` : ''}
+        {labels.title}
+        {season ? ` — ${season}` : ''}
       </div>
       <table
         style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}
@@ -77,15 +114,17 @@ function NextRacesTable({ result }: { result?: NextRacesResult }) {
           <tr
             style={{
               background: 'var(--app-surface-subtle)',
-              textAlign: 'left',
+              textAlign: 'start',
             }}
           >
-            <th style={cellHeader}>Rd</th>
-            <th style={cellHeader}>Race</th>
-            <th style={cellHeader}>Country</th>
-            <th style={cellHeader}>Circuit</th>
-            <th style={cellHeader}>Race date</th>
-            <th style={{ ...cellHeader, textAlign: 'center' }}>Sprint?</th>
+            <th style={cellHeader}>{labels.round}</th>
+            <th style={cellHeader}>{labels.race}</th>
+            <th style={cellHeader}>{labels.country}</th>
+            <th style={cellHeader}>{labels.circuit}</th>
+            <th style={cellHeader}>{labels.date}</th>
+            <th style={{ ...cellHeader, textAlign: 'center' }}>
+              {labels.sprint}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -102,7 +141,9 @@ function NextRacesTable({ result }: { result?: NextRacesResult }) {
                 <td style={cellBody}>{race.raceName}</td>
                 <td style={cellBody}>{country || '—'}</td>
                 <td style={cellBody}>{circuit || '—'}</td>
-                <td style={cellBody}>{formatRaceDate(race)}</td>
+                <td style={cellBody}>
+                  {formatRaceDate(race, localeFor(lang))}
+                </td>
                 <td style={{ ...cellBody, textAlign: 'center' }}>
                   {isSprint ? '🏁' : ''}
                 </td>
@@ -120,10 +161,12 @@ function NextRacesTable({ result }: { result?: NextRacesResult }) {
             color: 'var(--app-muted)',
           }}
         >
-          {counts.total ?? races.length} race
-          {(counts.total ?? races.length) === 1 ? '' : 's'} left
+          {counts.total ?? races.length}{' '}
+          {(counts.total ?? races.length) === 1
+            ? labels.raceSingular
+            : labels.racePlural}
           {typeof counts.sprint === 'number'
-            ? ` · ${counts.sprint} sprint format`
+            ? ` · ${counts.sprint} ${labels.sprintFormat}`
             : ''}
         </div>
       ) : null}
@@ -162,11 +205,7 @@ export function useNextRacesAction() {
     available: 'frontend',
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
-        return (
-          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
-            Loading upcoming races…
-          </div>
-        );
+        return <ToolLoading kind="nextRaces" />;
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
       if (isToolErrorResult(parsed)) {

@@ -7,7 +7,7 @@ team, set language, follow league, activate chip, …). This document is
 the working plan for closing that gap — exposing the same set of writes
 as agent tools without breaking the Telegram bot.
 
-**Current state (2026-08-24):** **PR-1 (shared write-tool
+**Current state (2026-08-25):** **PR-1 (shared write-tool
 infrastructure) is merged and delivered by
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207).**
 The review-hardening pass replaced the original process-local Map with
@@ -17,12 +17,15 @@ nonce approved before `confirm_write` can consume it. Cancellation
 deletes the nonce immediately. The PR also ships the `defineWriteTool`
 factory, shared `<WriteConfirmCard>` / `<WriteResultCard>` React
 components, `registerWriteAction`, and write-semantics prompt. No
-**PR-2 (`set_language`) is the current phase.** It adds the first
-concrete write tool, extracts the shared language service, keeps the
-Telegram `/lang` command and callback output unchanged, and refreshes
-Telegram's persisted language before routing each allowed message so
-an agent-side change crosses the separate Function-process boundary.
-PR-3 (`select_team`) is next after PR-2 merges.
+concrete write operation was registered in PR-1.
+**PR-2 (`set_language`) merged as
+[#216](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/216).**
+It adds the first concrete write tool, its read-only `get_language`
+companion, shared language persistence, cross-process Telegram
+hydration, hidden confirmation control messages, and Hebrew
+localization for shared write UI + race info. A follow-up localizes
+`BestTeamsTable` by passing the refreshed saved language in the
+`get_best_teams` tool result. PR-3 (`select_team`) is next.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -333,7 +336,7 @@ PRs can avoid them.
    SWA CLI to a known-good version instead of `@latest` so we control
    the deploy-binary revision.
 
-### PR-2 — `set_language` *(vertical-slice proof)*
+### PR-2 — `set_language` ✅ Merged ([#216](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/216))
 
 Chosen as the first concrete write because it has no team validation,
 is idempotent, already persists durably, and exercises every layer
@@ -386,6 +389,32 @@ end-to-end.
   current. `RaceInfoCard` localizes schedule/weather/history/table
   labels, uses `he-IL` date formatting, selects Hebrew track history,
   and renders RTL.
+- `get_best_teams` follows the same contract: refresh the durable
+  language, include `lang` on both success/error results, and let
+  `BestTeamsTable` render Hebrew header/filter/table/legend/error labels
+  with RTL layout while keeping driver/constructor codes unchanged.
+- The contract now applies to **every** registered rich renderer.
+  `src/agent/tools.js#withUiLanguage` enriches read-tool results with the
+  refreshed saved `lang`; the React components render English or
+  Hebrew/RTL from that field:
+  - `NextRacesTable`, `UserTeamsList`, `FollowedTeamsGrid`
+  - `LeaderboardTable`, `BestTeamsTable`,
+    `BestTeamScenariosMatrix`
+  - `RaceInfoCard`, `WeatherForecast`, `DeadlineCountdown`
+  - `CurrentTeamCard`, `LiveScoreBreakdown`,
+    `LiveScoreLeaderboard`
+  - shared `ToolErrorFallback`, `WriteConfirmCard`,
+    `WriteResultCard`
+  Proper names and F1 driver/constructor/team codes stay unchanged.
+  `AllRichComponentsHebrew.test.tsx` is the regression gate—when adding
+  another renderer, add it to that matrix.
+- Loading branches have no tool result yet, so `/api/agent/whoami`
+  returns the durable `lang` and `AccessVerifier` initializes a shared
+  `UiLanguageProvider`. All action hooks render `ToolLoading`; successful
+  writes synchronize the context. `ToolLoading.test.tsx` covers all
+  loading kinds. Local bypass mode performs the same whoami probe for
+  the hardcoded user. The endpoint reuses the bounded/coalesced language
+  refresh so presentation metadata cannot stall login.
 - `confirm_write` refreshes the durable preference before building
   expected failure envelopes (`forbidden`, expired/missing nonce,
   missing handler), so Hebrew users do not get an English result shell

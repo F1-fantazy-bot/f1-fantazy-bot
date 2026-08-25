@@ -68,6 +68,7 @@ describe('verifyAccess — happy path', () => {
           mode: 'authenticated',
           email: 'foo@example.com',
           name: 'Foo',
+          lang: 'en',
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),
@@ -79,6 +80,26 @@ describe('verifyAccess — happy path', () => {
       mode: 'authenticated',
       email: 'foo@example.com',
       name: 'Foo',
+      lang: 'en',
+    });
+  });
+
+  test('returns the durable Hebrew UI language', async () => {
+    mockFetchOnce(async () =>
+      new Response(
+        JSON.stringify({
+          status: 'ok',
+          mode: 'authenticated',
+          email: 'foo@example.com',
+          lang: 'he',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    await expect(verifyAccess(ID_TOKEN, RUNTIME_URL)).resolves.toMatchObject({
+      status: 'ok',
+      lang: 'he',
     });
   });
 
@@ -91,7 +112,7 @@ describe('verifyAccess — happy path', () => {
     );
 
     const result = await verifyAccess(null, RUNTIME_URL);
-    expect(result).toEqual({ status: 'ok', mode: 'bypassed' });
+    expect(result).toEqual({ status: 'ok', mode: 'bypassed', lang: 'en' });
   });
 
   test('sends the Bearer token when one is provided', async () => {
