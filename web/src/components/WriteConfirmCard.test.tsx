@@ -136,6 +136,7 @@ describe('WriteConfirmCard', () => {
     expect(
       String(addMessage.mock.calls[0][0].content),
     ).toContain('nonce-1');
+    expect(addMessage.mock.calls[0][0].role).toBe('developer');
     cleanup();
   });
 
@@ -170,6 +171,7 @@ describe('WriteConfirmCard', () => {
     expect(String(addMessage.mock.calls[0][0].content)).not.toContain(
       'nonce-1',
     );
+    expect(addMessage.mock.calls[0][0].role).toBe('user');
     cleanup();
   });
 

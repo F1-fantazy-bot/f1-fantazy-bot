@@ -79,6 +79,11 @@ function buildAgent(cfg) {
     model,
     prompt: getSystemPrompt(),
     tools,
+    // Write-confirmation nonces are injected as hidden AG-UI developer
+    // messages. CopilotKit renders only user/assistant roles, while this flag
+    // forwards developer content to the model as a system message so it can
+    // call confirm_write.
+    forwardDeveloperMessages: true,
     // Allow the model to call a tool, see the result, and produce a
     // final assistant message in one run. Without this it stops after
     // emitting the tool call and never synthesises a reply.
@@ -128,5 +133,5 @@ module.exports = {
   getCopilotRuntimeHandler,
   COPILOTKIT_ENDPOINT,
   getSystemPrompt,
+  buildAgent,
 };
-

@@ -88,10 +88,13 @@ export function WriteConfirmCard({
   >('pending');
   const [errorMessage, setErrorMessage] = useState('');
 
-  async function send(content: string) {
+  async function send(
+    content: string,
+    role: 'user' | 'developer' = 'user',
+  ) {
     agent.addMessage({
       id: crypto.randomUUID(),
-      role: 'user',
+      role,
       content,
     });
     // Use the coordinated CopilotKit runner with the SAME agent that received
@@ -106,7 +109,10 @@ export function WriteConfirmCard({
     setErrorMessage('');
     try {
       await decide(result.writeNonce, 'approve');
-      await send(labels.approveMessage);
+      // The nonce is control-plane data for the model, not user-facing chat
+      // content. CopilotKit passes developer messages to the agent but its
+      // chat renderer intentionally renders only user/assistant roles.
+      await send(labels.approveMessage, 'developer');
       setDecision('confirmed');
     } catch (err) {
       setErrorMessage(
