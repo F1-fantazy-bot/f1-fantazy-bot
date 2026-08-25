@@ -196,6 +196,18 @@ const translations = {
     'Please select a language:': 'אנא בחר שפה:',
     'Change your saved language to {LANG} ({CODE}).':
       'לשנות את השפה השמורה ל{LANG} ({CODE}).',
+    'Your saved language is {LANG} ({CODE}).':
+      'השפה השמורה שלך היא {LANG} ({CODE}).',
+    'Language is already set to {LANG} ({CODE}).':
+      'השפה כבר מוגדרת ל{LANG} ({CODE}).',
+    'Your cached language is {LANG} ({CODE}); the saved setting could not be verified right now.':
+      'השפה שבמטמון היא {LANG} ({CODE}); לא ניתן לאמת כרגע את ההגדרה השמורה.',
+    'This change has not been approved in the confirmation card. Ask the user to click Yes before trying again.':
+      'השינוי לא אושר בכרטיס האישור. יש ללחוץ על כן לפני ניסיון נוסף.',
+    'No pending write found for that nonce. It may have expired, already been confirmed, or been issued for a different user.':
+      'לא נמצא שינוי ממתין עבור האסימון הזה. ייתכן שפג תוקפו, שכבר אושר או שהונפק למשתמש אחר.',
+    'No registered commit handler for tool "{TOOL}".':
+      'לא נמצא מנגנון ביצוע רשום עבור הכלי "{TOOL}".',
     English: 'אנגלית',
     Hebrew: 'עברית',
     '🌐 Set Language': '🌐 הגדר שפה',

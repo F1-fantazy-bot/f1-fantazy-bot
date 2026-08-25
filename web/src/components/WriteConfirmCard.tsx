@@ -11,6 +11,7 @@ export type WriteConfirmationRequired = {
   tool: string;
   writeNonce: string;
   summary: string;
+  uiLang?: string;
   args?: Record<string, unknown>;
 };
 
@@ -40,6 +41,48 @@ export function WriteConfirmCard({
 }) {
   const { appendMessage } = useCopilotChat();
   const { decide } = useWriteDecision();
+  const isHebrew = result.uiLang === 'he';
+  const labels = isHebrew
+    ? {
+        title: 'אישור שינוי',
+        yes: 'כן, בצע',
+        confirmed: 'אושר…',
+        submitting: 'שומר החלטה…',
+        cancel: 'ביטול',
+        cancelled: 'בוטל',
+        details: 'מה יקרה',
+        detailsBody: (
+          <>
+            לחיצה על כן שומרת אישור מאומת לפני שהסוכן יכול לקרוא ל־
+            <code>confirm_write</code>. ביטול מוחק מיד את האסימון החד־פעמי
+            מבלי לבצע את השינוי.
+          </>
+        ),
+        approveMessage: `כן — אישרתי את השינוי. השתמש ב-writeNonce ${result.writeNonce} עם confirm_write.`,
+        cancelMessage: 'לא — ביטלתי את השינוי.',
+        approveError: 'לא ניתן לאשר את השינוי. נסה שוב.',
+        cancelError: 'לא ניתן לבטל את השינוי. נסה שוב.',
+      }
+    : {
+        title: 'Confirm change',
+        yes: 'Yes, do it',
+        confirmed: 'Confirmed…',
+        submitting: 'Saving decision…',
+        cancel: 'Cancel',
+        cancelled: 'Cancelled',
+        details: 'What will happen',
+        detailsBody: (
+          <>
+            Yes records an authenticated approval before the agent can call{' '}
+            <code>confirm_write</code>. Cancel deletes the one-time token
+            immediately without performing the change.
+          </>
+        ),
+        approveMessage: `Yes — I approved this change. Use writeNonce ${result.writeNonce} with confirm_write.`,
+        cancelMessage: 'No — I cancelled that change.',
+        approveError: 'Unable to approve this change. Please try again.',
+        cancelError: 'Unable to cancel this change. Please try again.',
+      };
   const [decision, setDecision] = useState<
     'pending' | 'submitting' | 'confirmed' | 'cancelled' | 'error'
   >('pending');
@@ -57,15 +100,13 @@ export function WriteConfirmCard({
     setErrorMessage('');
     try {
       await decide(result.writeNonce, 'approve');
-      await send(
-        `Yes — I approved this change. Use writeNonce ${result.writeNonce} with confirm_write.`,
-      );
+      await send(labels.approveMessage);
       setDecision('confirmed');
     } catch (err) {
       setErrorMessage(
-        err instanceof Error
+        !isHebrew && err instanceof Error
           ? err.message
-          : 'Unable to approve this change. Please try again.',
+          : labels.approveError,
       );
       setDecision('error');
     }
@@ -77,13 +118,13 @@ export function WriteConfirmCard({
     setErrorMessage('');
     try {
       await decide(result.writeNonce, 'cancel');
-      await send('No — I cancelled that change.');
+      await send(labels.cancelMessage);
       setDecision('cancelled');
     } catch (err) {
       setErrorMessage(
-        err instanceof Error
+        !isHebrew && err instanceof Error
           ? err.message
-          : 'Unable to cancel this change. Please try again.',
+          : labels.cancelError,
       );
       setDecision('error');
     }
@@ -97,7 +138,8 @@ export function WriteConfirmCard({
   return (
     <div
       role="dialog"
-      aria-label={`Confirm ${result.tool}`}
+      aria-label={`${labels.title}: ${result.tool}`}
+      dir={isHebrew ? 'rtl' : 'ltr'}
       style={{
         padding: '12px 14px',
         background: '#f0f6ff',
@@ -108,7 +150,7 @@ export function WriteConfirmCard({
       }}
     >
       <div style={{ fontWeight: 700, marginBottom: 4 }}>
-        ❓ Confirm change
+        ❓ {labels.title}
       </div>
       <div style={{ fontSize: 13, lineHeight: 1.4, marginBottom: 10 }}>
         {result.summary}
@@ -138,10 +180,10 @@ export function WriteConfirmCard({
           }}
         >
           {decision === 'confirmed'
-            ? 'Confirmed…'
+            ? labels.confirmed
             : decision === 'submitting'
-              ? 'Saving decision…'
-              : 'Yes, do it'}
+              ? labels.submitting
+              : labels.yes}
         </button>
         <button
           type="button"
@@ -158,18 +200,14 @@ export function WriteConfirmCard({
             fontWeight: 600,
           }}
         >
-          {decision === 'cancelled' ? 'Cancelled' : 'Cancel'}
+          {decision === 'cancelled' ? labels.cancelled : labels.cancel}
         </button>
       </div>
       <details style={{ marginTop: 8, fontSize: 11, opacity: 0.7 }}>
         <summary style={{ cursor: 'pointer', userSelect: 'none' }}>
-          What will happen
+          {labels.details}
         </summary>
-        <div style={{ marginTop: 4 }}>
-          Yes records an authenticated approval before the agent can call{' '}
-          <code>confirm_write</code>. Cancel deletes the one-time token
-          immediately without performing the change.
-        </div>
+        <div style={{ marginTop: 4 }}>{labels.detailsBody}</div>
       </details>
     </div>
   );

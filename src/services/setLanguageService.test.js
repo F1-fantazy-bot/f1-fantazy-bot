@@ -11,6 +11,8 @@ const { userCache } = require('../cache');
 const { getLanguage } = require('../i18n');
 const {
   setLanguagePreference,
+  getLanguagePreference,
+  getFreshLanguagePreference,
   refreshLanguagePreference,
   isSupportedLanguage,
   resetLanguageGenerationsForTests,
@@ -26,6 +28,10 @@ beforeEach(() => {
   }
 });
 
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
 describe('setLanguagePreference', () => {
   test('persists and applies a supported language', async () => {
     const result = await setLanguagePreference({ chatId: 42, lang: 'he' });
@@ -38,7 +44,58 @@ describe('setLanguagePreference', () => {
       languageName: expect.any(String),
     });
   });
+});
 
+describe('getLanguagePreference', () => {
+  test('returns the currently saved in-memory language without writing', async () => {
+    await setLanguagePreference({ chatId: 42, lang: 'he' });
+    updateUserAttributes.mockClear();
+
+    const result = getLanguagePreference(42);
+
+    expect(result).toMatchObject({
+      status: 'ok',
+      lang: 'he',
+      languageName: 'עברית',
+    });
+    expect(result.summary).toContain('עברית');
+    expect(updateUserAttributes).not.toHaveBeenCalled();
+  });
+});
+
+describe('getFreshLanguagePreference', () => {
+  test('refreshes Azure before returning the account language', async () => {
+    userCache['42'] = { lang: 'en' };
+    getUserById.mockResolvedValue({ chatId: '42', lang: 'he' });
+
+    await expect(getFreshLanguagePreference(42)).resolves.toMatchObject({
+      status: 'ok',
+      lang: 'he',
+      languageName: 'עברית',
+      fresh: true,
+    });
+  });
+
+  test('falls back to initialized cache when the bounded refresh fails', async () => {
+    userCache['42'] = { lang: 'he' };
+    getUserById.mockRejectedValue(new Error('storage unavailable'));
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const result = await getFreshLanguagePreference(42);
+
+    expect(result).toMatchObject({
+      lang: 'he',
+      fresh: false,
+    });
+    expect(result.summary).toContain('לא ניתן לאמת');
+    expect(console.error).toHaveBeenCalledWith(
+      'Error refreshing language preference:',
+      expect.any(Error),
+    );
+  });
+});
+
+describe('setLanguagePreference errors', () => {
   test('returns invalid_input without persistence or cache mutation', async () => {
     const result = await setLanguagePreference({ chatId: 42, lang: 'fr' });
 
@@ -126,28 +183,20 @@ describe('refreshLanguagePreference', () => {
     expect(getLanguage(42)).toBe('he');
   });
 
-  test('only the newest concurrent refresh may update local language', async () => {
-    let resolveFirst;
-    let resolveSecond;
-    getUserById
-      .mockReturnValueOnce(
-        new Promise((resolve) => {
-          resolveFirst = resolve;
-        }),
-      )
-      .mockReturnValueOnce(
-        new Promise((resolve) => {
-          resolveSecond = resolve;
-        }),
-      );
+  test('coalesces concurrent refreshes so callers cannot apply out of order', async () => {
+    let resolveLookup;
+    getUserById.mockReturnValue(
+      new Promise((resolve) => {
+        resolveLookup = resolve;
+      }),
+    );
 
     const first = refreshLanguagePreference(42);
     const second = refreshLanguagePreference(42);
-    resolveSecond({ chatId: '42', lang: 'he' });
-    await expect(second).resolves.toBe(true);
-    resolveFirst({ chatId: '42', lang: 'en' });
-    await expect(first).resolves.toBe(false);
+    expect(getUserById).toHaveBeenCalledTimes(1);
+    resolveLookup({ chatId: '42', lang: 'he' });
 
+    await expect(Promise.all([first, second])).resolves.toEqual([true, true]);
     expect(getLanguage(42)).toBe('he');
   });
 });

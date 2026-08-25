@@ -20,6 +20,7 @@ jest.mock('../identity', () => ({
 
 jest.mock('../../services/setLanguageService', () => ({
   setLanguagePreference: jest.fn(),
+  getFreshLanguagePreference: jest.fn(async () => ({ lang: 'en' })),
   isSupportedLanguage: jest.fn((lang) => lang === 'en' || lang === 'he'),
 }));
 

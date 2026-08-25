@@ -285,10 +285,10 @@ All methods are **async** — they interact with Azure Table Storage. The table 
    point read hydrates the Telegram process without waiting for a
    restart. An outer 750 ms deadline covers table initialization plus
    the point read (and aborts the SDK request); failures are logged and
-   routing continues with the existing in-memory language. Every refresh
-   and local write claims a monotonically increasing per-chat operation
-   token; only the latest token may update the cache, preventing
-   refresh-vs-write and refresh-vs-refresh stale overwrites.
+   routing continues with the existing in-memory language. Concurrent
+   refreshes for one chat share one in-flight lookup; local writes
+   advance a per-chat operation generation that invalidates older reads
+   before they can update cache.
 
 ### Generic Merge Pattern
 
@@ -687,6 +687,8 @@ f1-fantazy-bot/
 │   │   ├── wrapToolExecute.js        # try/catch wrapper that returns `{status:'tool_error', errorId, ...}` (Phase 6.2)
 │   │   ├── writeToolHelpers.js       # defineWriteTool + approved-intent consume/commit registry
 │   │   ├── writeDecision.js          # authenticated approve/cancel application for staged writes
+│   │   ├── readTools/
+│   │   │   └── getLanguageTool.js    # read current persisted account language
 │   │   ├── writeTools/
 │   │   │   └── setLanguageTool.js    # first concrete write tool: en/he preference
 │   │   └── runtime.js                # BuiltInAgent + CopilotRuntime + createCopilotRuntimeHandler (+ wrapLanguageModel)
@@ -919,9 +921,27 @@ Concrete write tools currently available:
   agent run in separate Function processes, both message and callback
   dispatch refresh persisted `userCache.lang` through a `getUserById`
   operation with an outer 750 ms deadline covering initialization and
-  lookup. A per-chat operation token ensures only the latest refresh or
-  write may update the cache. Do not remove this refresh without replacing
-  it with another cross-process invalidation mechanism.
+  lookup. Concurrent refreshes are coalesced, and local writes invalidate
+  older reads through a per-chat operation generation. Do not remove this
+  refresh without replacing it with another cross-process invalidation
+  mechanism.
+- `get_language()` — read-only companion for questions about the
+  currently configured account language. Never route those questions
+  through `set_language`; requesting the already-active language from
+  `set_language` is a no-op (`changed: false`) and must not stage a
+  confirmation. Both the read tool and the no-op check perform the
+  bounded durable refresh first, so a warm agent instance does not rely
+  on stale startup cache. A same-language no-op is allowed only when
+  that durable refresh succeeds; on timeout, the write proceeds through
+  confirmation rather than trusting cache as durable proof.
+
+Write-tool envelopes carry `uiLang` on success and expected failure
+paths, which localizes the shared confirmation/result card shell.
+`get_next_race_info` refreshes and returns the saved language so
+`RaceInfoCard` can render Hebrew labels, `he-IL` dates, Hebrew track
+history, and RTL layout. When adding another rich component, do not
+assume the assistant's text language automatically localizes hardcoded
+React labels — pass/consume the saved language explicitly.
 
 ### Environment variables
 

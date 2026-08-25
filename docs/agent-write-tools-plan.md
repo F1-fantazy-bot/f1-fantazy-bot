@@ -335,24 +335,49 @@ end-to-end.
   inline-button callbacks. An outer 750 ms deadline wraps table
   initialization plus the point read (and also aborts the SDK request);
   failure logs and falls back to the current cache so a UserRegistry
-  outage cannot block Telegram indefinitely. Every refresh and local
-  write claims a monotonically increasing per-chat operation token;
-  only the latest token may update the cache. This prevents both stale
-  refresh-vs-write and refresh-vs-refresh overwrites. This is the
+  outage cannot block Telegram indefinitely. Concurrent refreshes for
+  one chat share a single in-flight Azure lookup; local writes advance a
+  per-chat generation token that invalidates any older read before it
+  can mutate cache. This prevents both stale refresh-vs-write and
+  refresh-vs-refresh overwrites. This is the
   cross-process read-back proof: a write in the agent Function becomes
   visible to the separate Telegram Function without requiring a host
   restart.
 - `src/agent/writeTools/setLanguageTool.js` registers
   `set_language({ lang: "en" | "he" })` via `defineWriteTool`.
   Invalid language values return the standard `invalid_input` envelope
-  before staging.
+  before staging. Requesting the already-active language returns
+  `{ status: "ok", changed: false }` immediately — no confirmation
+  nonce or redundant Azure write — but only when a successful durable
+  refresh confirms the match. If freshness cannot be established, the
+  tool proceeds through confirmation and persists the requested value.
+- The read-only `get_language` tool answers "what language is configured
+  on my account?" without routing through `set_language`. It performs
+  the same bounded durable refresh first, so a warm agent instance
+  cannot answer from stale startup cache.
+  If the durable refresh times out, the tool returns the cached language
+  with an explicit "could not verify" summary instead of presenting it
+  as confirmed durable state.
 - `web/src/App.tsx` registers the generic write renderer for
   `set_language`; the shared confirmation/result cards from PR-1 need
-  no tool-specific component.
+  no tool-specific component. The write envelopes carry `uiLang`, so
+  the full confirmation/result shells (titles, buttons, details) render
+  in Hebrew when the current saved language is Hebrew.
+- `get_next_race_info` enriches its tool result with the saved language;
+  it refreshes that preference before rendering so warm instances stay
+  current. `RaceInfoCard` localizes schedule/weather/history/table
+  labels, uses `he-IL` date formatting, selects Hebrew track history,
+  and renders RTL.
+- `confirm_write` refreshes the durable preference before building
+  expected failure envelopes (`forbidden`, expired/missing nonce,
+  missing handler), so Hebrew users do not get an English result shell
+  or English failure summary from a warm worker with stale startup
+  cache.
 - Tests cover service persistence ordering, invalid input, cross-process
   hydration, unchanged Telegram handler/callback routing, tool
   configuration, and the complete propose → rejected-premature-confirm
-  → authenticated approval → commit flow.
+  → authenticated approval → commit flow. UI tests cover Hebrew
+  confirmation/result shells and Hebrew race-info rendering.
 
 **Verification gate:** the full propose → confirm → commit flow
 demonstrably works end-to-end via the web agent, **and** `/lang` +

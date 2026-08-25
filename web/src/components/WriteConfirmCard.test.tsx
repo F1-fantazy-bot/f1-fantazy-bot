@@ -34,7 +34,7 @@ afterAll(() => {
   ).IS_REACT_ACT_ENVIRONMENT;
 });
 
-function renderCard() {
+function renderCard(uiLang?: string) {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root: Root = createRoot(container);
@@ -51,6 +51,7 @@ function renderCard() {
             tool: 'set_language',
             writeNonce: 'nonce-1',
             summary: 'Change language to Hebrew.',
+            uiLang,
           }}
         />
       </WriteDecisionProvider>,
@@ -80,6 +81,20 @@ afterEach(() => {
 });
 
 describe('WriteConfirmCard', () => {
+  test('renders the full confirmation shell in Hebrew when uiLang is he', () => {
+    const { container, cleanup } = renderCard('he');
+
+    expect(container.querySelector('[role="dialog"]')?.getAttribute('dir')).toBe(
+      'rtl',
+    );
+    expect(container.textContent).toContain('אישור שינוי');
+    expect(container.textContent).toContain('כן, בצע');
+    expect(container.textContent).toContain('ביטול');
+    expect(container.textContent).toContain('מה יקרה');
+
+    cleanup();
+  });
+
   test('does not expose the nonce to the LLM until authenticated approval succeeds', async () => {
     let resolveFetch:
       | ((response: Response) => void)
@@ -169,6 +184,32 @@ describe('WriteConfirmCard', () => {
       'The pending change was not found or has expired.',
     );
     expect(button(container, 'Yes, do it').disabled).toBe(false);
+    cleanup();
+  });
+
+  test('renders localized Hebrew errors instead of English transport messages', async () => {
+    vi.spyOn(window, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: 'not_found',
+          message: 'The pending change was not found or has expired.',
+        }),
+        { status: 404 },
+      ),
+    );
+    const { container, cleanup } = renderCard('he');
+
+    await act(async () => {
+      button(container, 'כן, בצע').click();
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain('לא ניתן לאשר את השינוי. נסה שוב.');
+    expect(container.textContent).not.toContain(
+      'The pending change was not found or has expired.',
+    );
+    expect(appendMessage).not.toHaveBeenCalled();
+
     cleanup();
   });
 });

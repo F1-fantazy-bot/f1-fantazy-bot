@@ -6,6 +6,7 @@ const {
 } = require('../../i18n');
 const {
   setLanguagePreference,
+  getFreshLanguagePreference,
   isSupportedLanguage,
 } = require('../../services/setLanguageService');
 const {
@@ -22,21 +23,37 @@ const setLanguageTool = defineWriteTool({
       .string()
       .describe('Target language code: "en" for English or "he" for Hebrew.'),
   }),
-  validate: ({ chatId, args }) => {
-    if (isSupportedLanguage(args.lang)) {
-      return null;
+  validate: async ({ chatId, args }) => {
+    const current = await getFreshLanguagePreference(chatId);
+
+    if (!isSupportedLanguage(args.lang)) {
+      return {
+        status: WRITE_RESULT_STATUSES.INVALID_INPUT,
+        tool: 'set_language',
+        summary: t(
+          'Invalid language. Supported languages: {LANGS}',
+          chatId,
+          { LANGS: getSupportedLanguages().join(', ') },
+        ),
+        supportedLanguages: getSupportedLanguages(),
+      };
     }
 
-    return {
-      status: WRITE_RESULT_STATUSES.INVALID_INPUT,
-      tool: 'set_language',
-      summary: t(
-        'Invalid language. Supported languages: {LANGS}',
-        chatId,
-        { LANGS: getSupportedLanguages().join(', ') },
-      ),
-      supportedLanguages: getSupportedLanguages(),
-    };
+    if (current.fresh && current.lang === args.lang) {
+      return {
+        status: WRITE_RESULT_STATUSES.OK,
+        tool: 'set_language',
+        summary: t('Language is already set to {LANG} ({CODE}).', chatId, {
+          LANG: getLanguageName(args.lang, chatId),
+          CODE: args.lang,
+        }),
+        lang: args.lang,
+        languageName: getLanguageName(args.lang, chatId),
+        changed: false,
+      };
+    }
+
+    return null;
   },
   buildSummary: ({ chatId, args }) =>
     t('Change your saved language to {LANG} ({CODE}).', chatId, {

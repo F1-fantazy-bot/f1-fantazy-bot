@@ -36,6 +36,10 @@ const {
   CONSUME_STATUS,
 } = require('../services/pendingWritesStore');
 const { getAgentChatId } = require('./identity');
+const { t, getLanguage } = require('../i18n');
+const {
+  getFreshLanguagePreference,
+} = require('../services/setLanguageService');
 const { ensureCacheReady } = require('./cacheBootstrap');
 const { wrapToolExecute } = require('./wrapToolExecute');
 
@@ -136,7 +140,7 @@ function defineWriteTool({
       if (typeof validate === 'function') {
         const validation = await validate({ chatId, args });
         if (validation && typeof validation === 'object' && validation.status) {
-          return validation;
+          return { ...validation, uiLang: getLanguage(chatId) };
         }
       }
 
@@ -154,6 +158,7 @@ function defineWriteTool({
         writeNonce,
         summary,
         args,
+        uiLang: getLanguage(chatId),
       };
     }),
   });
@@ -163,6 +168,8 @@ function defineWriteTool({
 
 // Internal — exported for `confirm_write` to call.
 async function executeConfirmedWrite({ chatId, writeNonce }) {
+  await ensureCacheReady();
+  const { lang: initialUiLang } = await getFreshLanguagePreference(chatId);
   const consumed = await consumeApprovedPendingWrite({
     chatId,
     writeNonce,
@@ -171,18 +178,22 @@ async function executeConfirmedWrite({ chatId, writeNonce }) {
     return {
       status: WRITE_RESULT_STATUSES.FORBIDDEN,
       tool: 'confirm_write',
-      summary:
-        'This change has not been approved in the confirmation card. ' +
-        'Ask the user to click Yes before trying again.',
+      uiLang: initialUiLang,
+      summary: t(
+        'This change has not been approved in the confirmation card. Ask the user to click Yes before trying again.',
+        chatId,
+      ),
     };
   }
   if (consumed.status !== CONSUME_STATUS.CONSUMED) {
     return {
       status: WRITE_RESULT_STATUSES.NOT_FOUND,
       tool: 'confirm_write',
-      summary:
-        'No pending write found for that nonce. It may have expired, ' +
-        'already been confirmed, or been issued for a different user.',
+      uiLang: initialUiLang,
+      summary: t(
+        'No pending write found for that nonce. It may have expired, already been confirmed, or been issued for a different user.',
+        chatId,
+      ),
     };
   }
   const { intent } = consumed;
@@ -192,17 +203,25 @@ async function executeConfirmedWrite({ chatId, writeNonce }) {
     return {
       status: WRITE_RESULT_STATUSES.NOT_FOUND,
       tool: intent.tool,
-      summary: `No registered commit handler for tool "${intent.tool}".`,
+      uiLang: initialUiLang,
+      summary: t(
+        'No registered commit handler for tool "{TOOL}".',
+        chatId,
+        { TOOL: intent.tool },
+      ),
     };
   }
 
-  await ensureCacheReady();
   const result = await commit({ chatId, args: intent.args });
 
-  // Ensure every result carries a `tool` field so the UI can route
-  // it to the right render hook.
-  if (result && typeof result === 'object' && !result.tool) {
-    return { ...result, tool: intent.tool };
+  // Ensure every result carries routing + localization metadata for the
+  // shared result card.
+  if (result && typeof result === 'object') {
+    return {
+      ...result,
+      tool: result.tool || intent.tool,
+      uiLang: getLanguage(chatId),
+    };
   }
 
   return result;

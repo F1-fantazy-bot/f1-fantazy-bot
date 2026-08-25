@@ -643,8 +643,9 @@ The full per-tool checklist (including the **cache bootstrap** and
 - Write capabilities (e.g. set chip, switch team) — see
   [`agent-write-tools-plan.md`](./agent-write-tools-plan.md). PR-1
   (shared infrastructure) merged as #207. PR-2 adds the first concrete
-  write tool, `set_language`; PR-3..PR-10 continue one vertical slice
-  at a time.
+  write tool, `set_language`, its read-only `get_language` companion,
+  and saved-language localization for the race-info/write cards;
+  PR-3..PR-10 continue one vertical slice at a time.
 - **Rate-limiting on the agent endpoint** (Azure API Management or a CDN-layer policy) — defense in depth even after proper auth lands; relevant if abuse appears in App Insights before proper auth ships.
 
 ---
