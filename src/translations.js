@@ -532,6 +532,8 @@ const translations = {
       'שינויים של איזו ליגה ברצונך לראות?',
     'Which league race summary do you want to see?':
       'סיכום מרוץ של איזו ליגה ברצונך לראות?',
+    '🏎️ Creating your race summary... This may take a few seconds.':
+      '🏎️ מכין את סיכום המרוץ... זה עשוי לקחת כמה שניות.',
     'Not enough race data yet to create a summary for this league.':
       'אין עדיין מספיק נתוני מרוץ כדי ליצור סיכום לליגה הזו.',
     '❌ Failed to create the race summary. Please try again later.':

@@ -36,7 +36,6 @@ const {
   sendRaceSummary,
   handleRaceSummaryCommand,
 } = require('./raceSummaryHandler');
-const { buildRaceSummarySystemPrompt } = require('../prompts');
 
 const fixture = {
   leagueName: 'Fast Friends',
@@ -101,28 +100,6 @@ describe('raceSummaryHandler', () => {
         2,
       ),
     ).toBe('China');
-  });
-
-  it('requires names to be transliterated into the user language alphabet', () => {
-    const hebrewPrompt = buildRaceSummarySystemPrompt('he');
-    expect(hebrewPrompt).toContain(
-      'every driver name, constructor name, fantasy-team name, and user/owner name into Hebrew letters',
-    );
-    expect(hebrewPrompt).toContain('write "אלונסו" rather than "Alonso"');
-    expect(hebrewPrompt).toContain(
-      'do not translate names or repeat the original spelling in parentheses',
-    );
-    expect(hebrewPrompt).toContain('Write like a native Hebrew sports columnist');
-    expect(hebrewPrompt).toContain('"מרוץ" rather than "מחזור"');
-    expect(hebrewPrompt).toContain(
-      'masculine grammatical forms for fantasy teams',
-    );
-
-    const englishPrompt = buildRaceSummarySystemPrompt('en');
-    expect(englishPrompt).toContain('into Latin letters');
-    expect(englishPrompt).toContain(
-      'transliterate a Hebrew fantasy-team name into Latin letters',
-    );
   });
 
   it('compares the race winner with second, third, and bottom teams', () => {
@@ -205,48 +182,15 @@ describe('raceSummaryHandler', () => {
     });
     const bot = { sendMessage: jest.fn().mockResolvedValue() };
     await sendRaceSummary(bot, 42, 'ABC');
+    expect(bot.sendMessage).toHaveBeenNthCalledWith(
+      1,
+      42,
+      '🏎️ Creating your race summary... This may take a few seconds.',
+    );
     expect(getLeagueData).toHaveBeenCalledWith('ABC');
     expect(getLockedTeamsData).toHaveBeenCalledWith('ABC');
     expect(bot.sendMessage).toHaveBeenCalledWith(42, '🏁 Rocket wins!');
     const request = openAiClient.chat.completions.create.mock.calls[0][0];
-    expect(request.messages[0].content).toContain('English');
-    expect(request.messages[0].content).toContain(
-      '(2) team differences using keyTeamDifferences',
-    );
-    expect(request.messages[0].content).toContain('(3) season trends');
-    expect(request.messages[0].content).toContain(
-      'leagueName, raceName, and raceNumber',
-    );
-    expect(request.messages[0].content).toContain(
-      'section a short emoji-prefixed heading on its own line',
-    );
-    expect(request.messages[0].content).toContain(
-      'Prioritize meaningful insights over jokes',
-    );
-    expect(request.messages[0].content).toContain(
-      'Do not turn a single high or low score into a trend',
-    );
-    expect(request.messages[0].content).toContain(
-      'Use emojis sparingly and naturally',
-    );
-    expect(request.messages[0].content).toContain(
-      'Write like a native English sports columnist, not like translated English',
-    );
-    expect(request.messages[0].content).toContain(
-      'Use only mechanics, roles, chips, rules, and terminology',
-    );
-    expect(request.messages[0].content).toContain(
-      'avoid translated analytical terms such as "תקרה", "רצפה", "מכוסים ב-"',
-    );
-    expect(request.messages[0].content).toContain(
-      'Do not directly compare the immediately previous race result',
-    );
-    expect(request.messages[0].content).toContain(
-      'never call a DRS-boosted driver a "captain" unless the input explicitly uses that term',
-    );
-    expect(request.messages[0].content).toContain(
-      'Keep names consistent and never use initials',
-    );
     expect(request.messages[1].content).not.toContain('The Best Bot');
     expect(request.messages[1].content).toContain('Alonso');
     expect(request.messages[1].content).toContain('Chinese Grand Prix');

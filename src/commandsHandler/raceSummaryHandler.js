@@ -183,6 +183,14 @@ async function generateRaceSummary(summaryData, language) {
 }
 
 async function sendRaceSummary(bot, chatId, leagueCode) {
+  await bot.sendMessage(
+    chatId,
+    t(
+      '🏎️ Creating your race summary... This may take a few seconds.',
+      chatId,
+    ),
+  );
+
   let leagueData;
   let lockedTeamsData;
   try {
