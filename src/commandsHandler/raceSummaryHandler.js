@@ -9,6 +9,21 @@ const {
   RACE_SUMMARY_CALLBACK_TYPE,
 } = require('../constants');
 const { buildRaceSummarySystemPrompt } = require('../prompts');
+const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
+
+const RACE_SUMMARY_MODEL = 'gpt-5.6-sol';
+
+function findRaceName(seasonData, raceNumber) {
+  const races = seasonData?.MRData?.RaceTable?.Races;
+  if (!Array.isArray(races)) {
+    return null;
+  }
+
+  return (
+    races.find((race) => Number(race?.round) === Number(raceNumber))
+      ?.raceName || null
+  );
+}
 
 function rosterKey(team) {
   return `${team?.userName || team?.teamName || ''}:${team?.teamNo || 1}`;
@@ -79,7 +94,7 @@ function buildKeyTeamDifferences(teams) {
   return comparisons;
 }
 
-function buildRaceSummaryData(leagueData, lockedTeamsData) {
+function buildRaceSummaryData(leagueData, lockedTeamsData, raceName = null) {
   const teams = filterExcludedGraphTeams(leagueData?.teams);
   const matchdays = [
     ...new Set(teams.flatMap((team) => Object.keys(team.raceScores || {}))),
@@ -142,6 +157,10 @@ function buildRaceSummaryData(leagueData, lockedTeamsData) {
   return {
     leagueName: leagueData?.leagueName || leagueData?.leagueCode,
     latestMatchday,
+    raceNumber: Number.isFinite(latestMatchdayNumber)
+      ? latestMatchdayNumber
+      : null,
+    raceName,
     teams: summaryTeams,
     keyTeamDifferences: buildKeyTeamDifferences(summaryTeams),
   };
@@ -149,7 +168,7 @@ function buildRaceSummaryData(leagueData, lockedTeamsData) {
 
 async function generateRaceSummary(summaryData, language) {
   const completion = await getAzureOpenAiClient().chat.completions.create({
-    model: process.env.AZURE_OPEN_AI_MODEL,
+    model: RACE_SUMMARY_MODEL,
     messages: [
       {
         role: 'system',
@@ -166,6 +185,14 @@ async function generateRaceSummary(summaryData, language) {
 }
 
 async function sendRaceSummary(bot, chatId, leagueCode) {
+  await bot.sendMessage(
+    chatId,
+    t(
+      '🏎️ Creating your race summary... This may take a few seconds.',
+      chatId,
+    ),
+  );
+
   let leagueData;
   let lockedTeamsData;
   try {
@@ -199,6 +226,14 @@ async function sendRaceSummary(bot, chatId, leagueCode) {
     );
 
     return;
+  }
+
+  try {
+    const seasonData = await fetchCurrentSeasonRaces();
+    data.raceName = findRaceName(seasonData, data.raceNumber);
+  } catch (error) {
+    // A schedule lookup should not prevent an otherwise valid recap.
+    console.error(`Failed to load race name for summary: ${error.message}`);
   }
 
   try {
@@ -276,6 +311,7 @@ async function handleRaceSummaryCommand(bot, msg) {
 }
 
 module.exports = {
+  findRaceName,
   buildKeyTeamDifferences,
   buildRaceSummaryData,
   generateRaceSummary,

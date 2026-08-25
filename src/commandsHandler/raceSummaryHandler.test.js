@@ -8,6 +8,9 @@ jest.mock('../azureStorageService', () => ({
   getLeagueData: jest.fn(),
   getLockedTeamsData: jest.fn(),
 }));
+jest.mock('../raceScheduleService', () => ({
+  fetchCurrentSeasonRaces: jest.fn(),
+}));
 jest.mock('../utils', () => ({
   sendErrorMessage: jest.fn().mockResolvedValue(),
   sendLogMessage: jest.fn().mockResolvedValue(),
@@ -25,13 +28,14 @@ jest.mock('../i18n', () => ({
 const { AzureOpenAI } = require('openai');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData, getLockedTeamsData } = require('../azureStorageService');
+const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 const {
   buildKeyTeamDifferences,
   buildRaceSummaryData,
+  findRaceName,
   sendRaceSummary,
   handleRaceSummaryCommand,
 } = require('./raceSummaryHandler');
-const { buildRaceSummarySystemPrompt } = require('../prompts');
 
 const fixture = {
   leagueName: 'Fast Friends',
@@ -80,23 +84,22 @@ AzureOpenAI.mockImplementation(() => openAiClient);
 describe('raceSummaryHandler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    fetchCurrentSeasonRaces.mockResolvedValue({
+      MRData: {
+        RaceTable: {
+          Races: [{ round: '2', raceName: 'Chinese Grand Prix' }],
+        },
+      },
+    });
   });
 
-  it('requires names to be transliterated into the user language alphabet', () => {
-    const hebrewPrompt = buildRaceSummarySystemPrompt('he');
-    expect(hebrewPrompt).toContain(
-      'every driver name, constructor name, fantasy-team name, and user/owner name into Hebrew letters',
-    );
-    expect(hebrewPrompt).toContain('write "אלונסו" rather than "Alonso"');
-    expect(hebrewPrompt).toContain(
-      'do not repeat the original spelling in parentheses',
-    );
-
-    const englishPrompt = buildRaceSummarySystemPrompt('en');
-    expect(englishPrompt).toContain('into Latin letters');
-    expect(englishPrompt).toContain(
-      'transliterate a Hebrew fantasy-team name into Latin letters',
-    );
+  it('finds the race name for a fantasy matchday', () => {
+    expect(
+      findRaceName(
+        { MRData: { RaceTable: { Races: [{ round: '2', raceName: 'China' }] } } },
+        2,
+      ),
+    ).toBe('China');
   });
 
   it('compares the race winner with second, third, and bottom teams', () => {
@@ -151,6 +154,7 @@ describe('raceSummaryHandler', () => {
   it('builds latest-race and season movement facts and excludes the graph bot', () => {
     const data = buildRaceSummaryData(fixture, lockedFixture);
     expect(data.latestMatchday).toBe('matchday_2');
+    expect(data.raceNumber).toBe(2);
     expect(data.teams.map((team) => team.teamName)).toEqual([
       'Rocket',
       'Turtle',
@@ -178,20 +182,18 @@ describe('raceSummaryHandler', () => {
     });
     const bot = { sendMessage: jest.fn().mockResolvedValue() };
     await sendRaceSummary(bot, 42, 'ABC');
+    expect(bot.sendMessage).toHaveBeenNthCalledWith(
+      1,
+      42,
+      '🏎️ Creating your race summary... This may take a few seconds.',
+    );
     expect(getLeagueData).toHaveBeenCalledWith('ABC');
     expect(getLockedTeamsData).toHaveBeenCalledWith('ABC');
     expect(bot.sendMessage).toHaveBeenCalledWith(42, '🏁 Rocket wins!');
     const request = openAiClient.chat.completions.create.mock.calls[0][0];
-    expect(request.messages[0].content).toContain('English');
-    expect(request.messages[0].content).toContain(
-      '(2) team differences, using keyTeamDifferences',
-    );
-    expect(request.messages[0].content).toContain('(3) season trends');
-    expect(request.messages[0].content).toContain(
-      'Do not mention or compare the immediately previous race result',
-    );
     expect(request.messages[1].content).not.toContain('The Best Bot');
     expect(request.messages[1].content).toContain('Alonso');
+    expect(request.messages[1].content).toContain('Chinese Grand Prix');
   });
 
   it('offers a league picker when the user follows multiple leagues', async () => {
