@@ -216,6 +216,15 @@ describe('raceSummaryHandler', () => {
       'section its own short title line, prefixed with a relevant emoji',
     );
     expect(request.messages[0].content).toContain(
+      'Prioritize meaningful insights over jokes',
+    );
+    expect(request.messages[0].content).toContain(
+      'Do not describe a single high or low score as a "trend"',
+    );
+    expect(request.messages[0].content).toContain(
+      'Use emojis naturally and selectively',
+    );
+    expect(request.messages[0].content).toContain(
       'Do not mention or compare the immediately previous race result',
     );
     expect(request.messages[1].content).not.toContain('The Best Bot');
