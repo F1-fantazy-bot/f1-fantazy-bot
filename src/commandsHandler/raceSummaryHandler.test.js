@@ -110,12 +110,12 @@ describe('raceSummaryHandler', () => {
     );
     expect(hebrewPrompt).toContain('write "אלונסו" rather than "Alonso"');
     expect(hebrewPrompt).toContain(
-      'do not repeat the original spelling in parentheses',
+      'do not translate names or repeat the original spelling in parentheses',
     );
-    expect(hebrewPrompt).toContain('Write like a native Hebrew sports writer');
-    expect(hebrewPrompt).toContain('"מרוץ" rather than a generic sports "מחזור"');
+    expect(hebrewPrompt).toContain('Write like a native Hebrew sports columnist');
+    expect(hebrewPrompt).toContain('"מרוץ" rather than "מחזור"');
     expect(hebrewPrompt).toContain(
-      'fantasy teams using masculine grammatical forms',
+      'masculine grammatical forms for fantasy teams',
     );
 
     const englishPrompt = buildRaceSummarySystemPrompt('en');
@@ -211,41 +211,41 @@ describe('raceSummaryHandler', () => {
     const request = openAiClient.chat.completions.create.mock.calls[0][0];
     expect(request.messages[0].content).toContain('English');
     expect(request.messages[0].content).toContain(
-      '(2) team differences, using keyTeamDifferences',
+      '(2) team differences using keyTeamDifferences',
     );
     expect(request.messages[0].content).toContain('(3) season trends');
     expect(request.messages[0].content).toContain(
       'leagueName, raceName, and raceNumber',
     );
     expect(request.messages[0].content).toContain(
-      'section its own short title line prefixed with a relevant emoji',
+      'section a short emoji-prefixed heading on its own line',
     );
     expect(request.messages[0].content).toContain(
       'Prioritize meaningful insights over jokes',
     );
     expect(request.messages[0].content).toContain(
-      'Do not describe a single high or low score as a trend',
+      'Do not turn a single high or low score into a trend',
     );
     expect(request.messages[0].content).toContain(
-      'Use emojis naturally and sparingly',
+      'Use emojis sparingly and naturally',
     );
     expect(request.messages[0].content).toContain(
-      'Write like a native English sports writer, not like translated English',
+      'Write like a native English sports columnist, not like translated English',
     );
     expect(request.messages[0].content).toContain(
-      'Use only fantasy-game mechanics, roles, chips, and terminology',
+      'Use only mechanics, roles, chips, rules, and terminology',
     );
     expect(request.messages[0].content).toContain(
-      'Never use translated statistical idioms such as "covered by", "ceiling", "floor"',
+      'avoid translated analytical terms such as "תקרה", "רצפה", "מכוסים ב-"',
     );
     expect(request.messages[0].content).toContain(
-      'Do not mention or directly compare the immediately previous race result',
+      'Do not directly compare the immediately previous race result',
     );
     expect(request.messages[0].content).toContain(
-      'never call a DRS-boosted driver a "captain"',
+      'never call a DRS-boosted driver a "captain" unless the input explicitly uses that term',
     );
     expect(request.messages[0].content).toContain(
-      'Verify that names were not unnecessarily abbreviated',
+      'Keep names consistent and never use initials',
     );
     expect(request.messages[1].content).not.toContain('The Best Bot');
     expect(request.messages[1].content).toContain('Alonso');
