@@ -11,6 +11,8 @@ const {
 const { buildRaceSummarySystemPrompt } = require('../prompts');
 const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 
+const RACE_SUMMARY_MODEL = 'gpt-5.6-sol';
+
 function findRaceName(seasonData, raceNumber) {
   const races = seasonData?.MRData?.RaceTable?.Races;
   if (!Array.isArray(races)) {
@@ -166,7 +168,7 @@ function buildRaceSummaryData(leagueData, lockedTeamsData, raceName = null) {
 
 async function generateRaceSummary(summaryData, language) {
   const completion = await getAzureOpenAiClient().chat.completions.create({
-    model: process.env.AZURE_OPEN_AI_MODEL,
+    model: RACE_SUMMARY_MODEL,
     messages: [
       {
         role: 'system',

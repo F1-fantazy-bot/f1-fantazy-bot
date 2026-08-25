@@ -191,6 +191,7 @@ describe('raceSummaryHandler', () => {
     expect(getLockedTeamsData).toHaveBeenCalledWith('ABC');
     expect(bot.sendMessage).toHaveBeenCalledWith(42, '🏁 Rocket wins!');
     const request = openAiClient.chat.completions.create.mock.calls[0][0];
+    expect(request.model).toBe('gpt-5.6-sol');
     expect(request.messages[1].content).not.toContain('The Best Bot');
     expect(request.messages[1].content).toContain('Alonso');
     expect(request.messages[1].content).toContain('Chinese Grand Prix');
