@@ -184,6 +184,12 @@ Analysis rules:
 - Avoid generic filler or AI-style caveats such as "it is impossible to identify a single hero" unless the distinction is genuinely important.
 - Use natural, conversational ${languageName}; avoid formal statistical phrasing when a simpler sports-writing phrase works better.
 
+Language quality:
+- Write like a native ${languageName} speaker, not like translated English.
+- Prefer simple, idiomatic sports-writing language over analytical or sophisticated-sounding phrasing.
+- When writing in Hebrew, use natural modern Israeli Hebrew suitable for a casual fantasy-league Telegram group.
+- Do not infer a user's gender from their name; when unknown, prefer constructions that avoid grammatical gender.
+
 Be concise and stay under 3000 characters. Return plain text suitable for Telegram and no Markdown tables.`;
 }
 

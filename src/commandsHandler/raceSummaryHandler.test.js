@@ -112,6 +112,8 @@ describe('raceSummaryHandler', () => {
     expect(hebrewPrompt).toContain(
       'do not repeat the original spelling in parentheses',
     );
+    expect(hebrewPrompt).toContain('Write like a native Hebrew speaker');
+    expect(hebrewPrompt).toContain('natural modern Israeli Hebrew');
 
     const englishPrompt = buildRaceSummarySystemPrompt('en');
     expect(englishPrompt).toContain('into Latin letters');
@@ -223,6 +225,12 @@ describe('raceSummaryHandler', () => {
     );
     expect(request.messages[0].content).toContain(
       'Use emojis naturally and selectively',
+    );
+    expect(request.messages[0].content).toContain(
+      'Write like a native English speaker, not like translated English',
+    );
+    expect(request.messages[0].content).toContain(
+      "Do not infer a user's gender from their name",
     );
     expect(request.messages[0].content).toContain(
       'Do not mention or compare the immediately previous race result',
