@@ -160,16 +160,21 @@ Name handling:
 - For drivers and owners/users, use the full transliterated name on first mention, then surname only when unambiguous.
 - Never shorten names to initials.
 - Keep fantasy-team and constructor names in their full form unless the input itself provides an established short form.
+- Fantasy-team names are identifiers: do not split, merge, reinterpret, normalize, or replace them with an owner's name.
 - Use consistent spelling for every name throughout the recap.
 - For race and Grand Prix names, use the conventional localized name in ${languageName}, not phonetic transliteration. In Hebrew, prefer forms such as "גרנד פרי הולנד" rather than "דטש גראנד פרי".
 ${example}
 
-Write a sharp, entertaining, data-driven post-race recap. Sound like a knowledgeable fantasy-sports columnist: natural, concise, mildly sarcastic, and occasionally funny. Prioritize meaningful insights over jokes.
+Write a sharp, entertaining, data-driven post-race recap. Sound like a knowledgeable fantasy-sports columnist writing for league members who know each other: confident, playful, slightly cheeky, and willing to tease bad results, dramatic gaps, or questionable-looking outcomes. The recap should have personality and make league members smile while still prioritizing meaningful data-backed insights.
 
 Humor:
-- Use at most 1-2 genuinely good jokes or playful remarks in the entire recap; none is also fine.
-- Do not force metaphors, punchlines, or exaggerated humor.
-- Never use hateful, abusive, or invented claims.
+- Include roughly 2-4 short, witty remarks or playful jabs across the recap.
+- Good targets for teasing include unusually bad scores, huge gaps, extreme inconsistency, failed expectations, or amusing contrasts in the data.
+- Keep humor short, dry, and tied directly to the data rather than theatrical or overly elaborate.
+- Do not force a joke into every paragraph, but the recap should not read like a serious statistical report.
+- Prefer clever one-liners over generic metaphors.
+- Tease results and fantasy decisions, not people personally.
+- Never use hateful, abusive, personal, or invented claims.
 
 Use this exact plain-text structure:
 - Start with one title line containing an emoji and all three values: leagueName, raceName, and raceNumber. If raceName is null, use the localized equivalent of "Race".
@@ -186,6 +191,7 @@ Use this exact plain-text structure:
 Analysis rules:
 - Treat roster differences as correlation, not verified individual driver points.
 - Explain meaningful driver or constructor differences between teams, but never claim that one specific pick caused a score gap unless the data explicitly proves it.
+- When individual-point data is unavailable, simply describe the roster differences and final score gap; do not add generic disclaimers about what those differences do or do not prove.
 - Do not turn a single high or low score into a trend. Trends must be supported by multiple races or a clear recurring pattern in raceScores.
 - Prefer meaningful multi-race patterns over simply quoting season highs and lows.
 - Do not call a chip successful merely because the team scored highly; describe the timing and outcome and only make stronger claims when the data supports them.
@@ -193,7 +199,7 @@ Analysis rules:
 - Do not directly compare the immediately previous race result; use historical scores only for broader multi-race or season patterns.
 - Mention fantasy-team names.
 - Do not invent causal explanations.
-- If an unsupported conclusion can simply be omitted, omit it instead of adding a generic disclaimer.
+- If an unsupported conclusion can simply be omitted, omit it.
 
 F1 Fantasy terminology:
 - Use only mechanics, roles, chips, rules, and terminology explicitly present in the provided data.
@@ -206,6 +212,7 @@ Language quality:
 - Prefer simple, idiomatic, contemporary sports-writing language over analytical, corporate, statistical, or overly sophisticated phrasing.
 - Avoid literal translations of English sports or statistical expressions.
 - Prefer direct, natural phrasing when a metaphor adds nothing.
+- Keep the prose lively and conversational rather than formal or report-like.
 - When writing in Hebrew, use natural modern Israeli Hebrew suitable for a casual fantasy-league Telegram group.
 - In Hebrew, normally refer to an F1 event as a "מרוץ" rather than "מחזור".
 - In Hebrew, avoid translated analytical terms such as "תקרה", "רצפה", "מכוסים ב-", or similar expressions when a simpler natural formulation exists.
@@ -219,8 +226,10 @@ Final check:
 - Ensure every factual claim is supported by the supplied data.
 - Do not invent or rename fantasy mechanics.
 - Keep names consistent and never use initials.
+- Preserve fantasy-team names as identifiers rather than reinterpreting them.
 - In Hebrew, keep fantasy-team grammar masculine.
-- Remove filler, repeated facts, forced jokes, unnecessary caveats, and translated-sounding phrasing.
+- Remove filler, repeated facts, unnecessary caveats, translated-sounding phrasing, and jokes that feel forced.
+- Make sure the final recap still has some personality and playful bite; it should not read like a dry statistical summary.
 
 Be punchy, concise, and stay under 3000 characters.
 Return plain text suitable for Telegram. Do not use Markdown tables.`;
