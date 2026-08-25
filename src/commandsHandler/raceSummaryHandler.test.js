@@ -8,6 +8,9 @@ jest.mock('../azureStorageService', () => ({
   getLeagueData: jest.fn(),
   getLockedTeamsData: jest.fn(),
 }));
+jest.mock('../raceScheduleService', () => ({
+  fetchCurrentSeasonRaces: jest.fn(),
+}));
 jest.mock('../utils', () => ({
   sendErrorMessage: jest.fn().mockResolvedValue(),
   sendLogMessage: jest.fn().mockResolvedValue(),
@@ -25,9 +28,11 @@ jest.mock('../i18n', () => ({
 const { AzureOpenAI } = require('openai');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData, getLockedTeamsData } = require('../azureStorageService');
+const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 const {
   buildKeyTeamDifferences,
   buildRaceSummaryData,
+  findRaceName,
   sendRaceSummary,
   handleRaceSummaryCommand,
 } = require('./raceSummaryHandler');
@@ -80,6 +85,22 @@ AzureOpenAI.mockImplementation(() => openAiClient);
 describe('raceSummaryHandler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    fetchCurrentSeasonRaces.mockResolvedValue({
+      MRData: {
+        RaceTable: {
+          Races: [{ round: '2', raceName: 'Chinese Grand Prix' }],
+        },
+      },
+    });
+  });
+
+  it('finds the race name for a fantasy matchday', () => {
+    expect(
+      findRaceName(
+        { MRData: { RaceTable: { Races: [{ round: '2', raceName: 'China' }] } } },
+        2,
+      ),
+    ).toBe('China');
   });
 
   it('requires names to be transliterated into the user language alphabet', () => {
@@ -151,6 +172,7 @@ describe('raceSummaryHandler', () => {
   it('builds latest-race and season movement facts and excludes the graph bot', () => {
     const data = buildRaceSummaryData(fixture, lockedFixture);
     expect(data.latestMatchday).toBe('matchday_2');
+    expect(data.raceNumber).toBe(2);
     expect(data.teams.map((team) => team.teamName)).toEqual([
       'Rocket',
       'Turtle',
@@ -188,10 +210,17 @@ describe('raceSummaryHandler', () => {
     );
     expect(request.messages[0].content).toContain('(3) season trends');
     expect(request.messages[0].content).toContain(
+      'leagueName, raceName, and raceNumber',
+    );
+    expect(request.messages[0].content).toContain(
+      'section its own short title line, prefixed with a relevant emoji',
+    );
+    expect(request.messages[0].content).toContain(
       'Do not mention or compare the immediately previous race result',
     );
     expect(request.messages[1].content).not.toContain('The Best Bot');
     expect(request.messages[1].content).toContain('Alonso');
+    expect(request.messages[1].content).toContain('Chinese Grand Prix');
   });
 
   it('offers a league picker when the user follows multiple leagues', async () => {
