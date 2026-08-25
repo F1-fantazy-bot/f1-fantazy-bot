@@ -1,5 +1,6 @@
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
+import { ToolLoading } from './ToolLoading';
 
 type BestTeamRow = {
   row: number;
@@ -17,6 +18,7 @@ type BestTeamRow = {
 
 type GetBestTeamsOkResult = {
   status: 'ok';
+  lang?: string;
   teamId: string;
   teamName: string;
   chip: string | null;
@@ -32,6 +34,7 @@ type GetBestTeamsOkResult = {
 };
 
 type GetBestTeamsErrorResult = {
+  lang?: string;
   status:
     | 'no_teams'
     | 'ambiguous_team'
@@ -39,7 +42,9 @@ type GetBestTeamsErrorResult = {
     | 'missing_cache'
     | 'invalid_data'
     | 'missing_remaining_race_count'
-    | 'unknown_filter';
+    | 'unknown_filter'
+    | 'projection_mismatch'
+    | 'missing_weekend_format';
   teamId?: string;
   teamIds?: string[];
   teamName?: string;
@@ -52,35 +57,116 @@ type GetBestTeamsErrorResult = {
 };
 
 type GetBestTeamsResult = GetBestTeamsOkResult | GetBestTeamsErrorResult;
+type UiLanguage = 'en' | 'he';
 
-const STATUS_MESSAGES: Record<GetBestTeamsErrorResult['status'], string> = {
-  no_teams:
-    'No teams found for this user. Follow a league and pick teams to track first.',
-  ambiguous_team:
-    'You have multiple teams — please tell me which one (use the teamName).',
-  unknown_team:
-    'I could not find that team. Try `list user teams` to see the options.',
-  missing_cache:
-    'The bot does not have cached drivers/constructors/current-team data yet. Send the screenshots first.',
-  invalid_data:
-    'The cached data looks malformed (wrong driver/constructor counts). Please re-upload.',
-  missing_remaining_race_count:
-    'Remaining race count is unavailable right now. Switch to Pure Points ranking or try again later.',
-  unknown_filter:
-    'I could not resolve some of the driver/constructor names you mentioned.',
-};
+const copy = {
+  en: {
+    title: 'Best teams',
+    rankedBy: 'Ranked by',
+    projectedPoints: 'projected points',
+    budgetAdjustedPoints: 'budget-adjusted points',
+    chip: 'Chip',
+    noChip: 'No chip',
+    mustInclude: 'must include',
+    mustExclude: 'must exclude',
+    constructorIncludes: 'constructor includes',
+    constructorExcludes: 'constructor excludes',
+    drivers: 'Drivers',
+    constructors: 'Constructors',
+    price: 'Price',
+    points: 'Pts',
+    budgetAdjustedShort: 'Budget-adj',
+    transfers: 'Tr',
+    priceChange: 'Δ price',
+    current: 'current',
+    penalty: 'pen',
+    captain: 'captain',
+    megaCaptain: 'mega captain',
+    filterLegend: 'green = required by filter',
+    empty: 'No teams match those filters.',
+    errorTitle: 'Could not compute best teams',
+    unresolved: 'Unresolved',
+    candidates: 'Candidates',
+    statuses: {
+      no_teams:
+        'No teams found for this user. Follow a league and pick teams to track first.',
+      ambiguous_team:
+        'You have multiple teams — please tell me which one (use the teamName).',
+      unknown_team:
+        'I could not find that team. Ask to list your teams to see the options.',
+      missing_cache:
+        'The bot does not have cached drivers, constructors, or current-team data yet.',
+      invalid_data:
+        'The cached data looks malformed. Please upload it again.',
+      missing_remaining_race_count:
+        'Remaining race count is unavailable. Switch to Pure Points ranking or try later.',
+      unknown_filter:
+        'I could not resolve some driver or constructor names.',
+      projection_mismatch:
+        'Projection data does not match the active player list. Try again after the next data refresh.',
+      missing_weekend_format:
+        'The next-race weekend format is unavailable. Try again after race data refreshes.',
+    },
+  },
+  he: {
+    title: 'הקבוצות הטובות ביותר',
+    rankedBy: 'מדורג לפי',
+    projectedPoints: 'נקודות חזויות',
+    budgetAdjustedPoints: 'נקודות מותאמות תקציב',
+    chip: "צ'יפ",
+    noChip: "ללא צ'יפ",
+    mustInclude: 'חובה לכלול',
+    mustExclude: 'לא לכלול',
+    constructorIncludes: 'קבוצות חובה',
+    constructorExcludes: 'קבוצות לא לכלול',
+    drivers: 'נהגים',
+    constructors: 'קבוצות',
+    price: 'מחיר',
+    points: "נק'",
+    budgetAdjustedShort: 'מותאם תקציב',
+    transfers: 'העברות',
+    priceChange: 'שינוי מחיר',
+    current: 'נוכחית',
+    penalty: 'קנס',
+    captain: 'קפטן',
+    megaCaptain: 'מגה קפטן',
+    filterLegend: 'ירוק = חובה לפי הסינון',
+    empty: 'אין קבוצות שמתאימות לסינון.',
+    errorTitle: 'לא ניתן לחשב את הקבוצות הטובות ביותר',
+    unresolved: 'לא זוהו',
+    candidates: 'אפשרויות',
+    statuses: {
+      no_teams: 'לא נמצאו קבוצות. יש לעקוב אחר ליגה ולבחור קבוצות למעקב.',
+      ambiguous_team: 'יש לך כמה קבוצות — נא לציין איזו קבוצה.',
+      unknown_team: 'לא הצלחתי למצוא את הקבוצה. בקש להציג את הקבוצות שלך.',
+      missing_cache: 'נתוני הנהגים, הקבוצות או הקבוצה הנוכחית אינם זמינים.',
+      invalid_data: 'הנתונים השמורים אינם תקינים. יש להעלות אותם מחדש.',
+      missing_remaining_race_count:
+        'מספר המרוצים שנותרו אינו זמין. עבור לדירוג נקודות בלבד או נסה מאוחר יותר.',
+      unknown_filter: 'לא הצלחתי לזהות חלק משמות הנהגים או הקבוצות.',
+      projection_mismatch:
+        'נתוני התחזית אינם תואמים לרשימת המשתתפים הפעילים. נסה שוב לאחר עדכון הנתונים.',
+      missing_weekend_format:
+        'פורמט סוף השבוע של המרוץ הבא אינו זמין. נסה שוב לאחר עדכון נתוני המרוץ.',
+    },
+  },
+} as const;
 
-function chipLabel(chip: string | null | undefined): string {
-  if (!chip) return 'No chip';
+function chipLabel(
+  chip: string | null | undefined,
+  lang: UiLanguage,
+): string {
+  const labels = copy[lang];
+  if (!chip) return labels.noChip;
   switch (chip) {
     case 'EXTRA_BOOST':
-      return 'Extra Boost';
+      return lang === 'he' ? 'אקסטרה בוסט' : 'Extra Boost';
     case 'WILDCARD':
-      return 'Wildcard';
+      return lang === 'he' ? 'ווילדקארד' : 'Wildcard';
     case 'LIMITLESS':
-      return 'Limitless';
+      return lang === 'he' ? 'ללא הגבלה' : 'Limitless';
     case 'WITHOUT_CHIP':
-      return 'No chip';
+      return labels.noChip;
     default:
       return chip;
   }
@@ -89,16 +175,20 @@ function chipLabel(chip: string | null | undefined): string {
 function rankByLabel(
   rankBy: GetBestTeamsOkResult['rankBy'],
   budgetChangePointsPerMillion: number,
+  lang: UiLanguage,
 ): string {
-  if (rankBy === 'points') return 'projected points';
-  if (rankBy === 'budget_adjusted') return 'budget-adjusted points';
+  const labels = copy[lang];
+  if (rankBy === 'points') return labels.projectedPoints;
+  if (rankBy === 'budget_adjusted') return labels.budgetAdjustedPoints;
   return budgetChangePointsPerMillion > 0
-    ? 'budget-adjusted points'
-    : 'projected points';
+    ? labels.budgetAdjustedPoints
+    : labels.projectedPoints;
 }
 
 function BestTeamsError({ result }: { result: GetBestTeamsErrorResult }) {
-  const base = STATUS_MESSAGES[result.status] || `Error: ${result.status}`;
+  const lang: UiLanguage = result.lang === 'he' ? 'he' : 'en';
+  const labels = copy[lang];
+  const base = labels.statuses[result.status] || `Error: ${result.status}`;
   const unknown =
     result.status === 'unknown_filter' && result.filters
       ? [
@@ -111,6 +201,7 @@ function BestTeamsError({ result }: { result: GetBestTeamsErrorResult }) {
 
   return (
     <div
+      dir={lang === 'he' ? 'rtl' : 'ltr'}
       style={{
         padding: 12,
         border: '1px solid var(--app-danger-border)',
@@ -121,17 +212,17 @@ function BestTeamsError({ result }: { result: GetBestTeamsErrorResult }) {
       }}
     >
       <div style={{ fontWeight: 600, marginBottom: 4 }}>
-        Could not compute best teams
+        {labels.errorTitle}
       </div>
       <div>{base}</div>
       {unknown.length > 0 ? (
         <div style={{ marginTop: 6, fontSize: 13 }}>
-          Unresolved: {unknown.join(', ')}
+          {labels.unresolved}: {unknown.join(', ')}
         </div>
       ) : null}
       {result.teamIds && result.teamIds.length > 1 ? (
         <div style={{ marginTop: 6, fontSize: 13 }}>
-          Candidates: {result.teamIds.join(', ')}
+          {labels.candidates}: {result.teamIds.join(', ')}
         </div>
       ) : null}
     </div>
@@ -170,15 +261,20 @@ function HighlightedCode({
   );
 }
 
-function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
+export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
   if (!result) return null;
   if (result.status !== 'ok') {
     return <BestTeamsError result={result} />;
   }
+  const lang: UiLanguage = result.lang === 'he' ? 'he' : 'en';
+  const labels = copy[lang];
   if (!result.bestTeams || result.bestTeams.length === 0) {
     return (
-      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
-        No teams match those filters.
+      <div
+        dir={lang === 'he' ? 'rtl' : 'ltr'}
+        style={{ padding: 12, color: 'var(--app-muted)' }}
+      >
+        {labels.empty}
       </div>
     );
   }
@@ -189,6 +285,7 @@ function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
 
   return (
     <div
+      dir={lang === 'he' ? 'rtl' : 'ltr'}
       style={{
         margin: '8px 0',
         border: '1px solid var(--app-border)',
@@ -205,23 +302,29 @@ function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
           fontSize: 14,
         }}
       >
-        <div style={{ fontWeight: 600 }}>Best teams — {result.teamName}</div>
+        <div style={{ fontWeight: 600 }}>
+          {labels.title} — {result.teamName}
+        </div>
         <div style={{ color: 'var(--app-muted)', fontSize: 12, marginTop: 2 }}>
-          Ranked by{' '}
-          {rankByLabel(result.rankBy, result.budgetChangePointsPerMillion)}
+          {labels.rankedBy}{' '}
+          {rankByLabel(
+            result.rankBy,
+            result.budgetChangePointsPerMillion,
+            lang,
+          )}
           {' · '}
-          Chip: {chipLabel(result.chip)}
+          {labels.chip}: {chipLabel(result.chip, lang)}
           {includeDrivers.size > 0
-            ? ` · must include ${[...includeDrivers].join(', ')}`
+            ? ` · ${labels.mustInclude} ${[...includeDrivers].join(', ')}`
             : ''}
           {result.filters.mustExcludeDrivers.length > 0
-            ? ` · must exclude ${result.filters.mustExcludeDrivers.join(', ')}`
+            ? ` · ${labels.mustExclude} ${result.filters.mustExcludeDrivers.join(', ')}`
             : ''}
           {includeConstructors.size > 0
-            ? ` · constructor includes ${[...includeConstructors].join(', ')}`
+            ? ` · ${labels.constructorIncludes} ${[...includeConstructors].join(', ')}`
             : ''}
           {result.filters.mustExcludeConstructors.length > 0
-            ? ` · constructor excludes ${result.filters.mustExcludeConstructors.join(', ')}`
+            ? ` · ${labels.constructorExcludes} ${result.filters.mustExcludeConstructors.join(', ')}`
             : ''}
         </div>
       </div>
@@ -232,17 +335,19 @@ function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
           <tr
             style={{
               background: 'var(--app-surface-subtle)',
-              textAlign: 'left',
+              textAlign: 'start',
             }}
           >
             <th style={cellHeader}>#</th>
-            <th style={cellHeader}>Drivers</th>
-            <th style={cellHeader}>Constructors</th>
-            <th style={cellHeader}>Price</th>
-            <th style={cellHeader}>Pts</th>
-            {showBudgetAdjusted ? <th style={cellHeader}>Budget-adj</th> : null}
-            <th style={cellHeader}>Tr</th>
-            <th style={cellHeader}>Δ price</th>
+            <th style={cellHeader}>{labels.drivers}</th>
+            <th style={cellHeader}>{labels.constructors}</th>
+            <th style={cellHeader}>{labels.price}</th>
+            <th style={cellHeader}>{labels.points}</th>
+            {showBudgetAdjusted ? (
+              <th style={cellHeader}>{labels.budgetAdjustedShort}</th>
+            ) : null}
+            <th style={cellHeader}>{labels.transfers}</th>
+            <th style={cellHeader}>{labels.priceChange}</th>
           </tr>
         </thead>
         <tbody>
@@ -257,7 +362,7 @@ function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
                   <div
                     style={{ fontSize: 11, color: 'var(--app-success-text)' }}
                   >
-                    current
+                    {labels.current}
                   </div>
                 ) : null}
               </td>
@@ -290,7 +395,7 @@ function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
                   <div
                     style={{ fontSize: 11, color: 'var(--app-danger-text)' }}
                   >
-                    -{team.penalty} pen
+                    -{team.penalty} {labels.penalty}
                   </div>
                 ) : null}
               </td>
@@ -319,7 +424,8 @@ function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
           color: 'var(--app-muted)',
         }}
       >
-        ⭐ captain · ⭐⭐ mega captain · green = required by filter
+        ⭐ {labels.captain} · ⭐⭐ {labels.megaCaptain} ·{' '}
+        {labels.filterLegend}
       </div>
     </div>
   );
@@ -348,11 +454,7 @@ export function useBestTeamsAction() {
     available: 'frontend',
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
-        return (
-          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
-            Computing best teams…
-          </div>
-        );
+        return <ToolLoading kind="bestTeams" />;
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
       if (isToolErrorResult(parsed)) {

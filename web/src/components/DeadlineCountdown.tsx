@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
+import { directionFor, localeFor, uiLanguageOf } from './uiLanguage';
+import { ToolLoading } from './ToolLoading';
 
 type DeadlineResult = {
+  lang?: string;
   status?: 'ok' | 'unavailable';
   raceName?: string;
   sessionType?: 'sprint' | 'qualifying';
@@ -28,10 +31,10 @@ function pad(n: number): string {
   return n < 10 ? `0${n}` : String(n);
 }
 
-function formatSessionStart(iso: string): string {
+function formatSessionStart(iso: string, locale: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString(locale, {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
@@ -41,7 +44,40 @@ function formatSessionStart(iso: string): string {
   });
 }
 
-function DeadlineCountdown({ result }: { result?: DeadlineResult }) {
+export function DeadlineCountdown({ result }: { result?: DeadlineResult }) {
+  const lang = uiLanguageOf(result);
+  const labels =
+    lang === 'he'
+      ? {
+          unavailable: 'מועד נעילת הקבוצות הבא אינו זמין כרגע.',
+          sprint: 'ספרינט',
+          qualifying: 'דירוג',
+          session: 'מקצה',
+          title: 'מועד נעילת הקבוצות',
+          race: 'מרוץ',
+          locksAt: 'הנעילה בתחילת',
+          started: 'המקצה כבר התחיל.',
+          days: 'ימים',
+          hours: 'שעות',
+          min: 'דקות',
+          sec: 'שניות',
+          reminder: 'אל תשכח לנעול את הקבוצה לפני המועד.',
+        }
+      : {
+          unavailable: "Next deadline isn't available right now.",
+          sprint: 'Sprint',
+          qualifying: 'Qualifying',
+          session: 'session',
+          title: 'Teams lock deadline',
+          race: 'Race',
+          locksAt: 'Locks at start of',
+          started: 'This session has already started.',
+          days: 'days',
+          hours: 'hours',
+          min: 'min',
+          sec: 'sec',
+          reminder: "Don't forget to lock your team before then.",
+        };
   const sessionStartsAt = result?.sessionStartsAt;
   const serverNowIso = result?.nowIso;
 
@@ -74,8 +110,11 @@ function DeadlineCountdown({ result }: { result?: DeadlineResult }) {
 
   if (!result || result.status === 'unavailable') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
-        Next deadline isn't available right now.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-muted)' }}
+      >
+        {labels.unavailable}
       </div>
     );
   }
@@ -83,10 +122,10 @@ function DeadlineCountdown({ result }: { result?: DeadlineResult }) {
   const sessionType = result.sessionType;
   const sessionLabel =
     sessionType === 'sprint'
-      ? 'Sprint'
+      ? labels.sprint
       : sessionType === 'qualifying'
-        ? 'Qualifying'
-        : (result.sessionLabel ?? 'session');
+        ? labels.qualifying
+        : (result.sessionLabel ?? labels.session);
 
   const deadlineMs = sessionStartsAt
     ? new Date(sessionStartsAt).getTime()
@@ -97,6 +136,7 @@ function DeadlineCountdown({ result }: { result?: DeadlineResult }) {
 
   return (
     <div
+      dir={directionFor(lang)}
       style={{
         margin: '8px 0',
         border: '1px solid var(--app-border)',
@@ -113,14 +153,16 @@ function DeadlineCountdown({ result }: { result?: DeadlineResult }) {
           color: 'var(--app-primary-strong)',
         }}
       >
-        Teams lock deadline
+        {labels.title}
       </div>
       <div style={{ marginTop: 4, color: 'var(--app-control-text)' }}>
-        Race: <strong>{result.raceName ?? '—'}</strong>
+        {labels.race}: <strong>{result.raceName ?? '—'}</strong>
       </div>
       <div style={{ color: 'var(--app-control-text)', marginBottom: 12 }}>
-        Locks at start of <strong>{sessionLabel}</strong>
-        {sessionStartsAt ? ` · ${formatSessionStart(sessionStartsAt)}` : ''}
+        {labels.locksAt} <strong>{sessionLabel}</strong>
+        {sessionStartsAt
+          ? ` · ${formatSessionStart(sessionStartsAt, localeFor(lang))}`
+          : ''}
       </div>
 
       {hasStarted ? (
@@ -134,7 +176,7 @@ function DeadlineCountdown({ result }: { result?: DeadlineResult }) {
             fontWeight: 600,
           }}
         >
-          This session has already started.
+          {labels.started}
         </div>
       ) : (
         <div
@@ -144,15 +186,15 @@ function DeadlineCountdown({ result }: { result?: DeadlineResult }) {
             gap: 8,
           }}
         >
-          <CountdownCell label="days" value={parts.days} />
-          <CountdownCell label="hours" value={pad(parts.hours)} />
-          <CountdownCell label="min" value={pad(parts.minutes)} />
-          <CountdownCell label="sec" value={pad(parts.seconds)} />
+          <CountdownCell label={labels.days} value={parts.days} />
+          <CountdownCell label={labels.hours} value={pad(parts.hours)} />
+          <CountdownCell label={labels.min} value={pad(parts.minutes)} />
+          <CountdownCell label={labels.sec} value={pad(parts.seconds)} />
         </div>
       )}
 
       <div style={{ marginTop: 10, color: 'var(--app-muted)', fontSize: 12 }}>
-        Don't forget to lock your team before then.
+        {labels.reminder}
       </div>
     </div>
   );
@@ -208,11 +250,7 @@ export function useDeadlineCountdownAction() {
     available: 'frontend',
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
-        return (
-          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
-            Loading deadline…
-          </div>
-        );
+        return <ToolLoading kind="deadline" />;
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
       if (isToolErrorResult(parsed)) {

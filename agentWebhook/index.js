@@ -28,6 +28,9 @@ const { applyWriteDecision } = require('../src/agent/writeDecision');
 const {
   getAllowedUserByEmail,
 } = require('../src/webUserAllowlistService');
+const {
+  getFreshLanguagePreference,
+} = require('../src/services/setLanguageService');
 
 function getOriginHeader(req) {
   const headers = req.headers || {};
@@ -148,19 +151,32 @@ function buildUnauthorizedResponse(req, authResult) {
 //   200 { status: 'ok', mode: 'bypassed' }   (when GOOGLE_CLIENT_ID is unset)
 //   401 { error, reason, email? }            (auth failure)
 //   405 (non-GET / non-OPTIONS — OPTIONS short-circuits before this)
-function buildWhoamiOkResponse(req, authResult) {
+async function buildWhoamiOkResponse(req, authResult) {
   const headers = {
     ...buildResponseCorsHeaders(req),
     'Content-Type': 'application/json',
   };
+  let lang = 'en';
+  try {
+    const chatId =
+      authResult.status === STATUS.OK
+        ? authResult.chatId
+        : getAgentChatId();
+    lang = (await getFreshLanguagePreference(chatId)).lang;
+  } catch {
+    // Language is presentation metadata; auth already succeeded. Fall back
+    // to English rather than turning a transient profile read into login
+    // failure.
+  }
   const body =
     authResult.status === STATUS.BYPASSED
-      ? { status: 'ok', mode: 'bypassed' }
+      ? { status: 'ok', mode: 'bypassed', lang }
       : {
           status: 'ok',
           mode: 'authenticated',
           email: authResult.email,
           name: authResult.name,
+          lang,
         };
 
   return {
@@ -299,7 +315,7 @@ module.exports = async function (context, req) {
     if (whoami) {
       // Cheap path — never invokes CopilotKit, never establishes the
       // request context. Both `ok` and `bypassed` map to a 200 here.
-      context.res = buildWhoamiOkResponse(req, authResult);
+      context.res = await buildWhoamiOkResponse(req, authResult);
 
       return;
     }

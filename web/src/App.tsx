@@ -2,13 +2,15 @@ import { CopilotKit } from '@copilotkit/react-core';
 import { CopilotChat } from '@copilotkit/react-ui';
 import '@copilotkit/react-ui/styles.css';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { useAuthFetchInterceptor } from './auth/useAuthFetchInterceptor';
 import { AccessVerifier } from './auth/AccessVerifier';
 import { LoginScreen } from './components/LoginScreen';
 import { SignedInBadge } from './components/SignedInBadge';
 import { ThemeToggle } from './components/ThemeToggle';
+import { UiLanguageProvider } from './components/uiLanguage';
+import { verifyAccess } from './auth/whoami';
 import { setHistoryScope } from './lib/chatHistoryStore';
 import { useNextRacesAction } from './components/NextRacesTable';
 import { useBestTeamsAction } from './components/BestTeamsTable';
@@ -165,44 +167,105 @@ function VerifiedAgentChat({
 // we render the chat directly without any auth gate — backend bypasses
 // auth in that mode too (when GOOGLE_CLIENT_ID is unset on the
 // Function App). This keeps `npm run dev` frictionless.
-function UnauthedAgent({
+export function UnauthedAgent({
   theme,
   onToggleTheme,
 }: {
   theme: ThemeMode;
   onToggleTheme: () => void;
 }) {
+  const [languageState, setLanguageState] = useState<
+    | { kind: 'loading' }
+    | { kind: 'ready'; lang: 'en' | 'he' }
+    | { kind: 'unavailable' }
+  >({ kind: 'loading' });
+  const [languageRetry, setLanguageRetry] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLanguageState({ kind: 'loading' });
+    verifyAccess(null, RUNTIME_URL).then((result) => {
+      if (cancelled) return;
+      if (result.status === 'ok') {
+        setLanguageState({
+          kind: 'ready',
+          lang: result.lang === 'he' ? 'he' : 'en',
+        });
+      } else {
+        setLanguageState({ kind: 'unavailable' });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [languageRetry]);
+
+  if (languageState.kind === 'loading') {
+    return (
+      <div
+        aria-label="Loading account preferences"
+        style={{ minHeight: '60vh', display: 'grid', placeItems: 'center' }}
+      >
+        …
+      </div>
+    );
+  }
+
+  if (languageState.kind === 'unavailable') {
+    return (
+      <div
+        role="alert"
+        style={{
+          minHeight: '60vh',
+          display: 'grid',
+          placeItems: 'center',
+          gap: 12,
+        }}
+      >
+        <span>Unable to load language / לא ניתן לטעון את השפה</span>
+        <button
+          type="button"
+          onClick={() => setLanguageRetry((value) => value + 1)}
+        >
+          Retry / נסה שוב
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <WriteDecisionProvider runtimeUrl={RUNTIME_URL}>
-      <CopilotKit runtimeUrl={RUNTIME_URL}>
-        <HistoryRestorer />
-        <RtlChatSupport />
-        <AgentActions />
-        <div className="app-titlebar">
-          <div>
-            <h1 className="app-header">F1 Fantasy Agent</h1>
-            <p className="app-subheader">
-              Ask about upcoming races or your best teams. The Telegram bot is
-              unaffected.
-            </p>
+    <UiLanguageProvider initialLanguage={languageState.lang}>
+      <WriteDecisionProvider runtimeUrl={RUNTIME_URL}>
+        <CopilotKit runtimeUrl={RUNTIME_URL}>
+          <HistoryRestorer />
+          <RtlChatSupport />
+          <AgentActions />
+          <div className="app-titlebar">
+            <div>
+              <h1 className="app-header">F1 Fantasy Agent</h1>
+              <p className="app-subheader">
+                Ask about upcoming races or your best teams. The Telegram bot
+                is unaffected.
+              </p>
+            </div>
+            <div className="app-actions">
+              <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+              <ClearHistoryButton />
+            </div>
           </div>
-          <div className="app-actions">
-            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-            <ClearHistoryButton />
+          <div className="chat-wrapper">
+            <CopilotChat
+              instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
+              labels={{
+                title: 'F1 Fantasy Agent',
+                initial:
+                  'Hi! Try: "best teams for kilzid3 with Verstappen but no Alonso".',
+              }}
+            />
           </div>
-        </div>
-        <div className="chat-wrapper">
-          <CopilotChat
-            instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
-            labels={{
-              title: 'F1 Fantasy Agent',
-              initial:
-                'Hi! Try: "best teams for kilzid3 with Verstappen but no Alonso".',
-            }}
-          />
-        </div>
-      </CopilotKit>
-    </WriteDecisionProvider>
+        </CopilotKit>
+      </WriteDecisionProvider>
+    </UiLanguageProvider>
   );
 }
 

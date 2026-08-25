@@ -3,6 +3,9 @@
 // language of `ToolErrorFallback` so success / failure feel like one
 // design system.
 
+import { useEffect } from 'react';
+import { useUiLanguage } from './uiLanguage';
+
 export type WriteResultStatus =
   | 'ok'
   | 'invalid_input'
@@ -73,9 +76,15 @@ export function isWriteResult(value: unknown): value is WriteResult {
 }
 
 export function WriteResultCard({ result }: { result: WriteResult }) {
+  const { setLang } = useUiLanguage();
   const status = isKnownStatus(result.status) ? result.status : 'ok';
   const style = STATUS_STYLES[status];
   const isHebrew = result.uiLang === 'he';
+  useEffect(() => {
+    if (result.uiLang === 'he' || result.uiLang === 'en') {
+      setLang(result.uiLang);
+    }
+  }, [result.uiLang, setLang]);
   const titles: Record<WriteResultStatus, string> = isHebrew
     ? {
         ok: 'בוצע',

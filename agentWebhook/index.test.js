@@ -15,6 +15,10 @@ jest.mock('../src/webUserAllowlistService', () => ({
   getAllowedUserByEmail: jest.fn(),
 }));
 
+jest.mock('../src/services/setLanguageService', () => ({
+  getFreshLanguagePreference: jest.fn(),
+}));
+
 jest.mock('../src/agent/auth', () => {
   const actual = jest.requireActual('../src/agent/auth');
 
@@ -37,6 +41,9 @@ const { authenticateRequest, STATUS } = require('../src/agent/auth');
 const { applyWriteDecision } = require('../src/agent/writeDecision');
 const { getAgentChatId } = require('../src/agent/identity');
 const { getRequestContext } = require('../src/agent/requestContext');
+const {
+  getFreshLanguagePreference,
+} = require('../src/services/setLanguageService');
 const webhook = require('./index');
 
 function makeWebResponse({ status = 200, body = 'ok', contentType = 'text/plain' } = {}) {
@@ -89,6 +96,8 @@ beforeEach(() => {
   authenticateRequest.mockReset();
   applyWriteDecision.mockReset();
   getAgentChatId.mockClear();
+  getFreshLanguagePreference.mockReset();
+  getFreshLanguagePreference.mockResolvedValue({ lang: 'en', fresh: true });
 });
 
 describe('agentWebhook', () => {
@@ -109,6 +118,7 @@ describe('agentWebhook', () => {
       chatId: 12345,
       email: 'foo@example.com',
       name: 'Foo',
+      lang: 'en',
       sub: 's1',
     });
 
@@ -224,6 +234,7 @@ describe('agentWebhook → /whoami', () => {
       mode: 'authenticated',
       email: 'foo@example.com',
       name: 'Foo',
+      lang: 'en',
     });
   });
 
@@ -236,7 +247,41 @@ describe('agentWebhook → /whoami', () => {
     expect(copilotHandler).not.toHaveBeenCalled();
     expect(ctx.res.status).toBe(200);
     const parsed = JSON.parse(ctx.res.body);
-    expect(parsed).toEqual({ status: 'ok', mode: 'bypassed' });
+    expect(parsed).toEqual({ status: 'ok', mode: 'bypassed', lang: 'en' });
+  });
+
+  test('GET whoami returns the durable Hebrew UI language', async () => {
+    authenticateRequest.mockResolvedValueOnce({
+      status: STATUS.OK,
+      chatId: 12345,
+      email: 'foo@example.com',
+      name: 'Foo',
+      sub: 's1',
+    });
+    getFreshLanguagePreference.mockResolvedValueOnce({
+      lang: 'he',
+      fresh: true,
+    });
+
+    const ctx = makeCtx();
+    await webhook(ctx, makeWhoamiReq());
+
+    expect(JSON.parse(ctx.res.body).lang).toBe('he');
+  });
+
+  test('GET whoami returns the hardcoded user language in bypass mode', async () => {
+    authenticateRequest.mockResolvedValueOnce({ status: STATUS.BYPASSED });
+    getAgentChatId.mockReturnValueOnce(999);
+    getFreshLanguagePreference.mockResolvedValueOnce({
+      lang: 'he',
+      fresh: true,
+    });
+
+    const ctx = makeCtx();
+    await webhook(ctx, makeWhoamiReq());
+
+    expect(getFreshLanguagePreference).toHaveBeenCalledWith(999);
+    expect(JSON.parse(ctx.res.body).lang).toBe('he');
   });
 
   test('GET whoami with UNAUTHORIZED returns 401 + JSON body', async () => {

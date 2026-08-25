@@ -1,5 +1,6 @@
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
+import { ToolLoading } from './ToolLoading';
 
 type Sessions = {
   qualifying?: string;
@@ -160,7 +161,10 @@ export function RaceInfoCard({ result }: { result?: RaceInfoResult }) {
 
   if (!result || result.status === 'unavailable') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
+      <div
+        dir={lang === 'he' ? 'rtl' : 'ltr'}
+        style={{ padding: 12, color: 'var(--app-muted)' }}
+      >
         {labels.unavailable}
       </div>
     );
@@ -400,11 +404,7 @@ export function useRaceInfoAction() {
     available: 'frontend',
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
-        return (
-          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
-            Loading next race info…
-          </div>
-        );
+        return <ToolLoading kind="raceInfo" />;
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
       if (isToolErrorResult(parsed)) {

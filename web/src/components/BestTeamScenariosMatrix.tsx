@@ -1,5 +1,7 @@
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
+import { directionFor, uiLanguageOf, type UiLanguage } from './uiLanguage';
+import { ToolLoading } from './ToolLoading';
 
 type ScenarioResult = {
   chipKey: string | null;
@@ -16,12 +18,15 @@ type ScenarioRow = {
 };
 
 type BestTeamScenariosResult = {
+  lang?: string;
   status?:
     | 'ok'
     | 'no_teams'
     | 'unknown_team'
     | 'ambiguous_team'
-    | 'missing_cache';
+    | 'missing_cache'
+    | 'projection_mismatch'
+    | 'missing_weekend_format';
   teamId?: string;
   teamName?: string;
   chip?: string | null;
@@ -41,42 +46,152 @@ function formatDelta(value: number | null): string {
   return value > 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
 }
 
-function BestTeamScenariosMatrix({
+function scenarioChipLabel(
+  cell: ScenarioResult,
+  lang: UiLanguage,
+  isBaseline: boolean,
+): string {
+  if (lang !== 'he') return cell.chipLabel;
+  if (isBaseline || cell.chipLabel === 'Without Chip') {
+    return "ללא צ'יפ";
+  }
+  switch (cell.chipKey) {
+    case 'LIMITLESS':
+      return 'ללא הגבלה';
+    case 'EXTRA_BOOST':
+      return 'אקסטרה בוסט';
+    case 'WILDCARD':
+      return 'ווילדקארד';
+    case null:
+    case 'WITHOUT_CHIP':
+      return "ללא צ'יפ";
+    default:
+      return cell.chipLabel;
+  }
+}
+
+function scenarioPpmLabel(
+  row: ScenarioRow,
+  lang: UiLanguage,
+): string {
+  if (lang !== 'he') return row.ppmLabel;
+  const known: Record<number, string> = {
+    0: 'נקודות בלבד',
+    1.3: 'נטייה לנקודות',
+    1.65: 'נקודות עם ערך לתקציב',
+    2: 'איזון עם ערך לתקציב',
+  };
+  return known[row.ppm] ?? row.ppmLabel;
+}
+
+export function BestTeamScenariosMatrix({
   result,
 }: {
   result?: BestTeamScenariosResult;
 }) {
   if (!result || !result.status) return null;
+  const lang = uiLanguageOf(result);
+  const labels =
+    lang === 'he'
+      ? {
+          noTeams: 'עדיין אין לך קבוצות במעקב.',
+          missingCache:
+            'חסרים נתונים שמורים לקבוצה זו. יש להעלות תחילה את נתוני הקבוצה הנוכחית דרך טלגרם.',
+          unknownTeam: 'לא נמצאה קבוצה מתאימה.',
+          ambiguous: 'יש כמה קבוצות במעקב — נא לציין איזו קבוצה.',
+          projectionMismatch:
+            'נתוני התחזית אינם תואמים לרשימת המשתתפים הפעילים. נסה שוב לאחר עדכון הנתונים.',
+          missingWeekend:
+            'פורמט סוף השבוע של המרוץ הבא אינו זמין. נסה שוב לאחר עדכון נתוני המרוץ.',
+          title: 'תרחישי הקבוצה הטובה ביותר',
+          subtitle:
+            "הקבוצה המובילה לכל משקל ולכל צ'יפ. 🟢/🟡 מציינים שיפור לעומת ללא צ'יפ באותה שורה.",
+          pointsPerMillion: "נק' / $M",
+          scenario: 'תרחיש',
+          points: "נק'",
+          priceChange: 'שינוי מחיר',
+        }
+      : {
+          noTeams: "You don't have any tracked teams yet.",
+          missingCache:
+            'Missing cached data for this team. Upload current team data via the Telegram bot first.',
+          unknownTeam: "Couldn't find a matching team.",
+          ambiguous: 'Multiple tracked teams — specify which one.',
+          projectionMismatch:
+            'Projection data does not match the active player list. Try after the next data refresh.',
+          missingWeekend:
+            'The next-race weekend format is unavailable. Try after race data refreshes.',
+          title: 'Best Team Scenarios',
+          subtitle:
+            'Top team per ppm preset × chip combination. 🟢/🟡 indicate chip lift vs. no-chip baseline of the same row.',
+          pointsPerMillion: 'pts / $M',
+          scenario: 'Scenario',
+          points: 'Pts',
+          priceChange: 'Δ price',
+        };
 
   if (result.status === 'no_teams') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-warning-text)' }}>
-        You don't have any tracked teams yet.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-warning-text)' }}
+      >
+        {labels.noTeams}
       </div>
     );
   }
 
   if (result.status === 'missing_cache') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-warning-text)' }}>
-        Missing cached data for this team. Upload current team data via the
-        Telegram bot first.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-warning-text)' }}
+      >
+        {labels.missingCache}
       </div>
     );
   }
 
   if (result.status === 'unknown_team') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-danger-text)' }}>
-        Couldn't find a matching team.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-danger-text)' }}
+      >
+        {labels.unknownTeam}
       </div>
     );
   }
 
   if (result.status === 'ambiguous_team') {
     return (
-      <div style={{ padding: 12, color: 'var(--app-warning-text)' }}>
-        Multiple tracked teams — specify which one.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-warning-text)' }}
+      >
+        {labels.ambiguous}
+      </div>
+    );
+  }
+
+  if (result.status === 'projection_mismatch') {
+    return (
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-danger-text)' }}
+      >
+        {labels.projectionMismatch}
+      </div>
+    );
+  }
+
+  if (result.status === 'missing_weekend_format') {
+    return (
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-warning-text)' }}
+      >
+        {labels.missingWeekend}
       </div>
     );
   }
@@ -88,6 +203,7 @@ function BestTeamScenariosMatrix({
 
   return (
     <div
+      dir={directionFor(lang)}
       style={{
         margin: '8px 0',
         border: '1px solid var(--app-border)',
@@ -106,11 +222,10 @@ function BestTeamScenariosMatrix({
         <div
           style={{ fontWeight: 700, fontSize: 14, color: 'var(--app-text)' }}
         >
-          📊 Best Team Scenarios — {result.teamName}
+          📊 {labels.title} — {result.teamName}
         </div>
         <div style={{ color: 'var(--app-subtle)', fontSize: 11, marginTop: 2 }}>
-          Top team per ppm preset × chip combination. 🟢/🟡 indicate chip lift
-          vs. no-chip baseline of the same row.
+          {labels.subtitle}
         </div>
       </div>
 
@@ -130,9 +245,9 @@ function BestTeamScenariosMatrix({
               marginBottom: 6,
             }}
           >
-            {row.ppmLabel}{' '}
+            {scenarioPpmLabel(row, lang)}{' '}
             <span style={{ color: 'var(--app-subtle)', fontWeight: 400 }}>
-              ({row.ppm} pts / $M)
+              ({row.ppm} {labels.pointsPerMillion})
             </span>
           </div>
           <table
@@ -143,27 +258,27 @@ function BestTeamScenariosMatrix({
             }}
           >
             <thead>
-              <tr style={{ color: 'var(--app-subtle)', textAlign: 'left' }}>
+              <tr style={{ color: 'var(--app-subtle)', textAlign: 'start' }}>
                 <th style={{ padding: '4px 8px', fontWeight: 500 }}>
-                  Scenario
+                  {labels.scenario}
                 </th>
                 <th
                   style={{
                     padding: '4px 8px',
-                    textAlign: 'right',
+                    textAlign: 'end',
                     fontWeight: 500,
                   }}
                 >
-                  Pts
+                  {labels.points}
                 </th>
                 <th
                   style={{
                     padding: '4px 8px',
-                    textAlign: 'right',
+                    textAlign: 'end',
                     fontWeight: 500,
                   }}
                 >
-                  Δ price
+                  {labels.priceChange}
                 </th>
               </tr>
             </thead>
@@ -189,13 +304,13 @@ function BestTeamScenariosMatrix({
                         color: 'var(--app-text)',
                       }}
                     >
-                      {cell.chipLabel}
+                      {scenarioChipLabel(cell, lang, isBaseline)}
                       {dot}
                     </td>
                     <td
                       style={{
                         padding: '4px 8px',
-                        textAlign: 'right',
+                        textAlign: 'end',
                         fontVariantNumeric: 'tabular-nums',
                         fontWeight: isBaseline ? 700 : 500,
                       }}
@@ -207,7 +322,7 @@ function BestTeamScenariosMatrix({
                     <td
                       style={{
                         padding: '4px 8px',
-                        textAlign: 'right',
+                        textAlign: 'end',
                         color: 'var(--app-subtle)',
                         fontVariantNumeric: 'tabular-nums',
                       }}
@@ -234,11 +349,7 @@ export function useBestTeamScenariosAction() {
     available: 'frontend',
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
-        return (
-          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
-            Computing scenarios…
-          </div>
-        );
+        return <ToolLoading kind="scenarios" />;
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
       if (isToolErrorResult(parsed)) {

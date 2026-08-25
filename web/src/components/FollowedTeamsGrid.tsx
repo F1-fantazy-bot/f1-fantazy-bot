@@ -1,5 +1,7 @@
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
+import { directionFor, uiLanguageOf } from './uiLanguage';
+import { ToolLoading } from './ToolLoading';
 
 type LeagueRow = {
   leagueCode: string;
@@ -15,6 +17,7 @@ type FollowedTeam = {
 };
 
 type ListFollowedTeamsResult = {
+  lang?: string;
   status?: 'ok' | 'empty';
   teams?: FollowedTeam[];
 };
@@ -39,22 +42,46 @@ function positionStyle(position: number | null): {
   };
 }
 
-function FollowedTeamsGrid({ result }: { result?: ListFollowedTeamsResult }) {
+export function FollowedTeamsGrid({
+  result,
+}: {
+  result?: ListFollowedTeamsResult;
+}) {
+  const lang = uiLanguageOf(result);
+  const labels =
+    lang === 'he'
+      ? {
+          empty:
+            'עדיין אין קבוצות ליגה במעקב. יש להשתמש ב-/follow_league וב-/teams_tracker בבוט הטלגרם.',
+          active: 'פעילה',
+          noLeagues: '(לא נמצאו ליגות עבור קבוצה זו)',
+          positionPrefix: 'מ',
+        }
+      : {
+          empty:
+            'No tracked league teams yet. Run /follow_league + /teams_tracker in the Telegram bot first.',
+          active: 'ACTIVE',
+          noLeagues: '(no leagues resolved for this team)',
+          positionPrefix: 'P',
+        };
   if (
     result?.status === 'empty' ||
     !result?.teams ||
     result.teams.length === 0
   ) {
     return (
-      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
-        No tracked league teams yet. Run <code>/follow_league</code> +{' '}
-        <code>/teams_tracker</code> in the Telegram bot first.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-muted)' }}
+      >
+        {labels.empty}
       </div>
     );
   }
 
   return (
     <div
+      dir={directionFor(lang)}
       style={{
         margin: '8px 0',
         display: 'grid',
@@ -93,7 +120,7 @@ function FollowedTeamsGrid({ result }: { result?: ListFollowedTeamsResult }) {
                   letterSpacing: 0,
                 }}
               >
-                ACTIVE
+                {labels.active}
               </span>
             ) : null}
           </div>
@@ -112,7 +139,7 @@ function FollowedTeamsGrid({ result }: { result?: ListFollowedTeamsResult }) {
           >
             {team.leagues.length === 0 ? (
               <div style={{ color: 'var(--app-subtle)', fontSize: 12 }}>
-                (no leagues resolved for this team)
+                {labels.noLeagues}
               </div>
             ) : (
               team.leagues.map((row) => {
@@ -142,7 +169,7 @@ function FollowedTeamsGrid({ result }: { result?: ListFollowedTeamsResult }) {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {pos === null ? '—' : `P${pos}`}
+                      {pos === null ? '—' : `${labels.positionPrefix}${pos}`}
                     </span>
                   </div>
                 );
@@ -164,11 +191,7 @@ export function useFollowedTeamsAction() {
     available: 'frontend',
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
-        return (
-          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
-            Loading your tracked teams…
-          </div>
-        );
+        return <ToolLoading kind="followedTeams" />;
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
       if (isToolErrorResult(parsed)) {

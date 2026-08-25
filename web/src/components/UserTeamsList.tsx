@@ -1,5 +1,7 @@
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
+import { directionFor, uiLanguageOf, type UiLanguage } from './uiLanguage';
+import { ToolLoading } from './ToolLoading';
 
 type UserTeam = {
   teamId: string;
@@ -15,11 +17,21 @@ type UserTeam = {
 };
 
 type ListUserTeamsResult = {
+  lang?: string;
   teams?: UserTeam[];
 };
 
-function chipBadge(chip: string | null) {
+function chipBadge(chip: string | null, lang: UiLanguage) {
   if (!chip) return null;
+  const chipLabels: Record<string, string> =
+    lang === 'he'
+      ? {
+          EXTRA_BOOST: 'אקסטרה בוסט',
+          WILDCARD: 'ווילדקארד',
+          LIMITLESS: 'ללא הגבלה',
+          WITHOUT_CHIP: "ללא צ'יפ",
+        }
+      : {};
   return (
     <span
       style={{
@@ -33,24 +45,54 @@ function chipBadge(chip: string | null) {
         marginLeft: 6,
       }}
     >
-      {chip.replace('_', ' ').toLowerCase()}
+      {chipLabels[chip] ?? chip.replace('_', ' ').toLowerCase()}
     </span>
   );
 }
 
-function UserTeamsList({ result }: { result?: ListUserTeamsResult }) {
+export function UserTeamsList({ result }: { result?: ListUserTeamsResult }) {
+  const lang = uiLanguageOf(result);
+  const labels =
+    lang === 'he'
+      ? {
+          empty:
+            'אין קבוצות במעקב. יש להשתמש ב-/follow_league וב-/teams_tracker בבוט הטלגרם.',
+          active: 'פעילה',
+          league: 'ליגה',
+          screenshot: 'צילום מסך',
+          drivers: 'נהגים',
+          constructors: 'קבוצות',
+          boost: 'קפטן',
+          freeTransfers: 'העברות חינם',
+          capLeft: 'נותרו בתקציב',
+        }
+      : {
+          empty:
+            'No tracked teams. Run /follow_league + /teams_tracker in the Telegram bot first.',
+          active: 'ACTIVE',
+          league: 'league',
+          screenshot: 'screenshot',
+          drivers: 'Drivers',
+          constructors: 'Constructors',
+          boost: 'Boost',
+          freeTransfers: 'free transfers',
+          capLeft: 'cap left',
+        };
   const teams = result?.teams ?? [];
   if (teams.length === 0) {
     return (
-      <div style={{ padding: 12, color: 'var(--app-muted)' }}>
-        No tracked teams. Run <code>/follow_league</code> +{' '}
-        <code>/teams_tracker</code> in the Telegram bot first.
+      <div
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-muted)' }}
+      >
+        {labels.empty}
       </div>
     );
   }
 
   return (
     <div
+      dir={directionFor(lang)}
       style={{
         margin: '8px 0',
         display: 'grid',
@@ -84,27 +126,29 @@ function UserTeamsList({ result }: { result?: ListUserTeamsResult }) {
                   fontWeight: 600,
                 }}
               >
-                ACTIVE
+                {labels.active}
               </span>
             ) : null}
-            {chipBadge(team.chip)}
+            {chipBadge(team.chip, lang)}
           </div>
           <div
             style={{ color: 'var(--app-muted)', fontSize: 11, marginTop: 2 }}
           >
             id: <code>{team.teamId}</code>
-            {team.isLeague ? ' · league' : ' · screenshot'}
+            {team.isLeague
+              ? ` · ${labels.league}`
+              : ` · ${labels.screenshot}`}
           </div>
           <div style={{ marginTop: 6, color: 'var(--app-muted)' }}>
             <div>
               <span style={{ color: 'var(--app-subtle)', fontSize: 11 }}>
-                Drivers:{' '}
+                {labels.drivers}:{' '}
               </span>
               {team.drivers.length > 0 ? team.drivers.join(', ') : '—'}
             </div>
             <div>
               <span style={{ color: 'var(--app-subtle)', fontSize: 11 }}>
-                Constructors:{' '}
+                {labels.constructors}:{' '}
               </span>
               {team.constructors.length > 0
                 ? team.constructors.join(', ')
@@ -112,7 +156,7 @@ function UserTeamsList({ result }: { result?: ListUserTeamsResult }) {
             </div>
             <div>
               <span style={{ color: 'var(--app-subtle)', fontSize: 11 }}>
-                Boost:{' '}
+                {labels.boost}:{' '}
               </span>
               {team.boost ?? '—'}
             </div>
@@ -120,10 +164,10 @@ function UserTeamsList({ result }: { result?: ListUserTeamsResult }) {
               style={{ color: 'var(--app-muted)', fontSize: 12, marginTop: 4 }}
             >
               {team.freeTransfers != null
-                ? `${team.freeTransfers} free transfers`
+                ? `${team.freeTransfers} ${labels.freeTransfers}`
                 : ''}
               {team.costCapRemaining != null
-                ? ` · ${team.costCapRemaining.toFixed?.(1) ?? team.costCapRemaining} cap left`
+                ? ` · ${team.costCapRemaining.toFixed?.(1) ?? team.costCapRemaining} ${labels.capLeft}`
                 : ''}
             </div>
           </div>
@@ -142,11 +186,7 @@ export function useUserTeamsAction() {
     available: 'frontend',
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
-        return (
-          <div style={{ padding: 10, color: 'var(--app-muted)' }}>
-            Loading your teams…
-          </div>
-        );
+        return <ToolLoading kind="userTeams" />;
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
       if (isToolErrorResult(parsed)) {
