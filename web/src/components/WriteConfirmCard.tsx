@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useCopilotChat } from '@copilotkit/react-core';
-import { Role, TextMessage } from '@copilotkit/runtime-client-gql';
+import { useAgent, useCopilotKit } from '@copilotkit/react-core/v2';
 import { useWriteDecision } from './WriteDecisionContext';
 
 // Result envelope the backend returns from a write-tool *propose* call.
@@ -39,7 +38,8 @@ export function WriteConfirmCard({
 }: {
   result: WriteConfirmationRequired;
 }) {
-  const { appendMessage } = useCopilotChat();
+  const { agent } = useAgent({ agentId: 'default' });
+  const { copilotkit } = useCopilotKit();
   const { decide } = useWriteDecision();
   const isHebrew = result.uiLang === 'he';
   const labels = isHebrew
@@ -89,9 +89,15 @@ export function WriteConfirmCard({
   const [errorMessage, setErrorMessage] = useState('');
 
   async function send(content: string) {
-    await appendMessage(
-      new TextMessage({ role: Role.User, content }),
-    );
+    agent.addMessage({
+      id: crypto.randomUUID(),
+      role: 'user',
+      content,
+    });
+    // Use the coordinated CopilotKit runner with the SAME agent that received
+    // the message. It detaches any still-active proposal run before starting
+    // the confirmation turn, avoiding overlap and provisional-agent mismatch.
+    await copilotkit.runAgent({ agent });
   }
 
   async function onConfirm() {

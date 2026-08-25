@@ -878,8 +878,13 @@ possession of a nonce is not authorization**:
    authenticated webhook route `/api/agent/write-decision`; it runs the
    same Google token + allowlist pipeline as CopilotKit traffic.
 3. **Yes** changes the matching chat-owned row to `approved` using its
-   ETag. Only after that succeeds does the UI append the nonce-bearing
-   user message that lets the model call `confirm_write`.
+   ETag. Only after that succeeds does the UI add the nonce-bearing
+   message directly to the v2 agent and call
+   `copilotkit.runAgent({ agent })` with that SAME instance. This
+   coordinated runner detaches an active proposal run before starting
+   the confirmation turn. Do not mix legacy `appendMessage` with a
+   separately acquired agent, call `agent.runAgent()` directly, or use
+   `runChatCompletion` (declared but absent at runtime in 1.57.4).
 4. **Cancel** deletes the row immediately and appends a nonce-free
    cancellation message.
 5. `confirm_write` returns `forbidden` for a staged row. For an approved
@@ -909,7 +914,8 @@ Key files:
 - `web/src/components/WriteDecisionContext.tsx` — decision HTTP client
   and provider.
 - `web/src/components/WriteConfirmCard.tsx` — server decision first,
-  then chat message.
+  then `agent.addMessage` + coordinated
+  `copilotkit.runAgent({ agent })` follow-up.
 - `docs/agent-write-tools-plan.md` — per-write-tool rollout.
 
 Concrete write tools currently available:

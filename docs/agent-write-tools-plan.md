@@ -117,7 +117,14 @@ Plus a 9th supporting tool, shipped in PR-1:
    updates the matching chatId-owned row to `state: "approved"` with an
    ETag condition. Only after that succeeds does the UI append *"Yes —
    I approved this change. Use writeNonce `<nonce>` with
-   confirm_write."*
+   confirm_write."* directly to the v2 agent, then calls
+   `copilotkit.runAgent({ agent })` with that SAME instance. The
+   coordinated runner detaches any active proposal run before starting
+   the confirmation turn. Do not mix legacy `appendMessage` with a
+   separately acquired agent (provisional instances can differ during
+   reconnect), call `agent.runAgent()` directly (it can overlap the
+   proposal run), or use `runChatCompletion` (declared but absent at
+   runtime in CopilotKit 1.57.4).
 6. The LLM calls `confirm_write({ writeNonce })`. The tool returns
    `forbidden` for a still-staged row. For an approved row it performs
    an ETag-protected delete; only the Function instance that wins that
@@ -256,8 +263,9 @@ into the per-tool sections below. Shipped as
   tool. Tool count: 14 → 15.
 - Frontend shared primitives in `web/src/components/`: `safeParse.ts`,
   `WriteDecisionContext.tsx` (authenticated decision client/provider),
-  `WriteConfirmCard.tsx` (server decision first, then
-  `appendMessage`), `WriteResultCard.tsx` (five status styles), and
+  `WriteConfirmCard.tsx` (server decision, `agent.addMessage`, then
+  coordinated `copilotkit.runAgent({ agent })`),
+  `WriteResultCard.tsx` (five status styles), and
   `registerWriteAction.tsx` (the `useWriteAction({ name, description,
   loadingLabel? })` factory hook).
 - `web/src/App.tsx#AgentActions` registers
@@ -269,9 +277,9 @@ into the per-tool sections below. Shipped as
   abandoned-entry sweeping, webhook auth/routing, `defineWriteTool`,
   and frontend ordering (the nonce is not appended until authenticated
   approval succeeds).
-- `web/package.json` — adds `@copilotkit/runtime-client-gql ^1.57.1`
-  (already a transitive of `react-core@1.57.x`; needed as a direct
-  dep for `TextMessage` + `Role`).
+- The confirmation card uses the v2 AG-UI agent's native
+  `addMessage` API, so no direct `@copilotkit/runtime-client-gql`
+  dependency is needed.
 
 **Verification gate:**
 
