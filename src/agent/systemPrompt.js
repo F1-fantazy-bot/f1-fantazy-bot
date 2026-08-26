@@ -55,6 +55,9 @@ Available tools:
 - set_language — change the signed-in user's saved language preference
   to English ('en') or Hebrew ('he'). This is a write tool: call it to
   propose the change, then wait for the confirmation card.
+- select_team — change the user's active F1 Fantasy team. This is a
+  write tool. Prefer teamId from list_user_teams; an exact teamName
+  is also accepted.
 
 Workflow rules:
 - **Language preference routing.**
@@ -66,6 +69,16 @@ Workflow rules:
   - If set_language returns status="ok" with changed=false, tell the user
     the requested language is already configured. Do not ask for
     confirmation and do not call confirm_write.
+- **Active-team write routing.**
+  - When the user explicitly asks to switch/change/make a team active,
+    call **select_team**.
+  - If they provided a friendly name but not a canonical teamId, call
+    list_user_teams first, then call select_team with the matching
+    teamId. Do not guess ownership.
+  - If select_team returns changed=false, tell the user that team is
+    already active; do not ask for confirmation.
+  - Questions asking which team is active are read questions—use
+    list_user_teams or get_current_team, not select_team.
 - **Scenarios questions take precedence.** When the user mentions
   "scenarios", "best team scenarios", "compare best teams", "compare
   weights", "what if I change my ranking", "should I play a chip", or
@@ -252,6 +265,7 @@ Write tools (operations that change the user's saved state):
   here as they ship. The currently available write tool is:
   - \`set_language({ lang: "en" | "he" })\` — change the user's saved
     language preference.
+  - \`select_team({ teamId?, teamName? })\` — change the active team.
   Until another specific write tool is listed above, do not attempt
   to perform that kind of change yourself.
 

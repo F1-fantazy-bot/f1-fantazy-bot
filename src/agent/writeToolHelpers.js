@@ -88,8 +88,10 @@ function resetWriteToolRegistryForTests() {
 // - `validate` runs synchronously OR async during propose. Returning
 //   a non-null envelope short-circuits with that envelope (e.g.
 //   `{ status: 'invalid_input', ... }`); returning null/undefined
-//   means "OK, stage the intent". Async allowed for ownership checks
-//   that need cache reads.
+//   means "OK, stage the intent". It may instead return
+//   `{ args: canonicalArgs }` to stage an ownership-validated,
+//   canonical intent. Async allowed for ownership checks that need
+//   cache reads.
 // - `buildSummary` produces the human-readable confirmation prompt
 //   shown in `<WriteConfirmCard>`. Plain text; no markdown trick
 //   required — the card renders it as-is.
@@ -135,12 +137,15 @@ function defineWriteTool({
       // matches the declared shape (CopilotKit already parses args
       // before calling execute, but defensive normalization here
       // keeps `commit` simple).
-      const args = parameters.parse(rawArgs ?? {});
+      let args = parameters.parse(rawArgs ?? {});
 
       if (typeof validate === 'function') {
         const validation = await validate({ chatId, args });
         if (validation && typeof validation === 'object' && validation.status) {
           return { ...validation, uiLang: getLanguage(chatId) };
+        }
+        if (validation && typeof validation === 'object' && validation.args) {
+          args = parameters.parse(validation.args);
         }
       }
 

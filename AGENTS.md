@@ -563,12 +563,12 @@ Blob naming includes the team ID:
 
 A second user-facing surface that runs the same business logic as the Telegram bot through tool calls. Architecture, code layout, and the patterns for adding new capabilities live in this section.
 
-**Status (2026-08-24):** the read-only v1 capability scope, Phase 6
+**Status (2026-08-25):** the read-only v1 capability scope, Phase 6
 hardening, Azure deployment, Google auth, and CORS rollout are complete.
 The effectful write-tools rollout is now active: PR
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207)
-merged the durable confirmation infrastructure; `set_language` is the
-first concrete write tool. See [Write-tool confirmation
+merged the durable confirmation infrastructure; `set_language` is
+merged, and `select_team` is implemented in PR-3. See [Write-tool confirmation
 infrastructure](#write-tool-confirmation-infrastructure) and
 [`docs/agent-write-tools-plan.md`](docs/agent-write-tools-plan.md).
 
@@ -690,11 +690,15 @@ f1-fantazy-bot/
 │   │   ├── readTools/
 │   │   │   └── getLanguageTool.js    # read current persisted account language
 │   │   ├── writeTools/
-│   │   │   └── setLanguageTool.js    # first concrete write tool: en/he preference
+│   │   │   ├── setLanguageTool.js    # en/he preference
+│   │   │   └── selectTeamTool.js     # confirmed active-team selection
 │   │   └── runtime.js                # BuiltInAgent + CopilotRuntime + createCopilotRuntimeHandler (+ wrapLanguageModel)
 │   ├── services/
 │   │   ├── pendingWritesStore.js     # Azure Table-backed staged/approved intents + TTL + ETag consume
-│   │   └── setLanguageService.js     # shared Telegram/agent language persistence + hydration
+│   │   ├── userProfileSyncService.js # bounded/coalesced UserRegistry point lookup
+│   │   ├── setLanguageService.js     # shared Telegram/agent language persistence + hydration
+│   │   ├── selectTeamService.js      # owned-team validation, persistence + generation-safe cache mutation
+│   │   └── telegramUserPreferencesService.js # one-route refresh of language + selected team
 │   ├── bestTeamsCalculator.js        # exports an optional `options` arg: filters + rankBy + resultCount
 │   └── commandsHandler/
 │       ├── nextRacesHandler.js       # refactored: thin Telegram adapter over the core
@@ -945,6 +949,24 @@ Concrete write tools currently available:
   on stale startup cache. A same-language no-op is allowed only when
   that durable refresh succeeds; on timeout, the write proceeds through
   confirmation rather than trusting cache as durable proof.
+- `select_team({ teamId?, teamName? })` — shared
+  `src/services/selectTeamService.js`. The Telegram TEAM callback and
+  web agent delegate to the same effectful service. Proposals accept an
+  owned canonical ID or exact case-insensitive display name, but durable
+  pending intents always store the canonical `teamId`, so confirmation
+  cannot retarget if names change. The service persists
+  `UserRegistry.selectedTeam` before local mutation.
+
+Language and selected-team hydration share the bounded/coalesced
+`src/services/userProfileSyncService.js` point lookup. Telegram refreshes
+both preferences before message and callback routing. Every production
+path that mutates local `selectedTeam` must call
+`setCachedSelectedTeam`; its per-chat generation invalidates registry
+reads that started before the local write, and it prevents post-write
+refreshes from coalescing onto pre-write profile requests. Persist the
+new selection first, then call the helper so any refresh racing the
+durable write is invalidated and the persisted value is reapplied last.
+Do not assign or delete `userCache[chatId].selectedTeam` directly.
 
 Write-tool envelopes carry `uiLang` on success and expected failure
 paths, which localizes the shared confirmation/result card shell.

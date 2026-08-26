@@ -63,6 +63,11 @@ function AgentActions() {
     loadingLabel: 'Preparing language change…',
   });
   useWriteAction({
+    name: 'select_team',
+    description: 'Change the signed-in user active fantasy team.',
+    loadingLabel: 'Preparing team selection…',
+  });
+  useWriteAction({
     name: 'confirm_write',
     description:
       'Commit a previously proposed write action by its writeNonce.',

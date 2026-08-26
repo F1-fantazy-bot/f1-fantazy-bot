@@ -4,6 +4,9 @@ const { listUserLeagues } = require('../leagueRegistryService');
 const { updateUserAttributes } = require('../userRegistryService');
 const { ensureSourceIsLeague } = require('../utils/teamSourceSwitcher');
 const {
+  setCachedSelectedTeam,
+} = require('../services/selectTeamService');
+const {
   userCache,
   getSelectedTeam,
   getTeamDisplayName,
@@ -518,11 +521,6 @@ async function applySave(bot, chatId, session) {
 
   const key = String(chatId);
   if (!userCache[key]) {userCache[key] = {};}
-  if (nextActive) {
-    userCache[key].selectedTeam = nextActive;
-  } else {
-    delete userCache[key].selectedTeam;
-  }
 
   // Drop selectedBestTeam entries for teams no longer followed.
   const selectedBestTeamByTeam = normalizeSelectedBestTeamByTeam(
@@ -543,6 +541,7 @@ async function applySave(bot, chatId, session) {
         ),
       ),
     });
+    setCachedSelectedTeam(chatId, nextActive);
   } catch (err) {
     console.error(
       `Error persisting user attributes after teams tracker save for ${chatId}:`,

@@ -37,8 +37,14 @@ const { handleMenuCallback } = require('./commandsHandler/menuHandler');
 const { t, getLanguageName } = require('./i18n');
 const {
   setLanguagePreference,
-  refreshLanguagePreference,
 } = require('./services/setLanguageService');
+const {
+  refreshTelegramUserPreferences,
+} = require('./services/telegramUserPreferencesService');
+const {
+  selectTeamPreference,
+  setCachedSelectedTeam,
+} = require('./services/selectTeamService');
 const {
   BEST_TEAM_RANKING_PRESETS,
 } = require('./commandsHandler/setBestTeamRankingHandler');
@@ -71,9 +77,9 @@ exports.handleCallbackQuery = async function (bot, query) {
   const chatId = query.message?.chat?.id;
   if (Number.isFinite(chatId)) {
     try {
-      await refreshLanguagePreference(chatId);
+      await refreshTelegramUserPreferences(chatId);
     } catch (err) {
-      console.error('Error refreshing user language from registry:', err);
+      console.error('Error refreshing user preferences from registry:', err);
     }
   }
 
@@ -289,20 +295,23 @@ async function handleTeamCallback(bot, query) {
   const messageId = query.message.message_id;
   const teamId = query.data.split(':')[1];
 
-  // Update selection in memory
-  const key = String(chatId);
-  if (!userCache[key]) {
-    userCache[key] = {};
-  }
-  userCache[key].selectedTeam = teamId;
+  const result = await selectTeamPreference({ chatId, teamId });
+  if (result.status !== 'ok') {
+    await bot.answerCallbackQuery(query.id, {
+      text: t(
+        'That team is no longer available. Reopen /select_team and choose again.',
+        chatId,
+      ),
+      show_alert: true,
+    });
 
-  // Persist selection
-  await updateUserAttributes(chatId, { selectedTeam: teamId });
+    return;
+  }
 
   // Edit message to confirm
   await bot.editMessageText(
     t('Active team switched to {TEAM}.', chatId, {
-      TEAM: getTeamDisplayName(chatId, teamId),
+      TEAM: result.teamName,
     }),
     { chat_id: chatId, message_id: messageId },
   );
@@ -343,11 +352,6 @@ async function handleTeamAssignCallback(bot, query) {
   await azureStorageService.saveUserTeam(bot, chatId, teamId, teamData);
 
   // Auto-select this team
-  const key = String(chatId);
-  if (!userCache[key]) {
-    userCache[key] = {};
-  }
-  userCache[key].selectedTeam = teamId;
   const selectedBestTeamByTeam = clearSelectedBestTeam(chatId, teamId);
   await updateUserAttributes(chatId, {
     selectedTeam: teamId,
@@ -355,6 +359,7 @@ async function handleTeamAssignCallback(bot, query) {
       selectedBestTeamByTeam,
     ),
   });
+  setCachedSelectedTeam(chatId, teamId);
 
   // Invalidate best teams for this team
   if (bestTeamsCache[chatId]) {

@@ -25,7 +25,11 @@ companion, shared language persistence, cross-process Telegram
 hydration, hidden confirmation control messages, and Hebrew
 localization for shared write UI + race info. A follow-up localizes
 `BestTeamsTable` by passing the refreshed saved language in the
-`get_best_teams` tool result. PR-3 (`select_team`) is next.
+`get_best_teams` tool result.
+**PR-3 (`select_team`) is implemented on the current feature branch.**
+It adds the shared selection service, confirmed agent tool, Telegram
+callback delegation, and cross-process selected-team hydration. PR-4
+(`set_best_team_ranking`) is next after PR-3 merges.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -181,7 +185,7 @@ classified for cross-process behaviour:
 
 | Op                     | Durable today                                                                          | Notes                                                                                            |
 | ---------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `select_team`          | Yes (`updateUserAttributes`) + in-mem `userCache`                                      | Telegram's `userCache` re-reads on `/start` etc. — confirm reload happens before reads.          |
+| `select_team`          | Yes (`updateUserAttributes`) + in-mem `userCache`                                      | PR-3 refreshes the persisted profile before Telegram message/callback dispatch and before agent no-op detection. Reads are bounded/coalesced; every local selected-team writer advances a per-chat generation so stale reads cannot overwrite newer writes. |
 | `set_language`         | Yes (`updateUserAttributes`) + in-mem `userCache.lang`                                  | PR-2 uses an outer 750 ms deadline plus a per-chat generation guard while refreshing persisted language before Telegram routes messages **and** callbacks. |
 | `set_best_team_ranking`| Yes (`updateUserAttributes`) + invalidates `bestTeamsCache`                            | Telegram recomputes on next `/best_teams`. OK.                                                   |
 | `activate_chip`        | **Partly:** only `selectedBestTeamByTeam` is persisted; `selectedChipCache` is in-mem. | Closed in PR-5: persist `selectedChipByTeam` so the bot/agent restart path is consistent.        |
@@ -430,14 +434,33 @@ end-to-end.
 demonstrably works end-to-end via the web agent, **and** `/lang` +
 LANG callback behave identically in Telegram.
 
-### PR-3 — `select_team`
+### PR-3 — `select_team` 🟡 Implemented (current branch)
 
-- Extract `src/services/selectTeamService.js`: validates `teamId` is in
-  `userCache[chatId].teams`. Returns the standard envelope.
-- Refactor the `TEAM_CALLBACK_TYPE` branch in
-  `callbackQueryHandler.js` to call the service.
-- Register `select_team` agent tool + frontend write action.
-- Tests + smoke (`/select_team` keyboard + web `select_team` tool).
+- `src/services/selectTeamService.js` validates the requested canonical
+  `teamId` or exact case-insensitive display name against
+  `currentTeamCache[chatId]`, persists `UserRegistry.selectedTeam` before
+  mutating local cache, and returns the standard status envelope.
+- Name-based proposals are canonicalized to `teamId` before their durable
+  pending intent is staged. Confirmation therefore commits the exact team
+  shown in the card even if display names or tracked teams change while
+  the nonce is pending.
+- `src/services/userProfileSyncService.js` provides one bounded/coalesced
+  `getUserById` lookup. Language and selected-team refreshes reuse it, and
+  `src/services/telegramUserPreferencesService.js` refreshes both before
+  Telegram message and callback routing.
+- Every local selected-team mutation uses the generation-aware
+  `setCachedSelectedTeam` helper. A registry read started before a local
+  write cannot overwrite the newer selection when it eventually returns,
+  and a refresh started after the write cannot reuse a pre-write shared
+  profile request. Writers persist first and call the helper afterward.
+- `TEAM_CALLBACK_TYPE` delegates to the service. Invalid/stale callbacks
+  show a localized, bounded alert instead of attempting a mutation.
+- `src/agent/writeTools/selectTeamTool.js` and the generic frontend write
+  action register `select_team`. Same-team requests skip confirmation only
+  when a fresh durable read proves the requested team is already active.
+- Tests cover ownership, persistence ordering/failure, stale-read races,
+  name canonicalization, proposal/approval/confirm, Telegram callbacks,
+  and cross-process preference refresh.
 
 ### PR-4 — `set_best_team_ranking`
 
@@ -595,10 +618,10 @@ LANG callback behave identically in Telegram.
    `cd web && npm install && cd ..`, then `npm run dev`. Open
    `http://localhost:5173/` and try any existing read tool — the
    shared cards are no-op until you wire a write.
-3. Open the next PR in order — almost certainly PR-2
-   (`set_language`). Branch from `main` as
-   `feature/doronkilzi/agent-write-set-language` (or equivalent),
-   follow the PR-2 section above, and use PR-1
+3. Open the next PR in order — PR-4 (`set_best_team_ranking`) after
+   PR-3 merges. Branch from `main` as
+   `feature/doronkilzi/agent-write-best-team-ranking` (or equivalent),
+   follow the PR-4 section above, and use PR-1
    ([#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207))
    as the template for shape, commit-message style, and test scope.
 4. **Run the rubber-duck agent on your plan before implementing.**

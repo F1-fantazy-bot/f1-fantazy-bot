@@ -38,6 +38,7 @@ const { ensureCacheReady } = require('./cacheBootstrap');
 const { wrapToolExecute } = require('./wrapToolExecute');
 const { executeConfirmedWrite } = require('./writeToolHelpers');
 const { setLanguageTool } = require('./writeTools/setLanguageTool');
+const { selectTeamTool } = require('./writeTools/selectTeamTool');
 const { getLanguageTool } = require('./readTools/getLanguageTool');
 
 // Trim a best-teams calculator row down to the fields the React component
@@ -470,6 +471,7 @@ const tools = [
   // "Yes" on the <WriteConfirmCard> rendered in the chat stream.
   // ---------------------------------------------------------------
   setLanguageTool,
+  selectTeamTool,
 
   defineTool({
     name: 'confirm_write',

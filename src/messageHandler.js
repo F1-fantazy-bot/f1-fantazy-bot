@@ -11,8 +11,8 @@ const { getPendingReply, clearPendingReply } = require('./pendingReplyManager');
 const { upsertUser } = require('./userRegistryService');
 const { userCache } = require('./cache');
 const {
-  refreshLanguagePreference,
-} = require('./services/setLanguageService');
+  refreshTelegramUserPreferences,
+} = require('./services/telegramUserPreferencesService');
 
 exports.handleMessage = async function (bot, msg) {
   const chatId = msg.chat.id;
@@ -37,12 +37,12 @@ exports.handleMessage = async function (bot, msg) {
   }
 
   try {
-    await refreshLanguagePreference(chatId);
+    await refreshTelegramUserPreferences(chatId);
   } catch (err) {
     // A transient UserRegistry read must not block Telegram message
     // handling; retain the current in-memory language and retry on the next
     // message.
-    console.error('Error refreshing user language from registry:', err);
+    console.error('Error refreshing user preferences from registry:', err);
   }
 
   const displayName = getDisplayName(chatId);

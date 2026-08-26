@@ -15,8 +15,14 @@ const azureStorageService = require('./azureStorageService');
 const { updateUserAttributes } = require('./userRegistryService');
 const {
   setLanguagePreference,
-  refreshLanguagePreference,
 } = require('./services/setLanguageService');
+const {
+  refreshTelegramUserPreferences,
+} = require('./services/telegramUserPreferencesService');
+const {
+  selectTeamPreference,
+  setCachedSelectedTeam,
+} = require('./services/selectTeamService');
 const { selectChip } = require('./commandsHandler/selectChipHandlers');
 const {
   getDeadlinePayload,
@@ -52,7 +58,15 @@ jest.mock('./commandsHandler/selectChipHandlers', () => ({
 
 jest.mock('./services/setLanguageService', () => ({
   setLanguagePreference: jest.fn(),
-  refreshLanguagePreference: jest.fn(),
+}));
+
+jest.mock('./services/telegramUserPreferencesService', () => ({
+  refreshTelegramUserPreferences: jest.fn(),
+}));
+
+jest.mock('./services/selectTeamService', () => ({
+  selectTeamPreference: jest.fn(),
+  setCachedSelectedTeam: jest.fn(),
 }));
 
 jest.mock('./commandsHandler/deadlineHandler', () => ({
@@ -107,7 +121,13 @@ describe('handleCallbackQuery', () => {
       lang: 'he',
       languageName: 'English',
     });
-    refreshLanguagePreference.mockResolvedValue(false);
+    refreshTelegramUserPreferences.mockResolvedValue(undefined);
+    selectTeamPreference.mockResolvedValue({
+      status: 'ok',
+      teamId: 'T2',
+      teamName: 'T2',
+      changed: true,
+    });
     bot = {
       editMessageText: jest.fn().mockResolvedValue(undefined),
       answerCallbackQuery: jest.fn().mockResolvedValue(undefined),
@@ -164,13 +184,13 @@ describe('handleCallbackQuery', () => {
       chatId: 123,
       lang: 'he',
     });
-    expect(refreshLanguagePreference).toHaveBeenCalledWith(123);
+    expect(refreshTelegramUserPreferences).toHaveBeenCalledWith(123);
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q3');
   });
 
   it('continues callback handling when the language refresh times out', async () => {
     const error = new Error('aborted');
-    refreshLanguagePreference.mockRejectedValue(error);
+    refreshTelegramUserPreferences.mockRejectedValue(error);
     jest.spyOn(console, 'error').mockImplementation(() => {});
     const query = {
       id: 'q2-timeout',
@@ -181,7 +201,7 @@ describe('handleCallbackQuery', () => {
     await handleCallbackQuery(bot, query);
 
     expect(console.error).toHaveBeenCalledWith(
-      'Error refreshing user language from registry:',
+      'Error refreshing user preferences from registry:',
       error,
     );
     expect(selectChip).toHaveBeenCalledWith(bot, 123, EXTRA_BOOST_CHIP);
@@ -196,9 +216,31 @@ describe('handleCallbackQuery', () => {
 
     await handleCallbackQuery(bot, query);
 
-    expect(cache.userCache['123'].selectedTeam).toBe('T2');
-    expect(updateUserAttributes).toHaveBeenCalledWith(123, { selectedTeam: 'T2' });
+    expect(selectTeamPreference).toHaveBeenCalledWith({
+      chatId: 123,
+      teamId: 'T2',
+    });
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q4');
+  });
+
+  it('shows a bounded alert when a team callback is no longer valid', async () => {
+    selectTeamPreference.mockResolvedValue({
+      status: 'invalid_input',
+      summary: 'A deliberately long list of teams that must not be shown.',
+    });
+    const query = {
+      id: 'q-invalid-team',
+      data: `${TEAM_CALLBACK_TYPE}:deleted-team`,
+      message: { chat: { id: 123 }, message_id: 456 },
+    };
+
+    await handleCallbackQuery(bot, query);
+
+    expect(bot.editMessageText).not.toHaveBeenCalled();
+    expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q-invalid-team', {
+      text: 'That team is no longer available. Reopen /select_team and choose again.',
+      show_alert: true,
+    });
   });
 
   it('should handle team assignment callback', async () => {
@@ -233,6 +275,10 @@ describe('handleCallbackQuery', () => {
       selectedTeam: 'T1',
       selectedBestTeamByTeam: null,
     });
+    expect(setCachedSelectedTeam).toHaveBeenCalledWith(123, 'T1');
+    expect(
+      updateUserAttributes.mock.invocationCallOrder[0],
+    ).toBeLessThan(setCachedSelectedTeam.mock.invocationCallOrder[0]);
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q5');
   });
 

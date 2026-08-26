@@ -8,7 +8,6 @@ const {
   getPrintableCache,
   getTeamDisplayName,
   bestTeamsCache,
-  userCache,
   clearSelectedBestTeam,
   serializeSelectedBestTeamByTeam,
 } = require('./cache');
@@ -24,6 +23,9 @@ const { t } = require('./i18n');
 const {
   ensureSourceIsScreenshot,
 } = require('./utils/teamSourceSwitcher');
+const {
+  setCachedSelectedTeam,
+} = require('./services/selectTeamService');
 
 async function processPhotoByType(
   bot,
@@ -147,11 +149,6 @@ async function storeInCache(bot, chatId, type, extractedData, fileUniqueId) {
       teamDataWithoutId,
     );
 
-    const key = String(chatId);
-    if (!userCache[key]) {
-      userCache[key] = {};
-    }
-    userCache[key].selectedTeam = teamId;
     const selectedBestTeamByTeam = clearSelectedBestTeam(chatId, teamId);
     await updateUserAttributes(chatId, {
       selectedTeam: teamId,
@@ -159,6 +156,7 @@ async function storeInCache(bot, chatId, type, extractedData, fileUniqueId) {
         selectedBestTeamByTeam,
       ),
     });
+    setCachedSelectedTeam(chatId, teamId);
 
     await sendMessageToUser(
       bot,

@@ -166,6 +166,32 @@ describe('defineWriteTool — propose-call behaviour', () => {
     expect(result.status).toBe(WRITE_RESULT_STATUSES.CONFIRMATION_REQUIRED);
   });
 
+  test('stages canonical args returned by validate', async () => {
+    const validate = jest.fn().mockResolvedValue({
+      args: { lang: 'he' },
+    });
+    const commit = jest.fn().mockResolvedValue({
+      status: WRITE_RESULT_STATUSES.OK,
+      summary: 'Language updated.',
+    });
+    const tool = buildTool({ validate, commit });
+
+    const proposed = await tool.execute({ lang: 'HE' });
+    expect(proposed.args).toEqual({ lang: 'he' });
+    await approvePendingWrite({
+      chatId: 42,
+      writeNonce: proposed.writeNonce,
+    });
+    await executeConfirmedWrite({
+      chatId: 42,
+      writeNonce: proposed.writeNonce,
+    });
+    expect(commit).toHaveBeenCalledWith({
+      chatId: 42,
+      args: { lang: 'he' },
+    });
+  });
+
   test('throws-converted-to-tool_error when Zod parse fails', async () => {
     const tool = buildTool();
     const result = await tool.execute({ lang: 'x' });
