@@ -971,7 +971,11 @@ Concrete write tools currently available:
   `approve_and_confirm`; failures with uncertain final status remain
   blocked until the team list is refreshed. Do not route card clicks through a
   natural-language agent turn—the model may narrate the need for approval
-  without actually calling `select_team`.
+  without actually calling `select_team`. For conversational selection,
+  a team name/id reply after `list_user_teams` is a continuation of the
+  pending switch request: the system prompt requires `select_team` in that
+  turn and forbids claiming an approval card exists before the tool returns
+  `confirmation_required`.
 
 Language and selected-team hydration share the bounded/coalesced
 `src/services/userProfileSyncService.js` point lookup. Telegram refreshes

@@ -465,6 +465,11 @@ LANG callback behave identically in Telegram.
   card immediately. Its authenticated `approve_and_confirm` decision approves,
   consumes, and commits the durable single-use nonce server-side, so card
   selection never depends on a second model turn.
+- Conversational selection remains supported: after the agent lists teams,
+  a short team-name/id reply is treated as the answer to that pending switch.
+  The system prompt requires `select_team` in the same turn and forbids
+  claiming an approval card exists before the tool actually returns
+  `confirmation_required`.
 - Tests cover ownership, persistence ordering/failure, stale-read races,
   name canonicalization, proposal/approval/confirm, Telegram callbacks,
   and cross-process preference refresh.

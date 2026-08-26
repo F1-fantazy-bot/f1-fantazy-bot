@@ -60,6 +60,15 @@ test('returns invalid_input for unowned teams without staging', async () => {
   expect(getFreshSelectedTeamPreference).not.toHaveBeenCalled();
 });
 
+test('description requires the tool on a team-name follow-up', () => {
+  expect(selectTeamTool.description).toContain(
+    'Call this immediately when the user names a team',
+  );
+  expect(selectTeamTool.description).toContain(
+    'do not merely describe or claim a confirmation card',
+  );
+});
+
 test('returns changed=false without confirmation for the active team', async () => {
   getFreshSelectedTeamPreference.mockResolvedValue({
     fresh: true,

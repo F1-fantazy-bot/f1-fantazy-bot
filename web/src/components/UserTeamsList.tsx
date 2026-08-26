@@ -72,9 +72,11 @@ export function UserTeamsList({
           boost: 'קפטן',
           freeTransfers: 'העברות חינם',
           capLeft: 'נותרו בתקציב',
-          select: 'בחר קבוצה',
+          select: 'החלף לקבוצה',
           selecting: 'מכין אישור…',
           selectionError: 'לא ניתן להתחיל את בחירת הקבוצה. נסה שוב.',
+          selectHint:
+            'כדי להחליף קבוצה, לחץ על "החלף לקבוצה" בכרטיס הרצוי. לאחר מכן יוצג כרטיס אישור.',
         }
       : {
           empty:
@@ -87,9 +89,11 @@ export function UserTeamsList({
           boost: 'Boost',
           freeTransfers: 'free transfers',
           capLeft: 'cap left',
-          select: 'Select team',
+          select: 'Switch to this team',
           selecting: 'Preparing confirmation…',
           selectionError: 'Unable to start team selection. Please try again.',
+          selectHint:
+            'To change teams, click "Switch to this team" on the card you want. An approval card will appear next.',
         };
   const teams = result?.teams ?? [];
   if (teams.length === 0) {
@@ -119,6 +123,21 @@ export function UserTeamsList({
 
   return (
     <div dir={directionFor(lang)} style={{ margin: '8px 0' }}>
+      {onSelectTeam ? (
+        <div
+          style={{
+            marginBottom: 8,
+            padding: '8px 10px',
+            borderRadius: 8,
+            background: 'var(--app-primary-surface)',
+            color: 'var(--app-primary)',
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+        >
+          {labels.selectHint}
+        </div>
+      ) : null}
       <div
         style={{
           display: 'grid',

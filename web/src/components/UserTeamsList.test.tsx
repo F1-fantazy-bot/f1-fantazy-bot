@@ -54,7 +54,7 @@ describe('UserTeamsList selection cards', () => {
       'button[aria-label="Kilzid 1, ACTIVE"]',
     );
     const selectableButton = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Select team: Kilzid 2"]',
+      'button[aria-label="Switch to this team: Kilzid 2"]',
     );
 
     expect(activeButton?.disabled).toBe(true);
@@ -63,6 +63,9 @@ describe('UserTeamsList selection cards', () => {
     expect(detailsId).toBeTruthy();
     expect(document.getElementById(detailsId ?? '')?.textContent).toContain(
       'Drivers: VER',
+    );
+    expect(container.textContent).toContain(
+      'An approval card will appear next.',
     );
     await act(async () => {
       selectableButton?.click();

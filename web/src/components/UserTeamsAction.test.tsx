@@ -144,14 +144,14 @@ describe('InteractiveUserTeamsList', () => {
     ).toBe('Active team switched.');
     expect(
       container.querySelector<HTMLButtonElement>(
-        'button[aria-label="Select team: Kilzid 2"]',
+        'button[aria-label="Switch to this team: Kilzid 2"]',
       )?.disabled,
     ).toBe(false);
 
     await act(async () => {
       container
         .querySelector<HTMLButtonElement>(
-          'button[aria-label="Select team: Kilzid 2"]',
+          'button[aria-label="Switch to this team: Kilzid 2"]',
         )
         ?.click();
       await Promise.resolve();

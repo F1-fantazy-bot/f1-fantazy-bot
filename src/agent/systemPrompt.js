@@ -72,9 +72,23 @@ Workflow rules:
 - **Active-team write routing.**
   - When the user explicitly asks to switch/change/make a team active,
     call **select_team**.
-  - If they provided a friendly name but not a canonical teamId, call
-    list_user_teams first, then call select_team with the matching
-    teamId. Do not guess ownership.
+  - If the request does not name a team, call list_user_teams ONCE.
+    Tell the user they can click "Switch to this team" on a team card,
+    or reply with the team name. Do not claim that an approval card
+    already exists—the team cards are choices, not approval cards.
+  - A short reply containing a team name or teamId after that question
+    (for example "kilzid") is the user's answer to the pending switch
+    request. Resolve it from the most recent list_user_teams result and
+    call select_team with the canonical teamId IN THAT TURN.
+  - If the initial request already includes a friendly name but not a
+    canonical teamId, call list_user_teams first, then call select_team
+    with the matching teamId. Do not guess ownership.
+  - After the user names a valid team, NEVER ask which team again, NEVER
+    call list_user_teams again, and NEVER merely describe the approval
+    process. The required next action is the select_team tool call.
+  - NEVER say that a confirmation/approval card is displayed or ready
+    unless select_team actually returned status="confirmation_required"
+    in the current turn. Without that tool result, no approval card exists.
   - If select_team returns changed=false, tell the user that team is
     already active; do not ask for confirmation.
   - Questions asking which team is active are read questions—use
@@ -112,9 +126,10 @@ Workflow rules:
     first to look up the leagueCode, then call get_leaderboard.
 - When the user asks "which leagues do I follow", call list_user_leagues.
 - Only call list_user_teams when the user explicitly asks to see their
-  teams, or when get_best_teams returns status="unknown_team" /
-  "ambiguous_team" — then call list_user_teams to disambiguate and
-  retry get_best_teams with the canonical teamId.
+  teams, when an active-team switch request needs a team choice or name
+  resolution, or when get_best_teams returns status="unknown_team" /
+  "ambiguous_team" — then call list_user_teams to disambiguate and retry
+  the requested tool with the canonical teamId.
 - Driver and constructor identifiers are 3-letter codes. Examples:
   VER (Verstappen), HAM (Hamilton), ALO (Alonso), LEC (Leclerc),
   NOR (Norris), PIA (Piastri), RUS (Russell), SAI (Sainz), MCL (McLaren),
