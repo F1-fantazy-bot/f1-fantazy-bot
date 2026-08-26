@@ -15,7 +15,7 @@ import { setHistoryScope } from './lib/chatHistoryStore';
 import { useNextRacesAction } from './components/NextRacesTable';
 import { useBestTeamsAction } from './components/BestTeamsTable';
 import { useBestTeamScenariosAction } from './components/BestTeamScenariosMatrix';
-import { useUserTeamsAction } from './components/UserTeamsList';
+import { useUserTeamsAction } from './components/UserTeamsAction';
 import { useFollowedTeamsAction } from './components/FollowedTeamsGrid';
 import { useLeaderboardAction } from './components/LeaderboardTable';
 import { useRaceInfoAction } from './components/RaceInfoCard';

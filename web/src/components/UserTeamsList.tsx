@@ -1,9 +1,7 @@
-import { useCopilotAction } from '@copilotkit/react-core';
-import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
+import { useId, useState } from 'react';
 import { directionFor, uiLanguageOf, type UiLanguage } from './uiLanguage';
-import { ToolLoading } from './ToolLoading';
 
-type UserTeam = {
+export type UserTeam = {
   teamId: string;
   teamName: string;
   isLeague: boolean;
@@ -16,7 +14,7 @@ type UserTeam = {
   costCapRemaining: number | null;
 };
 
-type ListUserTeamsResult = {
+export type ListUserTeamsResult = {
   lang?: string;
   teams?: UserTeam[];
 };
@@ -42,7 +40,7 @@ function chipBadge(chip: string | null, lang: UiLanguage) {
         fontWeight: 600,
         background: 'var(--app-warning-surface)',
         color: 'var(--app-warning-text)',
-        marginLeft: 6,
+        marginInlineStart: 6,
       }}
     >
       {chipLabels[chip] ?? chip.replace('_', ' ').toLowerCase()}
@@ -50,8 +48,17 @@ function chipBadge(chip: string | null, lang: UiLanguage) {
   );
 }
 
-export function UserTeamsList({ result }: { result?: ListUserTeamsResult }) {
+export function UserTeamsList({
+  result,
+  onSelectTeam,
+}: {
+  result?: ListUserTeamsResult;
+  onSelectTeam?: (team: UserTeam) => Promise<void> | void;
+}) {
   const lang = uiLanguageOf(result);
+  const cardIdPrefix = useId();
+  const [selectingTeamId, setSelectingTeamId] = useState<string | null>(null);
+  const [selectionError, setSelectionError] = useState('');
   const labels =
     lang === 'he'
       ? {
@@ -65,6 +72,9 @@ export function UserTeamsList({ result }: { result?: ListUserTeamsResult }) {
           boost: 'קפטן',
           freeTransfers: 'העברות חינם',
           capLeft: 'נותרו בתקציב',
+          select: 'בחר קבוצה',
+          selecting: 'מכין אישור…',
+          selectionError: 'לא ניתן להתחיל את בחירת הקבוצה. נסה שוב.',
         }
       : {
           empty:
@@ -77,6 +87,9 @@ export function UserTeamsList({ result }: { result?: ListUserTeamsResult }) {
           boost: 'Boost',
           freeTransfers: 'free transfers',
           capLeft: 'cap left',
+          select: 'Select team',
+          selecting: 'Preparing confirmation…',
+          selectionError: 'Unable to start team selection. Please try again.',
         };
   const teams = result?.teams ?? [];
   if (teams.length === 0) {
@@ -90,119 +103,153 @@ export function UserTeamsList({ result }: { result?: ListUserTeamsResult }) {
     );
   }
 
+  async function selectTeam(team: UserTeam) {
+    if (!onSelectTeam || team.isSelected || selectingTeamId) return;
+
+    setSelectingTeamId(team.teamId);
+    setSelectionError('');
+    try {
+      await onSelectTeam(team);
+    } catch {
+      setSelectionError(labels.selectionError);
+    } finally {
+      setSelectingTeamId(null);
+    }
+  }
+
   return (
-    <div
-      dir={directionFor(lang)}
-      style={{
-        margin: '8px 0',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-        gap: 8,
-      }}
-    >
-      {teams.map((team) => (
-        <div
-          key={team.teamId}
-          style={{
-            border: team.isSelected
-              ? '2px solid var(--app-primary)'
-              : '1px solid var(--app-border)',
-            borderRadius: 8,
-            padding: '10px 12px',
-            background: 'var(--app-surface)',
-            fontSize: 13,
-          }}
-        >
-          <div
-            style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}
-          >
-            <strong style={{ fontSize: 15 }}>{team.teamName}</strong>
-            {team.isSelected ? (
-              <span
-                style={{
-                  marginLeft: 6,
-                  fontSize: 11,
-                  color: 'var(--app-primary)',
-                  fontWeight: 600,
-                }}
+    <div dir={directionFor(lang)} style={{ margin: '8px 0' }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: 8,
+        }}
+      >
+        {teams.map((team, index) => {
+          const detailsId = `${cardIdPrefix}-team-${index}`;
+          const teamSource = team.isLeague
+            ? labels.league
+            : labels.screenshot;
+          const drivers =
+            team.drivers.length > 0 ? team.drivers.join(', ') : '—';
+          const constructors =
+            team.constructors.length > 0
+              ? team.constructors.join(', ')
+              : '—';
+
+          return (
+            <div key={team.teamId}>
+              <button
+                type="button"
+                className="user-team-card"
+                data-active={team.isSelected ? 'true' : 'false'}
+                data-selectable={
+                  onSelectTeam && !team.isSelected && !selectingTeamId
+                    ? 'true'
+                    : 'false'
+                }
+                disabled={
+                  !onSelectTeam || team.isSelected || selectingTeamId !== null
+                }
+                aria-pressed={team.isSelected}
+                aria-describedby={detailsId}
+                aria-label={
+                  team.isSelected
+                    ? `${team.teamName}, ${labels.active}`
+                    : `${labels.select}: ${team.teamName}`
+                }
+                onClick={() => void selectTeam(team)}
               >
-                {labels.active}
-              </span>
-            ) : null}
-            {chipBadge(team.chip, lang)}
-          </div>
-          <div
-            style={{ color: 'var(--app-muted)', fontSize: 11, marginTop: 2 }}
-          >
-            id: <code>{team.teamId}</code>
-            {team.isLeague
-              ? ` · ${labels.league}`
-              : ` · ${labels.screenshot}`}
-          </div>
-          <div style={{ marginTop: 6, color: 'var(--app-muted)' }}>
-            <div>
-              <span style={{ color: 'var(--app-subtle)', fontSize: 11 }}>
-                {labels.drivers}:{' '}
-              </span>
-              {team.drivers.length > 0 ? team.drivers.join(', ') : '—'}
-            </div>
-            <div>
-              <span style={{ color: 'var(--app-subtle)', fontSize: 11 }}>
-                {labels.constructors}:{' '}
-              </span>
-              {team.constructors.length > 0
-                ? team.constructors.join(', ')
-                : '—'}
-            </div>
-            <div>
-              <span style={{ color: 'var(--app-subtle)', fontSize: 11 }}>
-                {labels.boost}:{' '}
-              </span>
-              {team.boost ?? '—'}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+              }}
+            >
+              <strong style={{ fontSize: 15 }}>{team.teamName}</strong>
+              {team.isSelected ? (
+                <span
+                  style={{
+                    marginInlineStart: 6,
+                    fontSize: 11,
+                    color: 'var(--app-primary)',
+                    fontWeight: 600,
+                  }}
+                >
+                  {labels.active}
+                </span>
+              ) : null}
+              {chipBadge(team.chip, lang)}
             </div>
             <div
-              style={{ color: 'var(--app-muted)', fontSize: 12, marginTop: 4 }}
+              style={{ color: 'var(--app-muted)', fontSize: 11, marginTop: 2 }}
             >
-              {team.freeTransfers != null
-                ? `${team.freeTransfers} ${labels.freeTransfers}`
-                : ''}
-              {team.costCapRemaining != null
-                ? ` · ${team.costCapRemaining.toFixed?.(1) ?? team.costCapRemaining} ${labels.capLeft}`
-                : ''}
+              id: <code>{team.teamId}</code>
+              {` · ${teamSource}`}
             </div>
-          </div>
+            <div style={{ marginTop: 6, color: 'var(--app-muted)' }}>
+              <div>
+                <span style={{ color: 'var(--app-subtle)', fontSize: 11 }}>
+                  {labels.drivers}:{' '}
+                </span>
+                {drivers}
+              </div>
+              <div>
+                <span style={{ color: 'var(--app-subtle)', fontSize: 11 }}>
+                  {labels.constructors}:{' '}
+                </span>
+                {constructors}
+              </div>
+              <div>
+                <span style={{ color: 'var(--app-subtle)', fontSize: 11 }}>
+                  {labels.boost}:{' '}
+                </span>
+                {team.boost ?? '—'}
+              </div>
+              <div
+                style={{
+                  color: 'var(--app-muted)',
+                  fontSize: 12,
+                  marginTop: 4,
+                }}
+              >
+                {team.freeTransfers != null
+                  ? `${team.freeTransfers} ${labels.freeTransfers}`
+                  : ''}
+                {team.costCapRemaining != null
+                  ? ` · ${team.costCapRemaining.toFixed?.(1) ?? team.costCapRemaining} ${labels.capLeft}`
+                  : ''}
+              </div>
+            </div>
+            {!team.isSelected && onSelectTeam ? (
+              <span className="user-team-card__action">
+                {selectingTeamId === team.teamId
+                  ? labels.selecting
+                  : labels.select}
+              </span>
+            ) : null}
+              </button>
+              <span id={detailsId} className="visually-hidden">
+                {`id: ${team.teamId}. ${teamSource}. ${labels.drivers}: ${drivers}. ${labels.constructors}: ${constructors}. ${labels.boost}: ${team.boost ?? '—'}.`}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {selectionError ? (
+        <div
+          role="alert"
+          style={{
+            marginTop: 8,
+            color: 'var(--app-danger-text)',
+            fontSize: 12,
+          }}
+        >
+          {selectionError}
         </div>
-      ))}
+      ) : null}
     </div>
   );
-}
-
-export function useUserTeamsAction() {
-  useCopilotAction({
-    name: 'list_user_teams',
-    description:
-      'List the teams the user is tracking. Returns teamId + teamName + roster summary.',
-    parameters: [],
-    available: 'frontend',
-    render: ({ status, result }) => {
-      if (status === 'inProgress' || status === 'executing') {
-        return <ToolLoading kind="userTeams" />;
-      }
-      const parsed = typeof result === 'string' ? safeParse(result) : result;
-      if (isToolErrorResult(parsed)) {
-        return <ToolErrorFallback result={parsed} />;
-      }
-      return (
-        <UserTeamsList result={parsed as ListUserTeamsResult | undefined} />
-      );
-    },
-  });
-}
-
-function safeParse(value: string): unknown {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return undefined;
-  }
 }
