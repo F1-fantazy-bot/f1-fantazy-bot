@@ -18,8 +18,8 @@ jest.mock('./userRegistryService', () => ({
   upsertUser: jest.fn(),
 }));
 
-jest.mock('./services/setLanguageService', () => ({
-  refreshLanguagePreference: jest.fn().mockResolvedValue(false),
+jest.mock('./services/telegramUserPreferencesService', () => ({
+  refreshTelegramUserPreferences: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('./textMessageHandler', () => ({
@@ -35,8 +35,8 @@ const { sendLogMessage, getDisplayName } = require('./utils/utils');
 const { getPendingReply, clearPendingReply } = require('./pendingReplyManager');
 const { upsertUser } = require('./userRegistryService');
 const {
-  refreshLanguagePreference,
-} = require('./services/setLanguageService');
+  refreshTelegramUserPreferences,
+} = require('./services/telegramUserPreferencesService');
 const { userCache } = require('./cache');
 const { handleTextMessage } = require('./textMessageHandler');
 const { handlePhotoMessage } = require('./photoMessageHandler');
@@ -50,7 +50,7 @@ describe('handleMessage', () => {
     jest.clearAllMocks();
     getPendingReply.mockResolvedValue(undefined);
     getDisplayName.mockReturnValue('Unknown');
-    refreshLanguagePreference.mockResolvedValue(false);
+    refreshTelegramUserPreferences.mockResolvedValue(undefined);
     for (const key of Object.keys(userCache)) {
       delete userCache[key];
     }
@@ -138,7 +138,7 @@ describe('handleMessage', () => {
   });
 
   it('refreshes the durable language before routing an allowed message', async () => {
-    refreshLanguagePreference.mockImplementation(async (chatId) => {
+    refreshTelegramUserPreferences.mockImplementation(async (chatId) => {
       userCache[String(chatId)].lang = 'he';
 
       return true;
@@ -150,16 +150,18 @@ describe('handleMessage', () => {
 
     await handleMessage(botMock, msgMock);
 
-    expect(refreshLanguagePreference).toHaveBeenCalledWith(KILZI_CHAT_ID);
+    expect(refreshTelegramUserPreferences).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+    );
     expect(userCache[String(KILZI_CHAT_ID)].lang).toBe('he');
     expect(
-      refreshLanguagePreference.mock.invocationCallOrder[0],
+      refreshTelegramUserPreferences.mock.invocationCallOrder[0],
     ).toBeLessThan(handleTextMessage.mock.invocationCallOrder[0]);
   });
 
   it('continues handling when the cross-process language refresh fails', async () => {
     const error = new Error('registry unavailable');
-    refreshLanguagePreference.mockRejectedValue(error);
+    refreshTelegramUserPreferences.mockRejectedValue(error);
     jest.spyOn(console, 'error').mockImplementation(() => {});
     const msgMock = {
       chat: { id: KILZI_CHAT_ID },
@@ -169,7 +171,7 @@ describe('handleMessage', () => {
     await handleMessage(botMock, msgMock);
 
     expect(console.error).toHaveBeenCalledWith(
-      'Error refreshing user language from registry:',
+      'Error refreshing user preferences from registry:',
       error,
     );
     expect(handleTextMessage).toHaveBeenCalledWith(botMock, msgMock);

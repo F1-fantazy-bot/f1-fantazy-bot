@@ -77,6 +77,7 @@ const z = require('zod');
 const {
   defineWriteTool,
   executeConfirmedWrite,
+  proposeRegisteredWrite,
   resetWriteToolRegistryForTests,
   WRITE_RESULT_STATUSES,
 } = require('./writeToolHelpers');
@@ -164,6 +165,50 @@ describe('defineWriteTool — propose-call behaviour', () => {
     const result = await tool.execute({ lang: 'he' });
     expect(validate).toHaveBeenCalledWith({ chatId: 42, args: { lang: 'he' } });
     expect(result.status).toBe(WRITE_RESULT_STATUSES.CONFIRMATION_REQUIRED);
+  });
+
+  test('stages canonical args returned by validate', async () => {
+    const validate = jest.fn().mockResolvedValue({
+      args: { lang: 'he' },
+    });
+    const commit = jest.fn().mockResolvedValue({
+      status: WRITE_RESULT_STATUSES.OK,
+      summary: 'Language updated.',
+    });
+    const tool = buildTool({ validate, commit });
+
+    const proposed = await tool.execute({ lang: 'HE' });
+    expect(proposed.args).toEqual({ lang: 'he' });
+    await approvePendingWrite({
+      chatId: 42,
+      writeNonce: proposed.writeNonce,
+    });
+    await executeConfirmedWrite({
+      chatId: 42,
+      writeNonce: proposed.writeNonce,
+    });
+    expect(commit).toHaveBeenCalledWith({
+      chatId: 42,
+      args: { lang: 'he' },
+    });
+  });
+
+  test('supports authenticated direct proposals without LLM routing', async () => {
+    buildTool();
+
+    await expect(
+      proposeRegisteredWrite({
+        chatId: 42,
+        tool: 'set_language',
+        args: { lang: 'he' },
+      }),
+    ).resolves.toMatchObject({
+      status: WRITE_RESULT_STATUSES.CONFIRMATION_REQUIRED,
+      tool: 'set_language',
+      args: { lang: 'he' },
+      uiLang: 'en',
+    });
+    expect(getAgentChatId).not.toHaveBeenCalled();
   });
 
   test('throws-converted-to-tool_error when Zod parse fails', async () => {

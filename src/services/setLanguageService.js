@@ -12,15 +12,20 @@ const {
 } = require('../i18n');
 const {
   updateUserAttributes,
-  getUserById,
 } = require('../userRegistryService');
+const {
+  getFreshUserProfile,
+  invalidateUserProfileRefresh,
+  resetUserProfileSyncForTests,
+  USER_PROFILE_REFRESH_TIMEOUT_MS,
+} = require('./userProfileSyncService');
 
 const STATUS = Object.freeze({
   OK: 'ok',
   INVALID_INPUT: 'invalid_input',
 });
 
-const LANGUAGE_REFRESH_TIMEOUT_MS = 750;
+const LANGUAGE_REFRESH_TIMEOUT_MS = USER_PROFILE_REFRESH_TIMEOUT_MS;
 const languageGenerations = new Map();
 const inFlightLanguageRefreshes = new Map();
 
@@ -113,6 +118,9 @@ async function setLanguagePreference({ chatId, lang }) {
   // Invalidate refreshes that started before this durable write. Without the
   // generation guard, a slow old-value read could overwrite the new local
   // cache after this function returns.
+  const key = String(chatId);
+  inFlightLanguageRefreshes.delete(key);
+  invalidateUserProfileRefresh(chatId);
   advanceGeneration(chatId);
   if (!setLanguage(lang, chatId)) {
     throw new Error(`Failed to apply supported language "${lang}"`);
@@ -143,42 +151,17 @@ async function refreshLanguagePreference(
     return await existing;
   }
 
-  // Coalesce all concurrent readers for one user onto the same durable
-  // lookup. A local write can still invalidate the cache application through
-  // the generation token.
   const refreshPromise = (async () => {
     const refreshGeneration = advanceGeneration(chatId);
-    const controller = new AbortController();
-    let timeout;
-    try {
-      const lookup = getUserById(chatId, {
-        abortSignal: controller.signal,
-      });
-      const deadline = new Promise((_resolve, reject) => {
-        timeout = setTimeout(() => {
-          controller.abort();
-          const err = new Error('Language refresh timed out');
-          err.name = 'AbortError';
-          reject(err);
-        }, timeoutMs);
-      });
-      // The outer race bounds the whole operation, including ensureTable() /
-      // createTable(), which runs before the SDK receives abortSignal for the
-      // point lookup.
-      const user = await Promise.race([lookup, deadline]);
-      if (!user || !isSupportedLanguage(user.lang)) {
-        return false;
-      }
-      if (generationFor(chatId) !== refreshGeneration) {
-        return false;
-      }
-
-      return setLanguage(user.lang, chatId);
-    } finally {
-      if (timeout) {
-        clearTimeout(timeout);
-      }
+    const user = await getFreshUserProfile(chatId, { timeoutMs });
+    if (!user || !isSupportedLanguage(user.lang)) {
+      return false;
     }
+    if (generationFor(chatId) !== refreshGeneration) {
+      return false;
+    }
+
+    return setLanguage(user.lang, chatId);
   })();
 
   inFlightLanguageRefreshes.set(key, refreshPromise);
@@ -194,6 +177,7 @@ async function refreshLanguagePreference(
 function resetLanguageGenerationsForTests() {
   languageGenerations.clear();
   inFlightLanguageRefreshes.clear();
+  resetUserProfileSyncForTests();
 }
 
 module.exports = {

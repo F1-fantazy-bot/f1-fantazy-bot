@@ -160,10 +160,7 @@ describe('refreshLanguagePreference', () => {
 
     await expect(
       refreshLanguagePreference(42, { timeoutMs: 5 }),
-    ).rejects.toMatchObject({
-      name: 'AbortError',
-      message: 'Language refresh timed out',
-    });
+    ).rejects.toMatchObject({ name: 'AbortError' });
     expect(getLanguage(42)).toBe('en');
   });
 
@@ -180,6 +177,34 @@ describe('refreshLanguagePreference', () => {
     resolveLookup({ chatId: '42', lang: 'en' });
 
     await expect(staleRefresh).resolves.toBe(false);
+    expect(getLanguage(42)).toBe('he');
+  });
+
+  test('post-write refresh does not reuse a profile read started before the write', async () => {
+    let resolveOldLookup;
+    let resolveNewLookup;
+    getUserById
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveOldLookup = resolve;
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveNewLookup = resolve;
+        }),
+      );
+
+    const oldRefresh = refreshLanguagePreference(42);
+    await setLanguagePreference({ chatId: 42, lang: 'he' });
+    const newRefresh = refreshLanguagePreference(42);
+
+    expect(getUserById).toHaveBeenCalledTimes(2);
+    resolveNewLookup({ chatId: '42', lang: 'he' });
+    await expect(newRefresh).resolves.toBe(true);
+
+    resolveOldLookup({ chatId: '42', lang: 'en' });
+    await expect(oldRefresh).resolves.toBe(false);
     expect(getLanguage(42)).toBe('he');
   });
 

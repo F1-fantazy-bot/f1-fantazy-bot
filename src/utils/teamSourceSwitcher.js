@@ -3,11 +3,13 @@ const {
   currentTeamCache,
   bestTeamsCache,
   selectedChipCache,
-  userCache,
   clearAllSelectedBestTeams,
   getUserLeagueTeamIds,
   getUserScreenshotTeamIds,
 } = require('../cache');
+const {
+  setCachedSelectedTeam,
+} = require('../services/selectTeamService');
 
 /**
  * Wipe every cached team for a user (blob + in-memory), including chip,
@@ -29,10 +31,7 @@ async function wipeAllTeams(bot, chatId) {
   delete bestTeamsCache[chatId];
   delete selectedChipCache[chatId];
 
-  const key = String(chatId);
-  if (userCache[key]) {
-    delete userCache[key].selectedTeam;
-  }
+  setCachedSelectedTeam(chatId, null);
   clearAllSelectedBestTeams(chatId);
 }
 

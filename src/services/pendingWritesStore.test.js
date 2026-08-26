@@ -187,6 +187,25 @@ describe('approval and cancellation', () => {
     ).resolves.toMatchObject({ chatId: 1 });
   });
 
+  test('expectedTool prevents an unsupported intent from becoming approved', async () => {
+    const nonce = await stagePendingWrite({
+      chatId: 1,
+      tool: 'set_language',
+      args: { lang: 'he' },
+    });
+
+    await expect(
+      approvePendingWrite({
+        chatId: 1,
+        writeNonce: nonce,
+        expectedTool: 'select_team',
+      }),
+    ).resolves.toBeNull();
+    await expect(
+      consumeApprovedPendingWrite({ chatId: 1, writeNonce: nonce }),
+    ).resolves.toEqual({ status: CONSUME_STATUS.NOT_APPROVED });
+  });
+
   test('cancellation deletes the nonce immediately', async () => {
     const nonce = await stagePendingWrite({
       chatId: 1,
@@ -203,6 +222,29 @@ describe('approval and cancellation', () => {
     await expect(
       consumeApprovedPendingWrite({ chatId: 1, writeNonce: nonce }),
     ).resolves.toEqual({ status: CONSUME_STATUS.NOT_FOUND });
+  });
+
+  test('strict revocation reports when the nonce was already absent', async () => {
+    const nonce = await stagePendingWrite({
+      chatId: 1,
+      tool: 'select_team',
+      args: { teamId: 'T2' },
+    });
+
+    await expect(
+      cancelPendingWrite({
+        chatId: 1,
+        writeNonce: nonce,
+        requireExisting: true,
+      }),
+    ).resolves.toBe(true);
+    await expect(
+      cancelPendingWrite({
+        chatId: 1,
+        writeNonce: nonce,
+        requireExisting: true,
+      }),
+    ).resolves.toBe(false);
   });
 
   test('acknowledged cancellation wins against concurrent approval', async () => {

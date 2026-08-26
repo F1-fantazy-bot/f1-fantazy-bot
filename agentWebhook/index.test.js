@@ -32,6 +32,10 @@ jest.mock('../src/agent/writeDecision', () => ({
   applyWriteDecision: jest.fn(),
 }));
 
+jest.mock('../src/agent/writeProposal', () => ({
+  applyWriteProposal: jest.fn(),
+}));
+
 jest.mock('../src/agent/identity', () => ({
   getAgentChatId: jest.fn(() => 999),
 }));
@@ -39,6 +43,7 @@ jest.mock('../src/agent/identity', () => ({
 const { __handler: copilotHandler } = require('../src/agent/runtime');
 const { authenticateRequest, STATUS } = require('../src/agent/auth');
 const { applyWriteDecision } = require('../src/agent/writeDecision');
+const { applyWriteProposal } = require('../src/agent/writeProposal');
 const { getAgentChatId } = require('../src/agent/identity');
 const { getRequestContext } = require('../src/agent/requestContext');
 const {
@@ -80,6 +85,15 @@ function makeWriteDecisionReq(overrides = {}) {
   });
 }
 
+function makeWriteProposalReq(overrides = {}) {
+  return makeReq({
+    method: 'POST',
+    url: '/api/agent/write-proposal',
+    body: { tool: 'select_team', args: { teamId: 'T2' } },
+    ...overrides,
+  });
+}
+
 function makeCtx() {
   const logs = [];
 
@@ -95,6 +109,7 @@ beforeEach(() => {
   copilotHandler.mockReset();
   authenticateRequest.mockReset();
   applyWriteDecision.mockReset();
+  applyWriteProposal.mockReset();
   getAgentChatId.mockClear();
   getFreshLanguagePreference.mockReset();
   getFreshLanguagePreference.mockResolvedValue({ lang: 'en', fresh: true });
@@ -374,6 +389,7 @@ describe('agentWebhook → /write-decision', () => {
       name: 'Foo',
       sub: 's1',
     });
+
     applyWriteDecision.mockResolvedValueOnce({
       status: 200,
       body: { status: 'approved', writeNonce: 'n1' },
@@ -391,6 +407,66 @@ describe('agentWebhook → /write-decision', () => {
     expect(JSON.parse(ctx.res.body)).toEqual({
       status: 'approved',
       writeNonce: 'n1',
+    });
+  });
+
+  describe('agentWebhook → /write-proposal', () => {
+    test('authenticated proposal uses the allowlisted chatId and never invokes CopilotKit', async () => {
+      authenticateRequest.mockResolvedValueOnce({
+        status: STATUS.OK,
+        chatId: 12345,
+        email: 'foo@example.com',
+        name: 'Foo',
+        sub: 's1',
+      });
+      applyWriteProposal.mockResolvedValueOnce({
+        status: 200,
+        body: {
+          status: 'confirmation_required',
+          tool: 'select_team',
+          writeNonce: 'nonce-team',
+        },
+      });
+
+      const ctx = makeCtx();
+      await webhook(ctx, makeWriteProposalReq());
+
+      expect(applyWriteProposal).toHaveBeenCalledWith({
+        chatId: 12345,
+        payload: { tool: 'select_team', args: { teamId: 'T2' } },
+      });
+      expect(copilotHandler).not.toHaveBeenCalled();
+      expect(ctx.res.status).toBe(200);
+      expect(JSON.parse(ctx.res.body)).toMatchObject({
+        status: 'confirmation_required',
+        writeNonce: 'nonce-team',
+      });
+    });
+
+    test('auth rejection happens before the proposal handler', async () => {
+      authenticateRequest.mockResolvedValueOnce({
+        status: STATUS.UNAUTHORIZED,
+        reason: 'invalid_token',
+      });
+
+      const ctx = makeCtx();
+      await webhook(ctx, makeWriteProposalReq());
+
+      expect(ctx.res.status).toBe(401);
+      expect(applyWriteProposal).not.toHaveBeenCalled();
+    });
+
+    test('GET returns 405 before auth and advertises POST', async () => {
+      const ctx = makeCtx();
+      await webhook(
+        ctx,
+        makeWriteProposalReq({ method: 'GET', body: undefined }),
+      );
+
+      expect(ctx.res.status).toBe(405);
+      expect(ctx.res.headers.Allow).toBe('POST, OPTIONS');
+      expect(authenticateRequest).not.toHaveBeenCalled();
+      expect(applyWriteProposal).not.toHaveBeenCalled();
     });
   });
 

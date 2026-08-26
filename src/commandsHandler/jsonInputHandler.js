@@ -18,6 +18,9 @@ const {
 } = require('../cache');
 const { updateUserAttributes } = require('../userRegistryService');
 const { t } = require('../i18n');
+const {
+  setCachedSelectedTeam,
+} = require('../services/selectTeamService');
 
 const VALID_CHIPS = new Set([
   EXTRA_BOOST_CHIP,
@@ -65,7 +68,6 @@ async function handleJsonMessage(bot, chatId, jsonData) {
   if (!userCache[key]) {
     userCache[key] = {};
   }
-  userCache[key].selectedTeam = normalizedSnapshot.selectedTeam;
   userCache[key].bestTeamBudgetChangePointsPerMillion =
     normalizedSnapshot.bestTeamBudgetChangePointsPerMillion;
   userCache[key].selectedBestTeamByTeam =
@@ -87,6 +89,9 @@ async function handleJsonMessage(bot, chatId, jsonData) {
     selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
       normalizedSnapshot.selectedBestTeamByTeam,
     ),
+  });
+  setCachedSelectedTeam(chatId, normalizedSnapshot.selectedTeam, {
+    preserveNull: true,
   });
 
   await sendImportSuccessMessage(bot, chatId);

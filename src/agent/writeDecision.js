@@ -9,10 +9,15 @@ const {
   approvePendingWrite,
   cancelPendingWrite,
 } = require('../services/pendingWritesStore');
+const {
+  executeConfirmedWrite,
+} = require('./writeToolHelpers');
 
 const DECISION = Object.freeze({
   APPROVE: 'approve',
+  APPROVE_AND_CONFIRM: 'approve_and_confirm',
   CANCEL: 'cancel',
+  REVOKE: 'revoke',
 });
 
 function validatePayload(payload) {
@@ -27,7 +32,9 @@ function validatePayload(payload) {
   }
   if (
     payload.decision !== DECISION.APPROVE &&
-    payload.decision !== DECISION.CANCEL
+    payload.decision !== DECISION.APPROVE_AND_CONFIRM &&
+    payload.decision !== DECISION.CANCEL &&
+    payload.decision !== DECISION.REVOKE
   ) {
     return null;
   }
@@ -45,15 +52,23 @@ async function applyWriteDecision({ chatId, payload }) {
       status: 400,
       body: {
         status: 'invalid_input',
-        message: 'writeNonce and decision (approve or cancel) are required.',
+        message:
+          'writeNonce and decision (approve, approve_and_confirm, cancel, or revoke) are required.',
       },
     };
   }
 
-  if (input.decision === DECISION.APPROVE) {
+  if (
+    input.decision === DECISION.APPROVE ||
+    input.decision === DECISION.APPROVE_AND_CONFIRM
+  ) {
     const intent = await approvePendingWrite({
       chatId,
       writeNonce: input.writeNonce,
+      expectedTool:
+        input.decision === DECISION.APPROVE_AND_CONFIRM
+          ? 'select_team'
+          : undefined,
     });
     if (!intent) {
       return {
@@ -65,22 +80,48 @@ async function applyWriteDecision({ chatId, payload }) {
       };
     }
 
+    if (input.decision === DECISION.APPROVE_AND_CONFIRM) {
+      return {
+        status: 200,
+        body: await executeConfirmedWrite({
+          chatId,
+          writeNonce: input.writeNonce,
+        }),
+      };
+    }
+
     return {
       status: 200,
       body: { status: 'approved', writeNonce: input.writeNonce },
     };
   }
 
-  await cancelPendingWrite({
+  const cancelled = await cancelPendingWrite({
     chatId,
     writeNonce: input.writeNonce,
+    requireExisting: input.decision === DECISION.REVOKE,
   });
+
+  if (input.decision === DECISION.REVOKE && !cancelled) {
+    return {
+      status: 409,
+      body: {
+        status: 'uncertain',
+        message:
+          'The pending change was already consumed or removed; its final status could not be verified.',
+      },
+    };
+  }
 
   // Cancellation is intentionally idempotent: an expired/already-cancelled
   // nonce is still safely cancelled from the user's perspective.
   return {
     status: 200,
-    body: { status: 'cancelled', writeNonce: input.writeNonce },
+    body: {
+      status:
+        input.decision === DECISION.REVOKE ? 'revoked' : 'cancelled',
+      writeNonce: input.writeNonce,
+    },
   };
 }
 

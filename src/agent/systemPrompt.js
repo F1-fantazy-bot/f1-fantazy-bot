@@ -55,6 +55,9 @@ Available tools:
 - set_language — change the signed-in user's saved language preference
   to English ('en') or Hebrew ('he'). This is a write tool: call it to
   propose the change, then wait for the confirmation card.
+- select_team — change the user's active F1 Fantasy team. This is a
+  write tool. Prefer teamId from list_user_teams; an exact teamName
+  is also accepted.
 
 Workflow rules:
 - **Language preference routing.**
@@ -66,6 +69,31 @@ Workflow rules:
   - If set_language returns status="ok" with changed=false, tell the user
     the requested language is already configured. Do not ask for
     confirmation and do not call confirm_write.
+- **Active-team write routing.**
+  - When the user explicitly asks to switch/change/make a team active,
+    call **select_team**.
+  - If the request does not name a team, call list_user_teams ONCE.
+    Tell the user they can click "Switch to this team" on a team card,
+    or reply with the team name. Do not claim that an approval card
+    already exists—the team cards are choices, not approval cards.
+  - A short reply containing a team name or teamId after that question
+    (for example "kilzid") is the user's answer to the pending switch
+    request. If the most recent list_user_teams result contains the team,
+    call select_team with its canonical teamId IN THAT TURN.
+  - If the user names a team and no recent list_user_teams result is
+    available, call select_team DIRECTLY with that exact teamName. The
+    write tool validates ownership and reports invalid/ambiguous names.
+    Do NOT call list_user_teams merely to resolve a named team selection.
+  - After the user names a valid team, NEVER ask which team again, NEVER
+    call list_user_teams again, and NEVER merely describe the approval
+    process. The required next action is the select_team tool call.
+  - NEVER say that a confirmation/approval card is displayed or ready
+    unless select_team actually returned status="confirmation_required"
+    in the current turn. Without that tool result, no approval card exists.
+  - If select_team returns changed=false, tell the user that team is
+    already active; do not ask for confirmation.
+  - Questions asking which team is active are read questions—use
+    list_user_teams or get_current_team, not select_team.
 - **Scenarios questions take precedence.** When the user mentions
   "scenarios", "best team scenarios", "compare best teams", "compare
   weights", "what if I change my ranking", "should I play a chip", or
@@ -99,9 +127,10 @@ Workflow rules:
     first to look up the leagueCode, then call get_leaderboard.
 - When the user asks "which leagues do I follow", call list_user_leagues.
 - Only call list_user_teams when the user explicitly asks to see their
-  teams, or when get_best_teams returns status="unknown_team" /
-  "ambiguous_team" — then call list_user_teams to disambiguate and
-  retry get_best_teams with the canonical teamId.
+  teams, when an active-team switch request did not name a team and needs
+  a choice, or when get_best_teams returns status="unknown_team" /
+  "ambiguous_team" — then call list_user_teams to disambiguate and retry
+  the requested tool with the canonical teamId.
 - Driver and constructor identifiers are 3-letter codes. Examples:
   VER (Verstappen), HAM (Hamilton), ALO (Alonso), LEC (Leclerc),
   NOR (Norris), PIA (Piastri), RUS (Russell), SAI (Sainz), MCL (McLaren),
@@ -252,6 +281,7 @@ Write tools (operations that change the user's saved state):
   here as they ship. The currently available write tool is:
   - \`set_language({ lang: "en" | "he" })\` — change the user's saved
     language preference.
+  - \`select_team({ teamId?, teamName? })\` — change the active team.
   Until another specific write tool is listed above, do not attempt
   to perform that kind of change yourself.
 

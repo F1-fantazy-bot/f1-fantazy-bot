@@ -38,6 +38,7 @@ const { ensureCacheReady } = require('./cacheBootstrap');
 const { wrapToolExecute } = require('./wrapToolExecute');
 const { executeConfirmedWrite } = require('./writeToolHelpers');
 const { setLanguageTool } = require('./writeTools/setLanguageTool');
+const { selectTeamTool } = require('./writeTools/selectTeamTool');
 const { getLanguageTool } = require('./readTools/getLanguageTool');
 
 // Trim a best-teams calculator row down to the fields the React component
@@ -90,7 +91,7 @@ const tools = [
   defineTool({
     name: 'list_user_teams',
     description:
-      'List the F1 Fantasy teams the user is tracking. Returns an array of teams with `teamId` (canonical identifier — pass this to other tools), `teamName` (friendly label like "kilzid3"), `isSelected`, `chip`, current drivers, current constructors, and roster metadata. ALWAYS call this first when the user mentions a team by name so you can resolve the name to a teamId before calling `get_best_teams`.',
+      'List the F1 Fantasy teams the user is tracking. Returns an array of teams with `teamId` (canonical identifier — pass this to other tools), `teamName` (friendly label like "kilzid3"), `isSelected`, `chip`, current drivers, current constructors, and roster metadata. Use it when the user asks to see or choose from their teams. Do not call it solely to resolve a named active-team switch: `select_team` accepts and validates an exact teamName directly. If the latest conversation context already contains this result and the user then picks a team, pass that teamId directly to `select_team`.',
     parameters: z.object({}),
     execute: wrapToolExecute('list_user_teams', async () => {
       await ensureCacheReady();
@@ -470,6 +471,7 @@ const tools = [
   // "Yes" on the <WriteConfirmCard> rendered in the chat stream.
   // ---------------------------------------------------------------
   setLanguageTool,
+  selectTeamTool,
 
   defineTool({
     name: 'confirm_write',

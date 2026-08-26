@@ -87,6 +87,18 @@ html[data-theme='dark'] {
   box-sizing: border-box;
 }
 
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -255,4 +267,74 @@ html[data-theme='dark'] .theme-toggle__icon {
   direction: ltr;
   text-align: left;
   unicode-bidi: isolate;
+}
+
+.user-team-card {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font: inherit;
+  font-size: 13px;
+  text-align: start;
+  opacity: 1;
+  position: relative;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.user-team-card[data-active='true'] {
+  border: 2px solid var(--app-primary);
+}
+
+.user-team-card[data-selectable='true'] {
+  cursor: pointer;
+}
+
+.user-team-card[data-selectable='true']:hover {
+  border-color: var(--app-primary);
+  background: var(--app-primary-surface);
+  box-shadow: var(--app-shadow);
+  transform: translateY(-2px);
+}
+
+.user-team-card[data-selectable='true']:focus-visible {
+  outline: 2px solid var(--app-primary);
+  outline-offset: 3px;
+}
+
+.user-team-card__action {
+  display: inline-flex;
+  margin-top: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--app-primary-surface);
+  color: var(--app-primary);
+  font-size: 11px;
+  font-weight: 700;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.user-team-card[data-selectable='true']:hover .user-team-card__action {
+  background: var(--app-primary);
+  color: var(--app-primary-contrast);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .user-team-card,
+  .user-team-card__action {
+    transition: none;
+  }
+
+  .user-team-card[data-selectable='true']:hover {
+    transform: none;
+  }
 }

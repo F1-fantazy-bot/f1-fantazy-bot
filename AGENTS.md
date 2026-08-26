@@ -563,12 +563,12 @@ Blob naming includes the team ID:
 
 A second user-facing surface that runs the same business logic as the Telegram bot through tool calls. Architecture, code layout, and the patterns for adding new capabilities live in this section.
 
-**Status (2026-08-24):** the read-only v1 capability scope, Phase 6
+**Status (2026-08-25):** the read-only v1 capability scope, Phase 6
 hardening, Azure deployment, Google auth, and CORS rollout are complete.
 The effectful write-tools rollout is now active: PR
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207)
-merged the durable confirmation infrastructure; `set_language` is the
-first concrete write tool. See [Write-tool confirmation
+merged the durable confirmation infrastructure; `set_language` is
+merged, and `select_team` is implemented in PR-3. See [Write-tool confirmation
 infrastructure](#write-tool-confirmation-infrastructure) and
 [`docs/agent-write-tools-plan.md`](docs/agent-write-tools-plan.md).
 
@@ -690,11 +690,15 @@ f1-fantazy-bot/
 │   │   ├── readTools/
 │   │   │   └── getLanguageTool.js    # read current persisted account language
 │   │   ├── writeTools/
-│   │   │   └── setLanguageTool.js    # first concrete write tool: en/he preference
+│   │   │   ├── setLanguageTool.js    # en/he preference
+│   │   │   └── selectTeamTool.js     # confirmed active-team selection
 │   │   └── runtime.js                # BuiltInAgent + CopilotRuntime + createCopilotRuntimeHandler (+ wrapLanguageModel)
 │   ├── services/
 │   │   ├── pendingWritesStore.js     # Azure Table-backed staged/approved intents + TTL + ETag consume
-│   │   └── setLanguageService.js     # shared Telegram/agent language persistence + hydration
+│   │   ├── userProfileSyncService.js # bounded/coalesced UserRegistry point lookup
+│   │   ├── setLanguageService.js     # shared Telegram/agent language persistence + hydration
+│   │   ├── selectTeamService.js      # owned-team validation, persistence + generation-safe cache mutation
+│   │   └── telegramUserPreferencesService.js # one-route refresh of language + selected team
 │   ├── bestTeamsCalculator.js        # exports an optional `options` arg: filters + rankBy + resultCount
 │   └── commandsHandler/
 │       ├── nextRacesHandler.js       # refactored: thin Telegram adapter over the core
@@ -873,10 +877,17 @@ possession of a nonce is not authorization**:
 1. `defineWriteTool(...)` validates a proposal and stores a serializable
    intent in Azure Table `PendingAgentWrites` with
    `{ partitionKey: chatId, rowKey: nonce, state: 'staged', tool, args,
-   summary, expiresAt }`. No mutation runs.
+   summary, expiresAt }`. Proposals normally come from an agent tool call.
+   Deterministic rich-UI controls may instead call the authenticated
+   `/api/agent/write-proposal` route, which is explicitly allowlisted to
+   `select_team` and invokes the same registered proposal function. No
+   mutation runs on either path.
 2. `<WriteConfirmCard>` shows Yes / Cancel. The button calls the exact
    authenticated webhook route `/api/agent/write-decision`; it runs the
-   same Google token + allowlist pipeline as CopilotKit traffic.
+   same Google token + allowlist pipeline as CopilotKit traffic. Cards
+   created by direct `select_team` proposals use the allowlisted
+   `approve_and_confirm` decision, which approves and immediately invokes
+   the registered single-use commit server-side without another model turn.
 3. **Yes** changes the matching chat-owned row to `approved` using its
    ETag. Only after that succeeds does the UI add the nonce-bearing
    instruction as an AG-UI `developer` message directly to the v2 agent
@@ -916,6 +927,8 @@ Key files:
   registry.
 - `src/agent/writeDecision.js` + `agentWebhook/index.js` — authenticated
   decision endpoint.
+- `src/agent/writeProposal.js` — allowlisted authenticated direct proposal
+  endpoint for deterministic rich-UI controls.
 - `web/src/components/WriteDecisionContext.tsx` — decision HTTP client
   and provider.
 - `web/src/components/WriteConfirmCard.tsx` — server decision first,
@@ -945,6 +958,40 @@ Concrete write tools currently available:
   on stale startup cache. A same-language no-op is allowed only when
   that durable refresh succeeds; on timeout, the write proceeds through
   confirmation rather than trusting cache as durable proof.
+- `select_team({ teamId?, teamName? })` — shared
+  `src/services/selectTeamService.js`. The Telegram TEAM callback and
+  web agent delegate to the same effectful service. Proposals accept an
+  owned canonical ID or exact case-insensitive display name, but durable
+  pending intents always store the canonical `teamId`, so confirmation
+  cannot retarget if names change. The service persists
+  `UserRegistry.selectedTeam` before local mutation. `UserTeamsAction`
+  makes non-active team cards clickable: it posts the canonical `teamId`
+  to `/api/agent/write-proposal` and renders the returned
+  `WriteConfirmCard` immediately. Its Yes button uses authenticated
+  `approve_and_confirm`; failures with uncertain final status remain
+  blocked until the team list is refreshed. Do not route card clicks through a
+  natural-language agent turn—the model may narrate the need for approval
+  without actually calling `select_team`. For conversational selection,
+  a team name/id reply after `list_user_teams` is a continuation of the
+  pending switch request: the system prompt requires `select_team` in that
+  turn and forbids claiming an approval card exists before the tool returns
+  `confirmation_required`. If a named selection has no recent team-list
+  result, call `select_team({ teamName })` directly—the service already
+  performs exact ownership validation. Do not render all teams merely to
+  resolve a valid name. Successful `select_team` result cards emit
+  `f1:selected-team-changed`, so any already-visible team grid updates its
+  active highlight instead of retaining a stale pre-write snapshot.
+
+Language and selected-team hydration share the bounded/coalesced
+`src/services/userProfileSyncService.js` point lookup. Telegram refreshes
+both preferences before message and callback routing. Every production
+path that mutates local `selectedTeam` must call
+`setCachedSelectedTeam`; its per-chat generation invalidates registry
+reads that started before the local write, and it prevents post-write
+refreshes from coalescing onto pre-write profile requests. Persist the
+new selection first, then call the helper so any refresh racing the
+durable write is invalidated and the persisted value is reapplied last.
+Do not assign or delete `userCache[chatId].selectedTeam` directly.
 
 Write-tool envelopes carry `uiLang` on success and expected failure
 paths, which localizes the shared confirmation/result card shell.
@@ -1407,8 +1454,9 @@ messages must go through `clear()` first, then through
 | `src/agent/wrapToolExecute.js` | `wrapToolExecute(toolName, fn)` try/catches the execute and returns `{ status: 'tool_error', tool, errorId, userMessage }` on throw (Phase 6.2). Full error → `ERRORS_CHANNEL_ID` via `sendErrorMessage(notifierBot, …)`. The 8-char `errorId` is the user-visible correlation token. Raw `err.message` is NEVER included in the returned UI shape. |
 | `src/agent/writeToolHelpers.js` | `defineWriteTool(...)` stages serializable intents and registers commit handlers; `executeConfirmedWrite` consumes only server-approved intents. |
 | `src/agent/writeDecision.js` | Applies authenticated UI `approve` / `cancel` decisions to the durable pending-write row. |
+| `src/agent/writeProposal.js` | Validates allowlisted direct rich-UI proposals and invokes the same registered proposal function as the LLM-facing write tool. |
 | `src/services/pendingWritesStore.js` | Azure Table `PendingAgentWrites`: chat-isolated staged/approved intents, ~5-minute TTL, immediate cancel, throttled expiry sweep, ETag-protected single-use consume. |
-| `web/src/components/WriteDecisionContext.tsx` | Builds `/api/agent/write-decision`, attaches the Google bearer token, and exposes the decision client to confirmation cards. |
+| `web/src/components/WriteDecisionContext.tsx` | Builds authenticated `/api/agent/write-decision` and `/api/agent/write-proposal` requests and exposes both clients. |
 | `web/src/components/WriteConfirmCard.tsx` | Yes/Cancel UI. Records the authenticated server decision before appending any chat message; never sends a nonce on cancellation. |
 | `web/src/components/ToolErrorFallback.tsx` | Shared red-banner fallback + `isToolErrorResult()` type-guard (Phase 6.2). All 12 render hooks short-circuit on `tool_error` via this component — no JSX duplication. |
 | `agentWebhook/function.json` | Azure Functions httpTrigger config (route `agent/{*restOfPath}`). |
@@ -1417,6 +1465,7 @@ messages must go through `clear()` first, then through
 | `web/src/components/NextRacesTable.tsx` | `get_next_races` rich render. |
 | `web/src/components/BestTeamsTable.tsx` | `get_best_teams` rich render (top-10 table, captain badge, must-include highlights, penalty markers), localized via the tool result's refreshed `lang`. |
 | `web/src/components/UserTeamsList.tsx` | `list_user_teams` rich render (card grid). |
+| `web/src/components/UserTeamsAction.tsx` | Registers the teams renderer and turns non-active cards into direct authenticated `select_team` proposals that render the shared confirmation card. |
 | `web/src/components/FollowedTeamsGrid.tsx` | `list_followed_teams` rich render — card per team with `leagueName: position` chips, active-team highlight. |
 | `web/src/components/LeaderboardTable.tsx` | `get_leaderboard` rich render — sortable standings table with the user's row highlighted; status fallbacks for `not_followed` / `not_found`. |
 | `web/src/components/BestTeamScenariosMatrix.tsx` | `get_best_team_scenarios` rich render — 4 ppm sections × 4 chip rows showing projected points, Δ price change, and 🟢/🟡 chip recommendation dots mirroring `/best_team_scenarios`. |

@@ -5,6 +5,7 @@
 
 import { useEffect } from 'react';
 import { useUiLanguage } from './uiLanguage';
+import { TEAM_SELECTION_CHANGED_EVENT } from './UserTeamsList';
 
 export type WriteResultStatus =
   | 'ok'
@@ -19,6 +20,7 @@ export type WriteResult = {
   summary?: string;
   details?: unknown;
   uiLang?: string;
+  teamId?: string;
 };
 
 const STATUS_STYLES: Record<
@@ -85,6 +87,19 @@ export function WriteResultCard({ result }: { result: WriteResult }) {
       setLang(result.uiLang);
     }
   }, [result.uiLang, setLang]);
+  useEffect(() => {
+    if (
+      result.status === 'ok' &&
+      result.tool === 'select_team' &&
+      typeof result.teamId === 'string'
+    ) {
+      window.dispatchEvent(
+        new CustomEvent(TEAM_SELECTION_CHANGED_EVENT, {
+          detail: result.teamId,
+        }),
+      );
+    }
+  }, [result.status, result.teamId, result.tool]);
   const titles: Record<WriteResultStatus, string> = isHebrew
     ? {
         ok: 'בוצע',

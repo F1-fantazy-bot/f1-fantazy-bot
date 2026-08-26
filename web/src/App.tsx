@@ -15,7 +15,7 @@ import { setHistoryScope } from './lib/chatHistoryStore';
 import { useNextRacesAction } from './components/NextRacesTable';
 import { useBestTeamsAction } from './components/BestTeamsTable';
 import { useBestTeamScenariosAction } from './components/BestTeamScenariosMatrix';
-import { useUserTeamsAction } from './components/UserTeamsList';
+import { useUserTeamsAction } from './components/UserTeamsAction';
 import { useFollowedTeamsAction } from './components/FollowedTeamsGrid';
 import { useLeaderboardAction } from './components/LeaderboardTable';
 import { useRaceInfoAction } from './components/RaceInfoCard';
@@ -61,6 +61,11 @@ function AgentActions() {
     name: 'set_language',
     description: 'Change the signed-in user language to English or Hebrew.',
     loadingLabel: 'Preparing language change…',
+  });
+  useWriteAction({
+    name: 'select_team',
+    description: 'Change the signed-in user active fantasy team.',
+    loadingLabel: 'Preparing team selection…',
   });
   useWriteAction({
     name: 'confirm_write',

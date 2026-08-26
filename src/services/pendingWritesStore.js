@@ -206,7 +206,7 @@ async function stagePendingWrite({ chatId, tool, args, summary, ttlMs }) {
   return writeNonce;
 }
 
-async function approvePendingWrite({ chatId, writeNonce }) {
+async function approvePendingWrite({ chatId, writeNonce, expectedTool }) {
   validateChatId(chatId);
   if (!validateNonce(writeNonce)) {
     return null;
@@ -225,6 +225,12 @@ async function approvePendingWrite({ chatId, writeNonce }) {
   if (!intent) {
     await deleteEntityConditionally(entity);
 
+    return null;
+  }
+  if (
+    typeof expectedTool === 'string' &&
+    intent.tool !== expectedTool
+  ) {
     return null;
   }
   if (entity.state === INTENT_STATE.APPROVED) {
@@ -255,7 +261,11 @@ async function approvePendingWrite({ chatId, writeNonce }) {
   return { ...intent, state: INTENT_STATE.APPROVED };
 }
 
-async function cancelPendingWrite({ chatId, writeNonce }) {
+async function cancelPendingWrite({
+  chatId,
+  writeNonce,
+  requireExisting = false,
+}) {
   validateChatId(chatId);
   if (!validateNonce(writeNonce)) {
     return false;
@@ -270,9 +280,10 @@ async function cancelPendingWrite({ chatId, writeNonce }) {
       etag: '*',
     });
   } catch (err) {
-    if (!isNotFound(err)) {
-      throw err;
+    if (isNotFound(err)) {
+      return !requireExisting;
     }
+    throw err;
   }
 
   // Idempotent: already expired/cancelled is still safely cancelled.

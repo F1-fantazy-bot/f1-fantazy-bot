@@ -464,6 +464,14 @@ const translations = {
     'Select Team': 'בחירת קבוצה',
     'Select your active team:': 'בחר קבוצה פעילה:',
     'Active team switched to {TEAM}.': 'הקבוצה הפעילה הוחלפה ל-{TEAM}.',
+    'Change your active team to {TEAM} ({TEAM_ID}).':
+      'להחליף את הקבוצה הפעילה ל-{TEAM} ({TEAM_ID}).',
+    'Active team is already {TEAM} ({TEAM_ID}).':
+      'הקבוצה הפעילה כבר מוגדרת ל-{TEAM} ({TEAM_ID}).',
+    'Team {TEAM} is not available. Available teams: {TEAMS}':
+      'הקבוצה {TEAM} אינה זמינה. הקבוצות הזמינות: {TEAMS}',
+    'That team is no longer available. Reopen /select_team and choose again.':
+      'הקבוצה הזו כבר אינה זמינה. פתח שוב את /select_team ובחר מחדש.',
     '🔄 Active team auto-switched to {TEAM}.':
       '🔄 הקבוצה הפעילה הוחלפה אוטומטית ל-{TEAM}.',
     "No teams found. Please run /follow_league to follow your F1 Fantasy league (if you haven't yet), then /teams_tracker to pick teams to track.":

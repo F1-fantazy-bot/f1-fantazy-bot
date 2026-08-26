@@ -10,13 +10,15 @@ const {
   currentTeamCache,
   bestTeamsCache,
   selectedChipCache,
-  userCache,
   leagueTeamsDataCache,
   clearSelectedBestTeam,
   serializeSelectedBestTeamByTeam,
   getUserLeagueTeamIds,
   getSelectedTeam,
 } = require('../cache');
+const {
+  setCachedSelectedTeam,
+} = require('../services/selectTeamService');
 const { NAME_TO_CODE_MAPPING } = require('../constants');
 
 function mapNameToCode(name) {
@@ -213,19 +215,11 @@ async function removeFollowedTeam(
     return { removed: true, fallbackSelectedTeam };
   }
 
+  let selectedTeamChanged = false;
   if (fallbackSelectedTeam === teamId) {
     const remaining = getUserLeagueTeamIds(chatId);
     fallbackSelectedTeam = remaining[0] || null;
-
-    const key = String(chatId);
-    if (!userCache[key]) {
-      userCache[key] = {};
-    }
-    if (fallbackSelectedTeam) {
-      userCache[key].selectedTeam = fallbackSelectedTeam;
-    } else {
-      delete userCache[key].selectedTeam;
-    }
+    selectedTeamChanged = true;
   }
 
   try {
@@ -235,6 +229,9 @@ async function removeFollowedTeam(
         selectedBestTeamByTeam,
       ),
     });
+    if (selectedTeamChanged) {
+      setCachedSelectedTeam(chatId, fallbackSelectedTeam);
+    }
   } catch (err) {
     console.error(
       `Error persisting user attributes after unfollow for ${chatId}:`,
