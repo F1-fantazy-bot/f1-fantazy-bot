@@ -1,5 +1,4 @@
 const { calculateChangesToTeam } = require('../bestTeamsCalculator');
-const { updateUserAttributes } = require('../userRegistryService');
 const {
   bestTeamsCache,
   selectedChipCache,
@@ -7,11 +6,12 @@ const {
   resolveSelectedTeam,
   getBestTeamBudgetChangePointsPerMillion,
   remainingRaceCountCache,
-  setSelectedBestTeam,
-  serializeSelectedBestTeamByTeam,
   getDriversForChat,
   getConstructorsForChat,
 } = require('../cache');
+const {
+  setSelectedBestTeamPreference,
+} = require('../services/selectedBestTeamService');
 const { COMMAND_BEST_TEAMS } = require('../constants');
 const { t } = require('../i18n');
 
@@ -31,15 +31,10 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
     );
 
     if (selectedTeam) {
-      const selectedBestTeamByTeam = setSelectedBestTeam(
+      await setSelectedBestTeamPreference({
         chatId,
         teamId,
-        getSelectedBestTeamSelection(selectedTeam),
-      );
-      await updateUserAttributes(chatId, {
-        selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
-          selectedBestTeamByTeam,
-        ),
+        selectedBestTeam: getSelectedBestTeamSelection(selectedTeam),
       });
 
       if (

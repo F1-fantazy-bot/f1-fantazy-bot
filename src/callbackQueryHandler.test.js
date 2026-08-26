@@ -12,7 +12,6 @@ const {
 } = require('./constants');
 const cache = require('./cache');
 const azureStorageService = require('./azureStorageService');
-const { updateUserAttributes } = require('./userRegistryService');
 const {
   setLanguagePreference,
 } = require('./services/setLanguageService');
@@ -23,6 +22,12 @@ const {
   selectTeamPreference,
   setCachedSelectedTeam,
 } = require('./services/selectTeamService');
+const {
+  setBestTeamRankingPreference,
+} = require('./services/setBestTeamRankingService');
+const {
+  clearSelectedBestTeamPreference,
+} = require('./services/selectedBestTeamService');
 const { selectChip } = require('./commandsHandler/selectChipHandlers');
 const {
   getDeadlinePayload,
@@ -48,10 +53,6 @@ jest.mock('./leagueRegistryService', () => ({
   removeUserLeague: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('./userRegistryService', () => ({
-  updateUserAttributes: jest.fn().mockResolvedValue(undefined),
-}));
-
 jest.mock('./commandsHandler/selectChipHandlers', () => ({
   selectChip: jest.fn().mockResolvedValue('chip selected'),
 }));
@@ -67,6 +68,12 @@ jest.mock('./services/telegramUserPreferencesService', () => ({
 jest.mock('./services/selectTeamService', () => ({
   selectTeamPreference: jest.fn(),
   setCachedSelectedTeam: jest.fn(),
+}));
+jest.mock('./services/setBestTeamRankingService', () => ({
+  setBestTeamRankingPreference: jest.fn(),
+}));
+jest.mock('./services/selectedBestTeamService', () => ({
+  clearSelectedBestTeamPreference: jest.fn(),
 }));
 
 jest.mock('./commandsHandler/deadlineHandler', () => ({
@@ -128,6 +135,15 @@ describe('handleCallbackQuery', () => {
       teamName: 'T2',
       changed: true,
     });
+    setBestTeamRankingPreference.mockResolvedValue({
+      status: 'ok',
+      summary:
+        'Best-team ranking set: Pure Points (0 pts per 1M per remaining race).',
+      teamId: 'T1',
+      presetId: 'pure_points',
+      changed: true,
+    });
+    clearSelectedBestTeamPreference.mockResolvedValue({});
     bot = {
       editMessageText: jest.fn().mockResolvedValue(undefined),
       answerCallbackQuery: jest.fn().mockResolvedValue(undefined),
@@ -271,13 +287,14 @@ describe('handleCallbackQuery', () => {
 
     expect(cache.currentTeamCache[123].T1).toBeDefined();
     expect(azureStorageService.saveUserTeam).toHaveBeenCalled();
-    expect(updateUserAttributes).toHaveBeenCalledWith(123, {
-      selectedTeam: 'T1',
-      selectedBestTeamByTeam: null,
+    expect(clearSelectedBestTeamPreference).toHaveBeenCalledWith({
+      chatId: 123,
+      teamId: 'T1',
+      attributes: { selectedTeam: 'T1' },
     });
     expect(setCachedSelectedTeam).toHaveBeenCalledWith(123, 'T1');
     expect(
-      updateUserAttributes.mock.invocationCallOrder[0],
+      clearSelectedBestTeamPreference.mock.invocationCallOrder[0],
     ).toBeLessThan(setCachedSelectedTeam.mock.invocationCallOrder[0]);
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q5');
   });
@@ -291,8 +308,60 @@ describe('handleCallbackQuery', () => {
 
     await handleCallbackQuery(bot, query);
 
-    expect(updateUserAttributes).toHaveBeenCalled();
+    expect(setBestTeamRankingPreference).toHaveBeenCalledWith({
+      chatId: 123,
+      teamId: 'T1',
+      presetId: 'pure_points',
+    });
+    expect(bot.editMessageText).toHaveBeenCalledWith(
+      expect.stringContaining('Best-team ranking set: Pure Points'),
+      { chat_id: 123, message_id: 456 },
+    );
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q6');
+  });
+
+  it('shows an alert for a stale best-team ranking callback', async () => {
+    setBestTeamRankingPreference.mockResolvedValue({
+      status: 'invalid_input',
+    });
+
+    const query = {
+      id: 'q-stale-ranking',
+      data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T1:removed-preset`,
+      message: { chat: { id: 123 }, message_id: 456 },
+    };
+
+    await handleCallbackQuery(bot, query);
+
+    expect(bot.editMessageText).not.toHaveBeenCalled();
+    expect(bot.answerCallbackQuery).toHaveBeenCalledWith(
+      'q-stale-ranking',
+      {
+        text: 'That ranking option is no longer available. Reopen /set_best_team_ranking and choose again.',
+        show_alert: true,
+      },
+    );
+  });
+
+  it('does not claim recalculation is needed for a ranking no-op', async () => {
+    setBestTeamRankingPreference.mockResolvedValue({
+      status: 'ok',
+      summary:
+        'Best-team ranking for T1 is already Pure Points (0 pts per 1M per remaining race).',
+      changed: false,
+    });
+    const query = {
+      id: 'q-ranking-no-op',
+      data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T1:pure_points`,
+      message: { chat: { id: 123 }, message_id: 456 },
+    };
+
+    await handleCallbackQuery(bot, query);
+
+    expect(bot.editMessageText).toHaveBeenCalledWith(
+      expect.not.stringContaining('calculation was deleted'),
+      { chat_id: 123, message_id: 456 },
+    );
   });
 
   it('should handle deadline refresh callback', async () => {

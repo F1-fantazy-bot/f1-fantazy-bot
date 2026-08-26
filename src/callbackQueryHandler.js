@@ -1,14 +1,9 @@
 const azureStorageService = require('./azureStorageService');
-const { updateUserAttributes } = require('./userRegistryService');
 const {
   currentTeamCache,
   getPrintableCache,
   getTeamDisplayName,
   bestTeamsCache,
-  userCache,
-  normalizeBestTeamBudgetChangePointsPerMillion,
-  clearSelectedBestTeam,
-  serializeSelectedBestTeamByTeam,
 } = require('./cache');
 const { selectChip } = require('./commandsHandler/selectChipHandlers');
 const {
@@ -46,8 +41,11 @@ const {
   setCachedSelectedTeam,
 } = require('./services/selectTeamService');
 const {
-  BEST_TEAM_RANKING_PRESETS,
-} = require('./commandsHandler/setBestTeamRankingHandler');
+  setBestTeamRankingPreference,
+} = require('./services/setBestTeamRankingService');
+const {
+  clearSelectedBestTeamPreference,
+} = require('./services/selectedBestTeamService');
 const {
   getDeadlinePayload,
   getRefreshMarkup,
@@ -227,60 +225,33 @@ async function handleBestTeamRankingCallback(bot, query) {
   const teamId = query.data.split(':')[1];
   const presetId = query.data.split(':')[2];
 
-  const preset = BEST_TEAM_RANKING_PRESETS.find(
-    (option) => option.id === presetId,
-  );
-
-  if (!preset) {
-    await bot.answerCallbackQuery(query.id);
+  const result = await setBestTeamRankingPreference({
+    chatId,
+    teamId,
+    presetId,
+  });
+  if (result.status !== 'ok') {
+    await bot.answerCallbackQuery(query.id, {
+      text: t(
+        'That ranking option is no longer available. Reopen /set_best_team_ranking and choose again.',
+        chatId,
+      ),
+      show_alert: true,
+    });
 
     return;
   }
 
-  const key = String(chatId);
-  if (!userCache[key]) {
-    userCache[key] = {};
+  let confirmationMessage = result.summary;
+  if (result.changed) {
+    confirmationMessage +=
+      '\n' +
+      t(
+        'Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.',
+        chatId,
+        { CMD: '/best_teams' },
+      );
   }
-  const bestTeamBudgetChangePointsPerMillion =
-    normalizeBestTeamBudgetChangePointsPerMillion(
-      userCache[key].bestTeamBudgetChangePointsPerMillion,
-    );
-
-  bestTeamBudgetChangePointsPerMillion[teamId] =
-    preset.budgetChangePointsPerMillion;
-  userCache[key].bestTeamBudgetChangePointsPerMillion =
-    bestTeamBudgetChangePointsPerMillion;
-  const selectedBestTeamByTeam = clearSelectedBestTeam(chatId, teamId);
-
-  await updateUserAttributes(chatId, {
-    bestTeamBudgetChangePointsPerMillion: JSON.stringify(
-      bestTeamBudgetChangePointsPerMillion,
-    ),
-    selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
-      selectedBestTeamByTeam,
-    ),
-  });
-
-  // Invalidate cached best teams for this team because ranking logic changed
-  if (bestTeamsCache[chatId]) {
-    delete bestTeamsCache[chatId][teamId];
-  }
-
-  const confirmationMessage =
-    `${t(
-      'Best-team ranking set: {LABEL} ({VALUE} pts per 1M per remaining race).',
-      chatId,
-      {
-        LABEL: t(preset.labelKey, chatId),
-        VALUE: preset.budgetChangePointsPerMillion,
-      },
-    )}
-` +
-    t(
-      'Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.',
-      chatId,
-      { CMD: '/best_teams' },
-    );
 
   await bot.editMessageText(confirmationMessage, {
     chat_id: chatId,
@@ -352,12 +323,10 @@ async function handleTeamAssignCallback(bot, query) {
   await azureStorageService.saveUserTeam(bot, chatId, teamId, teamData);
 
   // Auto-select this team
-  const selectedBestTeamByTeam = clearSelectedBestTeam(chatId, teamId);
-  await updateUserAttributes(chatId, {
-    selectedTeam: teamId,
-    selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
-      selectedBestTeamByTeam,
-    ),
+  await clearSelectedBestTeamPreference({
+    chatId,
+    teamId,
+    attributes: { selectedTeam: teamId },
   });
   setCachedSelectedTeam(chatId, teamId);
 

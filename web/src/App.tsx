@@ -68,6 +68,12 @@ function AgentActions() {
     loadingLabel: 'Preparing team selection…',
   });
   useWriteAction({
+    name: 'set_best_team_ranking',
+    description:
+      'Change how budget growth influences best-team ranking for one team.',
+    loadingLabel: 'Preparing ranking change…',
+  });
+  useWriteAction({
     name: 'confirm_write',
     description:
       'Commit a previously proposed write action by its writeNonce.',

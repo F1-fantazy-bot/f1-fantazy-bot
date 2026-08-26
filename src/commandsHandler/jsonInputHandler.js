@@ -10,17 +10,21 @@ const {
   currentTeamCache,
   bestTeamsCache,
   selectedChipCache,
-  userCache,
   normalizeBestTeamBudgetChangePointsPerMillion,
   normalizeSelectedBestTeam,
   normalizeSelectedBestTeamByTeam,
   serializeSelectedBestTeamByTeam,
 } = require('../cache');
-const { updateUserAttributes } = require('../userRegistryService');
+const {
+  updateUserAttributesAtomically,
+} = require('../userRegistryService');
 const { t } = require('../i18n');
 const {
   setCachedSelectedTeam,
 } = require('../services/selectTeamService');
+const {
+  setCachedRankingPreferences,
+} = require('../services/setBestTeamRankingService');
 
 const VALID_CHIPS = new Set([
   EXTRA_BOOST_CHIP,
@@ -64,15 +68,6 @@ async function handleJsonMessage(bot, chatId, jsonData) {
     delete selectedChipCache[chatId];
   }
 
-  const key = String(chatId);
-  if (!userCache[key]) {
-    userCache[key] = {};
-  }
-  userCache[key].bestTeamBudgetChangePointsPerMillion =
-    normalizedSnapshot.bestTeamBudgetChangePointsPerMillion;
-  userCache[key].selectedBestTeamByTeam =
-    normalizedSnapshot.selectedBestTeamByTeam;
-
   await azureStorageService.deleteAllUserTeams(bot, chatId);
 
   for (const [teamId, teamData] of Object.entries(
@@ -81,7 +76,7 @@ async function handleJsonMessage(bot, chatId, jsonData) {
     await azureStorageService.saveUserTeam(bot, chatId, teamId, teamData);
   }
 
-  await updateUserAttributes(chatId, {
+  await updateUserAttributesAtomically(chatId, () => ({
     selectedTeam: normalizedSnapshot.selectedTeam,
     bestTeamBudgetChangePointsPerMillion: JSON.stringify(
       normalizedSnapshot.bestTeamBudgetChangePointsPerMillion,
@@ -89,7 +84,13 @@ async function handleJsonMessage(bot, chatId, jsonData) {
     selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
       normalizedSnapshot.selectedBestTeamByTeam,
     ),
-  });
+  }));
+  setCachedRankingPreferences(
+    chatId,
+    normalizedSnapshot.bestTeamBudgetChangePointsPerMillion,
+    normalizedSnapshot.selectedBestTeamByTeam,
+    null,
+  );
   setCachedSelectedTeam(chatId, normalizedSnapshot.selectedTeam, {
     preserveNull: true,
   });

@@ -6,7 +6,12 @@ jest.mock('../azureStorageService', () => ({
 }));
 
 jest.mock('../userRegistryService', () => ({
-  updateUserAttributes: jest.fn().mockResolvedValue(undefined),
+  updateUserAttributesAtomically: jest.fn(
+    async (_chatId, transform) => ({
+      updated: true,
+      user: await transform({}),
+    }),
+  ),
 }));
 
 const {
@@ -17,7 +22,9 @@ const {
   selectedChipCache,
   userCache,
 } = require('../cache');
-const { updateUserAttributes } = require('../userRegistryService');
+const {
+  updateUserAttributesAtomically,
+} = require('../userRegistryService');
 
 const { resetCacheForChat } = require('./resetCacheHandler');
 
@@ -81,7 +88,13 @@ describe('resetCacheForChat', () => {
       userCache[String(KILZI_CHAT_ID)].bestTeamBudgetChangePointsPerMillion,
     ).toEqual({});
     expect(userCache[String(KILZI_CHAT_ID)].selectedBestTeamByTeam).toEqual({});
-    expect(updateUserAttributes).toHaveBeenCalledWith(KILZI_CHAT_ID, {
+    expect(updateUserAttributesAtomically).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      expect.any(Function),
+    );
+    expect(
+      updateUserAttributesAtomically.mock.calls[0][1]({}),
+    ).toEqual({
       selectedTeam: null,
       bestTeamBudgetChangePointsPerMillion: null,
       selectedBestTeamByTeam: null,

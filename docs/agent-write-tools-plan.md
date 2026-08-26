@@ -7,7 +7,7 @@ team, set language, follow league, activate chip, …). This document is
 the working plan for closing that gap — exposing the same set of writes
 as agent tools without breaking the Telegram bot.
 
-**Current state (2026-08-25):** **PR-1 (shared write-tool
+**Current state (2026-08-26):** **PR-1 (shared write-tool
 infrastructure) is merged and delivered by
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207).**
 The review-hardening pass replaced the original process-local Map with
@@ -26,10 +26,13 @@ hydration, hidden confirmation control messages, and Hebrew
 localization for shared write UI + race info. A follow-up localizes
 `BestTeamsTable` by passing the refreshed saved language in the
 `get_best_teams` tool result.
-**PR-3 (`select_team`) is implemented on the current feature branch.**
+**PR-3 (`select_team`) merged as
+[#219](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/219).**
 It adds the shared selection service, confirmed agent tool, Telegram
-callback delegation, and cross-process selected-team hydration. PR-4
-(`set_best_team_ranking`) is next after PR-3 merges.
+callback delegation, clickable team cards, and cross-process selected-team
+hydration.
+**PR-4 (`set_best_team_ranking`) is implemented on the current feature
+branch.** PR-5 (`activate_chip`) is next after PR-4 merges.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -434,7 +437,7 @@ end-to-end.
 demonstrably works end-to-end via the web agent, **and** `/lang` +
 LANG callback behave identically in Telegram.
 
-### PR-3 — `select_team` 🟡 Implemented (current branch)
+### PR-3 — `select_team` ✅ Merged ([#219](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/219))
 
 - `src/services/selectTeamService.js` validates the requested canonical
   `teamId` or exact case-insensitive display name against
@@ -477,17 +480,36 @@ LANG callback behave identically in Telegram.
   name canonicalization, proposal/approval/confirm, Telegram callbacks,
   and cross-process preference refresh.
 
-### PR-4 — `set_best_team_ranking`
+### PR-4 — `set_best_team_ranking` 🟡 Implemented (current branch)
 
-- Extract `src/services/setBestTeamRankingService.js`: validates
-  `teamId` ownership, validates `presetId` is in
-  `BEST_TEAM_RANKING_PRESETS`, writes attribute, invalidates
-  `bestTeamsCache[chatId][teamId]`.
-- Refactor the `BEST_TEAM_WEIGHTS_CALLBACK_TYPE` branch to call the
-  service.
-- Register `set_best_team_ranking` agent tool + frontend write action.
-- Tests + smoke (`/set_best_team_ranking` + web
-  `set_best_team_ranking` tool).
+- `src/services/setBestTeamRankingService.js` owns the four preset
+  definitions, exact team/preset validation, localized envelopes, durable
+  no-op detection, selected-best-team clearing, and per-team
+  `bestTeamsCache` invalidation.
+- Ranking and selected-best maps are whole JSON attributes. Writes use
+  `updateUserAttributesAtomically`: an ETag compare-and-swap transform with
+  retry against the latest `UserRegistry` entity. Concurrent changes to
+  different teams cannot overwrite each other, and removing the last
+  selection cannot replace unrelated user attributes. Existing selected-best
+  writers were migrated to `selectedBestTeamService`, so no process-local
+  whole-map write can bypass the CAS boundary.
+- The shared profile hydration path refreshes language, selected team,
+  ranking preferences, and selected-best state together before Telegram
+  message/callback routing. Generation guards prevent pre-write reads from
+  restoring stale maps.
+- `get_best_teams` and `get_current_team` refresh ranking state before
+  their cores run, so Telegram changes invalidate stale calculations in the
+  separate agent Function process.
+- `BEST_TEAM_WEIGHTS_CALLBACK_TYPE` delegates to the service while retaining
+  the Telegram confirmation/recalculation text. Stale callbacks show a
+  bounded localized alert.
+- `set_best_team_ranking({ teamId?, teamName?, presetId })` canonicalizes
+  the owned team, validates preset IDs, skips confirmation only after a
+  durable no-op proof, and uses the shared confirmation/result cards.
+- Tests cover CAS retries, unrelated-field preservation, persistence
+  ordering/failure, default Pure Points semantics, stale-read races,
+  cross-process hydration/invalidation, Telegram parity, prompt routing,
+  and propose → approve → confirm.
 
 ### PR-5 — `activate_chip` *(with persistence fix)*
 

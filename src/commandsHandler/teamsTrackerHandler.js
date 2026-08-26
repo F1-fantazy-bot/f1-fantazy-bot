@@ -1,19 +1,17 @@
 const { t } = require('../i18n');
 const azureStorageService = require('../azureStorageService');
 const { listUserLeagues } = require('../leagueRegistryService');
-const { updateUserAttributes } = require('../userRegistryService');
 const { ensureSourceIsLeague } = require('../utils/teamSourceSwitcher');
 const {
   setCachedSelectedTeam,
 } = require('../services/selectTeamService');
 const {
-  userCache,
+  retainSelectedBestTeamPreferences,
+} = require('../services/selectedBestTeamService');
+const {
   getSelectedTeam,
   getTeamDisplayName,
   getUserLeagueTeamIds,
-  serializeSelectedBestTeamByTeam,
-  normalizeSelectedBestTeamByTeam,
-  clearSelectedBestTeam,
 } = require('../cache');
 const {
   sendErrorMessage,
@@ -519,27 +517,11 @@ async function applySave(bot, chatId, session) {
     nextActive = remaining[0] || null;
   }
 
-  const key = String(chatId);
-  if (!userCache[key]) {userCache[key] = {};}
-
-  // Drop selectedBestTeam entries for teams no longer followed.
-  const selectedBestTeamByTeam = normalizeSelectedBestTeamByTeam(
-    userCache[key].selectedBestTeamByTeam,
-  );
-  for (const teamId of Object.keys(selectedBestTeamByTeam)) {
-    if (!finalTeamIds.has(teamId)) {
-      clearSelectedBestTeam(chatId, teamId);
-    }
-  }
-
   try {
-    await updateUserAttributes(chatId, {
-      selectedTeam: nextActive,
-      selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
-        normalizeSelectedBestTeamByTeam(
-          userCache[key].selectedBestTeamByTeam,
-        ),
-      ),
+    await retainSelectedBestTeamPreferences({
+      chatId,
+      teamIds: [...finalTeamIds],
+      attributes: { selectedTeam: nextActive },
     });
     setCachedSelectedTeam(chatId, nextActive);
   } catch (err) {
@@ -547,6 +529,7 @@ async function applySave(bot, chatId, session) {
       `Error persisting user attributes after teams tracker save for ${chatId}:`,
       err,
     );
+    throw err;
   }
 
   await azureStorageService.deleteTeamsTrackerSession(chatId);

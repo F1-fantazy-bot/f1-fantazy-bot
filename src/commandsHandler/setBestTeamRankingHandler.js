@@ -1,33 +1,9 @@
 const { t } = require('../i18n');
 const { BEST_TEAM_WEIGHTS_CALLBACK_TYPE } = require('../constants');
 const { resolveSelectedTeam, remainingRaceCountCache, sharedKey } = require('../cache');
-
-const BEST_TEAM_RANKING_PRESETS = [
-  {
-    id: 'pure_points',
-    budgetChangePointsPerMillion: 0,
-    icon: '🎯',
-    labelKey: 'Pure Points',
-  },
-  {
-    id: 'points_lean',
-    budgetChangePointsPerMillion: 1.3,
-    icon: '⚖️',
-    labelKey: 'Points Lean',
-  },
-  {
-    id: 'points_plus_budget',
-    budgetChangePointsPerMillion: 1.65,
-    icon: '📊',
-    labelKey: 'Points Plus Budget',
-  },
-  {
-    id: 'balanced_budget_value',
-    budgetChangePointsPerMillion: 2,
-    icon: '🤝',
-    labelKey: 'Balanced Budget Value',
-  },
-];
+const {
+  BEST_TEAM_RANKING_PRESETS,
+} = require('../services/setBestTeamRankingService');
 
 async function handleSetBestTeamRanking(bot, msg) {
   const chatId = msg.chat.id;

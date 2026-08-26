@@ -25,3 +25,17 @@ test('requires select_team after the user answers with a team name', () => {
     'when an active-team switch request did not name a team',
   );
 });
+
+test('routes best-team ranking reads and writes to the right tools', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain(
+    'report its budgetChangePointsPerMillion; do NOT call the write tool',
+  );
+  expect(prompt).toContain(
+    'Points Plus Budget / 1.65 -> points_plus_budget',
+  );
+  expect(prompt).toMatch(
+    /call\s+set_best_team_ranking in that turn/,
+  );
+});

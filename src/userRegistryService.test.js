@@ -1,5 +1,7 @@
 const mockGetEntity = jest.fn();
 const mockUpsertEntity = jest.fn();
+const mockUpdateEntity = jest.fn();
+const mockCreateEntity = jest.fn();
 const mockCreateTable = jest.fn().mockResolvedValue();
 const mockListEntities = jest.fn();
 
@@ -8,6 +10,8 @@ jest.mock('@azure/data-tables', () => ({
     fromConnectionString: jest.fn().mockReturnValue({
       getEntity: mockGetEntity,
       upsertEntity: mockUpsertEntity,
+      updateEntity: mockUpdateEntity,
+      createEntity: mockCreateEntity,
       createTable: mockCreateTable,
       listEntities: mockListEntities,
     }),
@@ -23,6 +27,8 @@ describe('userRegistryService', () => {
     jest.clearAllMocks();
     mockGetEntity.mockReset();
     mockUpsertEntity.mockReset();
+    mockUpdateEntity.mockReset();
+    mockCreateEntity.mockReset();
     mockCreateTable.mockReset().mockResolvedValue();
     mockListEntities.mockReset();
 
@@ -280,6 +286,104 @@ describe('userRegistryService', () => {
           rowKey: '12345',
         },
         'Replace',
+      );
+    });
+  });
+
+  describe('updateUserAttributesAtomically', () => {
+    it('preserves unrelated fields and deletes null fields with ETag protection', async () => {
+      mockGetEntity.mockResolvedValueOnce({
+        partitionKey: 'User',
+        rowKey: '12345',
+        etag: 'etag-1',
+        chatName: 'Alice',
+        lang: 'he',
+        selectedBestTeamByTeam: '{"T1":{"drivers":["VER"]}}',
+      });
+      mockUpdateEntity.mockResolvedValueOnce();
+
+      const result = await userRegistryService.updateUserAttributesAtomically(
+        12345,
+        (current) => {
+          expect(current).toEqual({
+            chatName: 'Alice',
+            lang: 'he',
+            selectedBestTeamByTeam: '{"T1":{"drivers":["VER"]}}',
+          });
+
+          return {
+            bestTeamBudgetChangePointsPerMillion: '{"T1":1.65}',
+            selectedBestTeamByTeam: null,
+          };
+        },
+      );
+
+      expect(mockUpdateEntity).toHaveBeenCalledWith(
+        {
+          partitionKey: 'User',
+          rowKey: '12345',
+          chatName: 'Alice',
+          lang: 'he',
+          bestTeamBudgetChangePointsPerMillion: '{"T1":1.65}',
+        },
+        'Replace',
+        { etag: 'etag-1' },
+      );
+      expect(result).toEqual({
+        updated: true,
+        user: {
+          chatName: 'Alice',
+          lang: 'he',
+          bestTeamBudgetChangePointsPerMillion: '{"T1":1.65}',
+        },
+      });
+    });
+
+    it('retries the transform against fresh state after an ETag conflict', async () => {
+      mockGetEntity
+        .mockResolvedValueOnce({
+          partitionKey: 'User',
+          rowKey: '12345',
+          etag: 'etag-1',
+          bestTeamBudgetChangePointsPerMillion: '{"T1":0}',
+        })
+        .mockResolvedValueOnce({
+          partitionKey: 'User',
+          rowKey: '12345',
+          etag: 'etag-2',
+          bestTeamBudgetChangePointsPerMillion: '{"T1":0,"T2":2}',
+        });
+      const conflict = new Error('UpdateConditionNotSatisfied');
+      conflict.statusCode = 412;
+      mockUpdateEntity
+        .mockRejectedValueOnce(conflict)
+        .mockResolvedValueOnce();
+      const transform = jest.fn((current) => {
+        const values = JSON.parse(
+          current.bestTeamBudgetChangePointsPerMillion || '{}',
+        );
+        values.T1 = 1.3;
+
+        return {
+          bestTeamBudgetChangePointsPerMillion: JSON.stringify(values),
+        };
+      });
+
+      const result = await userRegistryService.updateUserAttributesAtomically(
+        12345,
+        transform,
+      );
+
+      expect(transform).toHaveBeenCalledTimes(2);
+      expect(mockUpdateEntity).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          bestTeamBudgetChangePointsPerMillion: '{"T1":1.3,"T2":2}',
+        }),
+        'Replace',
+        { etag: 'etag-2' },
+      );
+      expect(result.user.bestTeamBudgetChangePointsPerMillion).toBe(
+        '{"T1":1.3,"T2":2}',
       );
     });
   });

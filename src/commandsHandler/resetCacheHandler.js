@@ -1,19 +1,21 @@
 const azureStorageService = require('../azureStorageService');
-const { updateUserAttributes } = require('../userRegistryService');
+const {
+  updateUserAttributesAtomically,
+} = require('../userRegistryService');
 const {
   driversCache,
   constructorsCache,
   currentTeamCache,
   bestTeamsCache,
   selectedChipCache,
-  userCache,
-  clearAllSelectedBestTeams,
-  serializeSelectedBestTeamByTeam,
 } = require('../cache');
 const { t } = require('../i18n');
 const {
   setCachedSelectedTeam,
 } = require('../services/selectTeamService');
+const {
+  setCachedRankingPreferences,
+} = require('../services/setBestTeamRankingService');
 
 async function resetCacheForChat(chatId, bot) {
   delete driversCache[chatId];
@@ -23,19 +25,12 @@ async function resetCacheForChat(chatId, bot) {
   delete bestTeamsCache[chatId];
   delete selectedChipCache[chatId];
 
-  // Clear selected team
-  const key = String(chatId);
-  if (userCache[key]) {
-    userCache[key].bestTeamBudgetChangePointsPerMillion = {};
-  }
-  const selectedBestTeamByTeam = clearAllSelectedBestTeams(chatId);
-  await updateUserAttributes(chatId, {
+  await updateUserAttributesAtomically(chatId, () => ({
     selectedTeam: null,
     bestTeamBudgetChangePointsPerMillion: null,
-    selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
-      selectedBestTeamByTeam,
-    ),
-  });
+    selectedBestTeamByTeam: null,
+  }));
+  setCachedRankingPreferences(chatId, {}, {}, null);
   setCachedSelectedTeam(chatId, null, { preserveNull: true });
 
   await bot

@@ -33,12 +33,18 @@ const { listUserLeagues } = require('../leagueRegistryService');
 const {
   getFreshLanguagePreference,
 } = require('../services/setLanguageService');
+const {
+  refreshBestTeamRankingPreferencesSafely,
+} = require('../services/setBestTeamRankingService');
 const { getAgentChatId } = require('./identity');
 const { ensureCacheReady } = require('./cacheBootstrap');
 const { wrapToolExecute } = require('./wrapToolExecute');
 const { executeConfirmedWrite } = require('./writeToolHelpers');
 const { setLanguageTool } = require('./writeTools/setLanguageTool');
 const { selectTeamTool } = require('./writeTools/selectTeamTool');
+const {
+  setBestTeamRankingTool,
+} = require('./writeTools/setBestTeamRankingTool');
 const { getLanguageTool } = require('./readTools/getLanguageTool');
 
 // Trim a best-teams calculator row down to the fields the React component
@@ -148,7 +154,10 @@ const tools = [
     execute: wrapToolExecute('get_best_teams', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
-      const language = await getFreshLanguagePreference(chatId);
+      const [language] = await Promise.all([
+        getFreshLanguagePreference(chatId),
+        refreshBestTeamRankingPreferencesSafely(chatId),
+      ]);
       // Web component renders up to 10 teams at a time — anything beyond
       // that bloats the streamed tool payload and the LLM context.
       const result = await computeBestTeams({
@@ -346,15 +355,19 @@ const tools = [
     execute: wrapToolExecute('get_current_team', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
+      const [language] = await Promise.all([
+        getFreshLanguagePreference(chatId),
+        refreshBestTeamRankingPreferencesSafely(chatId),
+      ]);
 
-      return await withUiLanguage(
-        chatId,
-        await getCurrentTeam({
+      return {
+        ...(await getCurrentTeam({
           chatId,
           teamId: args.teamId,
           teamName: args.teamName,
-        }),
-      );
+        })),
+        lang: language.lang,
+      };
     }),
   }),
 
@@ -472,6 +485,7 @@ const tools = [
   // ---------------------------------------------------------------
   setLanguageTool,
   selectTeamTool,
+  setBestTeamRankingTool,
 
   defineTool({
     name: 'confirm_write',

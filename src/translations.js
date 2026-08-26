@@ -221,6 +221,14 @@ const translations = {
     '{ICON} {LABEL} ({VALUE})': '{ICON} {LABEL} ({VALUE})',
     'Best-team ranking set: {LABEL} ({VALUE} pts per 1M per remaining race).':
       'דירוג הקבוצות המיטביות עודכן: {LABEL} ({VALUE} נק׳ לכל 1M לכל מרוץ שנותר).',
+    'Best-team ranking for {TEAM} is already {LABEL} ({VALUE} pts per 1M per remaining race).':
+      'דירוג הקבוצות המיטביות עבור {TEAM} כבר מוגדר ל-{LABEL} ({VALUE} נק׳ לכל 1M לכל מרוץ שנותר).',
+    'Change best-team ranking for {TEAM} to {LABEL} ({VALUE} pts per 1M per remaining race).':
+      'לשנות את דירוג הקבוצות המיטביות עבור {TEAM} ל-{LABEL} ({VALUE} נק׳ לכל 1M לכל מרוץ שנותר).',
+    'Ranking preset {PRESET} is not available. Available presets: {PRESETS}.':
+      'העדפת הדירוג {PRESET} אינה זמינה. ההעדפות הזמינות: {PRESETS}.',
+    'That ranking option is no longer available. Reopen /set_best_team_ranking and choose again.':
+      'אפשרות הדירוג הזו כבר אינה זמינה. פתח שוב את /set_best_team_ranking ובחר מחדש.',
     'Choose best-team ranking preference:': 'בחר העדפת דירוג לקבוצות המיטביות:',
     'Value = points added for each 1M budget change per race left.':
       'ערך = כמה נקודות מתווספות על כל שינוי של 1M לכל מרוץ שנותר.',
