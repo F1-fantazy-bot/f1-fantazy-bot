@@ -1,5 +1,4 @@
 const azureStorageService = require('../azureStorageService');
-const { updateUserAttributes } = require('../userRegistryService');
 const { sendLogMessage } = require('./utils');
 const {
   sanitizeIdSegment,
@@ -11,14 +10,16 @@ const {
   bestTeamsCache,
   selectedChipCache,
   leagueTeamsDataCache,
-  clearSelectedBestTeam,
-  serializeSelectedBestTeamByTeam,
+
   getUserLeagueTeamIds,
   getSelectedTeam,
 } = require('../cache');
 const {
   setCachedSelectedTeam,
 } = require('../services/selectTeamService');
+const {
+  clearSelectedBestTeamPreference,
+} = require('../services/selectedBestTeamService');
 const { NAME_TO_CODE_MAPPING } = require('../constants');
 
 function mapNameToCode(name) {
@@ -161,7 +162,23 @@ async function followLeagueTeam(bot, chatId, { teamId, leagueTeam }) {
   if (selectedChipCache[chatId]) {
     delete selectedChipCache[chatId][teamId];
   }
-  clearSelectedBestTeam(chatId, teamId);
+  try {
+    await clearSelectedBestTeamPreference({ chatId, teamId });
+  } catch (err) {
+    delete currentTeamCache[chatId][teamId];
+    if (Object.keys(currentTeamCache[chatId]).length === 0) {
+      delete currentTeamCache[chatId];
+    }
+    try {
+      await azureStorageService.deleteUserTeam(bot, chatId, teamId);
+    } catch (rollbackErr) {
+      console.error(
+        `Failed to roll back followed team ${teamId} for ${chatId}:`,
+        rollbackErr,
+      );
+    }
+    throw err;
+  }
 
   return {
     teamId,
@@ -208,8 +225,6 @@ async function removeFollowedTeam(
       delete selectedChipCache[chatId];
     }
   }
-  const selectedBestTeamByTeam = clearSelectedBestTeam(chatId, teamId);
-
   let fallbackSelectedTeam = getSelectedTeam(chatId);
   if (!mutateSelectedTeam) {
     return { removed: true, fallbackSelectedTeam };
@@ -223,11 +238,10 @@ async function removeFollowedTeam(
   }
 
   try {
-    await updateUserAttributes(chatId, {
-      selectedTeam: fallbackSelectedTeam,
-      selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
-        selectedBestTeamByTeam,
-      ),
+    await clearSelectedBestTeamPreference({
+      chatId,
+      teamId,
+      attributes: { selectedTeam: fallbackSelectedTeam },
     });
     if (selectedTeamChanged) {
       setCachedSelectedTeam(chatId, fallbackSelectedTeam);

@@ -1,7 +1,9 @@
 const { KILZI_CHAT_ID, EXTRA_BOOST_CHIP, WILDCARD_CHIP, WITHOUT_CHIP } = require('../constants');
-const { updateUserAttributes } = require('../userRegistryService');
-jest.mock('../userRegistryService', () => ({
-  updateUserAttributes: jest.fn().mockResolvedValue(undefined),
+const {
+  clearSelectedBestTeamPreference,
+} = require('../services/selectedBestTeamService');
+jest.mock('../services/selectedBestTeamService', () => ({
+  clearSelectedBestTeamPreference: jest.fn().mockResolvedValue({}),
 }));
 const {
   bestTeamsCache,
@@ -41,8 +43,9 @@ describe('select chip handlers', () => {
 
     expect(selectedChipCache[KILZI_CHAT_ID][TEAM_ID]).toBe(EXTRA_BOOST_CHIP);
     expect(bestTeamsCache[KILZI_CHAT_ID][TEAM_ID]).toBeUndefined();
-    expect(updateUserAttributes).toHaveBeenCalledWith(KILZI_CHAT_ID, {
-      selectedBestTeamByTeam: null,
+    expect(clearSelectedBestTeamPreference).toHaveBeenCalledWith({
+      chatId: KILZI_CHAT_ID,
+      teamId: TEAM_ID,
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,

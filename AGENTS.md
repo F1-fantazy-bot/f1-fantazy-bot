@@ -320,6 +320,7 @@ The table is **extensible** — new attributes can be added at any time without 
 | ---------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `upsertUser`           | `upsertUser(chatId, chatName) → Promise`             | Track a user interaction. Fire-and-forget — errors are logged, never thrown. Uses Merge mode to preserve all other fields.                                                                                        |
 | `updateUserAttributes` | `updateUserAttributes(chatId, attributes) → Promise` | Update one or more user attributes using Merge mode. No read step needed. Example: `updateUserAttributes(chatId, { nickname: 'Max' })`.                                                                           |
+| `updateUserAttributesAtomically` | `updateUserAttributesAtomically(chatId, transform, options?) → Promise` | ETag-protected read-modify-write with retry. Use for whole JSON-map fields that must preserve concurrent per-team changes; `null` from the transform skips the write, while null-valued attributes are removed safely. |
 | `getUserById`          | `getUserById(chatId) → Promise<Object\|null>`        | Point lookup for a single user by chat ID. Returns user object with all stored attributes, or `null` if not found. Throws on real storage errors. More efficient than `listAllUsers` when you only need one user. |
 | `listAllUsers`         | `listAllUsers() → Promise<Array<Object>>`            | Return all registered users with all stored attributes. Automatically includes future fields. Used by `cacheInitializer` to populate `userCache` on startup.                                                      |
 
@@ -568,7 +569,8 @@ hardening, Azure deployment, Google auth, and CORS rollout are complete.
 The effectful write-tools rollout is now active: PR
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207)
 merged the durable confirmation infrastructure; `set_language` is
-merged, and `select_team` is implemented in PR-3. See [Write-tool confirmation
+merged, `select_team` merged in PR-3, and `set_best_team_ranking` is
+implemented in PR-4. See [Write-tool confirmation
 infrastructure](#write-tool-confirmation-infrastructure) and
 [`docs/agent-write-tools-plan.md`](docs/agent-write-tools-plan.md).
 
@@ -691,14 +693,17 @@ f1-fantazy-bot/
 │   │   │   └── getLanguageTool.js    # read current persisted account language
 │   │   ├── writeTools/
 │   │   │   ├── setLanguageTool.js    # en/he preference
-│   │   │   └── selectTeamTool.js     # confirmed active-team selection
+│   │   │   ├── selectTeamTool.js     # confirmed active-team selection
+│   │   │   └── setBestTeamRankingTool.js # confirmed per-team ranking preset
 │   │   └── runtime.js                # BuiltInAgent + CopilotRuntime + createCopilotRuntimeHandler (+ wrapLanguageModel)
 │   ├── services/
 │   │   ├── pendingWritesStore.js     # Azure Table-backed staged/approved intents + TTL + ETag consume
 │   │   ├── userProfileSyncService.js # bounded/coalesced UserRegistry point lookup
 │   │   ├── setLanguageService.js     # shared Telegram/agent language persistence + hydration
 │   │   ├── selectTeamService.js      # owned-team validation, persistence + generation-safe cache mutation
-│   │   └── telegramUserPreferencesService.js # one-route refresh of language + selected team
+│   │   ├── setBestTeamRankingService.js # CAS-safe ranking persistence + cache invalidation
+│   │   ├── selectedBestTeamService.js # CAS-safe per-team selected-best mutations
+│   │   └── telegramUserPreferencesService.js # one-route refresh of language/team/ranking
 │   ├── bestTeamsCalculator.js        # exports an optional `options` arg: filters + rankBy + resultCount
 │   └── commandsHandler/
 │       ├── nextRacesHandler.js       # refactored: thin Telegram adapter over the core
@@ -981,6 +986,20 @@ Concrete write tools currently available:
   resolve a valid name. Successful `select_team` result cards emit
   `f1:selected-team-changed`, so any already-visible team grid updates its
   active highlight instead of retaining a stale pre-write snapshot.
+- `set_best_team_ranking({ teamId?, teamName?, presetId })` — shared
+  `src/services/setBestTeamRankingService.js`. Presets are `pure_points`
+  (0), `points_lean` (1.3), `points_plus_budget` (1.65), and
+  `balanced_budget_value` (2). Telegram's BEST_TEAM_WEIGHTS callback and
+  the agent tool delegate to the same service. The service updates the two
+  whole JSON preference maps through `updateUserAttributesAtomically`
+  (ETag CAS + retry), clears that team's selected best team, and invalidates
+  only affected best-team calculations. Ranking state hydrates before every
+  Telegram route and before agent `get_best_teams` / `get_current_team`
+  reads, so cross-process writes cannot leave stale ranking results.
+  Every read-modify-write mutation of `selectedBestTeamByTeam` delegates to
+  `selectedBestTeamService`; do not write that JSON field from process-local
+  cache. Authoritative reset/import operations also use CAS and publish
+  their local preference caches only after persistence succeeds.
 
 Language and selected-team hydration share the bounded/coalesced
 `src/services/userProfileSyncService.js` point lookup. Telegram refreshes

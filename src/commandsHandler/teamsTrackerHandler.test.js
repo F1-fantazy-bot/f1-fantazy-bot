@@ -1,6 +1,9 @@
 jest.mock('../azureStorageService');
 jest.mock('../leagueRegistryService');
-jest.mock('../userRegistryService');
+jest.mock('../services/selectedBestTeamService', () => ({
+  retainSelectedBestTeamPreferences: jest.fn(),
+  clearSelectedBestTeamPreference: jest.fn().mockResolvedValue({}),
+}));
 jest.mock('../utils/teamSourceSwitcher');
 jest.mock('../utils/utils', () => ({
   sendLogMessage: jest.fn().mockResolvedValue(undefined),
@@ -10,7 +13,9 @@ jest.mock('../utils/utils', () => ({
 
 const azureStorageService = require('../azureStorageService');
 const { listUserLeagues } = require('../leagueRegistryService');
-const { updateUserAttributes } = require('../userRegistryService');
+const {
+  retainSelectedBestTeamPreferences,
+} = require('../services/selectedBestTeamService');
 const {
   ensureSourceIsLeague,
 } = require('../utils/teamSourceSwitcher');
@@ -63,7 +68,7 @@ describe('handleTeamsTrackerCommand', () => {
       .mockResolvedValue(null);
     azureStorageService.saveUserTeam = jest.fn().mockResolvedValue(undefined);
     azureStorageService.deleteUserTeam = jest.fn().mockResolvedValue(undefined);
-    updateUserAttributes.mockResolvedValue(undefined);
+    retainSelectedBestTeamPreferences.mockResolvedValue({});
     ensureSourceIsLeague.mockResolvedValue(false);
   });
 
@@ -212,7 +217,7 @@ describe('handleTeamsTrackerCallback', () => {
     listUserLeagues.mockResolvedValue([
       { leagueCode: 'L1', leagueName: 'One' },
     ]);
-    updateUserAttributes.mockResolvedValue(undefined);
+    retainSelectedBestTeamPreferences.mockResolvedValue({});
     ensureSourceIsLeague.mockResolvedValue(false);
   });
 
@@ -415,9 +420,55 @@ describe('handleTeamsTrackerCallback', () => {
     });
     const bot = makeBot();
     await handleTeamsTrackerCallback(bot, queryFixture('TT:S'));
-    expect(updateUserAttributes).toHaveBeenCalledWith(
-      CHAT_ID,
-      expect.objectContaining({ selectedTeam: 'Keep-Owner_1' }),
+    expect(retainSelectedBestTeamPreferences).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatId: CHAT_ID,
+        attributes: { selectedTeam: 'Keep-Owner_1' },
+      }),
+    );
+  });
+
+  it('preserves the tracker session and reports failure when final CAS fails', async () => {
+    cache.userCache[String(CHAT_ID)] = { selectedTeam: 'Keep-Owner_1' };
+    cache.currentTeamCache[CHAT_ID] = { 'Keep-Owner_1': { drivers: [] } };
+    azureStorageService.getTeamsTrackerSession = jest
+      .fn()
+      .mockResolvedValue(
+        sessionFixture({
+          selected: [{ leagueCode: 'L1', teamId: 'Keep-Owner_1' }],
+          initiallyFollowed: ['Keep-Owner_1'],
+          addOrder: [],
+        }),
+      );
+    azureStorageService.getLeagueTeamsData.mockResolvedValue({
+      leagueCode: 'L1',
+      teams: [
+        {
+          position: 5,
+          teamName: 'Keep',
+          userName: 'Keep Owner',
+          teamNo: 1,
+          budget: 100,
+        },
+      ],
+    });
+    retainSelectedBestTeamPreferences.mockRejectedValueOnce(
+      new Error('CAS unavailable'),
+    );
+    const bot = makeBot();
+
+    await handleTeamsTrackerCallback(bot, queryFixture('TT:S'));
+
+    expect(
+      azureStorageService.deleteTeamsTrackerSession,
+    ).not.toHaveBeenCalled();
+    expect(bot.editMessageText).not.toHaveBeenCalled();
+    expect(bot.answerCallbackQuery).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        show_alert: true,
+        text: expect.stringContaining('CAS unavailable'),
+      }),
     );
   });
 
@@ -447,9 +498,11 @@ describe('handleTeamsTrackerCallback', () => {
     });
     const bot = makeBot();
     await handleTeamsTrackerCallback(bot, queryFixture('TT:S'));
-    expect(updateUserAttributes).toHaveBeenCalledWith(
-      CHAT_ID,
-      expect.objectContaining({ selectedTeam: 'NewTeam-Owner_1' }),
+    expect(retainSelectedBestTeamPreferences).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatId: CHAT_ID,
+        attributes: { selectedTeam: 'NewTeam-Owner_1' },
+      }),
     );
   });
 
@@ -479,9 +532,11 @@ describe('handleTeamsTrackerCallback', () => {
     });
     const bot = makeBot();
     await handleTeamsTrackerCallback(bot, queryFixture('TT:S'));
-    expect(updateUserAttributes).toHaveBeenCalledWith(
-      CHAT_ID,
-      expect.objectContaining({ selectedTeam: null }),
+    expect(retainSelectedBestTeamPreferences).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatId: CHAT_ID,
+        attributes: { selectedTeam: null },
+      }),
     );
   });
 

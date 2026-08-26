@@ -1,4 +1,20 @@
-const { mapLeagueTeamToBotTeam } = require('./leagueTeamHelpers');
+jest.mock('../azureStorageService', () => ({
+  saveUserTeam: jest.fn(),
+  deleteUserTeam: jest.fn(),
+}));
+jest.mock('../services/selectedBestTeamService', () => ({
+  clearSelectedBestTeamPreference: jest.fn(),
+}));
+
+const azureStorageService = require('../azureStorageService');
+const {
+  clearSelectedBestTeamPreference,
+} = require('../services/selectedBestTeamService');
+const { currentTeamCache } = require('../cache');
+const {
+  mapLeagueTeamToBotTeam,
+  followLeagueTeam,
+} = require('./leagueTeamHelpers');
 
 describe('mapLeagueTeamToBotTeam', () => {
   // A representative league-team blob as the scraper writes it after
@@ -55,6 +71,48 @@ describe('mapLeagueTeamToBotTeam', () => {
     expect(
       mapLeagueTeamToBotTeam(fixture({ budget: 106.8 })).costCapRemaining,
     ).toBe(0);
+  });
+
+  describe('followLeagueTeam', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      delete currentTeamCache[42];
+      azureStorageService.saveUserTeam.mockResolvedValue(undefined);
+      azureStorageService.deleteUserTeam.mockResolvedValue(undefined);
+      clearSelectedBestTeamPreference.mockResolvedValue({});
+    });
+
+    afterEach(() => {
+      delete currentTeamCache[42];
+    });
+
+    test('rolls back blob and cache when selected-best CAS fails', async () => {
+      const error = new Error('CAS unavailable');
+      clearSelectedBestTeamPreference.mockRejectedValue(error);
+      const bot = {};
+
+      await expect(
+        followLeagueTeam(bot, 42, {
+          teamId: 'Owner_1',
+          leagueTeam: {
+            teamName: 'Team',
+            userName: 'Owner',
+            teamNo: 1,
+            budget: 100,
+            transfersRemaining: 2,
+            drivers: [],
+            constructors: [],
+          },
+        }),
+      ).rejects.toThrow('CAS unavailable');
+
+      expect(azureStorageService.deleteUserTeam).toHaveBeenCalledWith(
+        bot,
+        42,
+        'Owner_1',
+      );
+      expect(currentTeamCache[42]).toBeUndefined();
+    });
   });
 
   it('gracefully degrades to 0 for stale blobs where budget = teamValue', () => {

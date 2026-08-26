@@ -9,6 +9,7 @@ const { TableClient } = require('@azure/data-tables');
 
 const TABLE_NAME = 'UserRegistry';
 const PARTITION_KEY = 'User';
+const DEFAULT_ATOMIC_UPDATE_ATTEMPTS = 4;
 
 // Azure Table Storage system fields that should be excluded when returning user data
 const SYSTEM_FIELDS = new Set([
@@ -158,6 +159,87 @@ async function updateUserAttributes(chatId, attributes) {
 }
 
 /**
+ * Apply a read-modify-write transform with optimistic concurrency.
+ * The transform receives only user-owned fields and returns changed fields;
+ * null removes a field. ETag conflicts retry from a fresh entity so JSON-map
+ * attributes cannot lose concurrent updates.
+ */
+async function updateUserAttributesAtomically(
+  chatId,
+  transform,
+  { maxAttempts = DEFAULT_ATOMIC_UPDATE_ATTEMPTS } = {},
+) {
+  if (typeof transform !== 'function') {
+    throw new TypeError('transform must be a function');
+  }
+  await ensureTable();
+
+  const rowKey = String(chatId);
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    let existingEntity;
+    try {
+      existingEntity = await tableClient.getEntity(PARTITION_KEY, rowKey);
+    } catch (err) {
+      if (err.statusCode !== 404) {
+        throw err;
+      }
+      existingEntity = null;
+    }
+
+    const currentUser = {};
+    for (const [key, value] of Object.entries(existingEntity || {})) {
+      if (!SYSTEM_FIELDS.has(key)) {
+        currentUser[key] = value;
+      }
+    }
+    const attributes = await transform({ ...currentUser });
+    if (attributes === null) {
+      return { updated: false, user: currentUser };
+    }
+    if (
+      !attributes ||
+      typeof attributes !== 'object' ||
+      Array.isArray(attributes)
+    ) {
+      throw new TypeError('transform must return an attributes object or null');
+    }
+
+    const nextUser = { ...currentUser };
+    for (const [key, value] of Object.entries(attributes)) {
+      if (value === null) {
+        delete nextUser[key];
+      } else {
+        nextUser[key] = value;
+      }
+    }
+    const entity = {
+      partitionKey: PARTITION_KEY,
+      rowKey,
+      ...nextUser,
+    };
+
+    try {
+      if (existingEntity) {
+        await tableClient.updateEntity(entity, 'Replace', {
+          etag: existingEntity.etag,
+        });
+      } else {
+        await tableClient.createEntity(entity);
+      }
+
+      return { updated: true, user: nextUser };
+    } catch (err) {
+      const isConflict = err.statusCode === 409 || err.statusCode === 412;
+      if (!isConflict || attempt === maxAttempts) {
+        throw err;
+      }
+    }
+  }
+
+  throw new Error('Atomic user update exhausted retries');
+}
+
+/**
  * Get a single user by their chat ID.
  * Uses a direct Azure Table Storage point lookup (getEntity) — much more efficient than listing all users.
  * @param {number|string} chatId - The chat ID of the user to look up
@@ -226,6 +308,7 @@ async function listAllUsers() {
 module.exports = {
   upsertUser,
   updateUserAttributes,
+  updateUserAttributesAtomically,
   getUserById,
   listAllUsers,
 };

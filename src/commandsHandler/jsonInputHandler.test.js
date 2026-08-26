@@ -10,9 +10,16 @@ jest.mock('../azureStorageService', () => ({
   saveUserTeam: jest.fn().mockResolvedValue(undefined),
 }));
 
-const { updateUserAttributes } = require('../userRegistryService');
+const {
+  updateUserAttributesAtomically,
+} = require('../userRegistryService');
 jest.mock('../userRegistryService', () => ({
-  updateUserAttributes: jest.fn().mockResolvedValue(undefined),
+  updateUserAttributesAtomically: jest.fn(
+    async (_chatId, transform) => ({
+      updated: true,
+      user: await transform({}),
+    }),
+  ),
 }));
 
 const {
@@ -156,7 +163,13 @@ describe('handleJsonMessage', () => {
       azureStorageService.saveUserTeam.mock.invocationCallOrder[0],
     );
 
-    expect(updateUserAttributes).toHaveBeenCalledWith(KILZI_CHAT_ID, {
+    expect(updateUserAttributesAtomically).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      expect.any(Function),
+    );
+    expect(
+      updateUserAttributesAtomically.mock.calls[0][1]({}),
+    ).toEqual({
       selectedTeam: 'T2',
       bestTeamBudgetChangePointsPerMillion: JSON.stringify({
         T1: 1.65,
@@ -331,7 +344,13 @@ describe('handleJsonMessage', () => {
       KILZI_CHAT_ID,
     );
     expect(azureStorageService.saveUserTeam).not.toHaveBeenCalled();
-    expect(updateUserAttributes).toHaveBeenCalledWith(KILZI_CHAT_ID, {
+    expect(updateUserAttributesAtomically).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      expect.any(Function),
+    );
+    expect(
+      updateUserAttributesAtomically.mock.calls[0][1]({}),
+    ).toEqual({
       selectedTeam: null,
       bestTeamBudgetChangePointsPerMillion: JSON.stringify({}),
       selectedBestTeamByTeam: null,
@@ -445,7 +464,7 @@ describe('handleJsonMessage', () => {
     expect(userCache[String(KILZI_CHAT_ID)]).toEqual(beforeState.user);
     expect(azureStorageService.deleteAllUserTeams).not.toHaveBeenCalled();
     expect(azureStorageService.saveUserTeam).not.toHaveBeenCalled();
-    expect(updateUserAttributes).not.toHaveBeenCalled();
+    expect(updateUserAttributesAtomically).not.toHaveBeenCalled();
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
       'Invalid cache snapshot. Paste the JSON output of /print_cache.',

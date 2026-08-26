@@ -646,7 +646,9 @@ The full per-tool checklist (including the **cache bootstrap** and
   write tool, `set_language`, its read-only `get_language` companion,
   and saved-language localization for every rich web component. PR-3
   adds the confirmed `select_team` tool plus cross-process selected-team
-  hydration; PR-4..PR-10 continue one vertical slice at a time.
+  hydration. PR-4 adds confirmed per-team best-team ranking writes with
+  ETag-safe JSON-map persistence and cross-process cache invalidation;
+  PR-5..PR-10 continue one vertical slice at a time.
 - **Rate-limiting on the agent endpoint** (Azure API Management or a CDN-layer policy) — defense in depth even after proper auth lands; relevant if abuse appears in App Insights before proper auth ships.
 
 ---

@@ -1,6 +1,5 @@
 const { extractJsonDataFromPhotos } = require('./jsonDataExtraction');
 const azureStorageService = require('./azureStorageService');
-const { updateUserAttributes } = require('./userRegistryService');
 const {
   currentTeamCache,
   constructorsCache,
@@ -8,8 +7,6 @@ const {
   getPrintableCache,
   getTeamDisplayName,
   bestTeamsCache,
-  clearSelectedBestTeam,
-  serializeSelectedBestTeamByTeam,
 } = require('./cache');
 const {
   DRIVERS_PHOTO_TYPE,
@@ -26,6 +23,9 @@ const {
 const {
   setCachedSelectedTeam,
 } = require('./services/selectTeamService');
+const {
+  clearSelectedBestTeamPreference,
+} = require('./services/selectedBestTeamService');
 
 async function processPhotoByType(
   bot,
@@ -149,12 +149,10 @@ async function storeInCache(bot, chatId, type, extractedData, fileUniqueId) {
       teamDataWithoutId,
     );
 
-    const selectedBestTeamByTeam = clearSelectedBestTeam(chatId, teamId);
-    await updateUserAttributes(chatId, {
-      selectedTeam: teamId,
-      selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
-        selectedBestTeamByTeam,
-      ),
+    await clearSelectedBestTeamPreference({
+      chatId,
+      teamId,
+      attributes: { selectedTeam: teamId },
     });
     setCachedSelectedTeam(chatId, teamId);
 
