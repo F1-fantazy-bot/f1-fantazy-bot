@@ -469,7 +469,10 @@ LANG callback behave identically in Telegram.
   a short team-name/id reply is treated as the answer to that pending switch.
   The system prompt requires `select_team` in the same turn and forbids
   claiming an approval card exists before the tool actually returns
-  `confirmation_required`.
+  `confirmation_required`. A named switch with no recent list calls
+  `select_team({ teamName })` directly; all teams are rendered only when the
+  user needs a choice or disambiguation. Successful results notify any
+  visible team grid to refresh its active highlight.
 - Tests cover ownership, persistence ordering/failure, stale-read races,
   name canonicalization, proposal/approval/confirm, Telegram callbacks,
   and cross-process preference refresh.

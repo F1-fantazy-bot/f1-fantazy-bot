@@ -91,7 +91,7 @@ const tools = [
   defineTool({
     name: 'list_user_teams',
     description:
-      'List the F1 Fantasy teams the user is tracking. Returns an array of teams with `teamId` (canonical identifier — pass this to other tools), `teamName` (friendly label like "kilzid3"), `isSelected`, `chip`, current drivers, current constructors, and roster metadata. Call this once when a friendly name must be resolved. If the latest conversation context already contains this result and the user then picks a team, do NOT call this again; pass that teamId directly to the requested tool, including `select_team`.',
+      'List the F1 Fantasy teams the user is tracking. Returns an array of teams with `teamId` (canonical identifier — pass this to other tools), `teamName` (friendly label like "kilzid3"), `isSelected`, `chip`, current drivers, current constructors, and roster metadata. Use it when the user asks to see or choose from their teams. Do not call it solely to resolve a named active-team switch: `select_team` accepts and validates an exact teamName directly. If the latest conversation context already contains this result and the user then picks a team, pass that teamId directly to `select_team`.',
     parameters: z.object({}),
     execute: wrapToolExecute('list_user_teams', async () => {
       await ensureCacheReady();

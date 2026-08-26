@@ -25,7 +25,7 @@ const parameters = z
 const selectTeamTool = defineWriteTool({
   name: 'select_team',
   description:
-    'Change the signed-in user\'s active F1 Fantasy team. Pass teamId from list_user_teams when available, or an exact teamName. Call this immediately when the user names a team after being asked which team to activate; do not merely describe or claim a confirmation card before executing this tool. This write always requires the confirmation card unless that team is already active.',
+    'Change the signed-in user\'s active F1 Fantasy team. Pass teamId from a recent list_user_teams result when available, or pass an exact teamName directly without first listing teams. Call this immediately when the user names a team after being asked which team to activate; do not merely describe or claim a confirmation card before executing this tool. This write always requires the confirmation card unless that team is already active.',
   parameters,
   validate: async ({ chatId, args }) => {
     const resolved = resolveTeamSelection({ chatId, ...args });

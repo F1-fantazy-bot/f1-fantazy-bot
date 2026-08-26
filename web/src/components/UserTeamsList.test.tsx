@@ -1,7 +1,11 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { UserTeamsList, type UserTeam } from './UserTeamsList';
+import {
+  TEAM_SELECTION_CHANGED_EVENT,
+  UserTeamsList,
+  type UserTeam,
+} from './UserTeamsList';
 
 const activeTeam: UserTeam = {
   teamId: 'T1',
@@ -93,5 +97,35 @@ describe('UserTeamsList selection cards', () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
       'לא ניתן להתחיל את בחירת הקבוצה',
     );
+  });
+
+  test('updates the active card when a selection result is announced', async () => {
+    await act(async () => {
+      root.render(
+        <UserTeamsList
+          result={{ lang: 'en', teams: [activeTeam, selectableTeam] }}
+          onSelectTeam={vi.fn()}
+        />,
+      );
+    });
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(TEAM_SELECTION_CHANGED_EVENT, {
+          detail: selectableTeam.teamId,
+        }),
+      );
+    });
+
+    expect(
+      container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Switch to this team: Kilzid 1"]',
+      )?.disabled,
+    ).toBe(false);
+    expect(
+      container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Kilzid 2, ACTIVE"]',
+      )?.disabled,
+    ).toBe(true);
   });
 });

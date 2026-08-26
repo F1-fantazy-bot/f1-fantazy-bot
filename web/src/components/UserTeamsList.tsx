@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { directionFor, uiLanguageOf, type UiLanguage } from './uiLanguage';
 
 export type UserTeam = {
@@ -18,6 +18,8 @@ export type ListUserTeamsResult = {
   lang?: string;
   teams?: UserTeam[];
 };
+
+export const TEAM_SELECTION_CHANGED_EVENT = 'f1:selected-team-changed';
 
 function chipBadge(chip: string | null, lang: UiLanguage) {
   if (!chip) return null;
@@ -57,6 +59,11 @@ export function UserTeamsList({
 }) {
   const lang = uiLanguageOf(result);
   const cardIdPrefix = useId();
+  const resultSelectedTeamId =
+    result?.teams?.find((team) => team.isSelected)?.teamId ?? null;
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(
+    resultSelectedTeamId,
+  );
   const [selectingTeamId, setSelectingTeamId] = useState<string | null>(null);
   const [selectionError, setSelectionError] = useState('');
   const labels =
@@ -96,6 +103,26 @@ export function UserTeamsList({
             'To change teams, click "Switch to this team" on the card you want. An approval card will appear next.',
         };
   const teams = result?.teams ?? [];
+
+  useEffect(() => {
+    setSelectedTeamId(resultSelectedTeamId);
+  }, [resultSelectedTeamId]);
+
+  useEffect(() => {
+    const updateSelection = (event: Event) => {
+      const teamId = (event as CustomEvent<unknown>).detail;
+      if (typeof teamId === 'string' && teamId.length > 0) {
+        setSelectedTeamId(teamId);
+      }
+    };
+
+    window.addEventListener(TEAM_SELECTION_CHANGED_EVENT, updateSelection);
+
+    return () => {
+      window.removeEventListener(TEAM_SELECTION_CHANGED_EVENT, updateSelection);
+    };
+  }, []);
+
   if (teams.length === 0) {
     return (
       <div
@@ -108,7 +135,13 @@ export function UserTeamsList({
   }
 
   async function selectTeam(team: UserTeam) {
-    if (!onSelectTeam || team.isSelected || selectingTeamId) return;
+    if (
+      !onSelectTeam ||
+      team.teamId === selectedTeamId ||
+      selectingTeamId
+    ) {
+      return;
+    }
 
     setSelectingTeamId(team.teamId);
     setSelectionError('');
@@ -146,6 +179,7 @@ export function UserTeamsList({
         }}
       >
         {teams.map((team, index) => {
+          const isSelected = team.teamId === selectedTeamId;
           const detailsId = `${cardIdPrefix}-team-${index}`;
           const teamSource = team.isLeague
             ? labels.league
@@ -162,19 +196,19 @@ export function UserTeamsList({
               <button
                 type="button"
                 className="user-team-card"
-                data-active={team.isSelected ? 'true' : 'false'}
+                data-active={isSelected ? 'true' : 'false'}
                 data-selectable={
-                  onSelectTeam && !team.isSelected && !selectingTeamId
+                  onSelectTeam && !isSelected && !selectingTeamId
                     ? 'true'
                     : 'false'
                 }
                 disabled={
-                  !onSelectTeam || team.isSelected || selectingTeamId !== null
+                  !onSelectTeam || isSelected || selectingTeamId !== null
                 }
-                aria-pressed={team.isSelected}
+                aria-pressed={isSelected}
                 aria-describedby={detailsId}
                 aria-label={
-                  team.isSelected
+                  isSelected
                     ? `${team.teamName}, ${labels.active}`
                     : `${labels.select}: ${team.teamName}`
                 }
@@ -188,7 +222,7 @@ export function UserTeamsList({
               }}
             >
               <strong style={{ fontSize: 15 }}>{team.teamName}</strong>
-              {team.isSelected ? (
+              {isSelected ? (
                 <span
                   style={{
                     marginInlineStart: 6,
@@ -242,7 +276,7 @@ export function UserTeamsList({
                   : ''}
               </div>
             </div>
-            {!team.isSelected && onSelectTeam ? (
+            {!isSelected && onSelectTeam ? (
               <span className="user-team-card__action">
                 {selectingTeamId === team.teamId
                   ? labels.selecting

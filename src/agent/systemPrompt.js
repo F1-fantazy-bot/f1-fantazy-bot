@@ -78,11 +78,12 @@ Workflow rules:
     already exists—the team cards are choices, not approval cards.
   - A short reply containing a team name or teamId after that question
     (for example "kilzid") is the user's answer to the pending switch
-    request. Resolve it from the most recent list_user_teams result and
-    call select_team with the canonical teamId IN THAT TURN.
-  - If the initial request already includes a friendly name but not a
-    canonical teamId, call list_user_teams first, then call select_team
-    with the matching teamId. Do not guess ownership.
+    request. If the most recent list_user_teams result contains the team,
+    call select_team with its canonical teamId IN THAT TURN.
+  - If the user names a team and no recent list_user_teams result is
+    available, call select_team DIRECTLY with that exact teamName. The
+    write tool validates ownership and reports invalid/ambiguous names.
+    Do NOT call list_user_teams merely to resolve a named team selection.
   - After the user names a valid team, NEVER ask which team again, NEVER
     call list_user_teams again, and NEVER merely describe the approval
     process. The required next action is the select_team tool call.
@@ -126,8 +127,8 @@ Workflow rules:
     first to look up the leagueCode, then call get_leaderboard.
 - When the user asks "which leagues do I follow", call list_user_leagues.
 - Only call list_user_teams when the user explicitly asks to see their
-  teams, when an active-team switch request needs a team choice or name
-  resolution, or when get_best_teams returns status="unknown_team" /
+  teams, when an active-team switch request did not name a team and needs
+  a choice, or when get_best_teams returns status="unknown_team" /
   "ambiguous_team" — then call list_user_teams to disambiguate and retry
   the requested tool with the canonical teamId.
 - Driver and constructor identifiers are 3-letter codes. Examples:

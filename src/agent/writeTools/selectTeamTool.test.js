@@ -67,6 +67,9 @@ test('description requires the tool on a team-name follow-up', () => {
   expect(selectTeamTool.description).toContain(
     'do not merely describe or claim a confirmation card',
   );
+  expect(selectTeamTool.description).toContain(
+    'pass an exact teamName directly without first listing teams',
+  );
 });
 
 test('returns changed=false without confirmation for the active team', async () => {
