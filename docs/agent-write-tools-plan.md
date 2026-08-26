@@ -458,6 +458,13 @@ LANG callback behave identically in Telegram.
 - `src/agent/writeTools/selectTeamTool.js` and the generic frontend write
   action register `select_team`. Same-team requests skip confirmation only
   when a fresh durable read proves the requested team is already active.
+- `UserTeamsAction` makes non-active cards selectable without relying on
+  model routing. A click posts the canonical team ID to the authenticated,
+  `select_team`-only `/api/agent/write-proposal` route, which runs the same
+  proposal validator/staging function and renders the returned confirmation
+  card immediately. Its authenticated `approve_and_confirm` decision approves,
+  consumes, and commits the durable single-use nonce server-side, so card
+  selection never depends on a second model turn.
 - Tests cover ownership, persistence ordering/failure, stale-read races,
   name canonicalization, proposal/approval/confirm, Telegram callbacks,
   and cross-process preference refresh.

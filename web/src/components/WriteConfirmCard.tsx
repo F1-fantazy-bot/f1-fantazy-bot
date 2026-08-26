@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAgent, useCopilotKit } from '@copilotkit/react-core/v2';
 import { useWriteDecision } from './WriteDecisionContext';
+import { isWriteResult, type WriteResult } from './WriteResultCard';
 
 // Result envelope the backend returns from a write-tool *propose* call.
 // Lives here (rather than in writeToolHelpers) to keep the frontend
@@ -35,8 +36,16 @@ export function isConfirmationRequired(
 // the intent server-side immediately.
 export function WriteConfirmCard({
   result,
+  directConfirm = false,
+  onSettled,
 }: {
   result: WriteConfirmationRequired;
+  directConfirm?: boolean;
+  onSettled?: (
+    outcome: 'confirmed' | 'cancelled' | 'error',
+    message?: string,
+    finalResult?: WriteResult,
+  ) => void;
 }) {
   const { agent } = useAgent({ agentId: 'default' });
   const { copilotkit } = useCopilotKit();
@@ -62,6 +71,10 @@ export function WriteConfirmCard({
         cancelMessage: 'לא — ביטלתי את השינוי.',
         approveError: 'לא ניתן לאשר את השינוי. נסה שוב.',
         cancelError: 'לא ניתן לבטל את השינוי. נסה שוב.',
+        approvalRecoveryError:
+          'האישור נשמר, אך לא ניתן היה להשלים או לבטל את השינוי. נסה שוב לפני בחירת שינוי אחר.',
+        directConfirmError:
+          'לא ניתן לאמת אם השינוי הושלם. רענן את רשימת הקבוצות לפני ניסיון נוסף.',
       }
     : {
         title: 'Confirm change',
@@ -82,9 +95,19 @@ export function WriteConfirmCard({
         cancelMessage: 'No — I cancelled that change.',
         approveError: 'Unable to approve this change. Please try again.',
         cancelError: 'Unable to cancel this change. Please try again.',
+        approvalRecoveryError:
+          'Approval was saved, but the change could not be completed or revoked. Retry before selecting another change.',
+        directConfirmError:
+          'The final status could not be verified. Refresh the team list before trying again.',
       };
   const [decision, setDecision] = useState<
-    'pending' | 'submitting' | 'confirmed' | 'cancelled' | 'error'
+    | 'pending'
+    | 'submitting'
+    | 'confirmed'
+    | 'cancelled'
+    | 'error'
+    | 'blocked'
+    | 'revoked'
   >('pending');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -107,20 +130,66 @@ export function WriteConfirmCard({
     if (decision !== 'pending' && decision !== 'error') return;
     setDecision('submitting');
     setErrorMessage('');
+    let approved = false;
     try {
+      if (directConfirm) {
+        const finalResult = await decide(
+          result.writeNonce,
+          'approve_and_confirm',
+        );
+        if (!isWriteResult(finalResult)) {
+          throw new Error('Direct confirmation returned no final result');
+        }
+        setDecision('confirmed');
+        onSettled?.('confirmed', undefined, finalResult);
+
+        return;
+      }
+
       await decide(result.writeNonce, 'approve');
+      approved = true;
       // The nonce is control-plane data for the model, not user-facing chat
       // content. CopilotKit passes developer messages to the agent but its
       // chat renderer intentionally renders only user/assistant roles.
       await send(labels.approveMessage, 'developer');
       setDecision('confirmed');
+      onSettled?.('confirmed');
     } catch (err) {
-      setErrorMessage(
+      if (directConfirm) {
+        setErrorMessage(labels.directConfirmError);
+        setDecision('blocked');
+
+        return;
+      }
+      if (approved) {
+        try {
+          // `send()` adds the developer nonce before running the agent. If
+          // that run fails, delete the approved row before the parent may
+          // unlock another proposal; any queued stale message is then inert.
+          await decide(result.writeNonce, 'revoke');
+        } catch {
+          setErrorMessage(labels.approvalRecoveryError);
+          setDecision('blocked');
+
+          return;
+        }
+        const message =
+          !isHebrew && err instanceof Error
+            ? err.message
+            : labels.approveError;
+        setErrorMessage(message);
+        setDecision('revoked');
+        onSettled?.('error', message);
+
+        return;
+      }
+      const message =
         !isHebrew && err instanceof Error
           ? err.message
-          : labels.approveError,
-      );
+          : labels.approveError;
+      setErrorMessage(message);
       setDecision('error');
+      onSettled?.('error', message);
     }
   }
 
@@ -130,22 +199,28 @@ export function WriteConfirmCard({
     setErrorMessage('');
     try {
       await decide(result.writeNonce, 'cancel');
-      await send(labels.cancelMessage);
+      if (!directConfirm) {
+        await send(labels.cancelMessage);
+      }
       setDecision('cancelled');
+      onSettled?.('cancelled');
     } catch (err) {
-      setErrorMessage(
+      const message =
         !isHebrew && err instanceof Error
           ? err.message
-          : labels.cancelError,
-      );
+          : labels.cancelError;
+      setErrorMessage(message);
       setDecision('error');
+      onSettled?.('error', message);
     }
   }
 
   const disabled =
     decision === 'submitting' ||
     decision === 'confirmed' ||
-    decision === 'cancelled';
+    decision === 'cancelled' ||
+    decision === 'blocked' ||
+    decision === 'revoked';
 
   return (
     <div

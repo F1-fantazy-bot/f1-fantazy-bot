@@ -877,10 +877,17 @@ possession of a nonce is not authorization**:
 1. `defineWriteTool(...)` validates a proposal and stores a serializable
    intent in Azure Table `PendingAgentWrites` with
    `{ partitionKey: chatId, rowKey: nonce, state: 'staged', tool, args,
-   summary, expiresAt }`. No mutation runs.
+   summary, expiresAt }`. Proposals normally come from an agent tool call.
+   Deterministic rich-UI controls may instead call the authenticated
+   `/api/agent/write-proposal` route, which is explicitly allowlisted to
+   `select_team` and invokes the same registered proposal function. No
+   mutation runs on either path.
 2. `<WriteConfirmCard>` shows Yes / Cancel. The button calls the exact
    authenticated webhook route `/api/agent/write-decision`; it runs the
-   same Google token + allowlist pipeline as CopilotKit traffic.
+   same Google token + allowlist pipeline as CopilotKit traffic. Cards
+   created by direct `select_team` proposals use the allowlisted
+   `approve_and_confirm` decision, which approves and immediately invokes
+   the registered single-use commit server-side without another model turn.
 3. **Yes** changes the matching chat-owned row to `approved` using its
    ETag. Only after that succeeds does the UI add the nonce-bearing
    instruction as an AG-UI `developer` message directly to the v2 agent
@@ -920,6 +927,8 @@ Key files:
   registry.
 - `src/agent/writeDecision.js` + `agentWebhook/index.js` — authenticated
   decision endpoint.
+- `src/agent/writeProposal.js` — allowlisted authenticated direct proposal
+  endpoint for deterministic rich-UI controls.
 - `web/src/components/WriteDecisionContext.tsx` — decision HTTP client
   and provider.
 - `web/src/components/WriteConfirmCard.tsx` — server decision first,
@@ -955,7 +964,14 @@ Concrete write tools currently available:
   owned canonical ID or exact case-insensitive display name, but durable
   pending intents always store the canonical `teamId`, so confirmation
   cannot retarget if names change. The service persists
-  `UserRegistry.selectedTeam` before local mutation.
+  `UserRegistry.selectedTeam` before local mutation. `UserTeamsAction`
+  makes non-active team cards clickable: it posts the canonical `teamId`
+  to `/api/agent/write-proposal` and renders the returned
+  `WriteConfirmCard` immediately. Its Yes button uses authenticated
+  `approve_and_confirm`; failures with uncertain final status remain
+  blocked until the team list is refreshed. Do not route card clicks through a
+  natural-language agent turn—the model may narrate the need for approval
+  without actually calling `select_team`.
 
 Language and selected-team hydration share the bounded/coalesced
 `src/services/userProfileSyncService.js` point lookup. Telegram refreshes
@@ -1429,8 +1445,9 @@ messages must go through `clear()` first, then through
 | `src/agent/wrapToolExecute.js` | `wrapToolExecute(toolName, fn)` try/catches the execute and returns `{ status: 'tool_error', tool, errorId, userMessage }` on throw (Phase 6.2). Full error → `ERRORS_CHANNEL_ID` via `sendErrorMessage(notifierBot, …)`. The 8-char `errorId` is the user-visible correlation token. Raw `err.message` is NEVER included in the returned UI shape. |
 | `src/agent/writeToolHelpers.js` | `defineWriteTool(...)` stages serializable intents and registers commit handlers; `executeConfirmedWrite` consumes only server-approved intents. |
 | `src/agent/writeDecision.js` | Applies authenticated UI `approve` / `cancel` decisions to the durable pending-write row. |
+| `src/agent/writeProposal.js` | Validates allowlisted direct rich-UI proposals and invokes the same registered proposal function as the LLM-facing write tool. |
 | `src/services/pendingWritesStore.js` | Azure Table `PendingAgentWrites`: chat-isolated staged/approved intents, ~5-minute TTL, immediate cancel, throttled expiry sweep, ETag-protected single-use consume. |
-| `web/src/components/WriteDecisionContext.tsx` | Builds `/api/agent/write-decision`, attaches the Google bearer token, and exposes the decision client to confirmation cards. |
+| `web/src/components/WriteDecisionContext.tsx` | Builds authenticated `/api/agent/write-decision` and `/api/agent/write-proposal` requests and exposes both clients. |
 | `web/src/components/WriteConfirmCard.tsx` | Yes/Cancel UI. Records the authenticated server decision before appending any chat message; never sends a nonce on cancellation. |
 | `web/src/components/ToolErrorFallback.tsx` | Shared red-banner fallback + `isToolErrorResult()` type-guard (Phase 6.2). All 12 render hooks short-circuit on `tool_error` via this component — no JSX duplication. |
 | `agentWebhook/function.json` | Azure Functions httpTrigger config (route `agent/{*restOfPath}`). |
@@ -1439,6 +1456,7 @@ messages must go through `clear()` first, then through
 | `web/src/components/NextRacesTable.tsx` | `get_next_races` rich render. |
 | `web/src/components/BestTeamsTable.tsx` | `get_best_teams` rich render (top-10 table, captain badge, must-include highlights, penalty markers), localized via the tool result's refreshed `lang`. |
 | `web/src/components/UserTeamsList.tsx` | `list_user_teams` rich render (card grid). |
+| `web/src/components/UserTeamsAction.tsx` | Registers the teams renderer and turns non-active cards into direct authenticated `select_team` proposals that render the shared confirmation card. |
 | `web/src/components/FollowedTeamsGrid.tsx` | `list_followed_teams` rich render — card per team with `leagueName: position` chips, active-team highlight. |
 | `web/src/components/LeaderboardTable.tsx` | `get_leaderboard` rich render — sortable standings table with the user's row highlighted; status fallbacks for `not_followed` / `not_found`. |
 | `web/src/components/BestTeamScenariosMatrix.tsx` | `get_best_team_scenarios` rich render — 4 ppm sections × 4 chip rows showing projected points, Δ price change, and 🟢/🟡 chip recommendation dots mirroring `/best_team_scenarios`. |

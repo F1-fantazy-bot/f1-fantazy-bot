@@ -1,6 +1,5 @@
 import { useCopilotAction } from '@copilotkit/react-core';
-import { useAgent, useCopilotKit } from '@copilotkit/react-core/v2';
-import { useRef } from 'react';
+import { useState } from 'react';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import {
   UserTeamsList,
@@ -9,64 +8,91 @@ import {
 } from './UserTeamsList';
 import { safeParse } from './safeParse';
 import { ToolLoading } from './ToolLoading';
-import { uiLanguageOf, type UiLanguage } from './uiLanguage';
+import {
+  WriteConfirmCard,
+  isConfirmationRequired,
+  type WriteConfirmationRequired,
+} from './WriteConfirmCard';
+import {
+  WriteResultCard,
+  isWriteResult,
+  type WriteResult,
+} from './WriteResultCard';
+import { useWriteDecision } from './WriteDecisionContext';
 
-export function buildTeamSelectionMessage(
-  team: UserTeam,
-  lang: UiLanguage,
-): string {
-  return lang === 'he'
-    ? `בחר את "${team.teamName}" (teamId: ${team.teamId}) כקבוצה הפעילה שלי.`
-    : `Select "${team.teamName}" (teamId: ${team.teamId}) as my active team.`;
-}
-
-type SelectionAgent = {
-  addMessage(message: {
-    id: string;
-    role: 'user';
-    content: string;
-  }): unknown;
-};
-
-type RunResult = {
-  newMessages?: unknown[];
-};
-
-export async function requestTeamSelection({
-  team,
-  lang,
-  agent,
-  runAgent,
-  pendingMessageIds,
+export function InteractiveUserTeamsList({
+  result,
 }: {
-  team: UserTeam;
-  lang: UiLanguage;
-  agent: SelectionAgent;
-  runAgent: () => Promise<RunResult>;
-  pendingMessageIds: Map<string, string>;
-}): Promise<void> {
-  if (!pendingMessageIds.has(team.teamId)) {
-    const messageId = crypto.randomUUID();
-    agent.addMessage({
-      id: messageId,
-      role: 'user',
-      content: buildTeamSelectionMessage(team, lang),
-    });
-    pendingMessageIds.set(team.teamId, messageId);
+  result?: ListUserTeamsResult;
+}) {
+  const { propose } = useWriteDecision();
+  const [confirmation, setConfirmation] =
+    useState<WriteConfirmationRequired | null>(null);
+  const [feedback, setFeedback] = useState<WriteResult | null>(null);
+  const [decisionError, setDecisionError] = useState('');
+
+  async function selectTeam(team: UserTeam) {
+    const proposal = await propose('select_team', { teamId: team.teamId });
+    setDecisionError('');
+    if (isConfirmationRequired(proposal)) {
+      setFeedback(null);
+      setConfirmation(proposal);
+
+      return;
+    }
+    if (isWriteResult(proposal)) {
+      setFeedback(proposal);
+
+      return;
+    }
+
+    throw new Error('Unexpected team-selection proposal response');
   }
 
-  const result = await runAgent();
-  if (!result.newMessages || result.newMessages.length === 0) {
-    throw new Error('Agent run did not produce a response');
-  }
-  pendingMessageIds.delete(team.teamId);
+  return (
+    <>
+      <UserTeamsList
+        result={result}
+        onSelectTeam={confirmation ? undefined : selectTeam}
+      />
+      {confirmation ? (
+        <WriteConfirmCard
+          result={confirmation}
+          directConfirm
+          onSettled={(outcome, message, finalResult) => {
+            if (outcome === 'confirmed' && finalResult) {
+              setFeedback(finalResult);
+              setConfirmation(null);
+            }
+            if (outcome === 'cancelled' || outcome === 'error') {
+              setConfirmation(null);
+            }
+            if (outcome === 'error') {
+              setDecisionError(message || 'Unable to apply this change.');
+            }
+          }}
+        />
+      ) : null}
+      {feedback ? (
+        <WriteResultCard result={feedback} />
+      ) : null}
+      {decisionError ? (
+        <div
+          role="alert"
+          style={{
+            marginTop: 8,
+            color: 'var(--app-danger-text)',
+            fontSize: 12,
+          }}
+        >
+          {decisionError}
+        </div>
+      ) : null}
+    </>
+  );
 }
 
 export function useUserTeamsAction() {
-  const { agent } = useAgent({ agentId: 'default' });
-  const { copilotkit } = useCopilotKit();
-  const pendingMessageIds = useRef(new Map<string, string>());
-
   useCopilotAction({
     name: 'list_user_teams',
     description:
@@ -83,20 +109,7 @@ export function useUserTeamsAction() {
       }
       const typedResult = parsed as ListUserTeamsResult | undefined;
 
-      return (
-        <UserTeamsList
-          result={typedResult}
-          onSelectTeam={(team) =>
-            requestTeamSelection({
-              team,
-              lang: uiLanguageOf(typedResult),
-              agent,
-              runAgent: () => copilotkit.runAgent({ agent }),
-              pendingMessageIds: pendingMessageIds.current,
-            })
-          }
-        />
-      );
+      return <InteractiveUserTeamsList result={typedResult} />;
     },
   });
 }

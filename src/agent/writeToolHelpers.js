@@ -54,19 +54,39 @@ const WRITE_RESULT_STATUSES = Object.freeze({
 
 const WRITE_TOOL_REGISTRY = new Map();
 
-function registerWriteTool(name, { commit }) {
+function registerWriteTool(name, { commit, propose }) {
   if (typeof commit !== 'function') {
     throw new Error(
       `registerWriteTool("${name}"): commit must be a function`,
     );
   }
-  WRITE_TOOL_REGISTRY.set(name, { commit });
+  if (propose !== undefined && typeof propose !== 'function') {
+    throw new Error(
+      `registerWriteTool("${name}"): propose must be a function`,
+    );
+  }
+  WRITE_TOOL_REGISTRY.set(name, { commit, propose });
 }
 
 function getWriteToolCommitFor(name) {
   const entry = WRITE_TOOL_REGISTRY.get(name);
 
   return entry ? entry.commit : null;
+}
+
+function getWriteToolProposalFor(name) {
+  const entry = WRITE_TOOL_REGISTRY.get(name);
+
+  return entry?.propose || null;
+}
+
+async function proposeRegisteredWrite({ chatId, tool, args }) {
+  const propose = getWriteToolProposalFor(tool);
+  if (!propose) {
+    return null;
+  }
+
+  return await propose({ chatId, rawArgs: args });
 }
 
 function resetWriteToolRegistryForTests() {
@@ -123,49 +143,52 @@ function defineWriteTool({
     throw new Error(`defineWriteTool("${name}"): commit required`);
   }
 
-  registerWriteTool(name, { commit });
+  const propose = async ({ chatId, rawArgs }) => {
+    await ensureCacheReady();
+
+    // Always re-validate via the Zod schema so the staged intent
+    // matches the declared shape (CopilotKit already parses args
+    // before calling execute, but defensive normalization here
+    // keeps `commit` simple).
+    let parsedArgs = parameters.parse(rawArgs ?? {});
+
+    if (typeof validate === 'function') {
+      const validation = await validate({ chatId, args: parsedArgs });
+      if (validation && typeof validation === 'object' && validation.status) {
+        return { ...validation, uiLang: getLanguage(chatId) };
+      }
+      if (validation && typeof validation === 'object' && validation.args) {
+        parsedArgs = parameters.parse(validation.args);
+      }
+    }
+
+    const summary = buildSummary({ chatId, args: parsedArgs });
+    const writeNonce = await stagePendingWrite({
+      chatId,
+      tool: name,
+      args: parsedArgs,
+      summary,
+    });
+
+    return {
+      status: WRITE_RESULT_STATUSES.CONFIRMATION_REQUIRED,
+      tool: name,
+      writeNonce,
+      summary,
+      args: parsedArgs,
+      uiLang: getLanguage(chatId),
+    };
+  };
+
+  registerWriteTool(name, { commit, propose });
 
   const tool = defineTool({
     name,
     description,
     parameters,
-    execute: wrapToolExecute(name, async (rawArgs) => {
-      const chatId = getAgentChatId();
-      await ensureCacheReady();
-
-      // Always re-validate via the Zod schema so the staged intent
-      // matches the declared shape (CopilotKit already parses args
-      // before calling execute, but defensive normalization here
-      // keeps `commit` simple).
-      let args = parameters.parse(rawArgs ?? {});
-
-      if (typeof validate === 'function') {
-        const validation = await validate({ chatId, args });
-        if (validation && typeof validation === 'object' && validation.status) {
-          return { ...validation, uiLang: getLanguage(chatId) };
-        }
-        if (validation && typeof validation === 'object' && validation.args) {
-          args = parameters.parse(validation.args);
-        }
-      }
-
-      const summary = buildSummary({ chatId, args });
-      const writeNonce = await stagePendingWrite({
-        chatId,
-        tool: name,
-        args,
-        summary,
-      });
-
-      return {
-        status: WRITE_RESULT_STATUSES.CONFIRMATION_REQUIRED,
-        tool: name,
-        writeNonce,
-        summary,
-        args,
-        uiLang: getLanguage(chatId),
-      };
-    }),
+    execute: wrapToolExecute(name, async (rawArgs) =>
+      propose({ chatId: getAgentChatId(), rawArgs }),
+    ),
   });
 
   return tool;
@@ -236,6 +259,8 @@ module.exports = {
   defineWriteTool,
   executeConfirmedWrite,
   getWriteToolCommitFor,
+  getWriteToolProposalFor,
+  proposeRegisteredWrite,
   registerWriteTool,
   resetWriteToolRegistryForTests,
   WRITE_RESULT_STATUSES,

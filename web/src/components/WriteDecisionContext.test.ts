@@ -1,11 +1,64 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
   buildWriteDecisionUrl,
+  buildWriteProposalUrl,
   requestWriteDecision,
+  requestWriteProposal,
 } from './WriteDecisionContext';
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe('write proposal client', () => {
+  test('builds the sidecar URL from the CopilotKit runtime URL', () => {
+    expect(
+      buildWriteProposalUrl(
+        'https://agent.example.com/api/agent/copilotkit?ignored=true',
+      ),
+    ).toBe('https://agent.example.com/api/agent/write-proposal');
+  });
+
+  test('posts the canonical proposal with the Google bearer token', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: 'confirmation_required',
+          tool: 'select_team',
+          writeNonce: 'nonce-team',
+          summary: 'Change active team.',
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await expect(
+      requestWriteProposal({
+        runtimeUrl: 'https://agent.example.com/api/agent/copilotkit',
+        idToken: 'google-token',
+        tool: 'select_team',
+        args: { teamId: 'T2' },
+        fetchImpl,
+      }),
+    ).resolves.toMatchObject({
+      status: 'confirmation_required',
+      writeNonce: 'nonce-team',
+    });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://agent.example.com/api/agent/write-proposal',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer google-token',
+        },
+        body: JSON.stringify({
+          tool: 'select_team',
+          args: { teamId: 'T2' },
+        }),
+      },
+    );
+  });
 });
 
 describe('buildWriteDecisionUrl', () => {

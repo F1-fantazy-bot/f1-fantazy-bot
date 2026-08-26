@@ -37,7 +37,14 @@ afterAll(() => {
   ).IS_REACT_ACT_ENVIRONMENT;
 });
 
-function renderCard(uiLang?: string) {
+function renderCard(
+  uiLang?: string,
+  onSettled?: (
+    outcome: 'confirmed' | 'cancelled' | 'error',
+    message?: string,
+  ) => void,
+  directConfirm = false,
+) {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root: Root = createRoot(container);
@@ -56,6 +63,8 @@ function renderCard(uiLang?: string) {
             summary: 'Change language to Hebrew.',
             uiLang,
           }}
+          directConfirm={directConfirm}
+          onSettled={onSettled}
         />
       </WriteDecisionProvider>,
     );
@@ -85,6 +94,180 @@ afterEach(() => {
 });
 
 describe('WriteConfirmCard', () => {
+  test('direct cancellation deletes the nonce without invoking the model', async () => {
+    vi.spyOn(window, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ status: 'cancelled', writeNonce: 'nonce-1' }),
+        { status: 200 },
+      ),
+    );
+    const onSettled = vi.fn();
+    const { container, cleanup } = renderCard(
+      undefined,
+      onSettled,
+      true,
+    );
+
+    await act(async () => {
+      button(container, 'Cancel').click();
+      await Promise.resolve();
+    });
+
+    expect(addMessage).not.toHaveBeenCalled();
+    expect(runAgent).not.toHaveBeenCalled();
+    expect(onSettled).toHaveBeenCalledWith('cancelled');
+    cleanup();
+  });
+
+  test('direct confirmation returns the final write result without invoking the model', async () => {
+    const finalResult = {
+      status: 'ok',
+      tool: 'select_team',
+      summary: 'Active team switched.',
+      uiLang: 'en',
+    };
+    vi.spyOn(window, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(finalResult), { status: 200 }),
+    );
+    const onSettled = vi.fn();
+    const { container, cleanup } = renderCard(
+      undefined,
+      onSettled,
+      true,
+    );
+
+    await act(async () => {
+      button(container, 'Yes, do it').click();
+      await Promise.resolve();
+    });
+
+    expect(window.fetch).toHaveBeenCalledWith(
+      'https://agent.example.com/api/agent/write-decision',
+      expect.objectContaining({
+        body: JSON.stringify({
+          writeNonce: 'nonce-1',
+          decision: 'approve_and_confirm',
+        }),
+      }),
+    );
+    expect(addMessage).not.toHaveBeenCalled();
+    expect(runAgent).not.toHaveBeenCalled();
+    expect(onSettled).toHaveBeenCalledWith(
+      'confirmed',
+      undefined,
+      finalResult,
+    );
+    cleanup();
+  });
+
+  test('keeps direct confirmation blocked when final status is uncertain', async () => {
+    vi.spyOn(window, 'fetch').mockRejectedValue(new Error('network lost'));
+    const onSettled = vi.fn();
+    const { container, cleanup } = renderCard(
+      undefined,
+      onSettled,
+      true,
+    );
+
+    await act(async () => {
+      button(container, 'Yes, do it').click();
+      await Promise.resolve();
+    });
+
+    expect(onSettled).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      'final status could not be verified',
+    );
+    expect(button(container, 'Yes, do it').disabled).toBe(true);
+    cleanup();
+  });
+
+  test('revokes an approved nonce before reporting a failed confirmation run', async () => {
+    vi.spyOn(window, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ status: 'approved', writeNonce: 'nonce-1' }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ status: 'cancelled', writeNonce: 'nonce-1' }),
+          { status: 200 },
+        ),
+      );
+    runAgent.mockRejectedValue(new Error('agent unavailable'));
+    const onSettled = vi.fn();
+    const { container, cleanup } = renderCard(undefined, onSettled);
+
+    await act(async () => {
+      button(container, 'Yes, do it').click();
+      await Promise.resolve();
+    });
+
+    expect(window.fetch).toHaveBeenCalledTimes(2);
+    expect(window.fetch).toHaveBeenNthCalledWith(
+      2,
+      'https://agent.example.com/api/agent/write-decision',
+      expect.objectContaining({
+        body: JSON.stringify({
+          writeNonce: 'nonce-1',
+          decision: 'revoke',
+        }),
+      }),
+    );
+    expect(onSettled).toHaveBeenCalledWith('error', 'agent unavailable');
+    expect(button(container, 'Yes, do it').disabled).toBe(true);
+    cleanup();
+  });
+
+  test('keeps the flow blocked when an approved nonce cannot be revoked', async () => {
+    vi.spyOn(window, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ status: 'approved', writeNonce: 'nonce-1' }),
+          { status: 200 },
+        ),
+      )
+      .mockRejectedValueOnce(new Error('cancel unavailable'));
+    runAgent.mockRejectedValue(new Error('agent unavailable'));
+    const onSettled = vi.fn();
+    const { container, cleanup } = renderCard(undefined, onSettled);
+
+    await act(async () => {
+      button(container, 'Yes, do it').click();
+      await Promise.resolve();
+    });
+
+    expect(onSettled).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      'could not be completed or revoked',
+    );
+    expect(button(container, 'Yes, do it').disabled).toBe(true);
+    expect(button(container, 'Cancel').disabled).toBe(true);
+    cleanup();
+  });
+
+  test('notifies an interactive parent after cancellation', async () => {
+    vi.spyOn(window, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ status: 'cancelled', writeNonce: 'nonce-1' }),
+        { status: 200 },
+      ),
+    );
+    runAgent.mockResolvedValue({ newMessages: [] });
+    const onSettled = vi.fn();
+    const { container, cleanup } = renderCard(undefined, onSettled);
+
+    await act(async () => {
+      button(container, 'Cancel').click();
+      await Promise.resolve();
+    });
+
+    expect(onSettled).toHaveBeenCalledWith('cancelled');
+    cleanup();
+  });
+
   test('renders the full confirmation shell in Hebrew when uiLang is he', () => {
     const { container, cleanup } = renderCard('he');
 

@@ -25,6 +25,7 @@ const { authenticateRequest, STATUS } = require('../src/agent/auth');
 const { runWithRequestContext } = require('../src/agent/requestContext');
 const { getAgentChatId } = require('../src/agent/identity');
 const { applyWriteDecision } = require('../src/agent/writeDecision');
+const { applyWriteProposal } = require('../src/agent/writeProposal');
 const {
   getAllowedUserByEmail,
 } = require('../src/webUserAllowlistService');
@@ -204,6 +205,14 @@ function isWriteDecisionPath(req) {
   }
 }
 
+function isWriteProposalPath(req) {
+  try {
+    return buildRequestUrl(req).pathname === '/api/agent/write-proposal';
+  } catch {
+    return false;
+  }
+}
+
 function parseRequestBody(req) {
   if (
     req.body &&
@@ -226,6 +235,22 @@ function parseRequestBody(req) {
 
 async function buildWriteDecisionResponse(req, chatId) {
   const result = await applyWriteDecision({
+    chatId,
+    payload: parseRequestBody(req),
+  });
+
+  return {
+    status: result.status,
+    headers: {
+      ...buildResponseCorsHeaders(req),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(result.body),
+  };
+}
+
+async function buildWriteProposalResponse(req, chatId) {
+  const result = await applyWriteProposal({
     chatId,
     payload: parseRequestBody(req),
   });
@@ -268,6 +293,7 @@ module.exports = async function (context, req) {
 
   const whoami = isWhoamiPath(req);
   const writeDecision = isWriteDecisionPath(req);
+  const writeProposal = isWriteProposalPath(req);
   if (whoami && (req.method || '').toUpperCase() !== 'GET') {
     context.res = {
       status: 405,
@@ -281,6 +307,18 @@ module.exports = async function (context, req) {
     return;
   }
   if (writeDecision && (req.method || '').toUpperCase() !== 'POST') {
+    context.res = {
+      status: 405,
+      headers: {
+        ...buildResponseCorsHeaders(req),
+        Allow: 'POST, OPTIONS',
+      },
+      body: 'Method Not Allowed',
+    };
+
+    return;
+  }
+  if (writeProposal && (req.method || '').toUpperCase() !== 'POST') {
     context.res = {
       status: 405,
       headers: {
@@ -320,7 +358,10 @@ module.exports = async function (context, req) {
       return;
     }
 
-    if (writeDecision) {
+    if (writeDecision || writeProposal) {
+      const buildWriteResponse = writeDecision
+        ? buildWriteDecisionResponse
+        : buildWriteProposalResponse;
       if (authResult.status === STATUS.OK) {
         context.res = await runWithRequestContext(
           {
@@ -329,12 +370,12 @@ module.exports = async function (context, req) {
             name: authResult.name,
             sub: authResult.sub,
           },
-          () => buildWriteDecisionResponse(req, authResult.chatId),
+          () => buildWriteResponse(req, authResult.chatId),
         );
       } else {
         // BYPASSED is the local-dev-only path. Resolve the configured
         // hardcoded chat id exactly as the regular tool runtime does.
-        context.res = await buildWriteDecisionResponse(
+        context.res = await buildWriteResponse(
           req,
           getAgentChatId(),
         );

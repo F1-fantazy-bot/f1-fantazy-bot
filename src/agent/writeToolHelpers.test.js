@@ -77,6 +77,7 @@ const z = require('zod');
 const {
   defineWriteTool,
   executeConfirmedWrite,
+  proposeRegisteredWrite,
   resetWriteToolRegistryForTests,
   WRITE_RESULT_STATUSES,
 } = require('./writeToolHelpers');
@@ -190,6 +191,24 @@ describe('defineWriteTool — propose-call behaviour', () => {
       chatId: 42,
       args: { lang: 'he' },
     });
+  });
+
+  test('supports authenticated direct proposals without LLM routing', async () => {
+    buildTool();
+
+    await expect(
+      proposeRegisteredWrite({
+        chatId: 42,
+        tool: 'set_language',
+        args: { lang: 'he' },
+      }),
+    ).resolves.toMatchObject({
+      status: WRITE_RESULT_STATUSES.CONFIRMATION_REQUIRED,
+      tool: 'set_language',
+      args: { lang: 'he' },
+      uiLang: 'en',
+    });
+    expect(getAgentChatId).not.toHaveBeenCalled();
   });
 
   test('throws-converted-to-tool_error when Zod parse fails', async () => {
