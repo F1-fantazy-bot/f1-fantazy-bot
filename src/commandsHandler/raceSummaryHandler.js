@@ -244,7 +244,7 @@ async function sendRaceSummary(bot, chatId, leagueCode) {
     if (result.usage) {
       await sendLogMessage(
         bot,
-        `Race summary tokens - prompt: ${result.usage.prompt_tokens}, completion: ${result.usage.completion_tokens}, total: ${result.usage.total_tokens}`,
+        `Race summary Azure OpenAI model - ${RACE_SUMMARY_MODEL}, tokens - prompt: ${result.usage.prompt_tokens}, completion: ${result.usage.completion_tokens}, total: ${result.usage.total_tokens}`,
       );
     }
     await bot.sendMessage(chatId, result.text);
