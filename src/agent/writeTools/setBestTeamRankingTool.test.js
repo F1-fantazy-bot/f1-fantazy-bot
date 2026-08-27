@@ -115,6 +115,24 @@ test('returns changed=false when durable state proves the preset is active', asy
   });
 });
 
+test('defaults an omitted team to the fresh selected team', async () => {
+  expect(
+    setBestTeamRankingTool.parameters.parse({
+      presetId: 'points_plus_budget',
+    }),
+  ).toEqual({ presetId: 'points_plus_budget' });
+
+  await setBestTeamRankingTool.validate({
+    chatId: 42,
+    args: { presetId: 'points_plus_budget' },
+  });
+  expect(resolveFreshTeamSelection).toHaveBeenCalledWith({
+    chatId: 42,
+    presetId: 'points_plus_budget',
+    defaultToSelected: true,
+  });
+});
+
 test('canonicalizes proposals and commits through the shared service', async () => {
   await expect(
     setBestTeamRankingTool.validate({

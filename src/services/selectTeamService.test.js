@@ -69,6 +69,24 @@ describe('resolveTeamSelection', () => {
     expect(result.availableTeams).toHaveLength(2);
     expect(result.summary).toContain('Kilzid 2 (T2)');
   });
+
+  test('defaults to the selected team only when requested by the caller', () => {
+    userCache[String(CHAT_ID)] = { selectedTeam: 'T2' };
+
+    expect(
+      resolveTeamSelection({
+        chatId: CHAT_ID,
+        defaultToSelected: true,
+      }),
+    ).toMatchObject({
+      status: 'ok',
+      teamId: 'T2',
+      teamName: 'Kilzid 2',
+    });
+    expect(resolveTeamSelection({ chatId: CHAT_ID })).toMatchObject({
+      status: 'invalid_input',
+    });
+  });
 });
 
 describe('selectTeamPreference', () => {

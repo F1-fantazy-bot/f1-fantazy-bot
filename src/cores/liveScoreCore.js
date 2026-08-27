@@ -148,12 +148,11 @@ async function getLiveScoreForTeam({
     return { status: 'not_found', leagueCode: resolvedLeagueCode };
   }
 
-  // No auto-default to selectedTeam — the LLM must ASK which team via the
-  // clarify-and-focus pattern. When no team args are supplied, return
-  // team_not_found with availableTeams so the LLM can surface options.
+  const selectedTeamId =
+    !teamId && !teamName ? getSelectedTeam(chatId) : null;
   const pick = pickLockedTeam({
     snapshot,
-    teamId,
+    teamId: teamId || selectedTeamId,
     teamName,
   });
   if (pick.status !== 'ok' || !pick.team) {
@@ -161,9 +160,12 @@ async function getLiveScoreForTeam({
       status: 'team_not_found',
       leagueCode: resolvedLeagueCode,
       leagueName: followed.leagueName,
-      teamId,
+      teamId: teamId || selectedTeamId,
       teamName,
-      reason: pick.team ? undefined : 'no_team_specified',
+      reason:
+        !teamId && !teamName && !selectedTeamId
+          ? 'no_selected_team'
+          : 'team_unavailable',
       availableTeams: snapshot.teams.map((t) => ({
         teamName: t.teamName,
         userName: t.userName,

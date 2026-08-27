@@ -26,6 +26,12 @@ jest.mock('../services/setBestTeamRankingService', () => ({
 jest.mock('../services/activateChipService', () => ({
   refreshChipPreferencesSafely: jest.fn(),
 }));
+jest.mock('../services/selectTeamService', () => ({
+  getFreshSelectedTeamPreference: jest.fn(),
+  resolveTeamSelection: jest.fn(),
+  resolveFreshTeamSelection: jest.fn(),
+  selectTeamPreference: jest.fn(),
+}));
 jest.mock('../cores/bestTeamsCore', () => ({
   computeBestTeams: jest.fn(),
 }));
@@ -38,6 +44,11 @@ jest.mock('../cores/userTeamsCore', () => ({
 jest.mock('../cores/bestTeamScenariosCore', () => ({
   computeBestTeamScenarios: jest.fn(),
 }));
+jest.mock('../cores/liveScoreCore', () => ({
+  getLiveScoreForTeam: jest.fn(),
+  getLiveScoreLeaderboard: jest.fn(),
+  listLeagueTeams: jest.fn(),
+}));
 
 const {
   refreshBestTeamRankingPreferencesSafely,
@@ -45,12 +56,18 @@ const {
 const {
   refreshChipPreferencesSafely,
 } = require('../services/activateChipService');
+const {
+  getFreshSelectedTeamPreference,
+} = require('../services/selectTeamService');
 const { computeBestTeams } = require('../cores/bestTeamsCore');
 const { getCurrentTeam } = require('../cores/currentTeamCore');
 const { listUserTeams } = require('../cores/userTeamsCore');
 const {
   computeBestTeamScenarios,
 } = require('../cores/bestTeamScenariosCore');
+const {
+  getLiveScoreForTeam,
+} = require('../cores/liveScoreCore');
 const { tools } = require('./tools');
 
 beforeEach(() => {
@@ -63,6 +80,28 @@ beforeEach(() => {
     fresh: true,
     chips: { T1: 'EXTRA_BOOST' },
   });
+  getFreshSelectedTeamPreference.mockResolvedValue({
+    fresh: true,
+    selectedTeam: 'T1',
+  });
+});
+
+test('live score refreshes selected team only when team args are omitted', async () => {
+  getLiveScoreForTeam.mockResolvedValue({ status: 'ok' });
+  const tool = tools.find(
+    (candidate) => candidate.name === 'get_live_score_for_team',
+  );
+
+  await tool.execute({ leagueCode: 'ABC' });
+  expect(getFreshSelectedTeamPreference).toHaveBeenCalledWith(42);
+  expect(
+    getFreshSelectedTeamPreference.mock.invocationCallOrder[0],
+  ).toBeLessThan(getLiveScoreForTeam.mock.invocationCallOrder[0]);
+
+  jest.clearAllMocks();
+  getLiveScoreForTeam.mockResolvedValue({ status: 'ok' });
+  await tool.execute({ leagueCode: 'ABC', teamId: 'T2' });
+  expect(getFreshSelectedTeamPreference).not.toHaveBeenCalled();
 });
 
 test.each([

@@ -18,25 +18,22 @@ const {
   WRITE_RESULT_STATUSES,
 } = require('../writeToolHelpers');
 
-const parameters = z
-  .object({
-    teamId: z.string().optional(),
-    teamName: z.string().optional(),
-    presetId: z.string(),
-  })
-  .refine((args) => Boolean(args.teamId || args.teamName), {
-    message: 'teamId or teamName is required',
-  });
+const parameters = z.object({
+  teamId: z.string().optional(),
+  teamName: z.string().optional(),
+  presetId: z.string(),
+});
 
 const setBestTeamRankingTool = defineWriteTool({
   name: 'set_best_team_ranking',
   description:
-    'Change how expected budget growth influences best-team ranking for one owned team. Pass teamId from a recent team result or an exact teamName directly. presetId must be one of: pure_points (0), points_lean (1.3), points_plus_budget (1.65), balanced_budget_value (2). This write requires confirmation unless that preset is already active.',
+    'Change how expected budget growth influences best-team ranking for one owned team. Omit teamId/teamName to use the user\'s currently selected team automatically. Pass teamId or an exact teamName only when the user explicitly requests a different team. presetId must be one of: pure_points (0), points_lean (1.3), points_plus_budget (1.65), balanced_budget_value (2). This write requires confirmation unless that preset is already active.',
   parameters,
   validate: async ({ chatId, args }) => {
     const resolvedTeam = await resolveFreshTeamSelection({
       chatId,
       ...args,
+      defaultToSelected: true,
     });
     if (resolvedTeam.status !== 'ok') {
       return {

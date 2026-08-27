@@ -191,9 +191,7 @@ describe('getLiveScoreForTeam', () => {
     expect(result.teamId).toBe(teamId);
   });
 
-  it('returns team_not_found with availableTeams when no team args are provided (no selectedTeam fallback)', async () => {
-    // Per design: the LLM must ASK which team via clarify-and-focus.
-    // The core no longer auto-defaults to selectedTeam.
+  it('defaults to selectedTeam when no team args are provided', async () => {
     const teamId = buildLeagueTeamId('Doron-Kilzi', 1);
     getSelectedTeam.mockReturnValue(teamId);
     listUserLeagues.mockResolvedValue([
@@ -211,8 +209,28 @@ describe('getLiveScoreForTeam', () => {
       leagueCode: LEAGUE_CODE,
     });
 
+    expect(result.status).toBe('ok');
+    expect(result.teamId).toBe(teamId);
+  });
+
+  it('returns choices when no selected team is available', async () => {
+    listUserLeagues.mockResolvedValue([
+      { leagueCode: LEAGUE_CODE, leagueName: 'Test League' },
+    ]);
+    getLockedTeamsData.mockResolvedValue({
+      leagueName: 'Test League',
+      matchdayId: 5,
+      teams: [baseLockedTeam()],
+    });
+    getLiveScoreData.mockResolvedValue(baseLiveScoreData);
+
+    const result = await getLiveScoreForTeam({
+      chatId: CHAT_ID,
+      leagueCode: LEAGUE_CODE,
+    });
+
     expect(result.status).toBe('team_not_found');
-    expect(result.reason).toBe('no_team_specified');
+    expect(result.reason).toBe('no_selected_team');
     expect(result.availableTeams).toHaveLength(1);
   });
 

@@ -7,7 +7,7 @@ team, set language, follow league, activate chip, …). This document is
 the working plan for closing that gap — exposing the same set of writes
 as agent tools without breaking the Telegram bot.
 
-**Current state (2026-08-26):** **PR-1 (shared write-tool
+**Current state (2026-08-27):** **PR-1 (shared write-tool
 infrastructure) is merged and delivered by
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207).**
 The review-hardening pass replaced the original process-local Map with
@@ -33,8 +33,10 @@ callback delegation, clickable team cards, and cross-process selected-team
 hydration.
 **PR-4 (`set_best_team_ranking`) merged as
 [#221](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/221).**
-**PR-5 (`activate_chip`) is implemented on the current feature branch.**
-PR-6 (`follow_league`) is next after PR-5 merges.
+**PR-5 (`activate_chip`) merged as
+[#222](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/222).**
+The current bugfix makes the durable selected team the automatic context for
+singular team-scoped agent operations. PR-6 (`follow_league`) is next.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -193,7 +195,7 @@ classified for cross-process behaviour:
 | `select_team`          | Yes (`updateUserAttributes`) + in-mem `userCache`                                      | PR-3 refreshes the persisted profile before Telegram message/callback dispatch and before agent no-op detection. Reads are bounded/coalesced; every local selected-team writer advances a per-chat generation so stale reads cannot overwrite newer writes. |
 | `set_language`         | Yes (`updateUserAttributes`) + in-mem `userCache.lang`                                  | PR-2 uses an outer 750 ms deadline plus a per-chat generation guard while refreshing persisted language before Telegram routes messages **and** callbacks. |
 | `set_best_team_ranking`| Yes (`updateUserAttributes`) + invalidates `bestTeamsCache`                            | Telegram recomputes on next `/best_teams`. OK.                                                   |
-| `activate_chip`        | **Partly:** only `selectedBestTeamByTeam` is persisted; `selectedChipCache` is in-mem. | Closed in PR-5: persist `selectedChipByTeam` so the bot/agent restart path is consistent.        |
+| `activate_chip`        | Yes (`selectedChipByTeam` + normalized `selectedChipCache`)                            | PR-5 persists and hydrates per-team chip state across bot/agent hosts and restarts.              |
 | `follow_league`        | Yes (`addUserLeague` → Azure Tables)                                                   | Each surface reads on demand. OK.                                                                |
 | `unfollow_league`      | Yes (`removeUserLeague` → Azure Tables)                                                | OK.                                                                                              |
 | `follow_team`          | Yes (`saveUserTeam` / `deleteUserTeam` → Azure Tables)                                 | OK.                                                                                              |
@@ -513,7 +515,7 @@ LANG callback behave identically in Telegram.
   cross-process hydration/invalidation, Telegram parity, prompt routing,
   and propose → approve → confirm.
 
-### PR-5 — `activate_chip` *(with persistence fix)* 🟡 Implemented (current branch)
+### PR-5 — `activate_chip` *(with persistence fix)* ✅ Merged ([#222](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/222))
 
 - `selectedChipByTeam` is a normalized `UserRegistry` JSON map; missing or
   malformed data means no chips, and `WITHOUT_CHIP` is represented by an
@@ -542,6 +544,11 @@ LANG callback behave identically in Telegram.
   authoritative deletion races, durable lease ownership, source/import/reset
   compensation, Telegram parity, prompt routing, and propose → approve →
   confirm.
+- Follow-up default-context rule: singular team-scoped reads/writes omit
+  team arguments and use the durable selected team automatically. The agent
+  asks for a team only when selection is unavailable, a different target was
+  requested, `select_team` itself needs a target, or the request is
+  explicitly multi-team.
 - **Deployment note in PR description:** existing users get an empty
   `selectedChipByTeam` attribute on first read; their previously
   in-memory chip selection is lost. Acceptable since chip selection

@@ -35,8 +35,8 @@ test('routes best-team ranking reads and writes to the right tools', () => {
   expect(prompt).toContain(
     'Points Plus Budget / 1.65 -> points_plus_budget',
   );
-  expect(prompt).toMatch(
-    /call\s+set_best_team_ranking in that turn/,
+  expect(prompt).toContain(
+    'Call set_best_team_ranking only when the user explicitly asks',
   );
 });
 
@@ -49,5 +49,30 @@ test('routes chip reads, activation, and reset correctly', () => {
   expect(prompt).toContain(
     'no chip / reset /',
   );
-  expect(prompt).toMatch(/call activate_chip in\s+that turn/);
+  expect(prompt).toContain(
+    'Call activate_chip only when the user explicitly asks',
+  );
+});
+
+test('uses the selected team by default for singular team operations', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain(
+    'use their currently selected team automatically',
+  );
+  expect(prompt).toMatch(
+    /NEVER\s+ask "which team\?" merely because the user omitted a team/,
+  );
+  expect(prompt).toMatch(
+    /omit teamId\/teamName so the tool applies the\s+change to the selected team automatically/,
+  );
+  expect(prompt).toMatch(
+    /tool automatically uses the selected team/,
+  );
+  expect(prompt).not.toContain(
+    'Requires a team\n  plus one presetId',
+  );
+  expect(prompt).not.toContain(
+    'the user runs /set_best_team_ranking in\n  Telegram',
+  );
 });

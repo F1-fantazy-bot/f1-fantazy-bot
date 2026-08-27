@@ -328,8 +328,8 @@ tailored component.
    - `liveScoreHandler.js` — 635 → 506 lines (only helper-import move + unused `mapNameToCode` import removed). Test 40/40 pass unchanged.
 3. ✅ **Four** new agent tools (the original spec had two; split during rubber-duck for cleaner UX):
    - `get_current_team` (args: optional `teamId` / `teamName`).
-   - `list_league_teams` (args: `leagueCode` OR `leagueName`) — returns the FULL roster of a followed league with `isSelected: true` on the user's own team. The system prompt uses this (not `list_followed_teams`) to ask which team to focus on, so the user can pick ANY team in the league just like Telegram `/live_score`.
-   - `get_live_score_for_team` (args: `leagueCode` OR `leagueName`, plus optional `teamId` / `teamName`) — accepts both league forms so the LLM doesn't need to chain `list_user_leagues` first (avoids the `useLazyToolRenderer` multi-step quirk). Has a `teamId` → `teamName` fallback in `pickLockedTeam`.
+   - `list_league_teams` (args: `leagueCode` OR `leagueName`) — returns the FULL roster of a followed league with `isSelected: true` on the user's own team. Used only when the selected team is unavailable and the user must pick a different team.
+   - `get_live_score_for_team` (args: `leagueCode` OR `leagueName`, plus optional `teamId` / `teamName`) — accepts both league forms and defaults omitted team args to the durable selected team. Has a `teamId` → `teamName` fallback in `pickLockedTeam`.
    - `get_live_score_leaderboard` (args: `leagueCode` OR `leagueName`) — all-teams view, sorted by live points desc.
 4. ✅ Rich components:
    - `web/src/components/CurrentTeamCard.tsx` — team header with chip badge, drivers/constructors chips (boost ⭐, mega-captain 🏆), metrics grid (total price, cost cap remaining, overall budget, expected points, budget-adjusted when ppm preset > 0, expected price change, free transfers).

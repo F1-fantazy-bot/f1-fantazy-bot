@@ -574,7 +574,7 @@ The effectful write-tools rollout is now active: PR
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207)
 merged the durable confirmation infrastructure; `set_language` is
 merged, `select_team` merged in PR-3, `set_best_team_ranking` merged in
-PR-4, and `activate_chip` is implemented in PR-5. See [Write-tool confirmation
+PR-4, and `activate_chip` merged in PR-5. See [Write-tool confirmation
 infrastructure](#write-tool-confirmation-infrastructure) and
 [`docs/agent-write-tools-plan.md`](docs/agent-write-tools-plan.md).
 
@@ -809,9 +809,9 @@ useCopilotAction({
 
 > **Pitfall (Phase 2):** if you don't disable parallel tool calls (`providerOptions: { openai: { parallelToolCalls: false } }` on the `BuiltInAgent`), Azure OpenAI is free to emit multiple tools in the SAME assistant message — and CopilotKit's `useLazyToolRenderer` only renders `toolCalls[0]`. You'll see ONE of N tool results render and the rest silently disappear from the UI (the LLM's text reply will still describe them correctly, just no rich component). Fix: keep parallel calls disabled in `src/agent/runtime.js`.
 
-> **Pitfall (Phase 5):** the `useLazyToolRenderer` "only renders `toolCalls[0]`" rule also means a multi-call clarify-then-fetch flow inside ONE turn drops the second tool's UI. We learned this with live-score: the agent should NOT call `list_league_teams` and then `get_live_score_for_team` in the same turn. The clarify-and-focus pattern: **ask which league → wait for the user → ask which team in that league → wait again → call `get_live_score_for_team` ONCE with both `leagueName` and `teamName`.** The system prompt enforces this and the live-score tool's description spells it out — keep it that way when adding similar two-arg lookup tools.
+> **Pitfall (Phase 5):** the `useLazyToolRenderer` "only renders `toolCalls[0]`" rule also means a multi-call clarify-then-fetch flow inside ONE turn drops the second tool's UI. For live score, ask which league when needed, then call `get_live_score_for_team` ONCE with the league and no team arguments—the core uses the selected team. Only if that team is unavailable should a later turn call `list_league_teams`, ask for a different team, and retry once.
 
-> **Pitfall (Phase 5):** the `liveScoreCore` lesson — for cross-league live-score, do NOT auto-default to the user's `selectedTeam`. A user can be in multiple leagues with different team names; auto-pick produces "I can't find that team" errors when the resolved teamId belongs to a different league. The right pattern is to ASK which league and team, then call the tool with both. The tool's `team_not_found` status returns an `availableTeams` array specifically so the LLM can re-ask.
+> **Pitfall (Phase 5):** selected-team live score is league-aware. `liveScoreCore` defaults to `selectedTeam`, but if that team is not in the chosen league it returns `team_not_found` with `availableTeams`; only then should the agent ask for a different team. Do not pre-emptively ask on every live-score request.
 
 > **Pitfall (Phase 3 + Phase 5 — recurring):** the system prompt is a **template literal** in `src/agent/systemPrompt.js`. Any literal backtick inside the prompt must be escaped (`` \` ``) — an unescaped backtick terminates the template literal early and turns the rest of the prompt into syntactically-invalid JavaScript (cryptic "Unexpected identifier" errors on require). Phase 3 and Phase 5 both hit this. When you add new tool guidance with code-like fragments, prefer single-quotes (`'tool_error'`) over backticks where possible.
 
@@ -952,6 +952,16 @@ Key files:
 
 Concrete write tools currently available:
 
+**Selected-team default:** every singular team-scoped agent read/write uses
+the durable selected team when `teamId`/`teamName` is omitted. Do not ask
+"which team?" merely because the request omitted a team. Ask only when the
+selected team is missing/invalid, the user explicitly wants a different
+team, the operation is `select_team` itself, or the request is explicitly
+multi-team. Ranking/chip write tools canonicalize the fresh selected team
+before staging so confirmation always records an exact `teamId`. Live-score
+tries the selected team after league resolution and opens a team picker only
+when that team is unavailable in the chosen league.
+
 - `set_language({ lang: 'en' | 'he' })` — shared
   `src/services/setLanguageService.js`. Both `/lang` and the LANG
   callback delegate to the service; the web agent uses
@@ -1009,6 +1019,7 @@ Concrete write tools currently available:
   `selectedBestTeamService`; do not write that JSON field from process-local
   cache. Authoritative reset/import operations also use CAS and publish
   their local preference caches only after persistence succeeds.
+  Omitting team arguments applies the preset to the fresh selected team.
 - `activate_chip({ teamId?, teamName?, chip })` — shared
   `src/services/activateChipService.js`. Supported values are
   `EXTRA_BOOST`, `LIMITLESS`, `WILDCARD`, and `WITHOUT_CHIP` (reset).
@@ -1019,6 +1030,7 @@ Concrete write tools currently available:
   a re-entrant local queue and durable `UserMutationLocks` lease, hydrates
   authoritative Blob/Table state, and uses `teamStateSnapshotService`
   compensation before publishing local caches.
+  Omitting team arguments applies the chip change to the fresh selected team.
 
 Language and selected-team hydration share the bounded/coalesced
 `src/services/userProfileSyncService.js` point lookup. Telegram refreshes

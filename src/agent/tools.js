@@ -39,6 +39,9 @@ const {
 const {
   refreshChipPreferencesSafely,
 } = require('../services/activateChipService');
+const {
+  getFreshSelectedTeamPreference,
+} = require('../services/selectTeamService');
 const { getAgentChatId } = require('./identity');
 const { ensureCacheReady } = require('./cacheBootstrap');
 const { wrapToolExecute } = require('./wrapToolExecute');
@@ -405,7 +408,7 @@ const tools = [
   defineTool({
     name: 'get_live_score_for_team',
     description:
-      'Get the live-score breakdown for ONE team in one of the user\'s followed leagues (per-driver / per-constructor points with captain/mega-captain multipliers, transfer penalty, and chip effects). **REQUIRES the user to have already chosen both a league AND a team** — do NOT call this tool until you have both. The clarify-and-focus pattern is: ask which league first, then ask which team in that league, then call this tool ONCE with leagueName + teamName. Pass EITHER `leagueCode` (canonical) OR `leagueName` (display name — the tool resolves it against the user\'s followed leagues). Identify the team via `teamId` (canonical, from list_followed_teams) or `teamName` (display name from the league\'s roster). Returns { status, leagueCode, leagueName, matchdayId, extractedAt, teamId, teamName, breakdown: { totalPoints, pointsBeforePenalty, transferPenalty, noNegativeApplied, totalPriceChange, driverBreakdown: [{ code, points, priceChange, details, isBoost, isExtraBoost, missing }], constructorBreakdown: [...], missingMembers } }. Statuses: ok / not_followed / not_found / team_not_found (includes `availableTeams` for asking the user) / invalid_input.',
+      'Get the live-score breakdown for ONE team in one followed league (per-driver / per-constructor points with captain/mega-captain multipliers, transfer penalty, and chip effects). A league is required; when teamId/teamName is omitted the tool automatically uses the user\'s selected team. Pass an explicit team only when the user requests a different team or the selected team is unavailable in that league. Pass EITHER `leagueCode` or `leagueName`. Returns status ok / not_followed / not_found / team_not_found (with availableTeams) / invalid_input.',
     parameters: z.object({
       leagueCode: z
         .string()
@@ -435,6 +438,9 @@ const tools = [
     execute: wrapToolExecute('get_live_score_for_team', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
+      if (!args.teamId && !args.teamName) {
+        await getFreshSelectedTeamPreference(chatId);
+      }
 
       return await withUiLanguage(
         chatId,
