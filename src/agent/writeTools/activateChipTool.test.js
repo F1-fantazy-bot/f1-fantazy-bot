@@ -111,6 +111,22 @@ test('returns changed=false when durable state proves the chip is active', async
   });
 });
 
+test('defaults an omitted team to the fresh selected team', async () => {
+  expect(
+    activateChipTool.parameters.parse({ chip: 'EXTRA_BOOST' }),
+  ).toEqual({ chip: 'EXTRA_BOOST' });
+
+  await activateChipTool.validate({
+    chatId: 42,
+    args: { chip: 'EXTRA_BOOST' },
+  });
+  expect(resolveFreshTeamSelection).toHaveBeenCalledWith({
+    chatId: 42,
+    chip: 'EXTRA_BOOST',
+    defaultToSelected: true,
+  });
+});
+
 test('canonicalizes proposals and commits through the service', async () => {
   await expect(
     activateChipTool.validate({

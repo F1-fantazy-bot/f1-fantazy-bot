@@ -71,7 +71,12 @@ function normalize(value) {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
 }
 
-function resolveTeamSelection({ chatId, teamId, teamName }) {
+function resolveTeamSelection({
+  chatId,
+  teamId,
+  teamName,
+  defaultToSelected = false,
+}) {
   const teams = listSelectableTeams(chatId);
   let matches = [];
 
@@ -84,6 +89,9 @@ function resolveTeamSelection({ chatId, teamId, teamName }) {
         normalize(team.teamName) === target ||
         normalize(team.teamId) === target,
     );
+  } else if (defaultToSelected) {
+    const selectedTeam = getSelectedTeam(chatId);
+    matches = teams.filter((team) => team.teamId === selectedTeam);
   }
 
   if (matches.length === 1) {
@@ -110,13 +118,23 @@ function resolveTeamSelection({ chatId, teamId, teamName }) {
   };
 }
 
-async function resolveFreshTeamSelection({ chatId, teamId, teamName }) {
+async function resolveFreshTeamSelection({
+  chatId,
+  teamId,
+  teamName,
+  defaultToSelected = false,
+}) {
   const {
     runChipMutation,
   } = require('./activateChipService');
 
   return await runChipMutation(chatId, () =>
-    resolveTeamSelection({ chatId, teamId, teamName }),
+    resolveTeamSelection({
+      chatId,
+      teamId,
+      teamName,
+      defaultToSelected,
+    }),
   );
 }
 

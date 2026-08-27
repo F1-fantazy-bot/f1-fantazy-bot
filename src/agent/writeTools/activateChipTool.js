@@ -18,25 +18,22 @@ const {
   WRITE_RESULT_STATUSES,
 } = require('../writeToolHelpers');
 
-const parameters = z
-  .object({
-    teamId: z.string().optional(),
-    teamName: z.string().optional(),
-    chip: z.string(),
-  })
-  .refine((args) => Boolean(args.teamId || args.teamName), {
-    message: 'teamId or teamName is required',
-  });
+const parameters = z.object({
+  teamId: z.string().optional(),
+  teamName: z.string().optional(),
+  chip: z.string(),
+});
 
 const activateChipTool = defineWriteTool({
   name: 'activate_chip',
   description:
-    'Activate or reset the chip for one owned F1 Fantasy team. Pass teamId from a recent team result or an exact teamName directly. chip must be EXTRA_BOOST, LIMITLESS, WILDCARD, or WITHOUT_CHIP (reset/no chip). This write requires confirmation unless that chip state is already active.',
+    'Activate or reset the chip for one owned F1 Fantasy team. Omit teamId/teamName to use the user\'s currently selected team automatically. Pass teamId or an exact teamName only when the user explicitly requests a different team. chip must be EXTRA_BOOST, LIMITLESS, WILDCARD, or WITHOUT_CHIP (reset/no chip). This write requires confirmation unless that chip state is already active.',
   parameters,
   validate: async ({ chatId, args }) => {
     const resolvedTeam = await resolveFreshTeamSelection({
       chatId,
       ...args,
+      defaultToSelected: true,
     });
     if (resolvedTeam.status !== 'ok') {
       return {
