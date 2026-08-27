@@ -26,8 +26,8 @@ const {
   setBestTeamRankingPreference,
 } = require('./services/setBestTeamRankingService');
 const {
-  clearSelectedBestTeamPreference,
-} = require('./services/selectedBestTeamService');
+  clearTeamDerivedPreferences,
+} = require('./services/activateChipService');
 const { selectChip } = require('./commandsHandler/selectChipHandlers');
 const {
   getDeadlinePayload,
@@ -41,6 +41,8 @@ jest.mock('./utils', () => ({
 
 jest.mock('./azureStorageService', () => ({
   saveUserTeam: jest.fn().mockResolvedValue(undefined),
+  savePendingTeamAssignment: jest.fn().mockResolvedValue(undefined),
+  deleteUserTeam: jest.fn().mockResolvedValue(undefined),
   getPendingTeamAssignment: jest.fn().mockResolvedValue(null),
   deletePendingTeamAssignment: jest.fn().mockResolvedValue(undefined),
 }));
@@ -72,8 +74,13 @@ jest.mock('./services/selectTeamService', () => ({
 jest.mock('./services/setBestTeamRankingService', () => ({
   setBestTeamRankingPreference: jest.fn(),
 }));
-jest.mock('./services/selectedBestTeamService', () => ({
-  clearSelectedBestTeamPreference: jest.fn(),
+jest.mock('./services/activateChipService', () => ({
+  clearTeamDerivedPreferences: jest.fn(),
+  runChipMutation: jest.fn(async (_chatId, operation) => operation()),
+}));
+jest.mock('./services/teamStateSnapshotService', () => ({
+  captureTeamState: jest.fn(() => ({})),
+  restoreTeamState: jest.fn(),
 }));
 
 jest.mock('./commandsHandler/deadlineHandler', () => ({
@@ -143,7 +150,7 @@ describe('handleCallbackQuery', () => {
       presetId: 'pure_points',
       changed: true,
     });
-    clearSelectedBestTeamPreference.mockResolvedValue({});
+    clearTeamDerivedPreferences.mockResolvedValue({});
     bot = {
       editMessageText: jest.fn().mockResolvedValue(undefined),
       answerCallbackQuery: jest.fn().mockResolvedValue(undefined),
@@ -287,14 +294,14 @@ describe('handleCallbackQuery', () => {
 
     expect(cache.currentTeamCache[123].T1).toBeDefined();
     expect(azureStorageService.saveUserTeam).toHaveBeenCalled();
-    expect(clearSelectedBestTeamPreference).toHaveBeenCalledWith({
+    expect(clearTeamDerivedPreferences).toHaveBeenCalledWith({
       chatId: 123,
       teamId: 'T1',
       attributes: { selectedTeam: 'T1' },
     });
     expect(setCachedSelectedTeam).toHaveBeenCalledWith(123, 'T1');
     expect(
-      clearSelectedBestTeamPreference.mock.invocationCallOrder[0],
+      clearTeamDerivedPreferences.mock.invocationCallOrder[0],
     ).toBeLessThan(setCachedSelectedTeam.mock.invocationCallOrder[0]);
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q5');
   });

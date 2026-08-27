@@ -14,6 +14,18 @@ const translations = {
     'Please wait while data is extracted from the image.':
       'נא המתן לחילוץ הנתונים מהתמונה',
     'Selected chip: {CHIP}.': "צ'יפ נבחר: {CHIP}.",
+    'Chip for {TEAM} set to {CHIP}.':
+      "הצ'יפ עבור {TEAM} הוגדר ל-{CHIP}.",
+    'Chip for {TEAM} is already {CHIP}.':
+      "הצ'יפ עבור {TEAM} כבר מוגדר ל-{CHIP}.",
+    'Change chip for {TEAM} to {CHIP}.':
+      "לשנות את הצ'יפ עבור {TEAM} ל-{CHIP}.",
+    'Chip {CHIP} is not available. Available chips: {CHIPS}.':
+      "הצ'יפ {CHIP} אינו זמין. הצ'יפים הזמינים: {CHIPS}.",
+    'Team {TEAM} is no longer available. No chip change was kept.':
+      'הקבוצה {TEAM} כבר אינה זמינה. שינוי הצ׳יפ לא נשמר.',
+    'Team {TEAM} is no longer available.':
+      'הקבוצה {TEAM} כבר אינה זמינה.',
     'Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.':
       'לתשומת לבך: החישוב נמחק.\nהפעל את הפקודה {CMD} מחדש לחישוב.',
     'which chip do you want to use?': "איזה צ'יפ תרצה להשתמש?",

@@ -6,27 +6,47 @@ const {
   resolveSelectedTeam,
   getBestTeamBudgetChangePointsPerMillion,
   remainingRaceCountCache,
+  currentTeamCache,
+  getSelectedTeam,
   getDriversForChat,
   getConstructorsForChat,
 } = require('../cache');
 const {
   setSelectedBestTeamPreference,
 } = require('../services/selectedBestTeamService');
+const {
+  runChipMutation,
+} = require('../services/activateChipService');
 const { COMMAND_BEST_TEAMS } = require('../constants');
 const { t } = require('../i18n');
 
 // Handles the case when the message text is a number
-async function handleNumberMessage(bot, chatId, textTrimmed) {
+async function handleNumberMessageInternal(
+  bot,
+  chatId,
+  textTrimmed,
+  transactionSnapshot,
+) {
   const teamId = await resolveSelectedTeam(bot, chatId);
   if (!teamId) {
     return;
   }
 
   const teamRowRequested = parseInt(textTrimmed, 10);
+  const teamBestTeamsCache = transactionSnapshot.bestTeams;
+  const chipAtCalculation = transactionSnapshot.chip;
+  const currentChip = selectedChipCache[chatId]?.[teamId];
+  const dependenciesMatch =
+    teamId === transactionSnapshot.teamId &&
+    chipAtCalculation === currentChip &&
+    transactionSnapshot.ranking ===
+      getBestTeamBudgetChangePointsPerMillion(chatId, teamId) &&
+    transactionSnapshot.teamData ===
+      JSON.stringify(currentTeamCache[chatId]?.[teamId] || null);
 
-  if (bestTeamsCache[chatId]?.[teamId]) {
-    const currentTeam = bestTeamsCache[chatId][teamId].currentTeam;
-    const selectedTeam = bestTeamsCache[chatId][teamId].bestTeams.find(
+  if (teamBestTeamsCache && dependenciesMatch) {
+    const currentTeam = teamBestTeamsCache.currentTeam;
+    const selectedTeam = teamBestTeamsCache.bestTeams.find(
       (t) => t.row === teamRowRequested,
     );
 
@@ -57,7 +77,7 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
 
       // Build cachedJsonData object
       const cachedJsonData =
-        bestTeamsCache[chatId][teamId].calculationData ||
+        teamBestTeamsCache.calculationData ||
         {
           Drivers: getDriversForChat(chatId),
           Constructors: getConstructorsForChat(chatId),
@@ -125,6 +145,37 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
 }
 
 module.exports = { handleNumberMessage };
+
+async function handleNumberMessage(bot, chatId, textTrimmed) {
+  const selectedTeam = getSelectedTeam(chatId);
+  const cachedTeamIds = Object.keys(bestTeamsCache[chatId] || {});
+  const teamId =
+    selectedTeam && bestTeamsCache[chatId]?.[selectedTeam]
+      ? selectedTeam
+      : cachedTeamIds.length === 1
+        ? cachedTeamIds[0]
+        : null;
+  const transactionSnapshot = {
+    teamId,
+    bestTeams: teamId ? bestTeamsCache[chatId]?.[teamId] : null,
+    chip: teamId ? selectedChipCache[chatId]?.[teamId] : undefined,
+    ranking: teamId
+      ? getBestTeamBudgetChangePointsPerMillion(chatId, teamId)
+      : null,
+    teamData: teamId
+      ? JSON.stringify(currentTeamCache[chatId]?.[teamId] || null)
+      : null,
+  };
+
+  return await runChipMutation(chatId, () =>
+    handleNumberMessageInternal(
+      bot,
+      chatId,
+      textTrimmed,
+      transactionSnapshot,
+    ),
+  );
+}
 
 function getSelectedBestTeamSelection(selectedTeam) {
   return {

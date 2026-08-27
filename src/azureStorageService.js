@@ -327,6 +327,35 @@ async function listAllUserTeamData() {
   }
 }
 
+async function listUserTeamData(chatId) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const teams = {};
+    const prefix = `user-teams/${chatId}_`;
+    for await (const blob of containerClient.listBlobsFlat({ prefix })) {
+      const teamId = blob.name
+        .substring(prefix.length)
+        .replace(/\.json$/, '');
+      if (!teamId) {
+        continue;
+      }
+      const teamData = await getUserTeam(chatId, teamId);
+      if (teamData) {
+        teams[teamId] = teamData;
+      }
+    }
+
+    return teams;
+  } catch (error) {
+    throw new Error(
+      `Failed to list teams for user ${chatId}: ${error.message}`,
+    );
+  }
+}
+
 /**
  * Save pending team assignment data to Azure Blob Storage.
  * Used when AI can't extract teamId and the user must assign it.
@@ -404,7 +433,7 @@ async function deletePendingTeamAssignment(chatId, uniqueKey) {
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
     await blockBlobClient.deleteIfExists();
   } catch (error) {
-    console.error(
+    throw new Error(
       `Failed to delete pending team assignment for ${chatId}: ${error.message}`,
     );
   }
@@ -659,6 +688,7 @@ module.exports = {
   deleteUserTeam,
   deleteAllUserTeams,
   listAllUserTeamData,
+  listUserTeamData,
   getNextRaceInfoData,
   getLiveScoreData,
   savePendingTeamAssignment,

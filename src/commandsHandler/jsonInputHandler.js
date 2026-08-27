@@ -9,11 +9,11 @@ const {
   constructorsCache,
   currentTeamCache,
   bestTeamsCache,
-  selectedChipCache,
   normalizeBestTeamBudgetChangePointsPerMillion,
   normalizeSelectedBestTeam,
   normalizeSelectedBestTeamByTeam,
   serializeSelectedBestTeamByTeam,
+  serializeSelectedChipByTeam,
 } = require('../cache');
 const {
   updateUserAttributesAtomically,
@@ -25,6 +25,14 @@ const {
 const {
   setCachedRankingPreferences,
 } = require('../services/setBestTeamRankingService');
+const {
+  setCachedChipPreferences,
+  runChipMutation,
+} = require('../services/activateChipService');
+const {
+  captureTeamState,
+  restoreTeamState,
+} = require('../services/teamStateSnapshotService');
 
 const VALID_CHIPS = new Set([
   EXTRA_BOOST_CHIP,
@@ -42,60 +50,66 @@ async function handleJsonMessage(bot, chatId, jsonData) {
     return;
   }
 
-  delete bestTeamsCache[chatId];
-
-  if (normalizedSnapshot.driversMap) {
-    driversCache[chatId] = normalizedSnapshot.driversMap;
-  } else {
-    delete driversCache[chatId];
-  }
-
-  if (normalizedSnapshot.constructorsMap) {
-    constructorsCache[chatId] = normalizedSnapshot.constructorsMap;
-  } else {
-    delete constructorsCache[chatId];
-  }
-
-  if (normalizedSnapshot.teamsMap) {
-    currentTeamCache[chatId] = normalizedSnapshot.teamsMap;
-  } else {
-    delete currentTeamCache[chatId];
-  }
-
-  if (normalizedSnapshot.selectedChips) {
-    selectedChipCache[chatId] = normalizedSnapshot.selectedChips;
-  } else {
-    delete selectedChipCache[chatId];
-  }
-
-  await azureStorageService.deleteAllUserTeams(bot, chatId);
-
-  for (const [teamId, teamData] of Object.entries(
-    normalizedSnapshot.teamsMap || {},
-  )) {
-    await azureStorageService.saveUserTeam(bot, chatId, teamId, teamData);
-  }
-
-  await updateUserAttributesAtomically(chatId, () => ({
-    selectedTeam: normalizedSnapshot.selectedTeam,
-    bestTeamBudgetChangePointsPerMillion: JSON.stringify(
-      normalizedSnapshot.bestTeamBudgetChangePointsPerMillion,
-    ),
-    selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
-      normalizedSnapshot.selectedBestTeamByTeam,
-    ),
-  }));
-  setCachedRankingPreferences(
-    chatId,
-    normalizedSnapshot.bestTeamBudgetChangePointsPerMillion,
-    normalizedSnapshot.selectedBestTeamByTeam,
-    null,
-  );
-  setCachedSelectedTeam(chatId, normalizedSnapshot.selectedTeam, {
-    preserveNull: true,
-  });
+  await persistImportedSnapshot(bot, chatId, normalizedSnapshot);
 
   await sendImportSuccessMessage(bot, chatId);
+}
+
+async function persistImportedSnapshot(bot, chatId, snapshot) {
+  await runChipMutation(chatId, async () => {
+    const rollbackSnapshot = captureTeamState(chatId);
+    try {
+      await azureStorageService.deleteAllUserTeams(bot, chatId);
+      for (const [teamId, teamData] of Object.entries(
+        snapshot.teamsMap || {},
+      )) {
+        await azureStorageService.saveUserTeam(bot, chatId, teamId, teamData);
+      }
+
+      await updateUserAttributesAtomically(chatId, () => ({
+        selectedTeam: snapshot.selectedTeam,
+        bestTeamBudgetChangePointsPerMillion: JSON.stringify(
+          snapshot.bestTeamBudgetChangePointsPerMillion,
+        ),
+        selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
+          snapshot.selectedBestTeamByTeam,
+        ),
+        selectedChipByTeam: serializeSelectedChipByTeam(
+          snapshot.selectedChips,
+        ),
+      }));
+    } catch (err) {
+      await restoreTeamState(bot, chatId, rollbackSnapshot);
+      throw err;
+    }
+
+    delete bestTeamsCache[chatId];
+    if (snapshot.driversMap) {
+      driversCache[chatId] = snapshot.driversMap;
+    } else {
+      delete driversCache[chatId];
+    }
+    if (snapshot.constructorsMap) {
+      constructorsCache[chatId] = snapshot.constructorsMap;
+    } else {
+      delete constructorsCache[chatId];
+    }
+    if (snapshot.teamsMap) {
+      currentTeamCache[chatId] = snapshot.teamsMap;
+    } else {
+      delete currentTeamCache[chatId];
+    }
+    setCachedRankingPreferences(
+      chatId,
+      snapshot.bestTeamBudgetChangePointsPerMillion,
+      snapshot.selectedBestTeamByTeam,
+      null,
+    );
+    setCachedSelectedTeam(chatId, snapshot.selectedTeam, {
+      preserveNull: true,
+    });
+    setCachedChipPreferences(chatId, snapshot.selectedChips, null);
+  });
 }
 
 function normalizeCacheSnapshot(jsonData) {

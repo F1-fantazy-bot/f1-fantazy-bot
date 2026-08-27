@@ -12,6 +12,7 @@ const {
   getTeamDisplayName,
 } = require('../cache');
 const { updateUserAttributes } = require('../userRegistryService');
+const { getUserTeam } = require('../azureStorageService');
 const {
   getFreshUserProfile,
   invalidateUserProfileRefresh,
@@ -109,6 +110,16 @@ function resolveTeamSelection({ chatId, teamId, teamName }) {
   };
 }
 
+async function resolveFreshTeamSelection({ chatId, teamId, teamName }) {
+  const {
+    runChipMutation,
+  } = require('./activateChipService');
+
+  return await runChipMutation(chatId, () =>
+    resolveTeamSelection({ chatId, teamId, teamName }),
+  );
+}
+
 async function refreshSelectedTeamPreference(
   chatId,
   { timeoutMs = USER_PROFILE_REFRESH_TIMEOUT_MS } = {},
@@ -164,10 +175,21 @@ async function getFreshSelectedTeamPreference(chatId) {
   }
 }
 
-async function selectTeamPreference({ chatId, teamId, teamName }) {
+async function selectTeamPreferenceInternal({ chatId, teamId, teamName }) {
   const resolved = resolveTeamSelection({ chatId, teamId, teamName });
   if (resolved.status !== STATUS.OK) {
     return resolved;
+  }
+  if (!await getUserTeam(chatId, resolved.teamId)) {
+    return {
+      status: STATUS.INVALID_INPUT,
+      summary: t(
+        'Team {TEAM} is no longer available.',
+        chatId,
+        { TEAM: resolved.teamName },
+      ),
+      teamId: resolved.teamId,
+    };
   }
 
   await updateUserAttributes(chatId, { selectedTeam: resolved.teamId });
@@ -184,6 +206,18 @@ async function selectTeamPreference({ chatId, teamId, teamName }) {
   };
 }
 
+async function selectTeamPreference(args) {
+  // Lazy import avoids a module cycle: activateChipService uses the
+  // ownership resolver above, while the coordinator covers this mutation.
+  const {
+    runChipMutation,
+  } = require('./activateChipService');
+
+  return await runChipMutation(args.chatId, () =>
+    selectTeamPreferenceInternal(args),
+  );
+}
+
 function resetSelectedTeamSyncForTests() {
   selectedTeamGenerations.clear();
   inFlightSelectedTeamRefreshes.clear();
@@ -192,6 +226,7 @@ function resetSelectedTeamSyncForTests() {
 module.exports = {
   listSelectableTeams,
   resolveTeamSelection,
+  resolveFreshTeamSelection,
   setCachedSelectedTeam,
   refreshSelectedTeamPreference,
   getFreshSelectedTeamPreference,

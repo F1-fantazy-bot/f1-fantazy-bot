@@ -22,6 +22,11 @@ jest.mock('../../services/selectTeamService', () => ({
     teamId: 'T2',
     teamName: 'Kilzid 2',
   })),
+  resolveFreshTeamSelection: jest.fn(async () => ({
+    status: 'ok',
+    teamId: 'T2',
+    teamName: 'Kilzid 2',
+  })),
   getFreshSelectedTeamPreference: jest.fn(async () => ({
     fresh: true,
     selectedTeam: 'T1',

@@ -18,7 +18,7 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
   - Generic command execution is centralized in `src/commandsHandler/commandHandlers.js`, which maps command constants to handler implementations.
 - **Pending Reply Manager:** `src/pendingReplyManager.js` provides a centralized mechanism for commands that need a follow-up reply from the user (text or photo). State is stored in **Azure Table Storage** for multi-server support. The check happens in `messageHandler.js` **before** the text/photo branching, so reply handlers receive the full message regardless of type. Supports optional `data` parameter for multi-step commands that need to store intermediate state between steps. **Global cancel:** `messageHandler.js` intercepts `/cancel`, `cancel`, or `ביטול` (case-insensitive) while any pending reply is active — it clears the entry and confirms with `t('Operation cancelled.')`. This works for every command registered in the pending-reply registry without any per-command changes.
 - **Pending Reply Registry:** `src/pendingReplyRegistry.js` maps command identifiers (e.g., `'report_bug'`, `'send_message_to_user'`, `'set_nickname'`) to builder functions that reconstruct handlers, validators, and prompts. This enables serializable storage — only the command ID and optional data are persisted, and the full behavior is rebuilt on any server instance. Builder functions receive `(chatId, data)` where `data` is optional stored state for multi-step commands.
-- **Caching:** `src/cache.js` holds in-memory data for drivers, constructors, current team info, simulations, next race info, weather forecasts, a cached remaining-race count, canonical prices/player entries, and a unified `userCache`. Team-related caches (`currentTeamCache`, `bestTeamsCache`, `selectedChipCache`) are **nested by team ID** — see the [Multi-Team System](#multi-team-system) section below. `src/cacheInitializer.js` populates those caches on startup — most data comes from Azure Blob Storage (with team-aware blob naming), while `userCache` is populated from the `UserRegistry` Azure Table via a single `listAllUsers()` call. Driver/constructor projections still come from `f1-fantasy-data.json`, but prices and player activity metadata come from the root `prices.json` blob and are overlaid through `getDriversForChat(chatId)` / `getConstructorsForChat(chatId)` for calculations. League teams retain parallel `driverIds`/`constructorIds` arrays from `teams-data.json`; `src/utils/bestTeamsData.js` uses those IDs only for enriched best-team/current-team calculations so duplicate codes remain distinguishable. Active drivers are transfer candidates, while owned inactive drivers stay available with `-25` points on regular weekends or `-35` on sprint weekends and zero expected price change. Imported chat-specific driver/constructor data remains raw and uses the legacy code-keyed path. Each entry in `userCache` is keyed by `chatId` and holds `{ lang, nickname, chatName, selectedTeam, ... }`.
+- **Caching:** `src/cache.js` holds in-memory data for drivers, constructors, current team info, simulations, next race info, weather forecasts, a cached remaining-race count, canonical prices/player entries, and a unified `userCache`. Team-related caches (`currentTeamCache`, `bestTeamsCache`, `selectedChipCache`) are **nested by team ID** — see the [Multi-Team System](#multi-team-system) section below. `src/cacheInitializer.js` populates those caches on startup — most data comes from Azure Blob Storage (with team-aware blob naming), while `userCache` is populated from the `UserRegistry` Azure Table via a single `listAllUsers()` call. `selectedChipCache` is hydrated from the durable `selectedChipByTeam` JSON map and filtered to team IDs with authoritative blobs. Driver/constructor projections still come from `f1-fantasy-data.json`, but prices and player activity metadata come from the root `prices.json` blob and are overlaid through `getDriversForChat(chatId)` / `getConstructorsForChat(chatId)` for calculations. League teams retain parallel `driverIds`/`constructorIds` arrays from `teams-data.json`; `src/utils/bestTeamsData.js` uses those IDs only for enriched best-team/current-team calculations so duplicate codes remain distinguishable. Active drivers are transfer candidates, while owned inactive drivers stay available with `-25` points on regular weekends or `-35` on sprint weekends and zero expected price change. Imported chat-specific driver/constructor data remains raw and uses the legacy code-keyed path. Each entry in `userCache` is keyed by `chatId` and holds `{ lang, nickname, chatName, selectedTeam, ... }`.
 - **Display Names:** `src/utils/utils.js` provides `getDisplayName(chatId)` which checks the in-memory `userCache` and returns the nickname if set, then falls back to `chatName`, then to the stringified `chatId`. This is used in `messageHandler.js` for all log messages so admins see nicknames in logs instead of Telegram display names.
 - **User Registry:** `src/userRegistryService.js` tracks all users who interact with the bot in an Azure Table Storage table (`UserRegistry`). On every allowed message, `messageHandler.js` calls `upsertUser(chatId, chatName)` in a fire-and-forget manner (no `await`) so that registry failures never block message handling. The `/list_users` admin command (`src/commandsHandler/listUsersHandler.js`) displays all registered users with their details, including nicknames when set.
 - **Utilities & Services:**
@@ -311,6 +311,7 @@ The table is **extensible** — new attributes can be added at any time without 
 | `lang`         | `string` | Language code (`'en'`, `'he'`). Optional — absent means default (`'en'`).                     |
 | `nickname`     | `string` | Admin-assigned display name for logs. Optional — when set, replaces `chatName` in log output. |
 | `selectedTeam` | `string` | Currently selected team ID (`'T1'`, `'T2'`, etc.). Optional — absent means no team selected.  |
+| `selectedChipByTeam` | `string` | JSON map from owned team ID to `EXTRA_BOOST`, `LIMITLESS`, or `WILDCARD`; missing/empty means no active chips. |
 | `firstSeen`    | `string` | ISO timestamp — set on first interaction, preserved on updates                                |
 | `lastSeen`     | `string` | ISO timestamp — updated on every message                                                      |
 
@@ -465,6 +466,9 @@ pricesCache; // canonical prices from prices.json, keyed by bot code
 ```
 
 Best-team ranking preferences are stored per team in `userCache[chatId].bestTeamBudgetChangePointsPerMillion`.
+Chip preferences are stored durably in `userCache[chatId].selectedChipByTeam`;
+`selectedChipCache` is its normalized runtime projection. Never mutate and
+persist the whole map from process-local state—use `activateChipService`.
 
 ### Best-Team Ranking
 
@@ -569,8 +573,8 @@ hardening, Azure deployment, Google auth, and CORS rollout are complete.
 The effectful write-tools rollout is now active: PR
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207)
 merged the durable confirmation infrastructure; `set_language` is
-merged, `select_team` merged in PR-3, and `set_best_team_ranking` is
-implemented in PR-4. See [Write-tool confirmation
+merged, `select_team` merged in PR-3, `set_best_team_ranking` merged in
+PR-4, and `activate_chip` is implemented in PR-5. See [Write-tool confirmation
 infrastructure](#write-tool-confirmation-infrastructure) and
 [`docs/agent-write-tools-plan.md`](docs/agent-write-tools-plan.md).
 
@@ -694,7 +698,8 @@ f1-fantazy-bot/
 │   │   ├── writeTools/
 │   │   │   ├── setLanguageTool.js    # en/he preference
 │   │   │   ├── selectTeamTool.js     # confirmed active-team selection
-│   │   │   └── setBestTeamRankingTool.js # confirmed per-team ranking preset
+│   │   │   ├── setBestTeamRankingTool.js # confirmed per-team ranking preset
+│   │   │   └── activateChipTool.js   # confirmed per-team chip activation/reset
 │   │   └── runtime.js                # BuiltInAgent + CopilotRuntime + createCopilotRuntimeHandler (+ wrapLanguageModel)
 │   ├── services/
 │   │   ├── pendingWritesStore.js     # Azure Table-backed staged/approved intents + TTL + ETag consume
@@ -703,6 +708,10 @@ f1-fantazy-bot/
 │   │   ├── selectTeamService.js      # owned-team validation, persistence + generation-safe cache mutation
 │   │   ├── setBestTeamRankingService.js # CAS-safe ranking persistence + cache invalidation
 │   │   ├── selectedBestTeamService.js # CAS-safe per-team selected-best mutations
+│   │   ├── activateChipService.js    # durable chip state + shared mutation coordinator
+│   │   ├── userMutationLockService.js # Azure Table per-user cross-process lease
+│   │   ├── userMutationHydrationService.js # authoritative state after lease acquisition
+│   │   ├── teamStateSnapshotService.js # Blob/Table/cache compensation snapshots
 │   │   └── telegramUserPreferencesService.js # one-route refresh of language/team/ranking
 │   ├── bestTeamsCalculator.js        # exports an optional `options` arg: filters + rankBy + resultCount
 │   └── commandsHandler/
@@ -1000,6 +1009,16 @@ Concrete write tools currently available:
   `selectedBestTeamService`; do not write that JSON field from process-local
   cache. Authoritative reset/import operations also use CAS and publish
   their local preference caches only after persistence succeeds.
+- `activate_chip({ teamId?, teamName?, chip })` — shared
+  `src/services/activateChipService.js`. Supported values are
+  `EXTRA_BOOST`, `LIMITLESS`, `WILDCARD`, and `WITHOUT_CHIP` (reset).
+  Telegram chip commands and the agent tool delegate to the same CAS-safe
+  service. `selectedChipByTeam` persists across hosts/restarts; activation
+  and reset atomically update chip plus selected-best maps and invalidate
+  only the affected calculation. Every top-level team/chip mutation acquires
+  a re-entrant local queue and durable `UserMutationLocks` lease, hydrates
+  authoritative Blob/Table state, and uses `teamStateSnapshotService`
+  compensation before publishing local caches.
 
 Language and selected-team hydration share the bounded/coalesced
 `src/services/userProfileSyncService.js` point lookup. Telegram refreshes

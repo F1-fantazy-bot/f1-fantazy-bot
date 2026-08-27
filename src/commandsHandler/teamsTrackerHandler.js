@@ -9,6 +9,13 @@ const {
   retainSelectedBestTeamPreferences,
 } = require('../services/selectedBestTeamService');
 const {
+  runChipMutation,
+} = require('../services/activateChipService');
+const {
+  captureTeamState,
+  restoreTeamState,
+} = require('../services/teamStateSnapshotService');
+const {
   getSelectedTeam,
   getTeamDisplayName,
   getUserLeagueTeamIds,
@@ -405,9 +412,10 @@ async function respondExpired(bot, query) {
 /**
  * Run staged selection against current follow-state.
  */
-async function applySave(bot, chatId, session) {
+async function applySaveInternal(bot, chatId, session) {
+  const snapshot = captureTeamState(chatId);
   const prevActive = getSelectedTeam(chatId);
-  const previouslyFollowed = new Set(session.initiallyFollowed || []);
+  const previouslyFollowed = new Set(getUserLeagueTeamIds(chatId));
 
   // Re-fetch every league that has staged selections so we work against
   // the latest roster. `previouslyFollowed` carries fantasy ids only — no
@@ -466,6 +474,7 @@ async function applySave(bot, chatId, session) {
 
   const finalTeamIds = new Set(finalSelections.map((sel) => sel.teamId));
 
+  try {
   // If we end up with at least one league team, ensure screenshots are gone.
   if (finalSelections.length > 0) {
     await ensureSourceIsLeague(bot, chatId);
@@ -517,20 +526,12 @@ async function applySave(bot, chatId, session) {
     nextActive = remaining[0] || null;
   }
 
-  try {
-    await retainSelectedBestTeamPreferences({
-      chatId,
-      teamIds: [...finalTeamIds],
-      attributes: { selectedTeam: nextActive },
-    });
-    setCachedSelectedTeam(chatId, nextActive);
-  } catch (err) {
-    console.error(
-      `Error persisting user attributes after teams tracker save for ${chatId}:`,
-      err,
-    );
-    throw err;
-  }
+  await retainSelectedBestTeamPreferences({
+    chatId,
+    teamIds: [...finalTeamIds],
+    attributes: { selectedTeam: nextActive },
+  });
+  setCachedSelectedTeam(chatId, nextActive);
 
   await azureStorageService.deleteTeamsTrackerSession(chatId);
 
@@ -539,6 +540,20 @@ async function applySave(bot, chatId, session) {
     nextActive,
     droppedStale,
   };
+  } catch (err) {
+    console.error(
+      `Error persisting teams tracker save for ${chatId}:`,
+      err,
+    );
+    await restoreTeamState(bot, chatId, snapshot);
+    throw err;
+  }
+}
+
+async function applySave(bot, chatId, session) {
+  return await runChipMutation(chatId, () =>
+    applySaveInternal(bot, chatId, session),
+  );
 }
 
 /**

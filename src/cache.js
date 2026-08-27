@@ -2,6 +2,9 @@ const {
   DRIVERS_PHOTO_TYPE,
   CONSTRUCTORS_PHOTO_TYPE,
   CURRENT_TEAM_PHOTO_TYPE,
+  EXTRA_BOOST_CHIP,
+  WILDCARD_CHIP,
+  LIMITLESS_CHIP,
 } = require('./constants');
 
 exports.sharedKey = 'defaultSharedKey';
@@ -134,6 +137,30 @@ exports.normalizeBestTeamBudgetChangePointsPerMillion = function (
   );
 
   return normalizedCurrentValues;
+};
+
+exports.normalizeSelectedChipByTeam = function (rawSelectedChipByTeam) {
+  const parsedSelections = parsePreferenceMap(rawSelectedChipByTeam);
+  const validChips = new Set([
+    EXTRA_BOOST_CHIP,
+    WILDCARD_CHIP,
+    LIMITLESS_CHIP,
+  ]);
+
+  return Object.fromEntries(
+    Object.entries(parsedSelections).filter(
+      ([teamId, chip]) =>
+        isNonEmptyString(teamId) && validChips.has(chip),
+    ),
+  );
+};
+
+exports.serializeSelectedChipByTeam = function (selectedChipByTeam) {
+  const normalized = exports.normalizeSelectedChipByTeam(selectedChipByTeam);
+
+  return Object.keys(normalized).length > 0
+    ? JSON.stringify(normalized)
+    : null;
 };
 
 exports.normalizeSelectedBestTeamByTeam = function (rawSelectedBestTeamByTeam) {

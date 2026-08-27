@@ -44,8 +44,13 @@ const {
   setBestTeamRankingPreference,
 } = require('./services/setBestTeamRankingService');
 const {
-  clearSelectedBestTeamPreference,
-} = require('./services/selectedBestTeamService');
+  runChipMutation,
+  clearTeamDerivedPreferences,
+} = require('./services/activateChipService');
+const {
+  captureTeamState,
+  restoreTeamState,
+} = require('./services/teamStateSnapshotService');
 const {
   getDeadlinePayload,
   getRefreshMarkup,
@@ -294,11 +299,48 @@ async function handleTeamAssignCallback(bot, query) {
   const messageId = query.message.message_id;
   const [_, uniqueKey, teamId] = query.data.split(':');
 
-  // Retrieve temporarily stored team data from Azure Blob Storage
-  const teamData = await azureStorageService.getPendingTeamAssignment(
-    chatId,
-    uniqueKey,
-  );
+  let teamData;
+  await runChipMutation(chatId, async () => {
+    // Claim the assignment while holding the durable per-user mutation lock.
+    teamData = await azureStorageService.getPendingTeamAssignment(
+      chatId,
+      uniqueKey,
+    );
+    if (!teamData) {
+      return;
+    }
+    await azureStorageService.deletePendingTeamAssignment(chatId, uniqueKey);
+
+    const snapshot = captureTeamState(chatId);
+    try {
+      // Cross-source rule: adding a screenshot team wipes any followed league teams.
+      await ensureSourceIsScreenshot(bot, chatId);
+      await azureStorageService.saveUserTeam(bot, chatId, teamId, teamData);
+      await clearTeamDerivedPreferences({
+        chatId,
+        teamId,
+        attributes: { selectedTeam: teamId },
+      });
+    } catch (err) {
+      await restoreTeamState(bot, chatId, snapshot);
+      await azureStorageService.savePendingTeamAssignment(
+        chatId,
+        uniqueKey,
+        teamData,
+      );
+      throw err;
+    }
+
+    if (!currentTeamCache[chatId]) {
+      currentTeamCache[chatId] = {};
+    }
+    currentTeamCache[chatId][teamId] = teamData;
+    setCachedSelectedTeam(chatId, teamId);
+    if (bestTeamsCache[chatId]) {
+      delete bestTeamsCache[chatId][teamId];
+    }
+  });
+
   if (!teamData) {
     await bot.editMessageText(
       t('An error occurred while extracting data from the photo.', chatId),
@@ -307,32 +349,6 @@ async function handleTeamAssignCallback(bot, query) {
     await bot.answerCallbackQuery(query.id);
 
     return;
-  }
-  await azureStorageService.deletePendingTeamAssignment(chatId, uniqueKey);
-
-  // Cross-source rule: adding a screenshot team wipes any followed league teams.
-  await ensureSourceIsScreenshot(bot, chatId);
-
-  // Store in cache (team-scoped)
-  if (!currentTeamCache[chatId]) {
-    currentTeamCache[chatId] = {};
-  }
-  currentTeamCache[chatId][teamId] = teamData;
-
-  // Persist to blob storage
-  await azureStorageService.saveUserTeam(bot, chatId, teamId, teamData);
-
-  // Auto-select this team
-  await clearSelectedBestTeamPreference({
-    chatId,
-    teamId,
-    attributes: { selectedTeam: teamId },
-  });
-  setCachedSelectedTeam(chatId, teamId);
-
-  // Invalidate best teams for this team
-  if (bestTeamsCache[chatId]) {
-    delete bestTeamsCache[chatId][teamId];
   }
 
   // Edit message to confirm

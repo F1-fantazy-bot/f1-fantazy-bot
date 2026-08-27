@@ -24,8 +24,13 @@ const {
   setCachedSelectedTeam,
 } = require('./services/selectTeamService');
 const {
-  clearSelectedBestTeamPreference,
-} = require('./services/selectedBestTeamService');
+  runChipMutation,
+  clearTeamDerivedPreferences,
+} = require('./services/activateChipService');
+const {
+  captureTeamState,
+  restoreTeamState,
+} = require('./services/teamStateSnapshotService');
 
 async function processPhotoByType(
   bot,
@@ -133,39 +138,45 @@ async function storeInCache(bot, chatId, type, extractedData, fileUniqueId) {
       return null;
     }
 
-    // Cross-source rule: uploading a screenshot drops any previously
-    // followed league teams so the two sources never coexist.
-    await ensureSourceIsScreenshot(bot, chatId);
+    return await runChipMutation(chatId, async () => {
+      const snapshot = captureTeamState(chatId);
+      try {
+        // Cross-source rule: uploading a screenshot drops any previously
+        // followed league teams so the two sources never coexist.
+        await ensureSourceIsScreenshot(bot, chatId);
+        await azureStorageService.saveUserTeam(
+          bot,
+          chatId,
+          teamId,
+          teamDataWithoutId,
+        );
+        await clearTeamDerivedPreferences({
+          chatId,
+          teamId,
+          attributes: { selectedTeam: teamId },
+        });
+      } catch (err) {
+        await restoreTeamState(bot, chatId, snapshot);
+        throw err;
+      }
 
-    if (!currentTeamCache[chatId]) {
-      currentTeamCache[chatId] = {};
-    }
-    currentTeamCache[chatId][teamId] = teamDataWithoutId;
+      if (!currentTeamCache[chatId]) {
+        currentTeamCache[chatId] = {};
+      }
+      currentTeamCache[chatId][teamId] = teamDataWithoutId;
+      setCachedSelectedTeam(chatId, teamId);
 
-    await azureStorageService.saveUserTeam(
-      bot,
-      chatId,
-      teamId,
-      teamDataWithoutId,
-    );
+      await sendMessageToUser(
+        bot,
+        chatId,
+        t('🔄 Active team auto-switched to {TEAM}.', chatId, {
+          TEAM: getTeamDisplayName(chatId, teamId),
+        }),
+        { errorMessageToLog: 'Error sending auto-switch message' },
+      );
 
-    await clearSelectedBestTeamPreference({
-      chatId,
-      teamId,
-      attributes: { selectedTeam: teamId },
+      return teamId;
     });
-    setCachedSelectedTeam(chatId, teamId);
-
-    await sendMessageToUser(
-      bot,
-      chatId,
-      t('🔄 Active team auto-switched to {TEAM}.', chatId, {
-        TEAM: getTeamDisplayName(chatId, teamId),
-      }),
-      { errorMessageToLog: 'Error sending auto-switch message' },
-    );
-
-    return teamId;
   }
 
   await sendLogMessage(bot, `Unknown photo type: ${type}`);

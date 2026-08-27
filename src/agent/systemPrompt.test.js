@@ -39,3 +39,15 @@ test('routes best-team ranking reads and writes to the right tools', () => {
     /call\s+set_best_team_ranking in that turn/,
   );
 });
+
+test('routes chip reads, activation, and reset correctly', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain(
+    'Call get_current_team for the requested team and report its chip',
+  );
+  expect(prompt).toContain(
+    'no chip / reset /',
+  );
+  expect(prompt).toMatch(/call activate_chip in\s+that turn/);
+});

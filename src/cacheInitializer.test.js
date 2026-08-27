@@ -8,6 +8,7 @@ const {
   nextRaceInfoCache,
   remainingRaceCountCache,
   userCache,
+  selectedChipCache,
   pricesCache,
 } = require('./cache');
 const {
@@ -94,12 +95,16 @@ describe('cacheInitializer', () => {
   // Mock user teams data
   const mockUserTeams = {
     123: {
-      drivers: ['VER', 'HAM'],
-      constructors: ['RBR', 'MER'],
+      T1: {
+        drivers: ['VER', 'HAM'],
+        constructors: ['RBR', 'MER'],
+      },
     },
     456: {
-      drivers: ['VER'],
-      constructors: ['RBR'],
+      T1: {
+        drivers: ['VER'],
+        constructors: ['RBR'],
+      },
     },
   };
 
@@ -118,6 +123,10 @@ describe('cacheInitializer', () => {
           boostDriver: 'VER',
           extraBoostDriver: 'HAM',
         },
+      }),
+      selectedChipByTeam: JSON.stringify({
+        T1: 'EXTRA_BOOST',
+        removedTeam: 'LIMITLESS',
       }),
     },
     { chatId: '456', chatName: 'Bob', lang: 'he', nickname: 'Lewis' },
@@ -143,6 +152,9 @@ describe('cacheInitializer', () => {
       (key) => delete remainingRaceCountCache[key]
     );
     Object.keys(userCache).forEach((key) => delete userCache[key]);
+    Object.keys(selectedChipCache).forEach(
+      (key) => delete selectedChipCache[key],
+    );
     pricesCache.drivers = {};
     pricesCache.constructors = {};
     pricesCache.driverEntries = [];
@@ -236,6 +248,7 @@ describe('cacheInitializer', () => {
             extraBoostDriver: 'HAM',
           },
         },
+        selectedChipByTeam: { T1: 'EXTRA_BOOST' },
       },
       456: {
         chatName: 'Bob',
@@ -243,7 +256,11 @@ describe('cacheInitializer', () => {
         nickname: 'Lewis',
         bestTeamBudgetChangePointsPerMillion: {},
         selectedBestTeamByTeam: {},
+        selectedChipByTeam: {},
       },
+    });
+    expect(selectedChipCache).toEqual({
+      123: { T1: 'EXTRA_BOOST' },
     });
 
     // Verify user teams loaded message

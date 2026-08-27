@@ -1,9 +1,12 @@
 const { KILZI_CHAT_ID, EXTRA_BOOST_CHIP, WILDCARD_CHIP, WITHOUT_CHIP } = require('../constants');
 const {
-  clearSelectedBestTeamPreference,
-} = require('../services/selectedBestTeamService');
-jest.mock('../services/selectedBestTeamService', () => ({
-  clearSelectedBestTeamPreference: jest.fn().mockResolvedValue({}),
+  updateUserAttributesAtomically,
+} = require('../userRegistryService');
+jest.mock('../userRegistryService', () => ({
+  updateUserAttributesAtomically: jest.fn(),
+}));
+jest.mock('../azureStorageService', () => ({
+  getUserTeam: jest.fn().mockResolvedValue({ drivers: ['VER'] }),
 }));
 const {
   bestTeamsCache,
@@ -19,6 +22,24 @@ describe('select chip handlers', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    updateUserAttributesAtomically.mockImplementation(
+      async (_chatId, transform) => {
+        const current = {
+          selectedChipByTeam: JSON.stringify(
+            userCache[String(KILZI_CHAT_ID)]?.selectedChipByTeam || {},
+          ),
+          selectedBestTeamByTeam: JSON.stringify(
+            userCache[String(KILZI_CHAT_ID)]?.selectedBestTeamByTeam || {},
+          ),
+        };
+        const attributes = await transform(current);
+
+        return {
+          updated: attributes !== null,
+          user: attributes ? { ...current, ...attributes } : current,
+        };
+      },
+    );
     delete bestTeamsCache[KILZI_CHAT_ID];
     delete selectedChipCache[KILZI_CHAT_ID];
     delete currentTeamCache[KILZI_CHAT_ID];
@@ -43,10 +64,10 @@ describe('select chip handlers', () => {
 
     expect(selectedChipCache[KILZI_CHAT_ID][TEAM_ID]).toBe(EXTRA_BOOST_CHIP);
     expect(bestTeamsCache[KILZI_CHAT_ID][TEAM_ID]).toBeUndefined();
-    expect(clearSelectedBestTeamPreference).toHaveBeenCalledWith({
-      chatId: KILZI_CHAT_ID,
-      teamId: TEAM_ID,
-    });
+    expect(updateUserAttributesAtomically).toHaveBeenCalledWith(
+      KILZI_CHAT_ID,
+      expect.any(Function),
+    );
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
       expect.stringContaining(`Selected chip: ${EXTRA_BOOST_CHIP}.`)
@@ -58,7 +79,7 @@ describe('select chip handlers', () => {
 
     await handleResetChip(botMock, { chat: { id: KILZI_CHAT_ID } });
 
-    expect(selectedChipCache[KILZI_CHAT_ID][TEAM_ID]).toBeUndefined();
+    expect(selectedChipCache[KILZI_CHAT_ID]?.[TEAM_ID]).toBeUndefined();
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
       expect.stringContaining(`Selected chip: ${WITHOUT_CHIP}.`)

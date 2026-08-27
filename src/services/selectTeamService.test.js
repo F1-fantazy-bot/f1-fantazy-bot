@@ -2,11 +2,15 @@ jest.mock('../userRegistryService', () => ({
   updateUserAttributes: jest.fn(),
   getUserById: jest.fn(),
 }));
+jest.mock('../azureStorageService', () => ({
+  getUserTeam: jest.fn(),
+}));
 
 const {
   updateUserAttributes,
   getUserById,
 } = require('../userRegistryService');
+const { getUserTeam } = require('../azureStorageService');
 const {
   userCache,
   currentTeamCache,
@@ -32,6 +36,7 @@ beforeEach(() => {
   resetUserProfileSyncForTests();
   updateUserAttributes.mockResolvedValue(undefined);
   getUserById.mockResolvedValue(null);
+  getUserTeam.mockResolvedValue({ drivers: ['VER'] });
   delete userCache[String(CHAT_ID)];
   currentTeamCache[CHAT_ID] = {
     T1: { teamName: 'Kilzid' },

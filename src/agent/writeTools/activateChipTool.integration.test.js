@@ -31,18 +31,17 @@ jest.mock('../../services/selectTeamService', () => ({
     teamName: 'Kilzid 2',
   })),
 }));
-jest.mock('../../services/setBestTeamRankingService', () => ({
-  getPreset: jest.fn(() => ({
-    id: 'points_plus_budget',
-    budgetChangePointsPerMillion: 1.65,
-    labelKey: 'Points Plus Budget',
+jest.mock('../../services/activateChipService', () => ({
+  getChipOption: jest.fn(() => ({
+    chip: 'EXTRA_BOOST',
+    labelKey: 'Extra Boost',
   })),
-  availablePresets: jest.fn(() => []),
-  getFreshBestTeamRankingPreference: jest.fn(async () => ({
+  availableChips: jest.fn(() => []),
+  getFreshChipPreference: jest.fn(async () => ({
     fresh: true,
-    value: 0,
+    chip: 'WITHOUT_CHIP',
   })),
-  setBestTeamRankingPreference: jest.fn(),
+  activateChipPreference: jest.fn(),
 }));
 jest.mock('../../services/pendingWritesStore', () => {
   const intents = new Map();
@@ -54,9 +53,9 @@ jest.mock('../../services/pendingWritesStore', () => {
       NOT_APPROVED: 'not_approved',
     },
     stagePendingWrite: jest.fn(async (intent) => {
-      intents.set('nonce-ranking', { ...intent, state: 'staged' });
+      intents.set('nonce-chip', { ...intent, state: 'staged' });
 
-      return 'nonce-ranking';
+      return 'nonce-chip';
     }),
     approvePendingWrite: jest.fn(async ({ chatId, writeNonce }) => {
       const intent = intents.get(writeNonce);
@@ -86,35 +85,30 @@ const {
   approvePendingWrite,
 } = require('../../services/pendingWritesStore');
 const {
-  setBestTeamRankingPreference,
-} = require('../../services/setBestTeamRankingService');
+  activateChipPreference,
+} = require('../../services/activateChipService');
 const { executeConfirmedWrite } = require('../writeToolHelpers');
-const {
-  setBestTeamRankingTool,
-} = require('./setBestTeamRankingTool');
+const { activateChipTool } = require('./activateChipTool');
 
-test('set_best_team_ranking runs propose → approval → confirm', async () => {
-  setBestTeamRankingPreference.mockResolvedValue({
+test('activate_chip runs propose → approval → confirm', async () => {
+  activateChipPreference.mockResolvedValue({
     status: 'ok',
-    summary: 'Best-team ranking updated.',
+    summary: 'Chip activated.',
     teamId: 'T2',
-    presetId: 'points_plus_budget',
+    chip: 'EXTRA_BOOST',
     changed: true,
   });
 
-  const proposed = await setBestTeamRankingTool.execute({
+  const proposed = await activateChipTool.execute({
     teamName: 'Kilzid 2',
-    presetId: 'points_plus_budget',
+    chip: 'EXTRA_BOOST',
   });
   expect(proposed).toMatchObject({
     status: 'confirmation_required',
-    tool: 'set_best_team_ranking',
-    args: {
-      teamId: 'T2',
-      presetId: 'points_plus_budget',
-    },
+    tool: 'activate_chip',
+    args: { teamId: 'T2', chip: 'EXTRA_BOOST' },
   });
-  expect(setBestTeamRankingPreference).not.toHaveBeenCalled();
+  expect(activateChipPreference).not.toHaveBeenCalled();
 
   await approvePendingWrite({
     chatId: 42,
@@ -125,13 +119,13 @@ test('set_best_team_ranking runs propose → approval → confirm', async () => 
     writeNonce: proposed.writeNonce,
   });
 
-  expect(setBestTeamRankingPreference).toHaveBeenCalledWith({
+  expect(activateChipPreference).toHaveBeenCalledWith({
     chatId: 42,
     teamId: 'T2',
-    presetId: 'points_plus_budget',
+    chip: 'EXTRA_BOOST',
   });
   expect(result).toMatchObject({
     status: 'ok',
-    tool: 'set_best_team_ranking',
+    tool: 'activate_chip',
   });
 });
