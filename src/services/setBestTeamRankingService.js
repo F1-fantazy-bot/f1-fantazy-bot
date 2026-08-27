@@ -254,7 +254,7 @@ async function refreshBestTeamRankingPreferencesSafely(chatId) {
   }
 }
 
-async function setBestTeamRankingPreference({
+async function setBestTeamRankingPreferenceInternal({
   chatId,
   teamId,
   teamName,
@@ -352,6 +352,18 @@ async function setBestTeamRankingPreference({
     value: preset.budgetChangePointsPerMillion,
     changed: true,
   };
+}
+
+async function setBestTeamRankingPreference(args) {
+  // Lazy import avoids a module cycle: activateChipService invalidates
+  // ranking refreshes, while ranking writes share its mutation coordinator.
+  const {
+    runChipMutation,
+  } = require('./activateChipService');
+
+  return await runChipMutation(args.chatId, () =>
+    setBestTeamRankingPreferenceInternal(args),
+  );
 }
 
 function resetBestTeamRankingSyncForTests() {

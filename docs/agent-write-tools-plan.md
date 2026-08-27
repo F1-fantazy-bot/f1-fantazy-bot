@@ -31,8 +31,10 @@ localization for shared write UI + race info. A follow-up localizes
 It adds the shared selection service, confirmed agent tool, Telegram
 callback delegation, clickable team cards, and cross-process selected-team
 hydration.
-**PR-4 (`set_best_team_ranking`) is implemented on the current feature
-branch.** PR-5 (`activate_chip`) is next after PR-4 merges.
+**PR-4 (`set_best_team_ranking`) merged as
+[#221](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/221).**
+**PR-5 (`activate_chip`) is implemented on the current feature branch.**
+PR-6 (`follow_league`) is next after PR-5 merges.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -480,7 +482,7 @@ LANG callback behave identically in Telegram.
   name canonicalization, proposal/approval/confirm, Telegram callbacks,
   and cross-process preference refresh.
 
-### PR-4 — `set_best_team_ranking` 🟡 Implemented (current branch)
+### PR-4 — `set_best_team_ranking` ✅ Merged ([#221](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/221))
 
 - `src/services/setBestTeamRankingService.js` owns the four preset
   definitions, exact team/preset validation, localized envelopes, durable
@@ -511,26 +513,35 @@ LANG callback behave identically in Telegram.
   cross-process hydration/invalidation, Telegram parity, prompt routing,
   and propose → approve → confirm.
 
-### PR-5 — `activate_chip` *(with persistence fix)*
+### PR-5 — `activate_chip` *(with persistence fix)* 🟡 Implemented (current branch)
 
-- Persistence decision: extend `updateUserAttributes` (or the
-  existing `selectedBestTeamByTeam` serializer pattern) to also
-  persist `selectedChipByTeam`. On bot / agent startup, the existing
-  user-load path hydrates `selectedChipCache` from this attribute.
-  Migration: missing attribute treated as empty map.
-- Extract `src/services/activateChipService.js`: `{ chatId, teamId?,
-  chip }` → resolves `teamId` via `pickTeamId` (same pattern as
-  `best_teams`), validates chip, updates `selectedChipCache`,
-  invalidates `bestTeamsCache[chatId][teamId]`, persists the new
-  attribute and the existing `selectedBestTeamByTeam`. Returns the
-  envelope.
-- Refactor `selectChipHandlers.js#selectChip` to call the service; the
-  adapter formats the Telegram message via `t()`.
-- Register `activate_chip` agent tool with the chip enum + optional
-  team picker.
-- Tests + smoke (`/extra_boost`, `/limitless`, `/wildcard`,
-  `/reset_chip` + chip callback). Cross-process smoke: activate chip
-  via agent → restart bot → `/best_teams` reflects it.
+- `selectedChipByTeam` is a normalized `UserRegistry` JSON map; missing or
+  malformed data means no chips, and `WITHOUT_CHIP` is represented by an
+  absent entry. Startup and per-route hydration populate
+  `selectedChipCache` only for currently owned team blobs.
+- `src/services/activateChipService.js` validates authoritative ownership
+  and chip values, performs durable no-op detection, atomically updates chip
+  plus selected-best maps, and invalidates only affected calculations.
+- Top-level team/chip mutations use a re-entrant process queue plus a durable
+  per-user lease in Azure Table `UserMutationLocks`. After lease acquisition,
+  authoritative team blobs and `UserRegistry` attributes hydrate before any
+  source/ownership decision.
+- `teamStateSnapshotService` provides compensation for partial Blob/Table
+  failures. Import, reset, source conversion, Teams Tracker, screenshot
+  assignment, follow/remove, active-team selection, ranking writes, and
+  selected-best number input share the same transaction boundary.
+- `selectChipHandlers.js` is now a thin Telegram adapter. Existing
+  `/extra_boost`, `/limitless`, `/wildcard`, and `/reset_chip` output is
+  preserved; no-ops do not claim calculations were invalidated.
+- `activate_chip({ teamId?, teamName?, chip })` supports `EXTRA_BOOST`,
+  `LIMITLESS`, `WILDCARD`, and `WITHOUT_CHIP`, canonicalizes owned teams,
+  and skips confirmation only after durable no-op proof.
+- Agent `list_user_teams`, `get_best_teams`, `get_best_team_scenarios`, and
+  `get_current_team` refresh persisted chip state before their cores run.
+- Tests cover normalization/startup migration, CAS and write serialization,
+  authoritative deletion races, durable lease ownership, source/import/reset
+  compensation, Telegram parity, prompt routing, and propose → approve →
+  confirm.
 - **Deployment note in PR description:** existing users get an empty
   `selectedChipByTeam` attribute on first read; their previously
   in-memory chip selection is lost. Acceptable since chip selection

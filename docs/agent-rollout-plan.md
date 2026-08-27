@@ -648,7 +648,8 @@ The full per-tool checklist (including the **cache bootstrap** and
   adds the confirmed `select_team` tool plus cross-process selected-team
   hydration. PR-4 adds confirmed per-team best-team ranking writes with
   ETag-safe JSON-map persistence and cross-process cache invalidation;
-  PR-5..PR-10 continue one vertical slice at a time.
+  PR-5 adds durable per-team chip persistence and the confirmed
+  `activate_chip` tool; PR-6..PR-10 continue one vertical slice at a time.
 - **Rate-limiting on the agent endpoint** (Azure API Management or a CDN-layer policy) — defense in depth even after proper auth lands; relevant if abuse appears in App Insights before proper auth ships.
 
 ---

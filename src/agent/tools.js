@@ -36,6 +36,9 @@ const {
 const {
   refreshBestTeamRankingPreferencesSafely,
 } = require('../services/setBestTeamRankingService');
+const {
+  refreshChipPreferencesSafely,
+} = require('../services/activateChipService');
 const { getAgentChatId } = require('./identity');
 const { ensureCacheReady } = require('./cacheBootstrap');
 const { wrapToolExecute } = require('./wrapToolExecute');
@@ -45,6 +48,7 @@ const { selectTeamTool } = require('./writeTools/selectTeamTool');
 const {
   setBestTeamRankingTool,
 } = require('./writeTools/setBestTeamRankingTool');
+const { activateChipTool } = require('./writeTools/activateChipTool');
 const { getLanguageTool } = require('./readTools/getLanguageTool');
 
 // Trim a best-teams calculator row down to the fields the React component
@@ -102,6 +106,7 @@ const tools = [
     execute: wrapToolExecute('list_user_teams', async () => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
+      await refreshChipPreferencesSafely(chatId);
 
       return await withUiLanguage(chatId, {
         teams: listUserTeams({ chatId }),
@@ -157,6 +162,7 @@ const tools = [
       const [language] = await Promise.all([
         getFreshLanguagePreference(chatId),
         refreshBestTeamRankingPreferencesSafely(chatId),
+        refreshChipPreferencesSafely(chatId),
       ]);
       // Web component renders up to 10 teams at a time — anything beyond
       // that bloats the streamed tool payload and the LLM context.
@@ -222,6 +228,7 @@ const tools = [
     execute: wrapToolExecute('get_best_team_scenarios', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
+      await refreshChipPreferencesSafely(chatId);
 
       const result = await computeBestTeamScenarios({
         chatId,
@@ -358,6 +365,7 @@ const tools = [
       const [language] = await Promise.all([
         getFreshLanguagePreference(chatId),
         refreshBestTeamRankingPreferencesSafely(chatId),
+        refreshChipPreferencesSafely(chatId),
       ]);
 
       return {
@@ -486,6 +494,7 @@ const tools = [
   setLanguageTool,
   selectTeamTool,
   setBestTeamRankingTool,
+  activateChipTool,
 
   defineTool({
     name: 'confirm_write',

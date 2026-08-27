@@ -8,6 +8,7 @@ jest.mock('../writeToolHelpers', () => ({
 
 jest.mock('../../services/selectTeamService', () => ({
   resolveTeamSelection: jest.fn(),
+  resolveFreshTeamSelection: jest.fn(),
   getFreshSelectedTeamPreference: jest.fn(),
   selectTeamPreference: jest.fn(),
 }));
@@ -17,6 +18,7 @@ jest.mock('../../services/setLanguageService', () => ({
 
 const {
   resolveTeamSelection,
+  resolveFreshTeamSelection,
   getFreshSelectedTeamPreference,
   selectTeamPreference,
 } = require('../../services/selectTeamService');
@@ -33,6 +35,9 @@ beforeEach(() => {
     teamName: 'Kilzid 2',
     availableTeams: [],
   });
+  resolveFreshTeamSelection.mockImplementation(async (args) =>
+    resolveTeamSelection(args),
+  );
   getFreshSelectedTeamPreference.mockResolvedValue({
     fresh: true,
     selectedTeam: 'T1',

@@ -16,6 +16,8 @@ const {
   clearSelectedBestTeam,
   clearAllSelectedBestTeams,
   normalizeSelectedBestTeamByTeam,
+  normalizeSelectedChipByTeam,
+  serializeSelectedChipByTeam,
 } = require('./cache');
 
 const {
@@ -542,6 +544,31 @@ describe('cache', () => {
       expect(
         normalizeBestTeamBudgetChangePointsPerMillion({ T1: 1.65 }),
       ).toEqual({ T1: 1.65 });
+    });
+
+    describe('selected chip persistence helpers', () => {
+      it('normalizes valid chips from JSON and drops reset/unknown values', () => {
+        expect(
+          normalizeSelectedChipByTeam(
+            JSON.stringify({
+              T1: 'EXTRA_BOOST',
+              T2: 'WITHOUT_CHIP',
+              T3: 'unknown',
+              T4: 'LIMITLESS',
+            }),
+          ),
+        ).toEqual({
+          T1: 'EXTRA_BOOST',
+          T4: 'LIMITLESS',
+        });
+      });
+
+      it('serializes active chips and removes an empty map', () => {
+        expect(serializeSelectedChipByTeam({ T1: 'WILDCARD' })).toBe(
+          '{"T1":"WILDCARD"}',
+        );
+        expect(serializeSelectedChipByTeam({})).toBeNull();
+      });
     });
 
     it('parses JSON string into object', () => {

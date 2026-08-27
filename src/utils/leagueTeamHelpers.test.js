@@ -2,18 +2,20 @@ jest.mock('../azureStorageService', () => ({
   saveUserTeam: jest.fn(),
   deleteUserTeam: jest.fn(),
 }));
-jest.mock('../services/selectedBestTeamService', () => ({
-  clearSelectedBestTeamPreference: jest.fn(),
+jest.mock('../services/activateChipService', () => ({
+  clearTeamDerivedPreferences: jest.fn(),
+  runChipMutation: jest.fn(async (_chatId, operation) => operation()),
 }));
 
 const azureStorageService = require('../azureStorageService');
 const {
-  clearSelectedBestTeamPreference,
-} = require('../services/selectedBestTeamService');
-const { currentTeamCache } = require('../cache');
+  clearTeamDerivedPreferences,
+} = require('../services/activateChipService');
+const { currentTeamCache, userCache } = require('../cache');
 const {
   mapLeagueTeamToBotTeam,
   followLeagueTeam,
+  removeFollowedTeam,
 } = require('./leagueTeamHelpers');
 
 describe('mapLeagueTeamToBotTeam', () => {
@@ -77,18 +79,20 @@ describe('mapLeagueTeamToBotTeam', () => {
     beforeEach(() => {
       jest.clearAllMocks();
       delete currentTeamCache[42];
+      delete userCache['42'];
       azureStorageService.saveUserTeam.mockResolvedValue(undefined);
       azureStorageService.deleteUserTeam.mockResolvedValue(undefined);
-      clearSelectedBestTeamPreference.mockResolvedValue({});
+      clearTeamDerivedPreferences.mockResolvedValue({});
     });
 
     afterEach(() => {
       delete currentTeamCache[42];
+      delete userCache['42'];
     });
 
     test('rolls back blob and cache when selected-best CAS fails', async () => {
       const error = new Error('CAS unavailable');
-      clearSelectedBestTeamPreference.mockRejectedValue(error);
+      clearTeamDerivedPreferences.mockRejectedValue(error);
       const bot = {};
 
       await expect(
@@ -112,6 +116,42 @@ describe('mapLeagueTeamToBotTeam', () => {
         'Owner_1',
       );
       expect(currentTeamCache[42]).toBeUndefined();
+    });
+
+    test('keeps preferences and cache when blob deletion fails', async () => {
+      const teamData = { drivers: ['VER'] };
+      currentTeamCache[42] = { Owner_1: teamData };
+      userCache['42'] = { selectedTeam: 'Owner_1' };
+      azureStorageService.deleteUserTeam.mockRejectedValue(
+        new Error('blob unavailable'),
+      );
+
+      await expect(
+        removeFollowedTeam({}, 42, 'Owner_1'),
+      ).rejects.toThrow('blob unavailable');
+      expect(clearTeamDerivedPreferences).not.toHaveBeenCalled();
+      expect(currentTeamCache[42].Owner_1).toBe(teamData);
+    });
+
+    test('restores the deleted blob when preference CAS fails', async () => {
+      const teamData = { drivers: ['VER'] };
+      const bot = {};
+      currentTeamCache[42] = { Owner_1: teamData };
+      userCache['42'] = { selectedTeam: 'Owner_1' };
+      clearTeamDerivedPreferences.mockRejectedValue(
+        new Error('CAS unavailable'),
+      );
+
+      await expect(
+        removeFollowedTeam(bot, 42, 'Owner_1'),
+      ).rejects.toThrow('CAS unavailable');
+      expect(azureStorageService.saveUserTeam).toHaveBeenCalledWith(
+        bot,
+        42,
+        'Owner_1',
+        teamData,
+      );
+      expect(currentTeamCache[42].Owner_1).toBe(teamData);
     });
   });
 

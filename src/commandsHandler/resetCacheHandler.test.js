@@ -13,6 +13,10 @@ jest.mock('../userRegistryService', () => ({
     }),
   ),
 }));
+jest.mock('../services/teamStateSnapshotService', () => ({
+  captureTeamState: jest.fn(() => ({})),
+  restoreTeamState: jest.fn(),
+}));
 
 const {
   driversCache,
@@ -25,6 +29,9 @@ const {
 const {
   updateUserAttributesAtomically,
 } = require('../userRegistryService');
+const {
+  restoreTeamState,
+} = require('../services/teamStateSnapshotService');
 
 const { resetCacheForChat } = require('./resetCacheHandler');
 
@@ -88,6 +95,7 @@ describe('resetCacheForChat', () => {
       userCache[String(KILZI_CHAT_ID)].bestTeamBudgetChangePointsPerMillion,
     ).toEqual({});
     expect(userCache[String(KILZI_CHAT_ID)].selectedBestTeamByTeam).toEqual({});
+    expect(userCache[String(KILZI_CHAT_ID)].selectedChipByTeam).toEqual({});
     expect(updateUserAttributesAtomically).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
       expect.any(Function),
@@ -98,6 +106,7 @@ describe('resetCacheForChat', () => {
       selectedTeam: null,
       bestTeamBudgetChangePointsPerMillion: null,
       selectedBestTeamByTeam: null,
+      selectedChipByTeam: null,
     });
   });
 
@@ -135,10 +144,33 @@ describe('resetCacheForChat', () => {
       'Azure error',
     );
 
-    // Cache should still be cleared before the Azure call
-    expect(driversCache[KILZI_CHAT_ID]).toBeUndefined();
+    // Local state is published only after durable reset succeeds.
+    expect(driversCache[KILZI_CHAT_ID]).toEqual({
+      VER: { price: 30.5 },
+    });
+
     expect(constructorsCache[KILZI_CHAT_ID]).toBeUndefined();
     expect(currentTeamCache[KILZI_CHAT_ID]).toBeUndefined();
+  });
+
+  it('restores durable team state when the attribute CAS fails', async () => {
+    driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
+    updateUserAttributesAtomically.mockRejectedValueOnce(
+      new Error('CAS unavailable'),
+    );
+
+    await expect(
+      resetCacheForChat(KILZI_CHAT_ID, botMock),
+    ).rejects.toThrow('CAS unavailable');
+
+    expect(restoreTeamState).toHaveBeenCalledWith(
+      botMock,
+      KILZI_CHAT_ID,
+      {},
+    );
+    expect(driversCache[KILZI_CHAT_ID]).toEqual({
+      VER: { price: 30.5 },
+    });
   });
 
   it('should handle sendMessage errors gracefully', async () => {

@@ -7,6 +7,7 @@ jest.mock('../writeToolHelpers', () => ({
 }));
 jest.mock('../../services/selectTeamService', () => ({
   resolveTeamSelection: jest.fn(),
+  resolveFreshTeamSelection: jest.fn(),
 }));
 jest.mock('../../services/setBestTeamRankingService', () => ({
   getPreset: jest.fn(),
@@ -20,6 +21,7 @@ jest.mock('../../services/setLanguageService', () => ({
 
 const {
   resolveTeamSelection,
+  resolveFreshTeamSelection,
 } = require('../../services/selectTeamService');
 const {
   getPreset,
@@ -48,6 +50,9 @@ beforeEach(() => {
     teamName: 'Kilzid 2',
     availableTeams: [],
   });
+  resolveFreshTeamSelection.mockImplementation(async (args) =>
+    resolveTeamSelection(args),
+  );
   getPreset.mockReturnValue(preset);
   availablePresets.mockReturnValue([
     { id: 'pure_points', label: 'Pure Points', value: 0 },

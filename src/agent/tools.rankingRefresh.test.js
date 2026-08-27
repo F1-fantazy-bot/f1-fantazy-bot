@@ -23,18 +23,34 @@ jest.mock('../services/setBestTeamRankingService', () => ({
   getFreshBestTeamRankingPreference: jest.fn(),
   setBestTeamRankingPreference: jest.fn(),
 }));
+jest.mock('../services/activateChipService', () => ({
+  refreshChipPreferencesSafely: jest.fn(),
+}));
 jest.mock('../cores/bestTeamsCore', () => ({
   computeBestTeams: jest.fn(),
 }));
 jest.mock('../cores/currentTeamCore', () => ({
   getCurrentTeam: jest.fn(),
 }));
+jest.mock('../cores/userTeamsCore', () => ({
+  listUserTeams: jest.fn(),
+}));
+jest.mock('../cores/bestTeamScenariosCore', () => ({
+  computeBestTeamScenarios: jest.fn(),
+}));
 
 const {
   refreshBestTeamRankingPreferencesSafely,
 } = require('../services/setBestTeamRankingService');
+const {
+  refreshChipPreferencesSafely,
+} = require('../services/activateChipService');
 const { computeBestTeams } = require('../cores/bestTeamsCore');
 const { getCurrentTeam } = require('../cores/currentTeamCore');
+const { listUserTeams } = require('../cores/userTeamsCore');
+const {
+  computeBestTeamScenarios,
+} = require('../cores/bestTeamScenariosCore');
 const { tools } = require('./tools');
 
 beforeEach(() => {
@@ -43,6 +59,10 @@ beforeEach(() => {
     fresh: true,
     preferences: { T1: 1.65 },
   });
+  refreshChipPreferencesSafely.mockResolvedValue({
+    fresh: true,
+    chips: { T1: 'EXTRA_BOOST' },
+  });
 });
 
 test.each([
@@ -50,24 +70,47 @@ test.each([
     toolName: 'get_best_teams',
     core: computeBestTeams,
     coreResult: { status: 'no_teams' },
+    refreshRanking: true,
   },
   {
     toolName: 'get_current_team',
     core: getCurrentTeam,
     coreResult: { status: 'ok', teamId: 'T1' },
+    refreshRanking: true,
   },
-])('$toolName refreshes ranking before reading its core', async ({
+  {
+    toolName: 'list_user_teams',
+    core: listUserTeams,
+    coreResult: [],
+    refreshRanking: false,
+  },
+  {
+    toolName: 'get_best_team_scenarios',
+    core: computeBestTeamScenarios,
+    coreResult: { status: 'ok', scenarios: [] },
+    refreshRanking: false,
+  },
+])('$toolName refreshes preferences before reading its core', async ({
   toolName,
   core,
   coreResult,
+  refreshRanking,
 }) => {
   core.mockResolvedValue(coreResult);
   const tool = tools.find((candidate) => candidate.name === toolName);
 
   await tool.execute({});
 
-  expect(refreshBestTeamRankingPreferencesSafely).toHaveBeenCalledWith(42);
+  if (refreshRanking) {
+    expect(refreshBestTeamRankingPreferencesSafely).toHaveBeenCalledWith(42);
+    expect(
+      refreshBestTeamRankingPreferencesSafely.mock.invocationCallOrder[0],
+    ).toBeLessThan(core.mock.invocationCallOrder[0]);
+  } else {
+    expect(refreshBestTeamRankingPreferencesSafely).not.toHaveBeenCalled();
+  }
+  expect(refreshChipPreferencesSafely).toHaveBeenCalledWith(42);
   expect(
-    refreshBestTeamRankingPreferencesSafely.mock.invocationCallOrder[0],
+    refreshChipPreferencesSafely.mock.invocationCallOrder[0],
   ).toBeLessThan(core.mock.invocationCallOrder[0]);
 });

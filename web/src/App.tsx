@@ -74,6 +74,11 @@ function AgentActions() {
     loadingLabel: 'Preparing ranking change…',
   });
   useWriteAction({
+    name: 'activate_chip',
+    description: 'Activate or reset a chip for one fantasy team.',
+    loadingLabel: 'Preparing chip change…',
+  });
+  useWriteAction({
     name: 'confirm_write',
     description:
       'Commit a previously proposed write action by its writeNonce.',

@@ -7,12 +7,16 @@ const {
 const {
   refreshBestTeamRankingPreferences,
 } = require('./setBestTeamRankingService');
+const {
+  refreshChipPreferences,
+} = require('./activateChipService');
 
 async function refreshTelegramUserPreferences(chatId) {
   await Promise.all([
     refreshLanguagePreference(chatId),
     refreshSelectedTeamPreference(chatId),
     refreshBestTeamRankingPreferences(chatId),
+    refreshChipPreferences(chatId),
   ]);
 }
 

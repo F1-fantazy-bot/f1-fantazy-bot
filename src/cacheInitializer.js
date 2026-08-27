@@ -6,8 +6,10 @@ const {
   sharedKey,
   nextRaceInfoCache,
   userCache,
+  selectedChipCache,
   remainingRaceCountCache,
   normalizeBestTeamBudgetChangePointsPerMillion,
+  normalizeSelectedChipByTeam,
   normalizeSelectedBestTeamByTeam,
   setPrices,
   clearPrices,
@@ -96,6 +98,19 @@ async function initializeCaches(bot) {
     userData.selectedBestTeamByTeam = normalizeSelectedBestTeamByTeam(
       userData.selectedBestTeamByTeam,
     );
+    const ownedTeamIds = new Set(
+      Object.keys(currentTeamCache[key] || {}),
+    );
+    userData.selectedChipByTeam = Object.fromEntries(
+      Object.entries(
+        normalizeSelectedChipByTeam(userData.selectedChipByTeam),
+      ).filter(([teamId]) => ownedTeamIds.has(teamId)),
+    );
+    if (Object.keys(userData.selectedChipByTeam).length > 0) {
+      selectedChipCache[key] = userData.selectedChipByTeam;
+    } else {
+      delete selectedChipCache[key];
+    }
 
     userCache[key] = userData;
   }

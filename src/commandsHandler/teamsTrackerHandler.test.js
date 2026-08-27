@@ -2,7 +2,14 @@ jest.mock('../azureStorageService');
 jest.mock('../leagueRegistryService');
 jest.mock('../services/selectedBestTeamService', () => ({
   retainSelectedBestTeamPreferences: jest.fn(),
-  clearSelectedBestTeamPreference: jest.fn().mockResolvedValue({}),
+}));
+jest.mock('../services/activateChipService', () => ({
+  clearTeamDerivedPreferences: jest.fn().mockResolvedValue({}),
+  runChipMutation: jest.fn(async (_chatId, operation) => operation()),
+}));
+jest.mock('../services/teamStateSnapshotService', () => ({
+  captureTeamState: jest.fn(() => ({ snapshot: true })),
+  restoreTeamState: jest.fn(),
 }));
 jest.mock('../utils/teamSourceSwitcher');
 jest.mock('../utils/utils', () => ({
@@ -19,6 +26,9 @@ const {
 const {
   ensureSourceIsLeague,
 } = require('../utils/teamSourceSwitcher');
+const {
+  restoreTeamState,
+} = require('../services/teamStateSnapshotService');
 const cache = require('../cache');
 const {
   handleTeamsTrackerCommand,
@@ -469,6 +479,11 @@ describe('handleTeamsTrackerCallback', () => {
         show_alert: true,
         text: expect.stringContaining('CAS unavailable'),
       }),
+    );
+    expect(restoreTeamState).toHaveBeenCalledWith(
+      bot,
+      CHAT_ID,
+      { snapshot: true },
     );
   });
 

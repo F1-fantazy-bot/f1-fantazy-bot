@@ -1,11 +1,10 @@
 const {
-  selectedChipCache,
-  bestTeamsCache,
   resolveSelectedTeam,
 } = require('../cache');
 const {
-  clearSelectedBestTeamPreference,
-} = require('../services/selectedBestTeamService');
+  activateChipPreference,
+  runChipMutation,
+} = require('../services/activateChipService');
 const {
   EXTRA_BOOST_CHIP,
   LIMITLESS_CHIP,
@@ -16,47 +15,33 @@ const {
 const { t } = require('../i18n');
 
 async function selectChip(bot, chatId, chip) {
-  const teamId = await resolveSelectedTeam(bot, chatId);
-  if (!teamId) {
-    return null;
-  }
-
-  const isThereDataInBestTeamsCache =
-    bestTeamsCache[chatId]?.[teamId] &&
-    bestTeamsCache[chatId][teamId].bestTeams;
-
-  await clearSelectedBestTeamPreference({ chatId, teamId });
-
-  if (chip === WITHOUT_CHIP) {
-    if (selectedChipCache[chatId]) {
-      delete selectedChipCache[chatId][teamId];
+  return await runChipMutation(chatId, async () => {
+    const teamId = await resolveSelectedTeam(bot, chatId);
+    if (!teamId) {
+      return null;
     }
-  } else {
-    if (!selectedChipCache[chatId]) {
-      selectedChipCache[chatId] = {};
+
+    const result = await activateChipPreference({ chatId, teamId, chip });
+    if (result.status !== 'ok') {
+      return result.summary;
     }
-    selectedChipCache[chatId][teamId] = chip;
-  }
 
-  if (bestTeamsCache[chatId]) {
-    delete bestTeamsCache[chatId][teamId];
-  }
+    let message = t('Selected chip: {CHIP}.', chatId, {
+      CHIP: chip.toUpperCase(),
+    });
 
-  let message = t('Selected chip: {CHIP}.', chatId, {
-    CHIP: chip.toUpperCase(),
+    if (result.invalidatedBestTeams) {
+      message +=
+        '\n' +
+        t(
+          'Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.',
+          chatId,
+          { CMD: COMMAND_BEST_TEAMS },
+        );
+    }
+
+    return message;
   });
-
-  if (isThereDataInBestTeamsCache) {
-    message +=
-      '\n' +
-      t(
-        'Note: best team calculation was deleted.\nrerun {CMD} command to recalculate best teams.',
-        chatId,
-        { CMD: COMMAND_BEST_TEAMS },
-      );
-  }
-
-  return message;
 }
 
 async function sendChipSelection(bot, chatId, chip) {

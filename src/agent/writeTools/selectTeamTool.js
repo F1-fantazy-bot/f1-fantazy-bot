@@ -2,6 +2,7 @@ const z = require('zod');
 const { t } = require('../../i18n');
 const {
   resolveTeamSelection,
+  resolveFreshTeamSelection,
   getFreshSelectedTeamPreference,
   selectTeamPreference,
 } = require('../../services/selectTeamService');
@@ -28,7 +29,7 @@ const selectTeamTool = defineWriteTool({
     'Change the signed-in user\'s active F1 Fantasy team. Pass teamId from a recent list_user_teams result when available, or pass an exact teamName directly without first listing teams. Call this immediately when the user names a team after being asked which team to activate; do not merely describe or claim a confirmation card before executing this tool. This write always requires the confirmation card unless that team is already active.',
   parameters,
   validate: async ({ chatId, args }) => {
-    const resolved = resolveTeamSelection({ chatId, ...args });
+    const resolved = await resolveFreshTeamSelection({ chatId, ...args });
     if (resolved.status !== 'ok') {
       return {
         status: WRITE_RESULT_STATUSES.INVALID_INPUT,

@@ -2,6 +2,7 @@ const z = require('zod');
 const { t } = require('../../i18n');
 const {
   resolveTeamSelection,
+  resolveFreshTeamSelection,
 } = require('../../services/selectTeamService');
 const {
   getPreset,
@@ -33,7 +34,10 @@ const setBestTeamRankingTool = defineWriteTool({
     'Change how expected budget growth influences best-team ranking for one owned team. Pass teamId from a recent team result or an exact teamName directly. presetId must be one of: pure_points (0), points_lean (1.3), points_plus_budget (1.65), balanced_budget_value (2). This write requires confirmation unless that preset is already active.',
   parameters,
   validate: async ({ chatId, args }) => {
-    const resolvedTeam = resolveTeamSelection({ chatId, ...args });
+    const resolvedTeam = await resolveFreshTeamSelection({
+      chatId,
+      ...args,
+    });
     if (resolvedTeam.status !== 'ok') {
       return {
         status: WRITE_RESULT_STATUSES.INVALID_INPUT,

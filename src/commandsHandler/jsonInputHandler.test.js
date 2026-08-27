@@ -21,6 +21,10 @@ jest.mock('../userRegistryService', () => ({
     }),
   ),
 }));
+jest.mock('../services/teamStateSnapshotService', () => ({
+  captureTeamState: jest.fn(() => ({})),
+  restoreTeamState: jest.fn(),
+}));
 
 const {
   sharedKey,
@@ -33,6 +37,9 @@ const {
 } = require('../cache');
 
 const { handleJsonMessage } = require('./jsonInputHandler');
+const {
+  restoreTeamState,
+} = require('../services/teamStateSnapshotService');
 
 describe('handleJsonMessage', () => {
   const botMock = {
@@ -137,6 +144,7 @@ describe('handleJsonMessage', () => {
           extraBoostDriver: 'VER',
         },
       },
+      selectedChipByTeam: { T1: EXTRA_BOOST_CHIP },
     });
 
     expect(azureStorageService.deleteAllUserTeams).toHaveBeenCalledWith(
@@ -183,6 +191,7 @@ describe('handleJsonMessage', () => {
           extraBoostDriver: 'VER',
         },
       }),
+      selectedChipByTeam: JSON.stringify({ T1: EXTRA_BOOST_CHIP }),
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -273,6 +282,7 @@ describe('handleJsonMessage', () => {
       selectedTeam: 'T1',
       bestTeamBudgetChangePointsPerMillion: { T1: 2 },
       selectedBestTeamByTeam: {},
+      selectedChipByTeam: {},
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -338,6 +348,7 @@ describe('handleJsonMessage', () => {
       selectedTeam: null,
       bestTeamBudgetChangePointsPerMillion: {},
       selectedBestTeamByTeam: {},
+      selectedChipByTeam: {},
     });
     expect(azureStorageService.deleteAllUserTeams).toHaveBeenCalledWith(
       botMock,
@@ -354,11 +365,46 @@ describe('handleJsonMessage', () => {
       selectedTeam: null,
       bestTeamBudgetChangePointsPerMillion: JSON.stringify({}),
       selectedBestTeamByTeam: null,
+      selectedChipByTeam: null,
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
       'Cache data saved successfully',
     );
+  });
+
+  it('restores previous team blobs and keeps local cache when attribute CAS fails', async () => {
+    const previousTeam = {
+      drivers: ['VER'],
+      constructors: ['MCL'],
+      boost: 'VER',
+    };
+    currentTeamCache[KILZI_CHAT_ID] = { T1: previousTeam };
+    userCache[String(KILZI_CHAT_ID)] = {
+      selectedTeam: 'T1',
+      selectedChipByTeam: { T1: EXTRA_BOOST_CHIP },
+    };
+    selectedChipCache[KILZI_CHAT_ID] = { T1: EXTRA_BOOST_CHIP };
+    updateUserAttributesAtomically.mockRejectedValueOnce(
+      new Error('CAS unavailable'),
+    );
+
+    await expect(
+      handleJsonMessage(botMock, KILZI_CHAT_ID, {
+        SelectedTeam: null,
+        Teams: {},
+      }),
+    ).rejects.toThrow('CAS unavailable');
+
+    expect(restoreTeamState).toHaveBeenCalledWith(
+      botMock,
+      KILZI_CHAT_ID,
+      {},
+    );
+    expect(currentTeamCache[KILZI_CHAT_ID]).toEqual({ T1: previousTeam });
+    expect(selectedChipCache[KILZI_CHAT_ID]).toEqual({
+      T1: EXTRA_BOOST_CHIP,
+    });
   });
 
   it.each([

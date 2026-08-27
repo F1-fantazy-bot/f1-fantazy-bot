@@ -8,7 +8,6 @@ const {
 const {
   currentTeamCache,
   bestTeamsCache,
-  selectedChipCache,
   leagueTeamsDataCache,
 
   getUserLeagueTeamIds,
@@ -18,8 +17,9 @@ const {
   setCachedSelectedTeam,
 } = require('../services/selectTeamService');
 const {
-  clearSelectedBestTeamPreference,
-} = require('../services/selectedBestTeamService');
+  runChipMutation,
+  clearTeamDerivedPreferences,
+} = require('../services/activateChipService');
 const { NAME_TO_CODE_MAPPING } = require('../constants');
 
 function mapNameToCode(name) {
@@ -141,7 +141,7 @@ async function refreshLeagueTeamsData(leagueCode) {
  *
  * @returns {Promise<{teamId: string, teamLabel: string}>}
  */
-async function followLeagueTeam(bot, chatId, { teamId, leagueTeam }) {
+async function followLeagueTeamInternal(bot, chatId, { teamId, leagueTeam }) {
   const teamData = mapLeagueTeamToBotTeam(leagueTeam);
 
   if (!currentTeamCache[chatId]) {
@@ -159,11 +159,8 @@ async function followLeagueTeam(bot, chatId, { teamId, leagueTeam }) {
   if (bestTeamsCache[chatId]) {
     delete bestTeamsCache[chatId][teamId];
   }
-  if (selectedChipCache[chatId]) {
-    delete selectedChipCache[chatId][teamId];
-  }
   try {
-    await clearSelectedBestTeamPreference({ chatId, teamId });
+    await clearTeamDerivedPreferences({ chatId, teamId });
   } catch (err) {
     delete currentTeamCache[chatId][teamId];
     if (Object.keys(currentTeamCache[chatId]).length === 0) {
@@ -194,7 +191,7 @@ async function followLeagueTeam(bot, chatId, { teamId, leagueTeam }) {
  *
  * @returns {Promise<{removed: boolean, fallbackSelectedTeam: string|null}>}
  */
-async function removeFollowedTeam(
+async function removeFollowedTeamInternal(
   bot,
   chatId,
   teamId,
@@ -205,7 +202,35 @@ async function removeFollowedTeam(
     return { removed: false, fallbackSelectedTeam: null };
   }
 
+  let fallbackSelectedTeam = getSelectedTeam(chatId);
+  let selectedTeamChanged = false;
+  if (mutateSelectedTeam && fallbackSelectedTeam === teamId) {
+    const remaining = teamIds.filter((candidate) => candidate !== teamId);
+    fallbackSelectedTeam = remaining[0] || null;
+    selectedTeamChanged = true;
+  }
+
+  const teamData = currentTeamCache[chatId][teamId];
   await azureStorageService.deleteUserTeam(bot, chatId, teamId);
+  try {
+    await clearTeamDerivedPreferences({
+      chatId,
+      teamId,
+      attributes: mutateSelectedTeam
+        ? { selectedTeam: fallbackSelectedTeam }
+        : {},
+    });
+  } catch (err) {
+    try {
+      await azureStorageService.saveUserTeam(bot, chatId, teamId, teamData);
+    } catch (rollbackErr) {
+      console.error(
+        `Failed to restore removed team ${teamId} for ${chatId}:`,
+        rollbackErr,
+      );
+    }
+    throw err;
+  }
 
   if (currentTeamCache[chatId]) {
     delete currentTeamCache[chatId][teamId];
@@ -219,38 +244,12 @@ async function removeFollowedTeam(
       delete bestTeamsCache[chatId];
     }
   }
-  if (selectedChipCache[chatId]) {
-    delete selectedChipCache[chatId][teamId];
-    if (Object.keys(selectedChipCache[chatId]).length === 0) {
-      delete selectedChipCache[chatId];
-    }
-  }
-  let fallbackSelectedTeam = getSelectedTeam(chatId);
   if (!mutateSelectedTeam) {
     return { removed: true, fallbackSelectedTeam };
   }
 
-  let selectedTeamChanged = false;
-  if (fallbackSelectedTeam === teamId) {
-    const remaining = getUserLeagueTeamIds(chatId);
-    fallbackSelectedTeam = remaining[0] || null;
-    selectedTeamChanged = true;
-  }
-
-  try {
-    await clearSelectedBestTeamPreference({
-      chatId,
-      teamId,
-      attributes: { selectedTeam: fallbackSelectedTeam },
-    });
-    if (selectedTeamChanged) {
-      setCachedSelectedTeam(chatId, fallbackSelectedTeam);
-    }
-  } catch (err) {
-    console.error(
-      `Error persisting user attributes after unfollow for ${chatId}:`,
-      err,
-    );
+  if (selectedTeamChanged) {
+    setCachedSelectedTeam(chatId, fallbackSelectedTeam);
   }
 
   await sendLogMessage(
@@ -261,6 +260,18 @@ async function removeFollowedTeam(
   );
 
   return { removed: true, fallbackSelectedTeam };
+}
+
+async function followLeagueTeam(bot, chatId, selection) {
+  return await runChipMutation(chatId, () =>
+    followLeagueTeamInternal(bot, chatId, selection),
+  );
+}
+
+async function removeFollowedTeam(bot, chatId, teamId, options) {
+  return await runChipMutation(chatId, () =>
+    removeFollowedTeamInternal(bot, chatId, teamId, options),
+  );
 }
 
 function buildLeagueNameMap(leagues) {

@@ -2,37 +2,56 @@ const azureStorageService = require('../azureStorageService');
 const {
   currentTeamCache,
   bestTeamsCache,
-  selectedChipCache,
-  clearAllSelectedBestTeams,
   getUserLeagueTeamIds,
   getUserScreenshotTeamIds,
 } = require('../cache');
 const {
   setCachedSelectedTeam,
 } = require('../services/selectTeamService');
+const {
+  runChipMutation,
+  clearAllTeamDerivedPreferencesInternal,
+} = require('../services/activateChipService');
 
 /**
  * Wipe every cached team for a user (blob + in-memory), including chip,
  * best-team and selected-best-team state. Also clears selectedTeam in
- * userCache. Caller is responsible for persisting userCache via
- * updateUserAttributes() afterwards if needed.
+ * userCache. Chip and selected-best state are persisted here; the caller is
+ * responsible for persisting selectedTeam afterwards if needed.
  *
  * @param {Object} bot - Telegram bot instance (required for blob delete logs)
  * @param {string|number} chatId
  */
 async function wipeAllTeams(bot, chatId) {
-  try {
-    await azureStorageService.deleteAllUserTeams(bot, chatId);
-  } catch (err) {
-    console.error('Error deleting existing user teams:', err);
-  }
+  await runChipMutation(chatId, async () => {
+    const previousTeams = { ...(currentTeamCache[chatId] || {}) };
+    try {
+      await azureStorageService.deleteAllUserTeams(bot, chatId);
+      await clearAllTeamDerivedPreferencesInternal({ chatId });
+    } catch (err) {
+      try {
+        await azureStorageService.deleteAllUserTeams(bot, chatId);
+        for (const [teamId, teamData] of Object.entries(previousTeams)) {
+          await azureStorageService.saveUserTeam(
+            bot,
+            chatId,
+            teamId,
+            teamData,
+          );
+        }
+      } catch (rollbackErr) {
+        console.error(
+          `Failed to restore teams after source wipe for ${chatId}:`,
+          rollbackErr,
+        );
+      }
+      throw err;
+    }
 
-  delete currentTeamCache[chatId];
-  delete bestTeamsCache[chatId];
-  delete selectedChipCache[chatId];
-
-  setCachedSelectedTeam(chatId, null);
-  clearAllSelectedBestTeams(chatId);
+    delete currentTeamCache[chatId];
+    delete bestTeamsCache[chatId];
+    setCachedSelectedTeam(chatId, null);
+  });
 }
 
 /**
