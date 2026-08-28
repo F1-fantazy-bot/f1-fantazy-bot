@@ -7,6 +7,7 @@ const {
 const STATUS = Object.freeze({
   OK: 'ok',
   NOT_FOUND: 'not_found',
+  AMBIGUOUS: 'ambiguous',
 });
 
 function normalize(value) {
@@ -23,7 +24,25 @@ async function inspectLeagueUnfollow({ chatId, leagueCode, leagueName }) {
       : name && normalize(league.leagueName) === name,
   );
 
-  if (matches.length !== 1) {
+  if (matches.length > 1) {
+    return {
+      status: STATUS.AMBIGUOUS,
+      summary: t(
+        'Multiple followed leagues are named "{NAME}". Choose one by code: {LEAGUES}.',
+        chatId,
+        {
+          NAME: leagueName,
+          LEAGUES: matches
+            .map((league) => league.leagueCode)
+            .join(', '),
+        },
+      ),
+      changed: false,
+      followedLeagues: matches,
+    };
+  }
+
+  if (matches.length === 0) {
     return {
       status: STATUS.NOT_FOUND,
       summary: t(

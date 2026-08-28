@@ -535,6 +535,8 @@ const translations = {
       'לבטל מעקב אחר הליגה "{NAME}" ({CODE}).',
     'You are not following that league. Followed leagues: {LEAGUES}.':
       'אינך עוקב אחר הליגה הזו. הליגות שבמעקב: {LEAGUES}.',
+    'Multiple followed leagues are named "{NAME}". Choose one by code: {LEAGUES}.':
+      'יש כמה ליגות במעקב בשם "{NAME}". בחר אחת לפי קוד: {LEAGUES}.',
     '❌ Failed to unfollow league: {ERROR}':
       '❌ הפסקת המעקב אחר הליגה נכשלה: {ERROR}',
     '❌ Failed to unfollow league. Please try again.':

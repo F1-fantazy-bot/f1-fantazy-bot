@@ -36,6 +36,29 @@ test('returns not_found without deletion for an unfollowed league', async () => 
   expect(removeUserLeague).not.toHaveBeenCalled();
 });
 
+test('returns canonical choices for duplicate exact league names', async () => {
+  listUserLeagues.mockResolvedValue([
+    { leagueCode: 'ABC123', leagueName: 'Friends' },
+    { leagueCode: 'XYZ789', leagueName: 'Friends' },
+  ]);
+
+  const result = await inspectLeagueUnfollow({
+    chatId: 42,
+    leagueName: 'friends',
+  });
+
+  expect(result).toMatchObject({
+    status: 'ambiguous',
+    changed: false,
+    followedLeagues: [
+      { leagueCode: 'ABC123' },
+      { leagueCode: 'XYZ789' },
+    ],
+  });
+  expect(result.summary).toContain('ABC123, XYZ789');
+  expect(removeUserLeague).not.toHaveBeenCalled();
+});
+
 test('removes a followed league', async () => {
   await expect(
     unfollowLeague({ chatId: 42, leagueName: 'Friends' }),

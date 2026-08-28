@@ -32,7 +32,10 @@ const unfollowLeagueTool = defineWriteTool({
     if (inspected.status !== 'ok') {
       return {
         ...inspected,
-        status: WRITE_RESULT_STATUSES.NOT_FOUND,
+        status:
+          inspected.status === 'ambiguous'
+            ? WRITE_RESULT_STATUSES.INVALID_INPUT
+            : WRITE_RESULT_STATUSES.NOT_FOUND,
         tool: 'unfollow_league',
       };
     }

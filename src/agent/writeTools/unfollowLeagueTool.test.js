@@ -1,6 +1,9 @@
 jest.mock('../writeToolHelpers', () => ({
   defineWriteTool: jest.fn((spec) => spec),
-  WRITE_RESULT_STATUSES: { NOT_FOUND: 'not_found' },
+  WRITE_RESULT_STATUSES: {
+    INVALID_INPUT: 'invalid_input',
+    NOT_FOUND: 'not_found',
+  },
 }));
 jest.mock('../../services/unfollowLeagueService', () => ({
   inspectLeagueUnfollow: jest.fn(),
@@ -53,6 +56,30 @@ test('returns not_found without staging for an unfollowed league', async () => {
   ).resolves.toMatchObject({
     status: 'not_found',
     tool: 'unfollow_league',
+  });
+});
+
+test('returns invalid_input with codes for duplicate league names', async () => {
+  inspectLeagueUnfollow.mockResolvedValue({
+    status: 'ambiguous',
+    summary: 'Choose by code.',
+    followedLeagues: [
+      { leagueCode: 'ABC123' },
+      { leagueCode: 'XYZ789' },
+    ],
+  });
+
+  await expect(
+    unfollowLeagueTool.validate({
+      chatId: 42,
+      args: { leagueName: 'Friends' },
+    }),
+  ).resolves.toMatchObject({
+    status: 'invalid_input',
+    followedLeagues: [
+      { leagueCode: 'ABC123' },
+      { leagueCode: 'XYZ789' },
+    ],
   });
 });
 
