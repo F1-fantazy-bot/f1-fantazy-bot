@@ -685,14 +685,15 @@ f1-fantazy-bot/
 │   │   └── liveScoreCalc.js          # pure scoring helpers shared by liveScoreHandler + liveScoreCore
 │   ├── agent/
 │   │   ├── identity.js               # AGENT_HARDCODED_CHAT_ID (LLM never sees it)
-│   │   ├── systemPrompt.js           # English-only v1; built once at startup
+│   │   ├── systemPrompt.js           # tool routing, confirmation rules, and response-language guidance
 │   │   ├── tools.js                  # defineTool({ name, description, parameters: z.object({…}), execute: wrapToolExecute(…) })
 │   │   ├── cacheBootstrap.js         # ensureCacheReady() — lazy initializeCaches(notifierBot) for agent process
 │   │   ├── notifierBot.js            # Singleton non-polling TelegramBot for the agent process (Phase 6.1)
 │   │   ├── tokenUsageMiddleware.js   # LanguageModelV3 middleware that logs per-step token usage (Phase 6.1)
 │   │   ├── wrapToolExecute.js        # try/catch wrapper that returns `{status:'tool_error', errorId, ...}` (Phase 6.2)
 │   │   ├── writeToolHelpers.js       # defineWriteTool + approved-intent consume/commit registry
-│   │   ├── writeDecision.js          # authenticated approve/cancel application for staged writes
+│   │   ├── writeDecision.js          # authenticated approve/direct-confirm/cancel/revoke decisions
+│   │   ├── writeProposal.js          # authenticated allowlisted proposals from deterministic UI controls
 │   │   ├── readTools/
 │   │   │   └── getLanguageTool.js    # read current persisted account language
 │   │   ├── writeTools/
@@ -700,7 +701,10 @@ f1-fantazy-bot/
 │   │   │   ├── selectTeamTool.js     # confirmed active-team selection
 │   │   │   ├── setBestTeamRankingTool.js # confirmed per-team ranking preset
 │   │   │   ├── activateChipTool.js   # confirmed per-team chip activation/reset
-│   │   │   └── followTeamTool.js     # confirmed league-team follow/removal
+│   │   │   ├── followLeagueTool.js   # confirmed league follow
+│   │   │   ├── unfollowLeagueTool.js # confirmed league removal
+│   │   │   ├── followTeamTool.js     # confirmed league-team follow/removal
+│   │   │   └── reportBugTool.js      # confirmed administrator report
 │   │   └── runtime.js                # BuiltInAgent + CopilotRuntime + createCopilotRuntimeHandler (+ wrapLanguageModel)
 │   ├── services/
 │   │   ├── pendingWritesStore.js     # Azure Table-backed staged/approved intents + TTL + ETag consume
@@ -710,7 +714,10 @@ f1-fantazy-bot/
 │   │   ├── setBestTeamRankingService.js # CAS-safe ranking persistence + cache invalidation
 │   │   ├── selectedBestTeamService.js # CAS-safe per-team selected-best mutations
 │   │   ├── activateChipService.js    # durable chip state + shared mutation coordinator
+│   │   ├── followLeagueService.js    # verified/canonical league follow
+│   │   ├── unfollowLeagueService.js  # followed-league resolution/removal
 │   │   ├── followTeamService.js      # capped league-team mutations with explicit effect ports
+│   │   ├── reportBugService.js       # shared report validation/delivery/abuse controls
 │   │   ├── userMutationLockService.js # Azure Table per-user cross-process lease
 │   │   ├── userMutationHydrationService.js # authoritative state after lease acquisition
 │   │   ├── teamStateSnapshotService.js # Blob/Table/cache compensation snapshots
@@ -868,8 +875,12 @@ wrapToolExecute(name, fn) catches → generates 8-char errorId (slice of randomU
 **Pieces:**
 
 - **`src/agent/wrapToolExecute.js`** — `wrapToolExecute(toolName, fn)` returns a wrapped `execute` that try/catches `fn(args)`. On throw: routes the full technical error (including stack) to `ERRORS_CHANNEL_ID` and returns `{ status: 'tool_error', tool, errorId, userMessage }` to the LLM/UI. The notifier-send is itself try/catched so a Telegram outage cannot break the tool dispatch.
-- **All 14 tools in `src/agent/tools.js` are wrapped** via this helper. Two tools without rich UI components (`list_user_leagues`, `list_league_teams`) still benefit — their `tool_error` result is narrated by the LLM via the system-prompt rule.
-- **`web/src/components/ToolErrorFallback.tsx`** exports `<ToolErrorFallback />` and `isToolErrorResult()`. All 12 render hooks add a three-line short-circuit right after `safeParse`:
+- **Every backend tool is wrapped** via this helper, including tools built
+  through `defineWriteTool`. Tools without a rich UI component still benefit —
+  their `tool_error` result is narrated by the LLM via the system-prompt rule.
+- **`web/src/components/ToolErrorFallback.tsx`** exports
+  `<ToolErrorFallback />` and `isToolErrorResult()`. Every rich renderer adds
+  the same short-circuit right after `safeParse`:
   ```tsx
   const parsed = typeof result === 'string' ? safeParse(result) : result;
   if (isToolErrorResult(parsed)) {
@@ -885,6 +896,39 @@ wrapToolExecute(name, fn) catches → generates 8-char errorId (slice of randomU
 - There is a regression test in `wrapToolExecute.test.js` titled _"NEVER includes the raw technical message in the returned user-facing result"_ that asserts URLs / SAS tokens / `sig=` query params cannot leak into the serialized result. **Do not weaken this test** — it's the guard rail that catches a future contributor who tries to "be helpful" by passing `err.message` to the UI.
 - The full error (with stack) DOES go to `ERRORS_CHANNEL_ID` so on-call has everything they need to debug; the channel is private. The `errorId` is the same in both places, so support → channel correlation is one grep.
 
+### Effectful write services
+
+`src/cores/*` and `src/services/*` have deliberately different contracts:
+
+- **Cores are read-oriented and side-effect free.** They accept explicit
+  inputs, read already-injected/cache-backed data, and return structured JSON.
+  They never receive a Telegram bot, render user messages, persist registry
+  state, acquire mutation locks, or mutate caches.
+- **Write services own effects and invariants.** The shared services
+  (`setLanguageService`, `selectTeamService`, `setBestTeamRankingService`,
+  `activateChipService`, `followLeagueService`, `unfollowLeagueService`,
+  `followTeamService`, and `reportBugService`) canonicalize/validate inputs,
+  detect durable no-ops, perform persistence, publish cache changes only after
+  persistence, and return status-tagged result envelopes.
+- **Adapters stay thin.** Telegram handlers/callbacks and
+  `src/agent/writeTools/*` both delegate to the same service. Neither surface
+  may reimplement persistence or business rules. Surface-specific formatting,
+  reply keyboards, authenticated request identity, and notifier wiring remain
+  in the adapter.
+- **Ports isolate surface-specific effects.** Services that need different
+  storage/messaging behavior accept explicit ports (for example
+  `followTeamService` storage/logger/source-switcher ports and
+  `reportBugService` messenger ports). Never pass a fake bot object into
+  shared logic merely to satisfy a Telegram-shaped API.
+- **Expected failures are data.** Validation, not-found, forbidden, limit, and
+  delivery outcomes return envelopes such as `invalid_input`, `not_found`,
+  `forbidden`, `limit_exceeded`, or `failed`. Unexpected infrastructure or
+  programming failures may throw and are normalized by `wrapToolExecute`.
+- **Coupled mutations are transactions.** Team/chip/follow mutations use the
+  re-entrant process queue plus durable `UserMutationLocks`, authoritative
+  hydration after lock acquisition, ETag CAS for whole JSON maps, and
+  snapshot compensation before publishing local cache state.
+
 ### Write-tool confirmation infrastructure
 
 Agent writes use a two-step propose/confirm protocol, but **the model's
@@ -895,15 +939,17 @@ possession of a nonce is not authorization**:
    `{ partitionKey: chatId, rowKey: nonce, state: 'staged', tool, args,
    summary, expiresAt }`. Proposals normally come from an agent tool call.
    Deterministic rich-UI controls may instead call the authenticated
-   `/api/agent/write-proposal` route, which is explicitly allowlisted to
-   `select_team` and invokes the same registered proposal function. No
-   mutation runs on either path.
+   `/api/agent/write-proposal` route. Its server allowlist currently contains
+   `select_team`, `follow_team`, `unfollow_league`, and `report_bug`; it invokes
+   the same registered proposal function and cannot approve or commit. No
+   mutation runs on either proposal path.
 2. `<WriteConfirmCard>` shows Yes / Cancel. The button calls the exact
    authenticated webhook route `/api/agent/write-decision`; it runs the
    same Google token + allowlist pipeline as CopilotKit traffic. Cards
-   created by direct `select_team` proposals use the allowlisted
-   `approve_and_confirm` decision, which approves and immediately invokes
-   the registered single-use commit server-side without another model turn.
+   created by direct proposals use the separately allowlisted
+   `approve_and_confirm` decision, which approves and immediately invokes the
+   registered single-use commit server-side without another model turn. The
+   direct-confirm allowlist must match the direct-proposal allowlist.
 3. **Yes** changes the matching chat-owned row to `approved` using its
    ETag. Only after that succeeds does the UI add the nonce-bearing
    instruction as an AG-UI `developer` message directly to the v2 agent
@@ -917,9 +963,17 @@ possession of a nonce is not authorization**:
    `runChatCompletion` (declared but absent at runtime in 1.57.4).
    `BuiltInAgent` MUST retain `forwardDeveloperMessages: true`; without
    it, CopilotKit drops this hidden instruction before model conversion.
-4. **Cancel** deletes the row immediately and appends a nonce-free
+4. If an approved model-mediated confirmation cannot start/finish its agent
+   run, `<WriteConfirmCard>` calls authenticated `revoke`. Revocation deletes
+   the still-approved row before the UI unlocks another proposal. A `409
+   uncertain` means the row was already consumed or removed, so the card stays
+   blocked rather than risking a duplicate write. Direct
+   `approve_and_confirm` failures do not revoke because the commit may have
+   completed before the HTTP response was lost; those cards also stay blocked
+   with action-specific recovery guidance.
+5. **Cancel** deletes the row immediately and appends a nonce-free
    cancellation message.
-5. `confirm_write` returns `forbidden` for a staged row. For an approved
+6. `confirm_write` returns `forbidden` for a staged row. For an approved
    row it performs an ETag-protected delete; only the Function instance
    that wins that atomic single-use consume may invoke the registered
    commit handler.
@@ -944,8 +998,8 @@ Key files:
 - `src/agent/writeDecision.js` + `agentWebhook/index.js` — authenticated
   decision endpoint.
 - `src/agent/writeProposal.js` — allowlisted authenticated direct proposal
-  endpoint for deterministic rich-UI controls. `select_team` cards and
-  `follow_team` team-picker cards plus prefilled `report_bug` missing-league
+  endpoint for deterministic rich-UI controls. Team selection, followed-team
+  add/remove, followed-league removal, and prefilled missing-league report
   actions use this path; all still require explicit approval before direct
   confirmation.
 - `web/src/components/WriteDecisionContext.tsx` — decision HTTP client
@@ -956,6 +1010,21 @@ Key files:
 - `docs/agent-write-tools-plan.md` — per-write-tool rollout.
 
 Concrete write tools currently available:
+
+| Agent tool | Shared service | Telegram surface |
+|---|---|---|
+| `set_language` | `setLanguageService` | `/lang` + language callbacks |
+| `select_team` | `selectTeamService` | `/select_team` + team callbacks |
+| `set_best_team_ranking` | `setBestTeamRankingService` | ranking callbacks |
+| `activate_chip` | `activateChipService` | chip commands/callbacks |
+| `follow_league` | `followLeagueService` | `/follow_league` pending reply |
+| `unfollow_league` | `unfollowLeagueService` | league-unfollow callbacks |
+| `follow_team` | `followTeamService` | `/teams_tracker` helpers/callbacks |
+| `report_bug` | `reportBugService` | `/report_bug` pending reply |
+
+`confirm_write` is the ninth supporting tool. It is not a business mutation:
+it consumes one authenticated, approved staged intent and dispatches to the
+registered commit handler for one of the eight tools above.
 
 **Selected-team default:** every singular team-scoped agent read/write uses
 the durable selected team when `teamId`/`teamName` is omitted. Do not ask
@@ -1110,6 +1179,78 @@ when that team is unavailable in the chosen league.
   the model to reconstruct an out-of-band proposal. If that direct response is
   uncertain, keep the confirmation blocked to avoid duplicate reports and show
   report-specific guidance to check the admin channels before retrying.
+
+### Adding a new agent write tool
+
+Use this checklist for every new mutation. A write is not complete when only
+the agent tool works; Telegram parity, durable confirmation, concurrency, and
+cross-process read-back are part of the feature. For query-only work, use
+[Adding a new agent read tool](#adding-a-new-agent-read-tool-checklist).
+
+1. **Extract or reuse one effectful service.**
+   - Put validation, canonicalization, durable no-op detection, persistence,
+     and cache publication in `src/services/<feature>Service.js`.
+   - Keep Telegram bots, CopilotKit types, reply keyboards, JSX, Telegram
+     markup, and other surface-specific rendering out of the service.
+     Localized shared `summary` text via `t()` belongs in the service. Inject
+     explicit storage/messaging/logging ports when effects differ.
+   - Return status-tagged expected outcomes; do not throw for normal validation
+     or ownership failures.
+2. **Delegate the Telegram surface first.**
+   - Refactor the existing handler/callback/pending-reply entry to call the
+     service without changing the user-visible Telegram flow.
+   - Keep existing Telegram tests passing; add adapter tests for any newly
+     structured status.
+3. **Define the agent proposal tool.**
+   - Add `src/agent/writeTools/<feature>Tool.js` with
+     `defineWriteTool({ name, description, parameters, validate, buildSummary,
+     commit })`.
+   - `validate` must resolve user-controlled names to canonical IDs/codes and
+     stage only serializable commit arguments. Server-derived fingerprints or
+     ownership evidence belong in `intentArgs`, never the Zod input schema.
+   - `commit` must re-enter the shared service, which revalidates against fresh
+     authoritative state before mutating.
+4. **Register routing and rendering.**
+   - Add the tool to `src/agent/tools.js`, document exact intent routing in
+     `src/agent/systemPrompt.js`, and register `useWriteAction` in
+     `web/src/App.tsx`.
+   - Add English/Hebrew translations and return `uiLang`/`lang` so cards render
+     with the durable saved language.
+5. **Use direct controls only when model routing is inappropriate.**
+   - A card/button with a canonical target may call authenticated
+     `/api/agent/write-proposal`; add the tool to both
+     `DIRECT_PROPOSAL_TOOLS` and `DIRECT_CONFIRM_TOOLS`.
+   - Direct controls still render `WriteConfirmCard`. Never call a commit
+     service directly from the browser and never auto-approve.
+   - An uncertain direct response stays blocked until the user refreshes or
+     checks the external destination; retrying may duplicate a completed
+     mutation.
+6. **Choose the correct concurrency boundary.**
+   - Whole JSON registry maps require `updateUserAttributesAtomically` (ETag
+     CAS + retry), not a read from process-local `userCache`.
+   - Coupled Blob/Table/cache changes require the durable per-user mutation
+     lease, post-lock hydration, and snapshot compensation.
+   - `runChipMutation` skips post-lock hydration when `NODE_ENV === 'test'`;
+     use explicit hydration-port tests or production-mode integration coverage
+     when the mutation depends on refreshed authoritative state.
+   - Persist first, then publish local cache state through generation-aware
+     helpers such as `setCachedSelectedTeam`.
+7. **Test the protocol, not only the service.**
+   - Cover validate/canonicalize/no-op/error branches and Telegram delegation.
+   - Add propose → authenticated approve → single-use confirm coverage,
+     foreign/expired/unapproved nonce rejection, commit-time revalidation, and
+     compensation/concurrency cases relevant to the mutation.
+   - Cover post-approval `revoke`, including `409 uncertain` lockout when the
+     nonce may already have been consumed.
+   - For direct controls, test canonical request bodies, cancellation,
+     uncertain lockout, success UI updates, and repeated operations in one
+     rendered picker.
+8. **Verify both processes.**
+   - Run targeted tests, full `npm test`, web tests/build, lint, and
+     `git diff --check`.
+   - Browser-smoke proposal, cancel, confirmation, expected failures, saved
+     language, and cross-surface read-back. Never leave test mutations behind.
+   - Update this handbook and `docs/agent-write-tools-plan.md` in the same PR.
 
 Language and selected-team hydration share the bounded/coalesced
 `src/services/userProfileSyncService.js` point lookup. Telegram refreshes
@@ -1471,7 +1612,10 @@ npm run dev:web      # only Vite frontend on :5173/:5174
 
 `scripts/dev-agent-server.js` is the dev wrapper around `agentWebhook/index.js` — it loads `.env`, wraps the same handler in a plain Node HTTP server, and lets us exercise the full pipeline without installing Azure Functions Core Tools (`func`).
 
-### Adding a new tool (checklist)
+### Adding a new agent read tool (checklist)
+
+This checklist is for query-only tools backed by pure cores. Mutations must
+follow [Adding a new agent write tool](#adding-a-new-agent-write-tool).
 
 1. **Extract the core** at `src/cores/<feature>Core.js`. Pure function, structured JSON return.
 2. **Refactor the matching Telegram handler** to call the core. Run `npx jest <handler>.test.js` — must pass unchanged.
@@ -1487,7 +1631,8 @@ npm run dev:web      # only Vite frontend on :5173/:5174
    }
    return <RealComponent result={parsed} />;
    ```
-   The fallback is shared across all 12 components — do not duplicate the JSX.
+   The fallback is shared across every rich renderer — do not duplicate the
+   JSX.
 6. **Wire the hook** by importing and calling it from `web/src/App.tsx` (or wherever the `<AgentActions />` component lives).
 7. **Tests:** unit-test the core in `src/cores/<feature>Core.test.js`. Unit-test the tool's JSON shape if non-trivial. Re-run the full Telegram suite — must stay green.
 8. **Verify in-browser with Playwright MCP.** The browser is the source of truth for UI changes — every UI change must be Playwright-verified before declaring "done".
@@ -1559,7 +1704,9 @@ messages must go through `clear()` first, then through
 - **405s on `/threads?agentId=default`** in the browser console are CopilotKit polling for chat-history persistence routes that don't exist in single-route mode. Harmless — we run Phase 6.5 client-side via `localStorage` (see [Chat-history persistence](#chat-history-persistence-phase-65)) so the runtime doesn't need a `/threads` backend.
 - **SSE streaming on Azure Functions Consumption plan** is unverified — locally the bridge buffers the full response. If streaming flushing turns out to be flaky on Consumption, fall back to non-streaming JSON or upgrade to Premium. Deferred along with deployment.
 - **CORS** is currently permissive (`Access-Control-Allow-Origin: *`). CORS hardening is deferred until frontend deployment unparks.
-- **Hebrew localisation** of agent outputs is out of v1 scope. The Telegram bot stays bilingual.
+- **Agent prose language** is model-driven. Saved-language hydration and every
+  maintained rich component/card support English/Hebrew labels and RTL; new
+  renderers must join the completeness tests.
 - **Multi-tool-call rendering**: CopilotKit's `useLazyToolRenderer` only renders `message.toolCalls[0]`. We force sequential tool calls via `parallelToolCalls: false`. If a future tool needs to fan out (e.g., "best teams for every team I track"), it has to do so server-side inside one `execute` and return a list — the LLM cannot emit N parallel tool calls and expect N React renders. The clarify-and-focus pattern (ask once, call once) is the established workaround for two-arg lookups like live-score.
 
 ### Key files
@@ -1576,18 +1723,21 @@ messages must go through `clear()` first, then through
 | `src/agent/identity.js` | Reads `AGENT_HARDCODED_CHAT_ID`, exposes `getAgentChatId()`. |
 | `src/agent/cacheBootstrap.js` | `ensureCacheReady()` — lazy `initializeCaches(getNotifierBot())` for the agent process; resets on failure for retry-on-next-call. |
 | `src/agent/systemPrompt.js` | English system prompt; extended per phase. Includes a `tool_error` handling rule (Phase 6.2). Backticks inside the template literal MUST be escaped. |
-| `src/agent/tools.js` | Tool catalogue (`defineTool` array). All 14 tools' `execute` are wrapped via `wrapToolExecute` (Phase 6.2). |
+| `src/agent/tools.js` | Complete read/write tool catalogue. Every execute path is wrapped directly or through `defineWriteTool` via `wrapToolExecute`. |
 | `src/agent/runtime.js` | Builds Azure model → `wrapLanguageModel({ middleware: createTokenUsageMiddleware(…) })` (Phase 6.1) → `BuiltInAgent` (with `parallelToolCalls: false`) → `CopilotRuntime` → `createCopilotRuntimeHandler`. Caches the handler per process. |
 | `src/agent/notifierBot.js` | Singleton non-polling `TelegramBot` for the agent process (Phase 6.1). Real bot when `TELEGRAM_BOT_TOKEN` set, noop fallback otherwise. Polling stays disabled so it never conflicts with the main bot's poller on the same token. |
 | `src/agent/tokenUsageMiddleware.js` | `LanguageModelV3Middleware` that pipes the stream through a `TransformStream` and logs every `finish` chunk's per-step token usage (Phase 6.1). Reads the V3 NESTED usage shape (`usage.inputTokens.total` / `usage.outputTokens.total`). Logging is fire-and-forget — a Telegram outage cannot break the LLM stream. |
 | `src/agent/wrapToolExecute.js` | `wrapToolExecute(toolName, fn)` try/catches the execute and returns `{ status: 'tool_error', tool, errorId, userMessage }` on throw (Phase 6.2). Full error → `ERRORS_CHANNEL_ID` via `sendErrorMessage(notifierBot, …)`. The 8-char `errorId` is the user-visible correlation token. Raw `err.message` is NEVER included in the returned UI shape. |
 | `src/agent/writeToolHelpers.js` | `defineWriteTool(...)` stages serializable intents and registers commit handlers; `executeConfirmedWrite` consumes only server-approved intents. |
-| `src/agent/writeDecision.js` | Applies authenticated UI `approve` / `cancel` decisions to the durable pending-write row. |
+| `src/agent/writeDecision.js` | Applies authenticated UI `approve`, `approve_and_confirm`, `cancel`, and compensating `revoke` decisions to durable pending-write rows. |
 | `src/agent/writeProposal.js` | Validates allowlisted direct rich-UI proposals and invokes the same registered proposal function as the LLM-facing write tool. |
 | `src/services/pendingWritesStore.js` | Azure Table `PendingAgentWrites`: chat-isolated staged/approved intents, ~5-minute TTL, immediate cancel, throttled expiry sweep, ETag-protected single-use consume. |
 | `web/src/components/WriteDecisionContext.tsx` | Builds authenticated `/api/agent/write-decision` and `/api/agent/write-proposal` requests and exposes both clients. |
 | `web/src/components/WriteConfirmCard.tsx` | Yes/Cancel UI. Records the authenticated server decision before appending any chat message; never sends a nonce on cancellation. |
-| `web/src/components/ToolErrorFallback.tsx` | Shared red-banner fallback + `isToolErrorResult()` type-guard (Phase 6.2). All 12 render hooks short-circuit on `tool_error` via this component — no JSX duplication. |
+| `web/src/components/WriteResultCard.tsx` | Shared localized status envelope for successful and expected failed writes. |
+| `web/src/components/InteractiveWriteResult.tsx` | Contextual result actions such as prefilled missing-league reporting. |
+| `web/src/components/registerWriteAction.tsx` | Registers the common loading/confirmation/result/error renderer for backend write tools. |
+| `web/src/components/ToolErrorFallback.tsx` | Shared red-banner fallback + `isToolErrorResult()` type-guard (Phase 6.2). Every maintained rich renderer short-circuits on `tool_error` via this component. |
 | `agentWebhook/function.json` | Azure Functions httpTrigger config (route `agent/{*restOfPath}`). |
 | `agentWebhook/index.js` | Bridges Azure Functions v3 (context, req) onto a Web Request; handles OPTIONS preflight + CORS; tolerant of both `Uint8Array` and string body chunks. |
 | `web/src/App.tsx` | Mounts `<CopilotKit>` + `<CopilotChat />`; reads `VITE_AGENT_API_URL`. |
@@ -1595,7 +1745,9 @@ messages must go through `clear()` first, then through
 | `web/src/components/BestTeamsTable.tsx` | `get_best_teams` rich render (top-10 table, captain badge, must-include highlights, penalty markers), localized via the tool result's refreshed `lang`. |
 | `web/src/components/UserTeamsList.tsx` | `list_user_teams` rich render (card grid). |
 | `web/src/components/UserTeamsAction.tsx` | Registers the teams renderer and turns non-active cards into direct authenticated `select_team` proposals that render the shared confirmation card. |
-| `web/src/components/FollowedTeamsGrid.tsx` | `list_followed_teams` rich render — card per team with `leagueName: position` chips, active-team highlight. |
+| `web/src/components/FollowedTeamsGrid.tsx` | `list_followed_teams` rich render — card per tracked team with league/position chips and active highlight; `unfollow_team` selection mode stages canonical removal proposals. |
+| `web/src/components/UserLeaguesAction.tsx` | `list_user_leagues` rich render — read-only league cards plus contextual `follow_team` and `unfollow_league` selection modes. |
+| `web/src/components/LeagueTeamsAction.tsx` | `list_league_teams` rich render — current league roster; `follow_team` selection mode marks already-tracked teams and stages canonical add proposals. |
 | `web/src/components/LeaderboardTable.tsx` | `get_leaderboard` rich render — sortable standings table with the user's row highlighted; status fallbacks for `not_followed` / `not_found`. |
 | `web/src/components/BestTeamScenariosMatrix.tsx` | `get_best_team_scenarios` rich render — 4 ppm sections × 4 chip rows showing projected points, Δ price change, and 🟢/🟡 chip recommendation dots mirroring `/best_team_scenarios`. |
 | `src/cores/nextRaceInfoCore.js` | `getNextRaceInfo({onFetch?, onError?})` — reads `nextRaceInfoCache[sharedKey]` + opportunistic `weatherForecastCache`; on cache miss fetches live weather via `getWeatherForecast` and populates the cache. Callbacks let the Telegram adapter wire `sendLogMessage`/`sendErrorMessage`; the agent omits them. |

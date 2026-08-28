@@ -44,8 +44,12 @@ team-scoped agent operations.
 [#225](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/225).**
 **PR-8 (`follow_team`) merged as
 [#226](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/226).**
-**PR-9 (`report_bug`) is open against `main` as
+**PR-9 (`report_bug`) merged as
 [#227](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/227).**
+**Guided team/league removal pickers merged as
+[#228](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/228).**
+**PR-10 (documentation wrap-up) is implemented on the current branch; the
+optional operator-run Telegram polling smoke remains.**
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -649,7 +653,7 @@ LANG callback behave identically in Telegram.
   removal does not require a league code or typed team name, and its
   confirmation does not invent a league association.
 
-### PR-9 — `report_bug` *(with abuse controls)*
+### PR-9 — `report_bug` ✅ Merged ([#227](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/227)) *(with abuse controls)*
 
 - Extract `src/services/reportBugService.js` with an injected
   `messenger` port: `{ sendToAdmins(text), sendToBugsGroup(text) }`.
@@ -696,7 +700,7 @@ Implementation notes:
   human-approval boundary. An uncertain direct response remains blocked to
   prevent duplicate sends and displays report-specific recovery guidance.
 
-### PR-10 — AGENTS.md wrap-up
+### PR-10 — AGENTS.md wrap-up 🟡 Implemented; manual Telegram smoke pending
 
 - Update `AGENTS.md`:
   - New "Effectful write services" section distinguishing
@@ -712,6 +716,23 @@ Implementation notes:
   agent tool, including the cross-surface read-back checks from the
   PR-1 verification gate.
 - Docs / notes only — no functional code changes.
+
+Implementation verification:
+
+- `AGENTS.md` now contains one authoritative effectful-service boundary,
+  nonce protocol (including compensating `revoke`), exact eight-tool inventory
+  plus `confirm_write`, and separate read/write tool checklists.
+- Full backend suite: 1,222 passed. Web suite: 80 passed. Lint: zero errors
+  with four existing warnings. Web production build and `git diff --check`
+  pass.
+- All eight web write tools were live-smoked across PRs #216-#228, including
+  authenticated direct controls, cancellation, confirmed writes, localization,
+  cross-process read-back, missing-league reporting, and guided add/remove
+  pickers.
+- Telegram adapters remain covered by the full suite. A fresh local polling
+  smoke was not started from this documentation-only branch because the
+  production process owns the same Telegram bot token; an operator can run the
+  command checklist in an isolated polling window before merge if desired.
 
 ---
 
@@ -733,7 +754,9 @@ Implementation notes:
 - `reset_cache`.
 - Admin write tools (`/broadcast`, `/set_nickname`,
   `/allow_web_user`, `/trigger_*`).
-- Per-tool rich UI components — only the two shared cards.
+- Dedicated per-mutation result components. Writes use the shared confirmation
+  and result cards plus contextual selection controls where the user must pick
+  a canonical target.
 
 ---
 
