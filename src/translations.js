@@ -508,6 +508,10 @@ const translations = {
       'אנחנו תומכים רק בטקסט. אנא הזן את קוד הליגה:',
     'League "{CODE}" not found. Please enter a valid league code:':
       'ליגה "{CODE}" לא נמצאה. אנא הזן קוד ליגה תקין:',
+    'Choose one followed league. Followed leagues: {LEAGUES}.':
+      'בחר ליגה אחת שנמצאת במעקב. הליגות במעקב: {LEAGUES}.',
+    'No current team data is available for league {LEAGUE}.':
+      'אין כרגע נתוני קבוצות זמינים עבור הליגה {LEAGUE}.',
     '❌ Failed to load league data: {ERROR}':
       '❌ טעינת נתוני הליגה נכשלה: {ERROR}',
     '❌ Failed to follow league: {ERROR}': '❌ מעקב אחר הליגה נכשל: {ERROR}',

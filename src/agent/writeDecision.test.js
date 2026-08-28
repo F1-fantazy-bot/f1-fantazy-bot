@@ -63,7 +63,7 @@ describe('applyWriteDecision', () => {
     expect(approvePendingWrite).toHaveBeenCalledWith({
       chatId: 42,
       writeNonce: 'n1',
-      expectedTool: undefined,
+      expectedTools: undefined,
     });
     expect(result).toEqual({
       status: 200,
@@ -87,12 +87,14 @@ describe('applyWriteDecision', () => {
     expect(result.body.status).toBe('cancelled');
   });
 
-  test('directly confirms an approved select_team intent', async () => {
-    approvePendingWrite.mockResolvedValue({ tool: 'select_team' });
+  test.each(['select_team', 'follow_team'])(
+    'directly confirms an approved %s intent',
+    async (tool) => {
+      approvePendingWrite.mockResolvedValue({ tool });
     executeConfirmedWrite.mockResolvedValue({
       status: 'ok',
-      tool: 'select_team',
-      summary: 'Active team switched.',
+        tool,
+        summary: 'Write completed.',
     });
 
     const result = await applyWriteDecision({
@@ -110,17 +112,18 @@ describe('applyWriteDecision', () => {
     expect(approvePendingWrite).toHaveBeenCalledWith({
       chatId: 42,
       writeNonce: 'n1',
-      expectedTool: 'select_team',
+        expectedTools: ['select_team', 'follow_team'],
     });
     expect(result).toEqual({
       status: 200,
       body: {
         status: 'ok',
-        tool: 'select_team',
-        summary: 'Active team switched.',
+          tool,
+          summary: 'Write completed.',
       },
     });
-  });
+    },
+  );
 
   test('strict revocation reports uncertainty when the nonce was consumed', async () => {
     cancelPendingWrite.mockResolvedValue(false);
@@ -155,7 +158,7 @@ describe('applyWriteDecision', () => {
     expect(approvePendingWrite).toHaveBeenCalledWith({
       chatId: 42,
       writeNonce: 'n1',
-      expectedTool: 'select_team',
+      expectedTools: ['select_team', 'follow_team'],
     });
     expect(cancelPendingWrite).not.toHaveBeenCalled();
     expect(executeConfirmedWrite).not.toHaveBeenCalled();

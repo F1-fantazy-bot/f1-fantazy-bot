@@ -8,7 +8,7 @@ const {
   proposeRegisteredWrite,
 } = require('./writeToolHelpers');
 
-const DIRECT_PROPOSAL_TOOLS = new Set(['select_team']);
+const DIRECT_PROPOSAL_TOOLS = new Set(['select_team', 'follow_team']);
 
 function validatePayload(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {

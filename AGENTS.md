@@ -944,7 +944,9 @@ Key files:
 - `src/agent/writeDecision.js` + `agentWebhook/index.js` — authenticated
   decision endpoint.
 - `src/agent/writeProposal.js` — allowlisted authenticated direct proposal
-  endpoint for deterministic rich-UI controls.
+  endpoint for deterministic rich-UI controls. `select_team` cards and
+  `follow_team` team-picker cards use this path; both still require explicit
+  approval before direct confirmation.
 - `web/src/components/WriteDecisionContext.tsx` — decision HTTP client
   and provider.
 - `web/src/components/WriteConfirmCard.tsx` — server decision first,
@@ -1064,7 +1066,19 @@ when that team is unavailable in the chosen league.
   Telegram bot objects out of core service logic. Mutations use the shared
   re-entrant queue plus durable `UserMutationLocks`, authoritative hydration,
   CAS preference cleanup, and whole-state snapshot compensation before cache
-  publication.
+  publication. When an add switches away from screenshot teams, the newly
+  followed league team is persisted and cached as `selectedTeam` inside the
+  same compensated transaction, so the active-team pointer cannot reference a
+  deleted screenshot team. A follow request with no league opens
+  `list_user_leagues({ selectionMode: 'follow_team' })` as clickable league
+  cards; the chosen league opens
+  `list_league_teams({ selectionMode: 'follow_team' })` as clickable team
+  cards. In this mode the tool reads the same freshly refreshed
+  `teams-data.json` roster that `followTeamService.inspect` revalidates, not
+  the locked live-score snapshot. Cards mark already-followed teams and
+  disable them. A new-team click sends its canonical league/team IDs to the
+  authenticated direct-proposal endpoint and uses direct confirmation without
+  another model turn.
 
 Language and selected-team hydration share the bounded/coalesced
 `src/services/userProfileSyncService.js` point lookup. Telegram refreshes
