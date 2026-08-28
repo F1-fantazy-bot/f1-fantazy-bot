@@ -46,6 +46,11 @@ test('canonicalizes a verified league code before staging', async () => {
   ).resolves.toEqual({
     args: { leagueCode: 'ABC123' },
   });
+  expect(inspectLeagueFollow).toHaveBeenCalledWith({
+    chatId: 42,
+    leagueCode: ' abc123 ',
+    surface: 'agent',
+  });
 });
 
 test.each(['invalid_input', 'not_found'])(
@@ -99,5 +104,6 @@ test('commits through the shared service', async () => {
   expect(followLeague).toHaveBeenCalledWith({
     chatId: 42,
     leagueCode: 'ABC123',
+    surface: 'agent',
   });
 });

@@ -102,6 +102,7 @@ test('follow_league runs propose → approval → confirm', async () => {
   expect(followLeague).toHaveBeenCalledWith({
     chatId: 42,
     leagueCode: 'ABC123',
+    surface: 'agent',
   });
   expect(result).toMatchObject({ status: 'ok', tool: 'follow_league' });
 });

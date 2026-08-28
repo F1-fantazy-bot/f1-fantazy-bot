@@ -666,6 +666,8 @@ const translations = {
       'כדי למצוא את קוד הליגה: היכנס לאתר \u2066F1 Fantasy\u2069, פתח את הליגה שברצונך לעקוב אחריה, לחץ על כפתור השיתוף והעתק את קוד הליגה משם.',
     '📩 If the code is correct but the league is not yet tracked, please report it to the admins via /report_bug with the league code and we will add the bot to the league as soon as possible.':
       '📩\u200F אם הקוד תקין אך הליגה עדיין לא מנוטרת, דווח לאדמינים עם קוד הליגה באמצעות \u2066/report_bug\u2069 ונוסיף את הבוט לליגה בהקדם האפשרי.',
+    'If the code is correct but the league is not yet tracked, contact the administrators and send them the league code. This agent cannot submit missing-league reports yet.':
+      'אם הקוד תקין אך הליגה עדיין לא מנוטרת, פנה לאדמינים ושלח להם את קוד הליגה. הסוכן עדיין לא יכול לשלוח דיווח על ליגה חסרה.',
     '💡 Send /cancel at any time to abort.':
       '💡\u200F שלח \u2066/cancel\u2069 בכל רגע כדי לבטל.',
     'Operation cancelled.': 'הפעולה בוטלה.',

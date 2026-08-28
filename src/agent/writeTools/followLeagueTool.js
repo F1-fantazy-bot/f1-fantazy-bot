@@ -26,6 +26,7 @@ const followLeagueTool = defineWriteTool({
     const inspected = await inspectLeagueFollow({
       chatId,
       leagueCode: args.leagueCode,
+      surface: 'agent',
     });
     if (inspected.status === 'invalid_input') {
       return {
@@ -55,7 +56,8 @@ const followLeagueTool = defineWriteTool({
     t('Follow league code {CODE}.', chatId, {
       CODE: args.leagueCode,
     }),
-  commit: ({ chatId, args }) => followLeague({ chatId, ...args }),
+  commit: ({ chatId, args }) =>
+    followLeague({ chatId, ...args, surface: 'agent' }),
 });
 
 module.exports = { followLeagueTool };

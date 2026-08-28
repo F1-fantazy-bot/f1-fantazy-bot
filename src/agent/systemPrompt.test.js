@@ -89,7 +89,5 @@ test('routes follow-league reads and writes separately', () => {
   expect(prompt).toContain(
     'a valid but untracked code should',
   );
-  expect(prompt).toContain(
-    'through /report_bug',
-  );
+  expect(prompt).toContain('/report_bug; that is a Telegram-only command');
 });

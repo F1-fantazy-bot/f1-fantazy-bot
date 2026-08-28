@@ -568,8 +568,9 @@ LANG callback behave identically in Telegram.
 - `follow_league({ leagueCode })` validates existence before staging,
   canonicalizes the code in the pending intent, skips confirmation for a
   durable no-op, and revalidates at commit. A missing league returns the same
-  actionable guidance as Telegram: where to copy the Share code and how to
-  report a valid-but-untracked code through `/report_bug`.
+  actionable guidance as Telegram for finding the Share code. Telegram keeps
+  `/report_bug`; the agent instead tells users to contact administrators
+  because it cannot submit missing-league reports yet.
 - Tests cover invalid/missing/existing/new leagues, Telegram retry/error
   behavior, language ordering, prompt routing, and propose → approve →
   confirm.
@@ -629,6 +630,11 @@ LANG callback behave identically in Telegram.
     if available.
 - Refactor `pendingReplyRegistry.js#report_bug` to call the service.
 - Register `report_bug` agent tool.
+- Replace the temporary "contact administrators" guidance in
+  `follow_league` not-found results with a one-click **Report missing
+  league** action. Prefill the report with the attempted league code and
+  route it through the authenticated `report_bug` confirmation/abuse-control
+  flow; the user must not need to retype the code.
 - Tests + smoke (Telegram `/report_bug` + web agent, including
   length-cap and rate-limit error paths).
 

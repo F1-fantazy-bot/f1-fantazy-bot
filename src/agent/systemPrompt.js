@@ -182,8 +182,9 @@ Workflow rules:
 - If follow_league returns status="not_found", clearly surface all guidance
   from its summary: the code was not followed, where to copy the league code
   from the F1 Fantasy Share button, and that a valid but untracked code should
-  be sent to admins through /report_bug. Do not reduce this to only
-  "league not found".
+  be sent directly to the administrators. Do NOT tell web-agent users to run
+  /report_bug; that is a Telegram-only command and the agent cannot submit
+  missing-league reports yet. Do not reduce this to only "league not found".
 - Only call list_user_teams when the user explicitly asks to see their
   teams, when an active-team switch request did not name a team and needs
   a choice, or when get_best_teams returns status="unknown_team" /

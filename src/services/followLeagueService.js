@@ -29,7 +29,11 @@ function invalidLeagueCodeResult(chatId, leagueCode) {
   };
 }
 
-function leagueNotFoundResult(chatId, leagueCode) {
+function leagueNotFoundResult(
+  chatId,
+  leagueCode,
+  { surface = 'telegram' } = {},
+) {
   const guidance = [
     t('League "{CODE}" was not found.', chatId, {
       CODE: leagueCode,
@@ -38,10 +42,15 @@ function leagueNotFoundResult(chatId, leagueCode) {
       'To find your league code: go to the F1 Fantasy website, open the league you want to follow, click the share button, and copy the league code from there.',
       chatId,
     ),
-    t(
-      '📩 If the code is correct but the league is not yet tracked, please report it to the admins via /report_bug with the league code and we will add the bot to the league as soon as possible.',
-      chatId,
-    ),
+    surface === 'agent'
+      ? t(
+          'If the code is correct but the league is not yet tracked, contact the administrators and send them the league code. This agent cannot submit missing-league reports yet.',
+          chatId,
+        )
+      : t(
+          '📩 If the code is correct but the league is not yet tracked, please report it to the admins via /report_bug with the league code and we will add the bot to the league as soon as possible.',
+          chatId,
+        ),
   ];
 
   return {
@@ -52,12 +61,18 @@ function leagueNotFoundResult(chatId, leagueCode) {
     nextSteps: {
       findCode:
         'Open the league on the F1 Fantasy website, use Share, and copy its league code.',
-      reportCommand: '/report_bug',
+      ...(surface === 'agent'
+        ? { contactAdmins: true }
+        : { reportCommand: '/report_bug' }),
     },
   };
 }
 
-async function inspectLeagueFollow({ chatId, leagueCode }) {
+async function inspectLeagueFollow({
+  chatId,
+  leagueCode,
+  surface = 'telegram',
+}) {
   const normalizedCode = normalizeLeagueCode(leagueCode);
   if (!/^[A-Z0-9]{3,20}$/.test(normalizedCode)) {
     return invalidLeagueCodeResult(chatId, normalizedCode);
@@ -65,7 +80,7 @@ async function inspectLeagueFollow({ chatId, leagueCode }) {
 
   const leagueData = await getLeagueData(normalizedCode);
   if (!leagueData) {
-    return leagueNotFoundResult(chatId, normalizedCode);
+    return leagueNotFoundResult(chatId, normalizedCode, { surface });
   }
   const leagueName = leagueData.leagueName || normalizedCode;
   const existing = await getUserLeague(chatId, normalizedCode);
@@ -87,8 +102,12 @@ async function inspectLeagueFollow({ chatId, leagueCode }) {
   };
 }
 
-async function followLeague({ chatId, leagueCode }) {
-  const inspected = await inspectLeagueFollow({ chatId, leagueCode });
+async function followLeague({ chatId, leagueCode, surface = 'telegram' }) {
+  const inspected = await inspectLeagueFollow({
+    chatId,
+    leagueCode,
+    surface,
+  });
   if (inspected.status !== STATUS.OK || !inspected.changed) {
     return inspected;
   }

@@ -72,6 +72,24 @@ test('returns localized actionable not-found guidance', async () => {
   delete userCache['42'];
 });
 
+test('agent guidance contacts admins without Telegram commands', async () => {
+  getLeagueData.mockResolvedValue(null);
+
+  const result = await followLeague({
+    chatId: 42,
+    leagueCode: 'ABC123',
+    surface: 'agent',
+  });
+
+  expect(result.summary).toContain('contact the administrators');
+  expect(result.summary).toContain('cannot submit missing-league reports');
+  expect(result.summary).not.toContain('/report_bug');
+  expect(result.nextSteps).toEqual(
+    expect.objectContaining({ contactAdmins: true }),
+  );
+  expect(result.nextSteps.reportCommand).toBeUndefined();
+});
+
 test('returns a durable no-op when the league is already followed', async () => {
   getUserLeague.mockResolvedValue({
     leagueCode: 'ABC123',
