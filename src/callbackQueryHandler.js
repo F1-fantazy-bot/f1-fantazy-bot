@@ -59,6 +59,9 @@ const { sendLeaderboard } = require('./commandsHandler/leaderboardHandler');
 const { sendLeagueChanges } = require('./commandsHandler/leagueChangesHandler');
 const { sendRaceSummary } = require('./commandsHandler/raceSummaryHandler');
 const {
+  unfollowLeague,
+} = require('./services/unfollowLeagueService');
+const {
   handleLiveScoreCallback,
 } = require('./commandsHandler/liveScoreHandler');
 const {
@@ -71,7 +74,6 @@ const {
 const {
   sendLeagueStandingsGraph,
 } = require('./commandsHandler/leagueStandingsGraphHandler');
-const { removeUserLeague } = require('./leagueRegistryService');
 const {
   handleTeamsTrackerCallback,
 } = require('./commandsHandler/teamsTrackerHandler');
@@ -405,17 +407,15 @@ async function handleLeagueUnfollowCallback(bot, query) {
   const leagueCode = query.data.split(':')[1];
 
   try {
-    await removeUserLeague(chatId, leagueCode);
+    const result = await unfollowLeague({ chatId, leagueCode });
     await bot.editMessageText(
-      t('Unfollowed league {CODE}.', chatId, { CODE: leagueCode }),
+      result.summary,
       { chat_id: chatId, message_id: messageId },
     );
   } catch (err) {
     console.error('Error unfollowing league:', err);
     await bot.editMessageText(
-      t('❌ Failed to unfollow league: {ERROR}', chatId, {
-        ERROR: err.message,
-      }),
+      t('❌ Failed to unfollow league. Please try again.', chatId),
       { chat_id: chatId, message_id: messageId },
     );
   }

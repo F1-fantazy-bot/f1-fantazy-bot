@@ -575,16 +575,15 @@ LANG callback behave identically in Telegram.
   behavior, language ordering, prompt routing, and propose → approve →
   confirm.
 
-### PR-7 — `unfollow_league`
+### PR-7 — `unfollow_league` 🟡 Implemented (current branch)
 
-- Extract `src/services/unfollowLeagueService.js`: validates the user
-  follows this league via `listUserLeagues`, then `removeUserLeague`.
-  Returns envelope.
-- Refactor the `LEAGUE_UNFOLLOW_CALLBACK_TYPE` branch in
-  `callbackQueryHandler.js` to call the service.
-- Register `unfollow_league` agent tool + frontend write action.
-- Tests + smoke (`/unfollow_league` inline keyboard + web
-  `unfollow_league` tool).
+- `unfollowLeagueService` resolves an exact code or case-insensitive exact
+  name against the user's durable `UserLeagues` partition, returns
+  `not_found` without deletion when absent, and removes the canonical code.
+- Telegram's `LEAGUE_UNFOLLOW_CALLBACK_TYPE` and the confirmed
+  `unfollow_league` agent tool delegate to the same service.
+- Agent proposals canonicalize code + display name before staging; read-only
+  followed-league questions remain on `list_user_leagues`.
 
 ### PR-8 — `follow_team`
 

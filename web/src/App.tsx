@@ -84,6 +84,11 @@ function AgentActions() {
     loadingLabel: 'Checking league…',
   });
   useWriteAction({
+    name: 'unfollow_league',
+    description: 'Stop following one private F1 Fantasy league.',
+    loadingLabel: 'Checking followed league…',
+  });
+  useWriteAction({
     name: 'confirm_write',
     description:
       'Commit a previously proposed write action by its writeNonce.',
