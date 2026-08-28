@@ -44,6 +44,7 @@ function renderCard(
     message?: string,
   ) => void,
   directConfirm = false,
+  directConfirmErrorMessage?: string,
 ) {
   const container = document.createElement('div');
   document.body.appendChild(container);
@@ -64,6 +65,7 @@ function renderCard(
             uiLang,
           }}
           directConfirm={directConfirm}
+          directConfirmErrorMessage={directConfirmErrorMessage}
           onSettled={onSettled}
         />
       </WriteDecisionProvider>,
@@ -177,6 +179,27 @@ describe('WriteConfirmCard', () => {
     expect(onSettled).not.toHaveBeenCalled();
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
       'final status could not be verified',
+    );
+    expect(button(container, 'Yes, do it').disabled).toBe(true);
+    cleanup();
+  });
+
+  test('supports action-specific direct confirmation recovery guidance', async () => {
+    vi.spyOn(window, 'fetch').mockRejectedValue(new Error('network lost'));
+    const { container, cleanup } = renderCard(
+      undefined,
+      vi.fn(),
+      true,
+      'Check the admin channels before trying again.',
+    );
+
+    await act(async () => {
+      button(container, 'Yes, do it').click();
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      'Check the admin channels before trying again.',
     );
     expect(button(container, 'Yes, do it').disabled).toBe(true);
     cleanup();

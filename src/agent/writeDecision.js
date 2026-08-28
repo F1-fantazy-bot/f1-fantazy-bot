@@ -19,7 +19,11 @@ const DECISION = Object.freeze({
   CANCEL: 'cancel',
   REVOKE: 'revoke',
 });
-const DIRECT_CONFIRM_TOOLS = Object.freeze(['select_team', 'follow_team']);
+const DIRECT_CONFIRM_TOOLS = Object.freeze([
+  'select_team',
+  'follow_team',
+  'report_bug',
+]);
 
 function validatePayload(payload) {
   if (!payload || typeof payload !== 'object') {

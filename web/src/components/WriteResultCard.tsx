@@ -12,7 +12,8 @@ export type WriteResultStatus =
   | 'invalid_input'
   | 'not_found'
   | 'forbidden'
-  | 'limit_exceeded';
+  | 'limit_exceeded'
+  | 'failed';
 
 export type WriteResult = {
   status?: WriteResultStatus | string;
@@ -21,6 +22,12 @@ export type WriteResult = {
   details?: unknown;
   uiLang?: string;
   teamId?: string;
+  leagueCode?: string;
+  reportAction?: {
+    type?: string;
+    leagueCode?: string;
+    message?: string;
+  };
 };
 
 const STATUS_STYLES: Record<
@@ -61,6 +68,13 @@ const STATUS_STYLES: Record<
     fg: '#7a1f1f',
     icon: '🚦',
     title: 'Limit reached',
+  },
+  failed: {
+    bg: '#fff1f1',
+    border: '#f3c2c2',
+    fg: '#7a1f1f',
+    icon: '⚠️',
+    title: 'Action failed',
   },
 };
 
@@ -107,6 +121,7 @@ export function WriteResultCard({ result }: { result: WriteResult }) {
         not_found: 'אין מה לבצע',
         forbidden: 'הפעולה אינה מורשית',
         limit_exceeded: 'הגעת למגבלה',
+        failed: 'הפעולה נכשלה',
       }
     : {
         ok: style.title,
@@ -114,6 +129,7 @@ export function WriteResultCard({ result }: { result: WriteResult }) {
         not_found: STATUS_STYLES.not_found.title,
         forbidden: STATUS_STYLES.forbidden.title,
         limit_exceeded: STATUS_STYLES.limit_exceeded.title,
+        failed: STATUS_STYLES.failed.title,
       };
   const summary =
     typeof result.summary === 'string' && result.summary.length > 0

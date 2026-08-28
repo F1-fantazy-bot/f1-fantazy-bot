@@ -404,15 +404,29 @@ const translations = {
       'מסביר את תהליך השימוש בבוט צעד אחר צעד.',
     'What message would you like to send to the admins?':
       'איזו הודעה תרצה לשלוח למנהלים?',
+    'Bug report from {DISPLAY_NAME} ({NAME}, {ID}):':
+      'דיווח באג מ{DISPLAY_NAME} ({NAME}, {ID}):',
     'Bug report from {NAME} ({ID}):\n\n{MESSAGE}':
       'דיווח באג מ{NAME} ({ID}):\n\n{MESSAGE}',
     'Your message has been sent to the admins. Thank you!':
       'ההודעה שלך נשלחה למנהלים. תודה!',
+    'Send this bug report to the administrators:':
+      'שלח את דיווח הבאג הזה למנהלים:',
+    'Please enter a bug report or feedback message.':
+      'נא להזין דיווח באג או הודעת משוב.',
+    'Bug reports can contain at most {MAX} characters.':
+      'דיווחי באגים יכולים להכיל עד {MAX} תווים.',
+    'You can send up to {MAX} bug reports per hour. Please try again later.':
+      'ניתן לשלוח עד {MAX} דיווחי באגים בשעה. נסה שוב מאוחר יותר.',
+    'Unable to send your report right now. Please try again.':
+      'לא ניתן לשלוח את הדיווח כרגע. נסה שוב.',
     '🐛 Report Bug': '🐛 דיווח באג',
     'Report a bug or send feedback to the admins':
       'דווח על באג או שלח משוב למנהלים',
     'Invalid reply. Please try again.': 'תגובה לא תקינה. אנא נסה שוב.',
     'We support only text. {PROMPT}': 'אנו תומכים רק בטקסט. {PROMPT}',
+    'We support only text messages up to {MAX} characters. {PROMPT}':
+      'אנו תומכים רק בהודעות טקסט באורך של עד {MAX} תווים. {PROMPT}',
     'Registered Users': 'משתמשים רשומים',
     'Chat ID': "מזהה צ'אט",
     Language: 'שפה',
@@ -706,8 +720,8 @@ const translations = {
       'כדי למצוא את קוד הליגה: היכנס לאתר \u2066F1 Fantasy\u2069, פתח את הליגה שברצונך לעקוב אחריה, לחץ על כפתור השיתוף והעתק את קוד הליגה משם.',
     '📩 If the code is correct but the league is not yet tracked, please report it to the admins via /report_bug with the league code and we will add the bot to the league as soon as possible.':
       '📩\u200F אם הקוד תקין אך הליגה עדיין לא מנוטרת, דווח לאדמינים עם קוד הליגה באמצעות \u2066/report_bug\u2069 ונוסיף את הבוט לליגה בהקדם האפשרי.',
-    'If the code is correct but the league is not yet tracked, contact the administrators and send them the league code. This agent cannot submit missing-league reports yet.':
-      'אם הקוד תקין אך הליגה עדיין לא מנוטרת, פנה לאדמינים ושלח להם את קוד הליגה. הסוכן עדיין לא יכול לשלוח דיווח על ליגה חסרה.',
+    'If the code is correct but the league is not yet tracked, use Report missing league below to notify the administrators.':
+      'אם הקוד תקין אך הליגה עדיין לא מנוטרת, השתמש בכפתור דיווח על ליגה חסרה למטה כדי להודיע למנהלים.',
     '💡 Send /cancel at any time to abort.':
       '💡\u200F שלח \u2066/cancel\u2069 בכל רגע כדי לבטל.',
     'Operation cancelled.': 'הפעולה בוטלה.',

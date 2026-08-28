@@ -207,6 +207,11 @@ describe('approval and cancellation', () => {
   });
 
   test('expectedTools allows only explicitly supported direct-confirm intents', async () => {
+    const reportNonce = await stagePendingWrite({
+      chatId: 1,
+      tool: 'report_bug',
+      args: { message: 'Broken card' },
+    });
     const followTeamNonce = await stagePendingWrite({
       chatId: 1,
       tool: 'follow_team',
@@ -221,8 +226,15 @@ describe('approval and cancellation', () => {
       tool: 'set_language',
       args: { lang: 'he' },
     });
-    const expectedTools = ['select_team', 'follow_team'];
+    const expectedTools = ['select_team', 'follow_team', 'report_bug'];
 
+    await expect(
+      approvePendingWrite({
+        chatId: 1,
+        writeNonce: reportNonce,
+        expectedTools,
+      }),
+    ).resolves.toMatchObject({ state: INTENT_STATE.APPROVED });
     await expect(
       approvePendingWrite({
         chatId: 1,

@@ -42,8 +42,10 @@ team-scoped agent operations.
 [#224](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/224).**
 **PR-7 (`unfollow_league`) merged as
 [#225](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/225).**
-**PR-8 (`follow_team`) is implemented on the current feature branch.**
-PR-9 (`report_bug`) is next after PR-8 merges.
+**PR-8 (`follow_team`) merged as
+[#226](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/226).**
+**PR-9 (`report_bug`) is open against `main` as
+[#227](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/227).**
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -661,6 +663,29 @@ LANG callback behave identically in Telegram.
   flow; the user must not need to retype the code.
 - Tests + smoke (Telegram `/report_bug` + web agent, including
   length-cap and rate-limit error paths).
+
+Implementation notes:
+
+- The Zod tool schema accepts a string and the service performs empty/length
+  validation so expected failures return `invalid_input` instead of escaping
+  as schema exceptions.
+- The three-per-hour check runs without reservation during proposal and is
+  atomically rechecked/reserved at commit. It is intentionally process-local,
+  as specified; Function scale-out and the Telegram host each have independent
+  windows.
+- A 4000-character user report may exceed Telegram's 4096-character transport
+  limit after attribution metadata. Delivery therefore uses chunks capped at
+  4000 total characters, repeating trusted source/email metadata on each part.
+- Delivery failures return a retryable `failed` result and release the reserved
+  limiter slot.
+- Secondary bugs-group delivery failures notify both internal log/error
+  channels through `sendErrorMessage` without converting a successful admin
+  delivery into a user-facing failure.
+- The missing-league button uses authenticated direct proposal plus
+  `approve_and_confirm`. This avoids asking the model to confirm an out-of-band
+  proposal it never saw while preserving the same durable staged-intent and
+  human-approval boundary. An uncertain direct response remains blocked to
+  prevent duplicate sends and displays report-specific recovery guidance.
 
 ### PR-10 — AGENTS.md wrap-up
 

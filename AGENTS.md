@@ -945,8 +945,9 @@ Key files:
   decision endpoint.
 - `src/agent/writeProposal.js` — allowlisted authenticated direct proposal
   endpoint for deterministic rich-UI controls. `select_team` cards and
-  `follow_team` team-picker cards use this path; both still require explicit
-  approval before direct confirmation.
+  `follow_team` team-picker cards plus prefilled `report_bug` missing-league
+  actions use this path; all still require explicit approval before direct
+  confirmation.
 - `web/src/components/WriteDecisionContext.tsx` — decision HTTP client
   and provider.
 - `web/src/components/WriteConfirmCard.tsx` — server decision first,
@@ -1079,6 +1080,25 @@ when that team is unavailable in the chosen league.
   disable them. A new-team click sends its canonical league/team IDs to the
   authenticated direct-proposal endpoint and uses direct confirmation without
   another model turn.
+- `report_bug({ message })` — shared `src/services/reportBugService.js`.
+  Telegram's `/report_bug` pending reply and the confirmed agent write tool
+  use the same validation, delivery, and abuse-control path. Reports are
+  trimmed, capped at 4000 characters, and split into metadata-preserving
+  chunks below Telegram's transport limit. Trusted `Source` and authenticated
+  web email metadata are added before the user-controlled body. The in-memory
+  limit allows three reports per chat per rolling hour in each process; it is
+  a best-effort abuse control and does not coordinate across Function
+  instances or the separate Telegram/agent hosts. Delivery failures return a
+  retryable `failed` envelope and release the reserved rate-limit slot.
+  A failure to deliver the secondary bugs-group copy is reported through
+  `sendErrorMessage` so both internal log/error channels receive it, while a
+  successful admin delivery still returns success to the reporter.
+  Agent-side missing-league results include a prefilled **Report missing
+  league** action. Its authenticated direct proposal still requires explicit
+  confirmation, then uses the direct approve-and-confirm path without asking
+  the model to reconstruct an out-of-band proposal. If that direct response is
+  uncertain, keep the confirmation blocked to avoid duplicate reports and show
+  report-specific guidance to check the admin channels before retrying.
 
 Language and selected-team hydration share the bounded/coalesced
 `src/services/userProfileSyncService.js` point lookup. Telegram refreshes

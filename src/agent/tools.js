@@ -58,6 +58,7 @@ const {
   createAgentFollowTeamService,
   followTeamTool,
 } = require('./writeTools/followTeamTool');
+const { reportBugTool } = require('./writeTools/reportBugTool');
 const { getLanguageTool } = require('./readTools/getLanguageTool');
 
 // Trim a best-teams calculator row down to the fields the React component
@@ -523,6 +524,7 @@ const tools = [
   followLeagueTool,
   unfollowLeagueTool,
   followTeamTool,
+  reportBugTool,
 
   defineTool({
     name: 'confirm_write',

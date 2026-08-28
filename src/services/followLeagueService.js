@@ -44,7 +44,7 @@ function leagueNotFoundResult(
     ),
     surface === 'agent'
       ? t(
-          'If the code is correct but the league is not yet tracked, contact the administrators and send them the league code. This agent cannot submit missing-league reports yet.',
+          'If the code is correct but the league is not yet tracked, use Report missing league below to notify the administrators.',
           chatId,
         )
       : t(
@@ -62,9 +62,18 @@ function leagueNotFoundResult(
       findCode:
         'Open the league on the F1 Fantasy website, use Share, and copy its league code.',
       ...(surface === 'agent'
-        ? { contactAdmins: true }
+        ? { reportMissingLeague: true }
         : { reportCommand: '/report_bug' }),
     },
+    ...(surface === 'agent'
+      ? {
+          reportAction: {
+            type: 'report_missing_league',
+            leagueCode,
+            message: `Missing league code: ${leagueCode}`,
+          },
+        }
+      : {}),
   };
 }
 

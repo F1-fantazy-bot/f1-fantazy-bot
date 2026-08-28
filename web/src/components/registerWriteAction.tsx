@@ -4,7 +4,8 @@ import {
   WriteConfirmCard,
   isConfirmationRequired,
 } from './WriteConfirmCard';
-import { WriteResultCard, isWriteResult, type WriteResult } from './WriteResultCard';
+import { InteractiveWriteResult } from './InteractiveWriteResult';
+import { isWriteResult, type WriteResult } from './WriteResultCard';
 import { safeParse } from './safeParse';
 import { ToolLoading } from './ToolLoading';
 
@@ -51,13 +52,13 @@ export function useWriteAction({
       }
 
       if (isWriteResult(parsed)) {
-        return <WriteResultCard result={parsed} />;
+        return <InteractiveWriteResult result={parsed} />;
       }
 
       // Unknown shape — render a minimal generic card rather than
       // exposing raw JSON to the user.
       return (
-        <WriteResultCard
+        <InteractiveWriteResult
           result={{
             status: 'ok',
             tool: name,

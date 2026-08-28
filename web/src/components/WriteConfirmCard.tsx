@@ -37,10 +37,12 @@ export function isConfirmationRequired(
 export function WriteConfirmCard({
   result,
   directConfirm = false,
+  directConfirmErrorMessage,
   onSettled,
 }: {
   result: WriteConfirmationRequired;
   directConfirm?: boolean;
+  directConfirmErrorMessage?: string;
   onSettled?: (
     outcome: 'confirmed' | 'cancelled' | 'error',
     message?: string,
@@ -156,7 +158,9 @@ export function WriteConfirmCard({
       onSettled?.('confirmed');
     } catch (err) {
       if (directConfirm) {
-        setErrorMessage(labels.directConfirmError);
+        setErrorMessage(
+          directConfirmErrorMessage || labels.directConfirmError,
+        );
         setDecision('blocked');
 
         return;
