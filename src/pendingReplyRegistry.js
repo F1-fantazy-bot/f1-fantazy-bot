@@ -15,6 +15,10 @@ const {
   sendMessageToAdmins,
   sendLogMessage,
 } = require('./utils/utils');
+const {
+  createReportBugService,
+  MAX_BUG_REPORT_LENGTH,
+} = require('./services/reportBugService');
 const { getUserById, listAllUsers, updateUserAttributes } = require('./userRegistryService');
 const {
   getAllowedUserByEmail,
@@ -44,45 +48,53 @@ const PENDING_REPLY_REGISTRY = {
     buildHandler: (chatId) => async (replyBot, replyMsg) => {
       const chatName = getChatName(replyMsg);
       const displayName = getDisplayName(chatId);
-
-      const adminMessage = t(
-        'Bug report from {DISPLAY_NAME} ({NAME}, {ID}):\n\n{MESSAGE}',
-        chatId,
-        {
-          DISPLAY_NAME: displayName,
-          NAME: chatName,
-          ID: chatId,
-          MESSAGE: replyMsg.text,
+      const reportBugService = createReportBugService({
+        messenger: {
+          sendToAdmins: (text) => sendMessageToAdmins(replyBot, text),
+          sendToBugsGroup: async (text) => {
+            await replyBot
+              .sendMessage(REPORTED_BUGS_GROUP_ID, text)
+              .catch((err) =>
+                console.error(
+                  'Error sending bug report to bugs group:',
+                  err,
+                ),
+              );
+          },
         },
-      );
-
-      await sendMessageToAdmins(replyBot, adminMessage);
-
-      await replyBot
-        .sendMessage(REPORTED_BUGS_GROUP_ID, adminMessage)
-        .catch((err) =>
-          console.error('Error sending bug report to bugs group:', err),
-        );
-
-      const confirmation = t(
-        'Your message has been sent to the admins. Thank you!',
+      });
+      const result = await reportBugService.report({
         chatId,
-      );
+        message: replyMsg.text,
+        source: 'telegram',
+        chatName,
+        displayName,
+      });
 
       await replyBot
-        .sendMessage(chatId, confirmation)
+        .sendMessage(chatId, result.summary)
         .catch((err) =>
           console.error('Error sending bug report confirmation:', err),
         );
     },
-    buildValidate: () => (replyMsg) => !!replyMsg.text,
+    buildValidate: () => (replyMsg) =>
+      typeof replyMsg.text === 'string' &&
+      replyMsg.text.trim().length > 0 &&
+      replyMsg.text.trim().length <= MAX_BUG_REPORT_LENGTH,
     buildResendPrompt: (chatId) => {
       const prompt = t(
         'What message would you like to send to the admins?',
         chatId,
       );
 
-      return t('We support only text. {PROMPT}', chatId, { PROMPT: prompt });
+      return t(
+        'We support only text messages up to {MAX} characters. {PROMPT}',
+        chatId,
+        {
+          MAX: MAX_BUG_REPORT_LENGTH,
+          PROMPT: prompt,
+        },
+      );
     },
   },
   send_message_to_user: {

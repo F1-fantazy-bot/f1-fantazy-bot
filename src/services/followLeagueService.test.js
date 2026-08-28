@@ -78,7 +78,7 @@ test('returns localized actionable not-found guidance', async () => {
   delete userCache['42'];
 });
 
-test('agent guidance contacts admins without Telegram commands', async () => {
+test('agent guidance exposes a prefilled missing-league report action', async () => {
   getLeagueData.mockResolvedValue(null);
 
   const result = await followLeague({
@@ -87,13 +87,17 @@ test('agent guidance contacts admins without Telegram commands', async () => {
     surface: 'agent',
   });
 
-  expect(result.summary).toContain('contact the administrators');
-  expect(result.summary).toContain('cannot submit missing-league reports');
+  expect(result.summary).toContain('use Report missing league below');
   expect(result.summary).not.toContain('/report_bug');
   expect(result.nextSteps).toEqual(
-    expect.objectContaining({ contactAdmins: true }),
+    expect.objectContaining({ reportMissingLeague: true }),
   );
   expect(result.nextSteps.reportCommand).toBeUndefined();
+  expect(result.reportAction).toEqual({
+    type: 'report_missing_league',
+    leagueCode: 'ABC123',
+    message: 'Missing league code: ABC123',
+  });
 });
 
 test('returns a durable no-op when the league is already followed', async () => {

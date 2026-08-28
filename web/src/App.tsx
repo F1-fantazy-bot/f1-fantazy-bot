@@ -94,6 +94,11 @@ function AgentActions() {
     loadingLabel: 'Checking league team…',
   });
   useWriteAction({
+    name: 'report_bug',
+    description: 'Send a bug report or feedback to the administrators.',
+    loadingLabel: 'Preparing bug report…',
+  });
+  useWriteAction({
     name: 'confirm_write',
     description:
       'Commit a previously proposed write action by its writeNonce.',

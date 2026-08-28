@@ -54,10 +54,15 @@ const { getChatName, getDisplayName, sendMessageToAdmins } = require('./utils/ut
 const { getUserById, listAllUsers } = require('./userRegistryService');
 const { registerPendingReply } = require('./pendingReplyManager');
 const { processPhotoByType } = require('./photoProcessingService');
+const {
+  resetReportBugRateLimitsForTests,
+  MAX_BUG_REPORT_LENGTH,
+} = require('./services/reportBugService');
 
 describe('pendingReplyRegistry', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    resetReportBugRateLimitsForTests();
   });
 
   describe('resolveCommand', () => {
@@ -102,18 +107,17 @@ describe('pendingReplyRegistry', () => {
         expect(getChatName).toHaveBeenCalledWith(replyMsg);
         expect(getDisplayName).toHaveBeenCalledWith(456);
         expect(t).toHaveBeenCalledWith(
-          'Bug report from {DISPLAY_NAME} ({NAME}, {ID}):\n\n{MESSAGE}',
+          'Bug report from {DISPLAY_NAME} ({NAME}, {ID}):',
           456,
           {
             DISPLAY_NAME: 'Test Nickname',
             NAME: 'Test User',
             ID: 456,
-            MESSAGE: 'Something is broken',
           },
         );
         expect(sendMessageToAdmins).toHaveBeenCalledWith(
           botMock,
-          'Bug report from {DISPLAY_NAME} ({NAME}, {ID}):\n\n{MESSAGE}',
+          'Bug report from {DISPLAY_NAME} ({NAME}, {ID}):\nSource: telegram\n\nSomething is broken',
         );
         expect(t).toHaveBeenCalledWith(
           'Your message has been sent to the admins. Thank you!',
@@ -139,7 +143,7 @@ describe('pendingReplyRegistry', () => {
 
         expect(botMock.sendMessage).toHaveBeenCalledWith(
           -5161566735,
-          'Bug report from {DISPLAY_NAME} ({NAME}, {ID}):\n\n{MESSAGE}',
+          'Bug report from {DISPLAY_NAME} ({NAME}, {ID}):\nSource: telegram\n\nSomething is broken',
         );
       });
 
@@ -206,6 +210,14 @@ describe('pendingReplyRegistry', () => {
 
         expect(resolved.validate({ photo: [{ file_id: 'abc' }] })).toBe(false);
       });
+
+      it('should reject text longer than the report cap', () => {
+        const resolved = resolveCommand('report_bug', 123);
+
+        expect(
+          resolved.validate({ text: 'x'.repeat(MAX_BUG_REPORT_LENGTH + 1) }),
+        ).toBe(false);
+      });
     });
 
     describe('buildResendPrompt', () => {
@@ -216,11 +228,16 @@ describe('pendingReplyRegistry', () => {
           'What message would you like to send to the admins?',
           789,
         );
-        expect(t).toHaveBeenCalledWith('We support only text. {PROMPT}', 789, {
-          PROMPT: 'What message would you like to send to the admins?',
-        });
+        expect(t).toHaveBeenCalledWith(
+          'We support only text messages up to {MAX} characters. {PROMPT}',
+          789,
+          {
+            MAX: MAX_BUG_REPORT_LENGTH,
+            PROMPT: 'What message would you like to send to the admins?',
+          },
+        );
         expect(resolved.resendPromptIfNotValid).toBe(
-          'We support only text. {PROMPT}',
+          'We support only text messages up to {MAX} characters. {PROMPT}',
         );
       });
     });

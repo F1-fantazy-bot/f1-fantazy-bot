@@ -50,6 +50,7 @@ const WRITE_RESULT_STATUSES = Object.freeze({
   NOT_FOUND: 'not_found',
   FORBIDDEN: 'forbidden',
   LIMIT_EXCEEDED: 'limit_exceeded',
+  FAILED: 'failed',
 });
 
 const WRITE_TOOL_REGISTRY = new Map();

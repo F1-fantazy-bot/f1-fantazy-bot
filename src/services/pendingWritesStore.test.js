@@ -206,6 +206,35 @@ describe('approval and cancellation', () => {
     ).resolves.toEqual({ status: CONSUME_STATUS.NOT_APPROVED });
   });
 
+  test('expectedTools allows only explicitly supported direct-confirm intents', async () => {
+    const reportNonce = await stagePendingWrite({
+      chatId: 1,
+      tool: 'report_bug',
+      args: { message: 'Broken card' },
+    });
+    const languageNonce = await stagePendingWrite({
+      chatId: 1,
+      tool: 'set_language',
+      args: { lang: 'he' },
+    });
+    const expectedTools = ['select_team', 'report_bug'];
+
+    await expect(
+      approvePendingWrite({
+        chatId: 1,
+        writeNonce: reportNonce,
+        expectedTools,
+      }),
+    ).resolves.toMatchObject({ state: INTENT_STATE.APPROVED });
+    await expect(
+      approvePendingWrite({
+        chatId: 1,
+        writeNonce: languageNonce,
+        expectedTools,
+      }),
+    ).resolves.toBeNull();
+  });
+
   test('cancellation deletes the nonce immediately', async () => {
     const nonce = await stagePendingWrite({
       chatId: 1,

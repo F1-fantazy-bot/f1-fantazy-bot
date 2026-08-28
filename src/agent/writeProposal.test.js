@@ -26,6 +26,15 @@ test('accepts only allowlisted direct-proposal tools with object args', () => {
   });
   expect(
     validatePayload({
+      tool: 'report_bug',
+      args: { message: 'Missing league code: ABC123' },
+    }),
+  ).toEqual({
+    tool: 'report_bug',
+    args: { message: 'Missing league code: ABC123' },
+  });
+  expect(
+    validatePayload({
       tool: 'set_language',
       args: { lang: 'he' },
     }),

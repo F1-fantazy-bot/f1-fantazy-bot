@@ -206,7 +206,12 @@ async function stagePendingWrite({ chatId, tool, args, summary, ttlMs }) {
   return writeNonce;
 }
 
-async function approvePendingWrite({ chatId, writeNonce, expectedTool }) {
+async function approvePendingWrite({
+  chatId,
+  writeNonce,
+  expectedTool,
+  expectedTools,
+}) {
   validateChatId(chatId);
   if (!validateNonce(writeNonce)) {
     return null;
@@ -230,6 +235,12 @@ async function approvePendingWrite({ chatId, writeNonce, expectedTool }) {
   if (
     typeof expectedTool === 'string' &&
     intent.tool !== expectedTool
+  ) {
+    return null;
+  }
+  if (
+    Array.isArray(expectedTools) &&
+    !expectedTools.includes(intent.tool)
   ) {
     return null;
   }

@@ -86,10 +86,9 @@ test('routes follow-league reads and writes separately', () => {
   expect(prompt).toContain(
     'remain read-only list_user_leagues requests',
   );
-  expect(prompt).toContain(
-    'a valid but untracked code should',
-  );
-  expect(prompt).toContain('/report_bug; that is a Telegram-only command');
+  expect(prompt).toContain('Report missing league button');
+  expect(prompt).toContain('do NOT ask them to retype the');
+  expect(prompt).not.toContain('agent cannot submit');
 });
 
 test('routes unfollow league through its confirmed write tool', () => {
@@ -112,4 +111,16 @@ test('requires an explicit team and league for follow_team', () => {
   expect(prompt).toContain('Always require an explicit target team');
   expect(prompt).toContain('Pass the exact leagueCode');
   expect(prompt).toContain('will wipe all screenshot teams');
+});
+
+test('routes explicit bug reports through the confirmed report_bug tool', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain(
+    'call report_bug with that text exactly',
+  );
+  expect(prompt).toContain('Never invent report details');
+  expect(prompt).toContain(
+    'Never claim it was sent before',
+  );
 });

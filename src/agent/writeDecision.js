@@ -19,6 +19,7 @@ const DECISION = Object.freeze({
   CANCEL: 'cancel',
   REVOKE: 'revoke',
 });
+const DIRECT_CONFIRM_TOOLS = Object.freeze(['select_team', 'report_bug']);
 
 function validatePayload(payload) {
   if (!payload || typeof payload !== 'object') {
@@ -65,9 +66,9 @@ async function applyWriteDecision({ chatId, payload }) {
     const intent = await approvePendingWrite({
       chatId,
       writeNonce: input.writeNonce,
-      expectedTool:
+      expectedTools:
         input.decision === DECISION.APPROVE_AND_CONFIRM
-          ? 'select_team'
+          ? DIRECT_CONFIRM_TOOLS
           : undefined,
     });
     if (!intent) {
@@ -125,4 +126,9 @@ async function applyWriteDecision({ chatId, payload }) {
   };
 }
 
-module.exports = { applyWriteDecision, validatePayload, DECISION };
+module.exports = {
+  applyWriteDecision,
+  validatePayload,
+  DECISION,
+  DIRECT_CONFIRM_TOOLS,
+};
