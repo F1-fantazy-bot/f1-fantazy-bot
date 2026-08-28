@@ -225,4 +225,43 @@ describe('InteractiveWriteResult', () => {
 
     rendered.cleanup();
   });
+
+  test('shows report-specific guidance when direct status is uncertain', async () => {
+    vi.spyOn(window, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: 'confirmation_required',
+            tool: 'report_bug',
+            writeNonce: 'nonce-report',
+            summary: 'Send missing league report.',
+            uiLang: 'en',
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockRejectedValueOnce(new Error('network lost'));
+    const rendered = renderResult();
+
+    await act(async () => {
+      Array.from(rendered.container.querySelectorAll('button'))
+        .find((button) => button.textContent === 'Report missing league')
+        ?.click();
+    });
+    await act(async () => {
+      Array.from(rendered.container.querySelectorAll('button'))
+        .find((button) => button.textContent === 'Yes, do it')
+        ?.click();
+    });
+
+    expect(rendered.container.querySelector('[role="alert"]')?.textContent).toBe(
+      'The report status could not be verified. Check the admin channels before trying again.',
+    );
+    expect(
+      Array.from(rendered.container.querySelectorAll('button')).find(
+        (button) => button.textContent === 'Yes, do it',
+      )?.disabled,
+    ).toBe(true);
+    rendered.cleanup();
+  });
 });

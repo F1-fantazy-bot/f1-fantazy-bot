@@ -12,6 +12,7 @@ const {
 const {
   getChatName,
   getDisplayName,
+  sendErrorMessage,
   sendMessageToAdmins,
   sendLogMessage,
 } = require('./utils/utils');
@@ -52,14 +53,14 @@ const PENDING_REPLY_REGISTRY = {
         messenger: {
           sendToAdmins: (text) => sendMessageToAdmins(replyBot, text),
           sendToBugsGroup: async (text) => {
-            await replyBot
-              .sendMessage(REPORTED_BUGS_GROUP_ID, text)
-              .catch((err) =>
-                console.error(
-                  'Error sending bug report to bugs group:',
-                  err,
-                ),
+            try {
+              await replyBot.sendMessage(REPORTED_BUGS_GROUP_ID, text);
+            } catch (err) {
+              await sendErrorMessage(
+                replyBot,
+                `Bug report delivery to bugs group failed: ${err.message}`,
               );
+            }
           },
         },
       });

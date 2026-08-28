@@ -1090,10 +1090,15 @@ when that team is unavailable in the chosen league.
   a best-effort abuse control and does not coordinate across Function
   instances or the separate Telegram/agent hosts. Delivery failures return a
   retryable `failed` envelope and release the reserved rate-limit slot.
+  A failure to deliver the secondary bugs-group copy is reported through
+  `sendErrorMessage` so both internal log/error channels receive it, while a
+  successful admin delivery still returns success to the reporter.
   Agent-side missing-league results include a prefilled **Report missing
   league** action. Its authenticated direct proposal still requires explicit
   confirmation, then uses the direct approve-and-confirm path without asking
-  the model to reconstruct an out-of-band proposal.
+  the model to reconstruct an out-of-band proposal. If that direct response is
+  uncertain, keep the confirmation blocked to avoid duplicate reports and show
+  report-specific guidance to check the admin channels before retrying.
 
 Language and selected-team hydration share the bounded/coalesced
 `src/services/userProfileSyncService.js` point lookup. Telegram refreshes

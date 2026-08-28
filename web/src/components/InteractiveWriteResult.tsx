@@ -43,11 +43,15 @@ export function InteractiveWriteResult({ result }: { result: WriteResult }) {
         report: 'דווח על ליגה חסרה',
         preparing: 'מכין דיווח…',
         error: 'לא ניתן להכין את הדיווח. נסה שוב.',
+        uncertain:
+          'לא ניתן לאמת אם הדיווח נשלח. בדוק את ערוצי המנהלים לפני ניסיון נוסף.',
       }
     : {
         report: 'Report missing league',
         preparing: 'Preparing report…',
         error: 'Unable to prepare the report. Please try again.',
+        uncertain:
+          'The report status could not be verified. Check the admin channels before trying again.',
       };
 
   async function prepareReport() {
@@ -116,6 +120,7 @@ export function InteractiveWriteResult({ result }: { result: WriteResult }) {
         <WriteConfirmCard
           result={confirmation}
           directConfirm
+          directConfirmErrorMessage={labels.uncertain}
           onSettled={(outcome, message, finalResult) => {
             if (outcome === 'confirmed' && finalResult) {
               setFeedback(finalResult);

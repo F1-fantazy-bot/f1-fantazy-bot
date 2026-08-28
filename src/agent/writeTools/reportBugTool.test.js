@@ -14,11 +14,13 @@ jest.mock('../../services/setLanguageService', () => ({
 jest.mock('../requestContext', () => ({
   getRequestContext: jest.fn(),
 }));
+const mockNotifierBot = { sendMessage: jest.fn() };
 jest.mock('../notifierBot', () => ({
-  getNotifierBot: jest.fn(() => ({ sendMessage: jest.fn() })),
+  getNotifierBot: jest.fn(() => mockNotifierBot),
 }));
 jest.mock('../../utils/utils', () => ({
   getDisplayName: jest.fn(() => 'Kilzid'),
+  sendErrorMessage: jest.fn(),
   sendMessageToAdmins: jest.fn(),
 }));
 
@@ -29,7 +31,11 @@ const {
   getFreshLanguagePreference,
 } = require('../../services/setLanguageService');
 const { getRequestContext } = require('../requestContext');
-const { reportBugTool } = require('./reportBugTool');
+const { sendErrorMessage } = require('../../utils/utils');
+const {
+  createAgentReportBugService,
+  reportBugTool,
+} = require('./reportBugTool');
 
 const inspect = jest.fn();
 const report = jest.fn();
@@ -49,6 +55,7 @@ beforeEach(() => {
     status: 'ok',
     message: 'Broken card',
   });
+  mockNotifierBot.sendMessage.mockResolvedValue(undefined);
 });
 
 test('canonicalizes report text before staging', async () => {
@@ -110,4 +117,17 @@ test('commits with request-scoped identity that is not part of tool args', async
     chatName: 'Verified User',
     displayName: 'Kilzid',
   });
+});
+
+test('routes bugs-group delivery failures through the error notifier', async () => {
+  mockNotifierBot.sendMessage.mockRejectedValue(new Error('group unavailable'));
+
+  createAgentReportBugService();
+  const { messenger } = createReportBugService.mock.calls[0][0];
+  await messenger.sendToBugsGroup('Report text');
+
+  expect(sendErrorMessage).toHaveBeenCalledWith(
+    mockNotifierBot,
+    'Agent bug report delivery to bugs group failed: group unavailable',
+  );
 });

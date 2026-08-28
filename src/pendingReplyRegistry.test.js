@@ -5,6 +5,7 @@ jest.mock('./i18n', () => ({
 jest.mock('./utils/utils', () => ({
   getChatName: jest.fn(() => 'Test User'),
   getDisplayName: jest.fn(() => 'Test Nickname'),
+  sendErrorMessage: jest.fn().mockResolvedValue(),
   sendMessageToAdmins: jest.fn().mockResolvedValue(),
   sendLogMessage: jest.fn().mockResolvedValue(),
 }));
@@ -50,7 +51,12 @@ const {
   resolveCommand,
 } = require('./pendingReplyRegistry');
 const { t } = require('./i18n');
-const { getChatName, getDisplayName, sendMessageToAdmins } = require('./utils/utils');
+const {
+  getChatName,
+  getDisplayName,
+  sendErrorMessage,
+  sendMessageToAdmins,
+} = require('./utils/utils');
 const { getUserById, listAllUsers } = require('./userRegistryService');
 const { registerPendingReply } = require('./pendingReplyManager');
 const { processPhotoByType } = require('./photoProcessingService');
@@ -148,9 +154,6 @@ describe('pendingReplyRegistry', () => {
       });
 
       it('should handle bugs group sendMessage errors gracefully', async () => {
-        const consoleSpy = jest
-          .spyOn(console, 'error')
-          .mockImplementation(() => {});
         const botMock = {
           sendMessage: jest
             .fn()
@@ -166,16 +169,15 @@ describe('pendingReplyRegistry', () => {
         await resolved.handler(botMock, replyMsg);
 
         expect(sendMessageToAdmins).toHaveBeenCalled();
-        expect(consoleSpy).toHaveBeenCalledWith(
-          'Error sending bug report to bugs group:',
-          expect.any(Error),
+        expect(sendErrorMessage).toHaveBeenCalledWith(
+          botMock,
+          'Bug report delivery to bugs group failed: Bugs group send failed',
         );
         // Confirmation should still be sent after bugs group error
         expect(botMock.sendMessage).toHaveBeenCalledWith(
           456,
           'Your message has been sent to the admins. Thank you!',
         );
-        consoleSpy.mockRestore();
       });
 
       it('should handle confirmation sendMessage errors gracefully', async () => {

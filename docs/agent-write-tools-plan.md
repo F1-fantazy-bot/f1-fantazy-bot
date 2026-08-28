@@ -678,10 +678,14 @@ Implementation notes:
   4000 total characters, repeating trusted source/email metadata on each part.
 - Delivery failures return a retryable `failed` result and release the reserved
   limiter slot.
+- Secondary bugs-group delivery failures notify both internal log/error
+  channels through `sendErrorMessage` without converting a successful admin
+  delivery into a user-facing failure.
 - The missing-league button uses authenticated direct proposal plus
   `approve_and_confirm`. This avoids asking the model to confirm an out-of-band
   proposal it never saw while preserving the same durable staged-intent and
-  human-approval boundary.
+  human-approval boundary. An uncertain direct response remains blocked to
+  prevent duplicate sends and displays report-specific recovery guidance.
 
 ### PR-10 — AGENTS.md wrap-up
 

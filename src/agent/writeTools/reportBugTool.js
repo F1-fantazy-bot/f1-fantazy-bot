@@ -1,7 +1,11 @@
 const z = require('zod');
 const { REPORTED_BUGS_GROUP_ID } = require('../../constants');
 const { t } = require('../../i18n');
-const { getDisplayName, sendMessageToAdmins } = require('../../utils/utils');
+const {
+  getDisplayName,
+  sendErrorMessage,
+  sendMessageToAdmins,
+} = require('../../utils/utils');
 const {
   createReportBugService,
 } = require('../../services/reportBugService');
@@ -25,12 +29,16 @@ function createAgentReportBugService() {
   return createReportBugService({
     messenger: {
       sendToAdmins: (text) => sendMessageToAdmins(bot, text),
-      sendToBugsGroup: (text) =>
-        bot
-          .sendMessage(REPORTED_BUGS_GROUP_ID, text)
-          .catch((err) =>
-            console.error('Error sending agent bug report to bugs group:', err),
-          ),
+      sendToBugsGroup: async (text) => {
+        try {
+          await bot.sendMessage(REPORTED_BUGS_GROUP_ID, text);
+        } catch (err) {
+          await sendErrorMessage(
+            bot,
+            `Agent bug report delivery to bugs group failed: ${err.message}`,
+          );
+        }
+      },
     },
   });
 }

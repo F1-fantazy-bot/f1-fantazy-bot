@@ -59,6 +59,8 @@ export function InteractiveLeagueTeams({
         submitting: 'מכין אישור…',
         followed: 'נוסף למעקב',
         error: 'לא ניתן להכין את המעקב אחר הקבוצה. נסה שוב.',
+        uncertain:
+          'לא ניתן לאמת אם הקבוצה נוספה. רענן את הקבוצות במעקב לפני ניסיון נוסף.',
       }
     : {
         title: canSelect ? 'Select the team you want to follow' : 'League teams',
@@ -68,6 +70,8 @@ export function InteractiveLeagueTeams({
         submitting: 'Preparing confirmation…',
         followed: 'Followed',
         error: 'Unable to prepare the team follow. Please try again.',
+        uncertain:
+          'The final status could not be verified. Refresh your followed teams before trying again.',
       };
 
   async function followTeam(team: LeagueTeam) {
@@ -263,6 +267,7 @@ export function InteractiveLeagueTeams({
         <WriteConfirmCard
           result={confirmation}
           directConfirm
+          directConfirmErrorMessage={labels.uncertain}
           onSettled={(outcome, message, finalResult) => {
             if (outcome === 'confirmed' && finalResult) {
               setFeedback(finalResult);
