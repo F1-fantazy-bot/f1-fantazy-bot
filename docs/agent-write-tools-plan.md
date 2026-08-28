@@ -567,7 +567,9 @@ LANG callback behave identically in Telegram.
   shown as a generic localized message without raw storage details.
 - `follow_league({ leagueCode })` validates existence before staging,
   canonicalizes the code in the pending intent, skips confirmation for a
-  durable no-op, and revalidates at commit.
+  durable no-op, and revalidates at commit. A missing league returns the same
+  actionable guidance as Telegram: where to copy the Share code and how to
+  report a valid-but-untracked code through `/report_bug`.
 - Tests cover invalid/missing/existing/new leagues, Telegram retry/error
   behavior, language ordering, prompt routing, and propose → approve →
   confirm.

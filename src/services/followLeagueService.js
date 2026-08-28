@@ -29,6 +29,34 @@ function invalidLeagueCodeResult(chatId, leagueCode) {
   };
 }
 
+function leagueNotFoundResult(chatId, leagueCode) {
+  const guidance = [
+    t('League "{CODE}" was not found.', chatId, {
+      CODE: leagueCode,
+    }),
+    t(
+      'To find your league code: go to the F1 Fantasy website, open the league you want to follow, click the share button, and copy the league code from there.',
+      chatId,
+    ),
+    t(
+      '📩 If the code is correct but the league is not yet tracked, please report it to the admins via /report_bug with the league code and we will add the bot to the league as soon as possible.',
+      chatId,
+    ),
+  ];
+
+  return {
+    status: STATUS.NOT_FOUND,
+    summary: guidance.join('\n\n'),
+    leagueCode,
+    followed: false,
+    nextSteps: {
+      findCode:
+        'Open the league on the F1 Fantasy website, use Share, and copy its league code.',
+      reportCommand: '/report_bug',
+    },
+  };
+}
+
 async function inspectLeagueFollow({ chatId, leagueCode }) {
   const normalizedCode = normalizeLeagueCode(leagueCode);
   if (!/^[A-Z0-9]{3,20}$/.test(normalizedCode)) {
@@ -37,13 +65,7 @@ async function inspectLeagueFollow({ chatId, leagueCode }) {
 
   const leagueData = await getLeagueData(normalizedCode);
   if (!leagueData) {
-    return {
-      status: STATUS.NOT_FOUND,
-      summary: t('League "{CODE}" was not found.', chatId, {
-        CODE: normalizedCode,
-      }),
-      leagueCode: normalizedCode,
-    };
+    return leagueNotFoundResult(chatId, normalizedCode);
   }
   const leagueName = leagueData.leagueName || normalizedCode;
   const existing = await getUserLeague(chatId, normalizedCode);
@@ -92,6 +114,7 @@ async function followLeague({ chatId, leagueCode }) {
 
 module.exports = {
   normalizeLeagueCode,
+  leagueNotFoundResult,
   inspectLeagueFollow,
   followLeague,
   STATUS,

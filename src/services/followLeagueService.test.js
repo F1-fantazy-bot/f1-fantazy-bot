@@ -37,13 +37,39 @@ test('normalizes and validates league codes', async () => {
 test('returns not_found without persistence when blob is missing', async () => {
   getLeagueData.mockResolvedValue(null);
 
-  await expect(
-    followLeague({ chatId: 42, leagueCode: 'abc123' }),
-  ).resolves.toMatchObject({
+  const result = await followLeague({
+    chatId: 42,
+    leagueCode: 'abc123',
+  });
+
+  expect(result).toMatchObject({
     status: 'not_found',
     leagueCode: 'ABC123',
+    followed: false,
+    nextSteps: {
+      reportCommand: '/report_bug',
+    },
   });
+  expect(result.summary).toContain('League "ABC123" was not found.');
+  expect(result.summary).toContain('click the share button');
+  expect(result.summary).toContain('/report_bug');
   expect(addUserLeague).not.toHaveBeenCalled();
+});
+
+test('returns localized actionable not-found guidance', async () => {
+  const { userCache } = require('../cache');
+  userCache['42'] = { lang: 'he' };
+  getLeagueData.mockResolvedValue(null);
+
+  const result = await followLeague({
+    chatId: 42,
+    leagueCode: 'ABC123',
+  });
+
+  expect(result.summary).toContain('הליגה "ABC123" לא נמצאה');
+  expect(result.summary).toContain('כפתור השיתוף');
+  expect(result.summary).toContain('/report_bug');
+  delete userCache['42'];
 });
 
 test('returns a durable no-op when the league is already followed', async () => {

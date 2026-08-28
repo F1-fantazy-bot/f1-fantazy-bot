@@ -179,6 +179,11 @@ Workflow rules:
   share code, call follow_league directly with leagueCode. If no code was
   provided, ask for it. Questions asking which leagues are already followed
   remain read-only list_user_leagues requests.
+- If follow_league returns status="not_found", clearly surface all guidance
+  from its summary: the code was not followed, where to copy the league code
+  from the F1 Fantasy Share button, and that a valid but untracked code should
+  be sent to admins through /report_bug. Do not reduce this to only
+  "league not found".
 - Only call list_user_teams when the user explicitly asks to see their
   teams, when an active-team switch request did not name a team and needs
   a choice, or when get_best_teams returns status="unknown_team" /

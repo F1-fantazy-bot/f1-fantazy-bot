@@ -86,4 +86,10 @@ test('routes follow-league reads and writes separately', () => {
   expect(prompt).toContain(
     'remain read-only list_user_leagues requests',
   );
+  expect(prompt).toContain(
+    'a valid but untracked code should',
+  );
+  expect(prompt).toContain(
+    'through /report_bug',
+  );
 });
