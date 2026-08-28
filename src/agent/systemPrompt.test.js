@@ -91,3 +91,14 @@ test('routes follow-league reads and writes separately', () => {
   );
   expect(prompt).toContain('/report_bug; that is a Telegram-only command');
 });
+
+test('routes unfollow league through its confirmed write tool', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain(
+    'call\n  unfollow_league with its exact leagueCode or leagueName',
+  );
+  expect(prompt).toContain(
+    'Read-only questions\n  about followed leagues still use list_user_leagues',
+  );
+});

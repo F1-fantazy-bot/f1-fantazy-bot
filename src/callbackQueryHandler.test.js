@@ -51,8 +51,8 @@ jest.mock('./commandsHandler/leaderboardHandler', () => ({
   sendLeaderboard: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('./leagueRegistryService', () => ({
-  removeUserLeague: jest.fn().mockResolvedValue(undefined),
+jest.mock('./services/unfollowLeagueService', () => ({
+  unfollowLeague: jest.fn(),
 }));
 
 jest.mock('./commandsHandler/selectChipHandlers', () => ({
@@ -451,7 +451,15 @@ describe('handleCallbackQuery', () => {
   });
 
   it('should handle LEAGUE_UNFOLLOW callback by removing the league', async () => {
-    const { removeUserLeague } = require('./leagueRegistryService');
+    const {
+      unfollowLeague,
+    } = require('./services/unfollowLeagueService');
+    unfollowLeague.mockResolvedValue({
+      status: 'ok',
+      summary: 'Unfollowed league ABC.',
+      leagueCode: 'ABC',
+      changed: true,
+    });
 
     const query = {
       id: 'q-unreg',
@@ -461,11 +469,39 @@ describe('handleCallbackQuery', () => {
 
     await handleCallbackQuery(bot, query);
 
-    expect(removeUserLeague).toHaveBeenCalledWith(123, 'ABC');
+    expect(unfollowLeague).toHaveBeenCalledWith({
+      chatId: 123,
+      leagueCode: 'ABC',
+    });
     expect(bot.editMessageText).toHaveBeenCalledWith(
-      'Unfollowed league {CODE}.',
+      'Unfollowed league ABC.',
       { chat_id: 123, message_id: 456 },
     );
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q-unreg');
+  });
+
+  it('does not expose storage errors while unfollowing a league', async () => {
+    const {
+      unfollowLeague,
+    } = require('./services/unfollowLeagueService');
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    unfollowLeague.mockRejectedValue(
+      new Error('https://storage.example/table?sig=secret'),
+    );
+    const query = {
+      id: 'q-unreg-error',
+      data: `${LEAGUE_UNFOLLOW_CALLBACK_TYPE}:ABC`,
+      message: { chat: { id: 123 }, message_id: 456 },
+    };
+
+    await handleCallbackQuery(bot, query);
+
+    expect(bot.editMessageText).toHaveBeenCalledWith(
+      '❌ Failed to unfollow league. Please try again.',
+      { chat_id: 123, message_id: 456 },
+    );
+    expect(JSON.stringify(bot.editMessageText.mock.calls)).not.toContain(
+      'sig=secret',
+    );
   });
 });

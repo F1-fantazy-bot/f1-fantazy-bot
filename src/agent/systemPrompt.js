@@ -65,6 +65,7 @@ Available tools:
 - activate_chip — activate or reset the chip for one owned team. Uses
   EXTRA_BOOST, LIMITLESS, WILDCARD, or WITHOUT_CHIP.
 - follow_league — follow a private F1 Fantasy league by share code.
+- unfollow_league — stop following one private league by exact code or name.
 
 Workflow rules:
 - **Selected-team default (global rule).**
@@ -185,6 +186,10 @@ Workflow rules:
   be sent directly to the administrators. Do NOT tell web-agent users to run
   /report_bug; that is a Telegram-only command and the agent cannot submit
   missing-league reports yet. Do not reduce this to only "league not found".
+- When the user explicitly asks to stop following a league, call
+  unfollow_league with its exact leagueCode or leagueName. If no league is
+  named, call list_user_leagues once and ask which league. Read-only questions
+  about followed leagues still use list_user_leagues.
 - Only call list_user_teams when the user explicitly asks to see their
   teams, when an active-team switch request did not name a team and needs
   a choice, or when get_best_teams returns status="unknown_team" /
@@ -340,6 +345,8 @@ Write tools (operations that change the user's saved state):
   - \`activate_chip({ teamId?, teamName?, chip })\` — activate/reset a
     per-team chip.
   - \`follow_league({ leagueCode })\` — follow a private league by code.
+  - \`unfollow_league({ leagueCode?, leagueName? })\` — stop following a
+    private league.
   Until another specific write tool is listed above, do not attempt
   to perform that kind of change yourself.
 

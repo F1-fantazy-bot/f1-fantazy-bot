@@ -1037,6 +1037,11 @@ when that team is unavailable in the chosen league.
   persists a new follow. Telegram's pending-reply flow and the agent tool
   delegate to it. Never expose raw Azure errors in user-facing follow
   failures.
+- `unfollow_league({ leagueCode?, leagueName? })` — shared
+  `src/services/unfollowLeagueService.js`. Resolves only leagues in the
+  authenticated user's durable follow partition, canonicalizes the staged
+  code/name, and removes only after confirmation. Telegram's inline callback
+  delegates to the same service.
 
 Language and selected-team hydration share the bounded/coalesced
 `src/services/userProfileSyncService.js` point lookup. Telegram refreshes
