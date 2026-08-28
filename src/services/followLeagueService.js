@@ -102,7 +102,11 @@ async function inspectLeagueFollow({
   };
 }
 
-async function followLeague({ chatId, leagueCode, surface = 'telegram' }) {
+async function followLeagueInternal({
+  chatId,
+  leagueCode,
+  surface = 'telegram',
+}) {
   const inspected = await inspectLeagueFollow({
     chatId,
     leagueCode,
@@ -129,6 +133,15 @@ async function followLeague({ chatId, leagueCode, surface = 'telegram' }) {
       },
     ),
   };
+}
+
+async function followLeague(args) {
+  // Lazy require avoids the activateChipService → selectTeamService cycle.
+  const { runChipMutation } = require('./activateChipService');
+
+  return await runChipMutation(args.chatId, () =>
+    followLeagueInternal(args),
+  );
 }
 
 module.exports = {

@@ -102,3 +102,25 @@ test('routes unfollow league through its confirmed write tool', () => {
     'Read-only questions\n  about followed leagues still use list_user_leagues',
   );
 });
+
+test('requires an explicit team and league for follow_team', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain(
+    'The selected/active team is irrelevant for follow_team',
+  );
+  expect(prompt).toContain('Always require an explicit target team');
+  expect(prompt).toContain(
+    'call list_user_leagues\n    immediately with selectionMode="follow_team"',
+  );
+  expect(prompt).toContain(
+    'call list_league_teams with that\n    exact leagueCode and selectionMode="follow_team"',
+  );
+  expect(prompt).toMatch(
+    /Do NOT ask the user to type\s+a league name or code/,
+  );
+  expect(prompt).toMatch(
+    /Do NOT ask the user to\s+type a team name/,
+  );
+  expect(prompt).toContain('will wipe all screenshot teams');
+});

@@ -348,7 +348,7 @@ The table is **extensible** — new attributes can be added at any time without 
 5. `/unfollow_league` shows an inline keyboard (`LEAGUE_UNFOLLOW_CALLBACK_TYPE`) with all followed leagues; selection calls `removeUserLeague(chatId, leagueCode)`.
 6. `/teams_tracker` (label `📋 Teams Tracker` / `📋 קבוצות במעקב`) opens a **multi-level inline-keyboard** to manage all followed teams in one place:
    - **League picker** (shown when the user follows >1 league) — one button per league with a count of currently-staged selections.
-   - **Team toggle view** — each league's teams are rendered as `✅`/`⬜` toggle buttons. Selections are staged (not persisted) until **Save**. Hard cap: `MAX_FOLLOWED_LEAGUE_TEAMS = 6` across all leagues — attempting to toggle ON a 7th team triggers a `show_alert` popup and does not mutate state.
+   - **Team toggle view** — each league's teams are rendered as `✅`/`⬜` toggle buttons. Selections are staged (not persisted) until **Save**. Hard cap: `MAX_FOLLOWED_LEAGUE_TEAMS = 6` across all leagues — attempting to toggle ON a 7th team triggers a `show_alert` popup and does not mutate state. This UI guard is only early feedback; `followTeamService` re-enforces the same cap under the authoritative mutation lock for every caller.
    - Bottom row: `💾 Save ({N}/{MAX})`, `✖ Cancel`, and `⬅ Back` (only when there are >1 leagues).
    Seeded from currently-followed teams on open, so toggles reflect today's state. Save/Cancel delete the session blob. League `teams-data.json` is fetched via `getLeagueTeamsData(leagueCode)` and cached in memory per leagueCode (`leagueTeamsDataCache`).
 
@@ -358,7 +358,7 @@ The table is **extensible** — new attributes can be added at any time without 
 
    **Callback types.** `TEAMS_TRACKER_CALLBACK_TYPE = 'TT'` with actions `TEAMS_TRACKER_ACTIONS = { OPEN_LEAGUE:'L', TOGGLE:'T', BACK:'B', SAVE:'S', CANCEL:'C' }`. Payload formats: `TT:L:{leagueCode}`, `TT:T:{leagueCode}:{teamId}`, `TT:B`, `TT:S`, `TT:C`. The TOGGLE payload uses the canonical fantasy `teamId` (`{sanitize(userName)}_{teamNo}`) rather than a row position — this disambiguates rows tied at the same league position (without it, two teams sharing position 5 would be indistinguishable). Worst-case payload size: `TT:T:` (5) + leagueCode (~11) + `:` + teamId (≤42) ≈ 59 chars, under Telegram's 64-byte `callback_data` limit.
 
-   **Shared helpers.** The league-team read/write logic lives in `src/utils/leagueTeamHelpers.js` (`mapLeagueTeamToBotTeam`, `loadLeagueTeamsData`, `refreshLeagueTeamsData`, `followLeagueTeam`, `removeFollowedTeam`, `extractLeagueCode`, `buildLeagueNameMap`, `buildTeamLabel`). `followLeagueTeam` does **not** mutate `selectedTeam` — Teams Tracker save owns active-team resolution end-to-end. `removeFollowedTeam(chatId, teamId, { mutateSelectedTeam = true })` exposes a flag used by save to defer active-team mutation.
+   **Shared helpers.** League-team mapping/read logic lives in `src/utils/leagueTeamHelpers.js` (`mapLeagueTeamToBotTeam`, `loadLeagueTeamsData`, `refreshLeagueTeamsData`, `buildLeagueNameMap`, `buildTeamLabel`). Its `followLeagueTeam` / `removeFollowedTeam` exports are thin Telegram adapters over the port-injected `src/services/followTeamService.js`; do not put persistence rules back into the helpers. The service alone enforces `MAX_FOLLOWED_LEAGUE_TEAMS`, resolves additions and name-based removals only from followed leagues plus fresh roster data, and authorizes exact-ID removals from durable stored teams so Telegram cleanup still works after roster or league-follow changes. Source switching, CAS preference cleanup, and snapshot compensation run inside the durable user-mutation boundary. `followLeagueTeam` does **not** mutate `selectedTeam` — Teams Tracker save owns active-team resolution end-to-end. `removeFollowedTeam(chatId, teamId, { mutateSelectedTeam = true })` exposes a flag used by save to defer active-team mutation.
 7. `/league_graphs` opens a two-step flow that renders per-league charts. Same 0/1/N league-selection flow as `/leaderboard` (callback type `LEAGUE_GRAPH_CALLBACK_TYPE`), followed by a graph-type picker (callback type `LEAGUE_GRAPH_TYPE_CALLBACK_TYPE`, payload `LEAGUE_GRAPH_TYPE:<gap|standings|budget>:<leagueCode>`). Three graph types are available:
    - **Gap to Leader** — line chart of each team's cumulative gap to the leader per race (leader sits on 0; everyone else is at or below 0). Chip usage is drawn as an emoji + chip-name label on the specific data point using the `chartjs-plugin-datalabels` plugin.
    - **Standings** — line chart of each team's **rank per race** computed from cumulative `raceScores` with competition-style ties (1, 2, 2, 4). Y-axis is reversed so rank 1 sits at the top, integer ticks with `stepSize: 1`, `min: 1`, `max: teams.length`. Legend is sorted by current-race rank ascending. Chip markers reuse the same emoji + chip-name datalabels pattern as Gap to Leader.
@@ -699,7 +699,8 @@ f1-fantazy-bot/
 │   │   │   ├── setLanguageTool.js    # en/he preference
 │   │   │   ├── selectTeamTool.js     # confirmed active-team selection
 │   │   │   ├── setBestTeamRankingTool.js # confirmed per-team ranking preset
-│   │   │   └── activateChipTool.js   # confirmed per-team chip activation/reset
+│   │   │   ├── activateChipTool.js   # confirmed per-team chip activation/reset
+│   │   │   └── followTeamTool.js     # confirmed league-team follow/removal
 │   │   └── runtime.js                # BuiltInAgent + CopilotRuntime + createCopilotRuntimeHandler (+ wrapLanguageModel)
 │   ├── services/
 │   │   ├── pendingWritesStore.js     # Azure Table-backed staged/approved intents + TTL + ETag consume
@@ -709,6 +710,7 @@ f1-fantazy-bot/
 │   │   ├── setBestTeamRankingService.js # CAS-safe ranking persistence + cache invalidation
 │   │   ├── selectedBestTeamService.js # CAS-safe per-team selected-best mutations
 │   │   ├── activateChipService.js    # durable chip state + shared mutation coordinator
+│   │   ├── followTeamService.js      # capped league-team mutations with explicit effect ports
 │   │   ├── userMutationLockService.js # Azure Table per-user cross-process lease
 │   │   ├── userMutationHydrationService.js # authoritative state after lease acquisition
 │   │   ├── teamStateSnapshotService.js # Blob/Table/cache compensation snapshots
@@ -942,7 +944,9 @@ Key files:
 - `src/agent/writeDecision.js` + `agentWebhook/index.js` — authenticated
   decision endpoint.
 - `src/agent/writeProposal.js` — allowlisted authenticated direct proposal
-  endpoint for deterministic rich-UI controls.
+  endpoint for deterministic rich-UI controls. `select_team` cards and
+  `follow_team` team-picker cards use this path; both still require explicit
+  approval before direct confirmation.
 - `web/src/components/WriteDecisionContext.tsx` — decision HTTP client
   and provider.
 - `web/src/components/WriteConfirmCard.tsx` — server decision first,
@@ -1034,14 +1038,47 @@ when that team is unavailable in the chosen league.
 - `follow_league({ leagueCode })` — shared
   `src/services/followLeagueService.js`. The service normalizes share codes,
   verifies the league blob, checks `UserLeagues` for a durable no-op, and
-  persists a new follow. Telegram's pending-reply flow and the agent tool
-  delegate to it. Never expose raw Azure errors in user-facing follow
-  failures.
+  persists a new follow under the shared durable per-user mutation boundary.
+  Telegram's pending-reply flow and the agent tool delegate to it. Never
+  expose raw Azure errors in user-facing follow failures.
 - `unfollow_league({ leagueCode?, leagueName? })` — shared
   `src/services/unfollowLeagueService.js`. Resolves only leagues in the
   authenticated user's durable follow partition, canonicalizes the staged
-  code/name, and removes only after confirmation. Telegram's inline callback
-  delegates to the same service.
+  code/name, and removes only after confirmation under the shared durable
+  per-user mutation boundary. Telegram's inline callback delegates to the
+  same service.
+- `follow_team({ action: 'add' | 'remove', leagueCode, teamId? | teamName? })`
+  — shared `src/services/followTeamService.js`. The selected team is never an
+  implicit target: callers must identify a team and the agent must identify
+  the followed league. Proposal validation resolves an exact canonical
+  `teamId` or exact case-insensitive `teamName` against freshly loaded team
+  data for user-followed leagues, then stages the canonical ID plus the
+  inspected screenshot-team ID fingerprint. Exact-ID removals are authorized
+  from durable stored teams and do not depend on a current roster or any
+  remaining followed league; when a league code is supplied, its ownership is
+  still validated independently. The validation-derived
+  confirmation summary explicitly lists screenshot team IDs that source
+  switching will wipe; commit refuses the mutation when that fingerprint
+  changed after proposal. The service, not `/teams_tracker`,
+  enforces `MAX_FOLLOWED_LEAGUE_TEAMS` for every caller. Telegram
+  `followLeagueTeam` / `removeFollowedTeam` are compatibility adapters over
+  the same service. Effect ports (`storage`, `logger`, `sourceSwitcher`) keep
+  Telegram bot objects out of core service logic. Mutations use the shared
+  re-entrant queue plus durable `UserMutationLocks`, authoritative hydration,
+  CAS preference cleanup, and whole-state snapshot compensation before cache
+  publication. When an add switches away from screenshot teams, the newly
+  followed league team is persisted and cached as `selectedTeam` inside the
+  same compensated transaction, so the active-team pointer cannot reference a
+  deleted screenshot team. A follow request with no league opens
+  `list_user_leagues({ selectionMode: 'follow_team' })` as clickable league
+  cards; the chosen league opens
+  `list_league_teams({ selectionMode: 'follow_team' })` as clickable team
+  cards. In this mode the tool reads the same freshly refreshed
+  `teams-data.json` roster that `followTeamService.inspect` revalidates, not
+  the locked live-score snapshot. Cards mark already-followed teams and
+  disable them. A new-team click sends its canonical league/team IDs to the
+  authenticated direct-proposal endpoint and uses direct confirmation without
+  another model turn.
 
 Language and selected-team hydration share the bounded/coalesced
 `src/services/userProfileSyncService.js` point lookup. Telegram refreshes

@@ -42,10 +42,10 @@ function captureTeamState(chatId) {
   };
 }
 
-async function restoreTeamState(bot, chatId, snapshot) {
-  await azureStorageService.deleteAllUserTeams(bot, chatId);
+async function restoreTeamStateWithStorage(chatId, snapshot, storage) {
+  await storage.deleteAllUserTeams(chatId);
   for (const [teamId, teamData] of Object.entries(snapshot.teams)) {
-    await azureStorageService.saveUserTeam(bot, chatId, teamId, teamData);
+    await storage.saveUserTeam(chatId, teamId, teamData);
   }
   await updateUserAttributesAtomically(chatId, () => ({
     selectedTeam: snapshot.selectedTeam,
@@ -81,4 +81,22 @@ async function restoreTeamState(bot, chatId, snapshot) {
   });
 }
 
-module.exports = { captureTeamState, restoreTeamState };
+async function restoreTeamState(bot, chatId, snapshot) {
+  await restoreTeamStateWithStorage(chatId, snapshot, {
+    deleteAllUserTeams: (targetChatId) =>
+      azureStorageService.deleteAllUserTeams(bot, targetChatId),
+    saveUserTeam: (targetChatId, teamId, teamData) =>
+      azureStorageService.saveUserTeam(
+        bot,
+        targetChatId,
+        teamId,
+        teamData,
+      ),
+  });
+}
+
+module.exports = {
+  captureTeamState,
+  restoreTeamState,
+  restoreTeamStateWithStorage,
+};

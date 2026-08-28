@@ -26,6 +26,23 @@ test('accepts only allowlisted direct-proposal tools with object args', () => {
   });
   expect(
     validatePayload({
+      tool: 'follow_team',
+      args: {
+        action: 'add',
+        leagueCode: 'ABC123',
+        teamId: 'Owner_1',
+      },
+    }),
+  ).toEqual({
+    tool: 'follow_team',
+    args: {
+      action: 'add',
+      leagueCode: 'ABC123',
+      teamId: 'Owner_1',
+    },
+  });
+  expect(
+    validatePayload({
       tool: 'set_language',
       args: { lang: 'he' },
     }),

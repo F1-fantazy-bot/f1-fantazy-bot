@@ -2,11 +2,17 @@ jest.mock('../leagueRegistryService', () => ({
   listUserLeagues: jest.fn(),
   removeUserLeague: jest.fn(),
 }));
+jest.mock('./activateChipService', () => ({
+  runChipMutation: jest.fn(async (_chatId, operation) => operation()),
+}));
 
 const {
   listUserLeagues,
   removeUserLeague,
 } = require('../leagueRegistryService');
+const {
+  runChipMutation,
+} = require('./activateChipService');
 const {
   inspectLeagueUnfollow,
   unfollowLeague,
@@ -34,6 +40,10 @@ test('returns not_found without deletion for an unfollowed league', async () => 
     unfollowLeague({ chatId: 42, leagueCode: 'OTHER' }),
   ).resolves.toMatchObject({ status: 'not_found', changed: false });
   expect(removeUserLeague).not.toHaveBeenCalled();
+  expect(runChipMutation).toHaveBeenCalledWith(
+    42,
+    expect.any(Function),
+  );
 });
 
 test('returns canonical choices for duplicate exact league names', async () => {
@@ -64,4 +74,8 @@ test('removes a followed league', async () => {
     unfollowLeague({ chatId: 42, leagueName: 'Friends' }),
   ).resolves.toMatchObject({ status: 'ok', changed: true });
   expect(removeUserLeague).toHaveBeenCalledWith(42, 'ABC123');
+  expect(runChipMutation).toHaveBeenCalledWith(
+    42,
+    expect.any(Function),
+  );
 });

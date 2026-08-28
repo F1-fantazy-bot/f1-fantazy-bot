@@ -1,16 +1,33 @@
 jest.mock('../azureStorageService', () => ({
   saveUserTeam: jest.fn(),
   deleteUserTeam: jest.fn(),
+  deleteAllUserTeams: jest.fn(),
+  listUserTeamData: jest.fn(),
+  getLeagueTeamsData: jest.fn(),
+}));
+jest.mock('../leagueRegistryService', () => ({
+  listUserLeagues: jest.fn(),
+}));
+jest.mock('./teamSourceSwitcher', () => ({
+  ensureSourceIsLeague: jest.fn().mockResolvedValue(false),
 }));
 jest.mock('../services/activateChipService', () => ({
   clearTeamDerivedPreferences: jest.fn(),
   runChipMutation: jest.fn(async (_chatId, operation) => operation()),
 }));
+jest.mock('../services/teamStateSnapshotService', () => ({
+  captureTeamState: jest.fn(() => ({ teams: {} })),
+  restoreTeamStateWithStorage: jest.fn().mockResolvedValue(undefined),
+}));
 
 const azureStorageService = require('../azureStorageService');
+const { listUserLeagues } = require('../leagueRegistryService');
 const {
   clearTeamDerivedPreferences,
 } = require('../services/activateChipService');
+const {
+  restoreTeamStateWithStorage,
+} = require('../services/teamStateSnapshotService');
 const { currentTeamCache, userCache } = require('../cache');
 const {
   mapLeagueTeamToBotTeam,
@@ -82,6 +99,27 @@ describe('mapLeagueTeamToBotTeam', () => {
       delete userCache['42'];
       azureStorageService.saveUserTeam.mockResolvedValue(undefined);
       azureStorageService.deleteUserTeam.mockResolvedValue(undefined);
+      azureStorageService.deleteAllUserTeams.mockResolvedValue(undefined);
+      azureStorageService.listUserTeamData.mockImplementation(
+        async (chatId) => ({ ...(currentTeamCache[chatId] || {}) }),
+      );
+      azureStorageService.getLeagueTeamsData.mockResolvedValue({
+        leagueCode: 'ABC123',
+        teams: [
+          {
+            teamName: 'Team',
+            userName: 'Owner',
+            teamNo: 1,
+            budget: 100,
+            transfersRemaining: 2,
+            drivers: [],
+            constructors: [],
+          },
+        ],
+      });
+      listUserLeagues.mockResolvedValue([
+        { leagueCode: 'ABC123', leagueName: 'Friends' },
+      ]);
       clearTeamDerivedPreferences.mockResolvedValue({});
     });
 
@@ -97,6 +135,7 @@ describe('mapLeagueTeamToBotTeam', () => {
 
       await expect(
         followLeagueTeam(bot, 42, {
+          leagueCode: 'ABC123',
           teamId: 'Owner_1',
           leagueTeam: {
             teamName: 'Team',
@@ -110,10 +149,10 @@ describe('mapLeagueTeamToBotTeam', () => {
         }),
       ).rejects.toThrow('CAS unavailable');
 
-      expect(azureStorageService.deleteUserTeam).toHaveBeenCalledWith(
-        bot,
+      expect(restoreTeamStateWithStorage).toHaveBeenCalledWith(
         42,
-        'Owner_1',
+        { teams: {} },
+        expect.any(Object),
       );
       expect(currentTeamCache[42]).toBeUndefined();
     });
@@ -145,11 +184,10 @@ describe('mapLeagueTeamToBotTeam', () => {
       await expect(
         removeFollowedTeam(bot, 42, 'Owner_1'),
       ).rejects.toThrow('CAS unavailable');
-      expect(azureStorageService.saveUserTeam).toHaveBeenCalledWith(
-        bot,
+      expect(restoreTeamStateWithStorage).toHaveBeenCalledWith(
         42,
-        'Owner_1',
-        teamData,
+        expect.any(Object),
+        expect.any(Object),
       );
       expect(currentTeamCache[42].Owner_1).toBe(teamData);
     });

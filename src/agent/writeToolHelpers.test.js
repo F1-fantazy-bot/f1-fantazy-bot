@@ -193,6 +193,50 @@ describe('defineWriteTool — propose-call behaviour', () => {
     });
   });
 
+  test('uses a validation-derived confirmation summary', async () => {
+    const tool = buildTool({
+      validate: jest.fn().mockResolvedValue({
+        args: { lang: 'he' },
+        summary: 'This change also clears related state.',
+      }),
+    });
+
+    const proposed = await tool.execute({ lang: 'HE' });
+
+    expect(proposed.summary).toBe(
+      'This change also clears related state.',
+    );
+  });
+
+  test('stages server-derived intent metadata without exposing it as tool args', async () => {
+    const commit = jest.fn().mockResolvedValue({
+      status: WRITE_RESULT_STATUSES.OK,
+      summary: 'Language updated.',
+    });
+    const tool = buildTool({
+      commit,
+      validate: jest.fn().mockResolvedValue({
+        args: { lang: 'he' },
+        intentArgs: { lang: 'he', sourceFingerprint: ['T1'] },
+      }),
+    });
+
+    const proposed = await tool.execute({ lang: 'HE' });
+    expect(proposed.args).toEqual({ lang: 'he' });
+    await approvePendingWrite({
+      chatId: 42,
+      writeNonce: proposed.writeNonce,
+    });
+    await executeConfirmedWrite({
+      chatId: 42,
+      writeNonce: proposed.writeNonce,
+    });
+    expect(commit).toHaveBeenCalledWith({
+      chatId: 42,
+      args: { lang: 'he', sourceFingerprint: ['T1'] },
+    });
+  });
+
   test('supports authenticated direct proposals without LLM routing', async () => {
     buildTool();
 

@@ -22,7 +22,10 @@ const {
   runChipMutation,
   clearAllTeamDerivedPreferencesInternal,
 } = require('../services/activateChipService');
-const { wipeAllTeams } = require('./teamSourceSwitcher');
+const {
+  wipeAllTeams,
+  ensureSourceIsLeagueWithStorage,
+} = require('./teamSourceSwitcher');
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -76,4 +79,16 @@ test('restores team blobs when preference clearing fails', async () => {
     { drivers: ['VER'] },
   );
   expect(currentTeamCache[42]).toBeDefined();
+});
+
+test('switches source through an explicit bot-free storage port', async () => {
+  const storage = {
+    deleteAllUserTeams: jest.fn().mockResolvedValue(undefined),
+    saveUserTeam: jest.fn().mockResolvedValue(undefined),
+  };
+
+  await expect(
+    ensureSourceIsLeagueWithStorage(42, storage),
+  ).resolves.toBe(true);
+  expect(storage.deleteAllUserTeams).toHaveBeenCalledWith(42);
 });
