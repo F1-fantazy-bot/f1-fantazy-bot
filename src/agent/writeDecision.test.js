@@ -87,15 +87,15 @@ describe('applyWriteDecision', () => {
     expect(result.body.status).toBe('cancelled');
   });
 
-  test.each(['select_team', 'report_bug'])(
+  test.each(['select_team', 'follow_team', 'report_bug'])(
     'directly confirms an approved %s intent',
     async (tool) => {
       approvePendingWrite.mockResolvedValue({ tool });
-    executeConfirmedWrite.mockResolvedValue({
-      status: 'ok',
+      executeConfirmedWrite.mockResolvedValue({
+        status: 'ok',
         tool,
         summary: 'Write completed.',
-    });
+      });
 
     const result = await applyWriteDecision({
       chatId: 42,
@@ -112,14 +112,14 @@ describe('applyWriteDecision', () => {
     expect(approvePendingWrite).toHaveBeenCalledWith({
       chatId: 42,
       writeNonce: 'n1',
-        expectedTools: ['select_team', 'report_bug'],
+      expectedTools: ['select_team', 'follow_team', 'report_bug'],
     });
     expect(result).toEqual({
       status: 200,
       body: {
         status: 'ok',
-          tool,
-          summary: 'Write completed.',
+        tool,
+        summary: 'Write completed.',
       },
     });
     },
@@ -158,7 +158,7 @@ describe('applyWriteDecision', () => {
     expect(approvePendingWrite).toHaveBeenCalledWith({
       chatId: 42,
       writeNonce: 'n1',
-      expectedTools: ['select_team', 'report_bug'],
+      expectedTools: ['select_team', 'follow_team', 'report_bug'],
     });
     expect(cancelPendingWrite).not.toHaveBeenCalled();
     expect(executeConfirmedWrite).not.toHaveBeenCalled();

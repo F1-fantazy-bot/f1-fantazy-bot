@@ -202,13 +202,78 @@ test('requires an explicit nonempty followed league when adding', async () => {
   expect(storage.saveUserTeam).not.toHaveBeenCalled();
 });
 
+test('lists current league teams and marks already followed teams', async () => {
+  currentTeamCache[CHAT_ID] = {
+    Other_2: { teamName: 'Already Followed' },
+  };
+  userCache[String(CHAT_ID)] = { selectedTeam: 'Other_2' };
+  const { service, loadLeagueTeamsData } = createHarness({
+    storedTeams: currentTeamCache[CHAT_ID],
+    teams: [
+      leagueTeam({ position: 1 }),
+      leagueTeam({
+        teamName: 'Already Followed',
+        userName: 'Other',
+        teamNo: 2,
+        position: 2,
+      }),
+    ],
+  });
+
+  const result = await service.listAvailableTeams({
+    chatId: CHAT_ID,
+    leagueCode: 'ABC123',
+  });
+
+  expect(loadLeagueTeamsData).toHaveBeenCalledWith('ABC123');
+  expect(result).toMatchObject({
+    status: 'ok',
+    leagueCode: 'ABC123',
+    teams: [
+      expect.objectContaining({
+        teamId: 'Owner_1',
+        isFollowed: false,
+        isSelected: false,
+      }),
+      expect.objectContaining({
+        teamId: 'Other_2',
+        isFollowed: true,
+        isSelected: true,
+      }),
+    ],
+  });
+});
+
+test('reports unavailable current roster data for the follow picker', async () => {
+  const { service, loadLeagueTeamsData } = createHarness();
+  loadLeagueTeamsData.mockResolvedValue(null);
+
+  await expect(
+    service.listAvailableTeams({
+      chatId: CHAT_ID,
+      leagueCode: 'ABC123',
+    }),
+  ).resolves.toMatchObject({
+    status: 'not_found',
+    leagueCode: 'ABC123',
+    teams: [],
+  });
+});
+
 test('warns about and wipes screenshot teams before adding a league team', async () => {
-  const { service, storage, sourceSwitcher } = createHarness({
+  userCache[String(CHAT_ID)] = { selectedTeam: 'T1' };
+  const {
+    service,
+    storage,
+    sourceSwitcher,
+    clearTeamDerivedPreferences,
+  } = createHarness({
     storedTeams: {
       T1: { drivers: ['VER'] },
       T2: { drivers: ['NOR'] },
     },
   });
+  sourceSwitcher.mockResolvedValue(true);
   const inspected = await service.inspect({
     chatId: CHAT_ID,
     action: ACTION.ADD,
@@ -234,10 +299,44 @@ test('warns about and wipes screenshot teams before adding a league team', async
     'Owner_1',
     expect.objectContaining({ teamName: 'Fast Friends' }),
   );
+  expect(clearTeamDerivedPreferences).toHaveBeenCalledWith({
+    chatId: CHAT_ID,
+    teamId: 'Owner_1',
+    attributes: { selectedTeam: 'Owner_1' },
+  });
+  expect(userCache[String(CHAT_ID)].selectedTeam).toBe('Owner_1');
   expect(result).toMatchObject({
     status: 'ok',
     clearedScreenshotTeamIds: ['T1', 'T2'],
+    selectedTeamId: 'Owner_1',
   });
+});
+
+test('preserves the selected team when adding without a source switch', async () => {
+  currentTeamCache[CHAT_ID] = {
+    Existing_1: { teamName: 'Existing' },
+  };
+  userCache[String(CHAT_ID)] = { selectedTeam: 'Existing_1' };
+  const {
+    service,
+    clearTeamDerivedPreferences,
+  } = createHarness({
+    storedTeams: currentTeamCache[CHAT_ID],
+  });
+
+  const result = await service.mutate({
+    chatId: CHAT_ID,
+    action: ACTION.ADD,
+    leagueCode: 'ABC123',
+    teamId: 'Owner_1',
+  });
+
+  expect(clearTeamDerivedPreferences).toHaveBeenCalledWith({
+    chatId: CHAT_ID,
+    teamId: 'Owner_1',
+  });
+  expect(userCache[String(CHAT_ID)].selectedTeam).toBe('Existing_1');
+  expect(result.selectedTeamId).toBeUndefined();
 });
 
 test('refuses a newly destructive source switch after proposal', async () => {

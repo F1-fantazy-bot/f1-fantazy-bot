@@ -54,7 +54,10 @@ const {
 const { activateChipTool } = require('./writeTools/activateChipTool');
 const { followLeagueTool } = require('./writeTools/followLeagueTool');
 const { unfollowLeagueTool } = require('./writeTools/unfollowLeagueTool');
-const { followTeamTool } = require('./writeTools/followTeamTool');
+const {
+  createAgentFollowTeamService,
+  followTeamTool,
+} = require('./writeTools/followTeamTool');
 const { reportBugTool } = require('./writeTools/reportBugTool');
 const { getLanguageTool } = require('./readTools/getLanguageTool');
 
@@ -266,14 +269,17 @@ const tools = [
   defineTool({
     name: 'list_user_leagues',
     description:
-      'List the private F1 Fantasy leagues the user has followed via /follow_league. Returns an array of { leagueCode, leagueName, registeredAt }. Use this when the user asks "which leagues do I follow" or when they name a league but you need to look up its `leagueCode` before calling `get_leaderboard`.',
-    parameters: z.object({}),
-    execute: wrapToolExecute('list_user_leagues', async () => {
+      'List the private F1 Fantasy leagues the user follows. Returns { leagues: [{ leagueCode, leagueName, registeredAt }], selectionMode? }. Use selectionMode="follow_team" when the user wants to follow another team but has not chosen a league; the frontend renders clickable league choices.',
+    parameters: z.object({
+      selectionMode: z.enum(['follow_team']).optional(),
+    }),
+    execute: wrapToolExecute('list_user_leagues', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
       const leagues = await listUserLeagues(chatId);
 
       return await withUiLanguage(chatId, {
+        selectionMode: args.selectionMode,
         leagues: (leagues || []).map((l) => ({
           leagueCode: l.leagueCode,
           leagueName: l.leagueName || l.leagueCode,
@@ -389,23 +395,33 @@ const tools = [
   defineTool({
     name: 'list_league_teams',
     description:
-      'List ALL teams in one of the user\'s followed leagues (the league\'s full roster, NOT just the teams the user tracks). Use this when you need to surface the picker for "which team in this league" before calling get_live_score_for_team. Returns { status, leagueCode, leagueName, matchdayId, teams: [{ teamId, teamName, userName, teamNo, position, isSelected }] } sorted by position ascending. `isSelected: true` marks the user\'s own team in this league. Statuses: ok / not_followed / not_found / invalid_input. Pass EITHER `leagueCode` OR `leagueName` (display name, case-insensitive substring match).',
+      'List ALL teams in one of the user\'s followed leagues (the full roster, not only followed teams). Use selectionMode="follow_team" after the user chooses a league for a follow-team request; the frontend renders clickable team choices that stage follow_team directly. Omit selectionMode for live-score or read-only team selection. Returns { status, leagueCode, leagueName, matchdayId, teams, selectionMode? }.',
     parameters: z.object({
       leagueCode: z.string().optional(),
       leagueName: z.string().optional(),
+      selectionMode: z.enum(['follow_team']).optional(),
     }),
     execute: wrapToolExecute('list_league_teams', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
-      return await withUiLanguage(
-        chatId,
-        await listLeagueTeams({
-          chatId,
-          leagueCode: args.leagueCode,
-          leagueName: args.leagueName,
-        }),
-      );
+      const result =
+        args.selectionMode === 'follow_team'
+          ? await createAgentFollowTeamService().listAvailableTeams({
+              chatId,
+              leagueCode: args.leagueCode,
+              leagueName: args.leagueName,
+            })
+          : await listLeagueTeams({
+              chatId,
+              leagueCode: args.leagueCode,
+              leagueName: args.leagueName,
+            });
+
+      return await withUiLanguage(chatId, {
+        ...result,
+        selectionMode: args.selectionMode,
+      });
     }),
   }),
 

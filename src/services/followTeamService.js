@@ -83,6 +83,82 @@ function createFollowTeamService(ports) {
       restoreTeamStateWithStorage(chatId, snapshot, ports.storage));
   const logger = ports.logger || (async () => {});
 
+  async function listAvailableTeams({
+    chatId,
+    leagueCode,
+    leagueName,
+  }) {
+    const leagues = await ports.listUserLeagues(chatId);
+    const normalizedLeagueCode = normalize(leagueCode);
+    const normalizedLeagueName = normalize(leagueName);
+    const matches = leagues.filter((league) =>
+      normalizedLeagueCode
+        ? normalize(league.leagueCode) === normalizedLeagueCode
+        : normalizedLeagueName
+          ? normalize(league.leagueName || league.leagueCode) ===
+            normalizedLeagueName
+          : false,
+    );
+    if (matches.length !== 1) {
+      return {
+        status: STATUS.INVALID_INPUT,
+        summary: t(
+          'Choose one followed league. Followed leagues: {LEAGUES}.',
+          chatId,
+          { LEAGUES: availableLeagueSummary(leagues) },
+        ),
+        followedLeagues: leagues,
+      };
+    }
+
+    const league = matches[0];
+    const data = await ports.loadLeagueTeamsData(league.leagueCode);
+    if (!data || !Array.isArray(data.teams) || data.teams.length === 0) {
+      return {
+        status: STATUS.NOT_FOUND,
+        summary: t(
+          'No current team data is available for league {LEAGUE}.',
+          chatId,
+          { LEAGUE: league.leagueName || league.leagueCode },
+        ),
+        leagueCode: league.leagueCode,
+        leagueName: league.leagueName || league.leagueCode,
+        teams: [],
+      };
+    }
+
+    const storedTeams =
+      (await ports.storage.listUserTeams(chatId)) || {};
+    const followedTeamIds = new Set(
+      Object.keys(storedTeams).filter(isLeagueTeamId),
+    );
+    const selectedTeamId = getSelectedTeam(chatId);
+    const teams = [...data.teams]
+      .sort((a, b) => (a.position || Infinity) - (b.position || Infinity))
+      .map((team) => {
+        const choice = teamChoice(league, team);
+
+        return {
+          teamId: choice.teamId,
+          teamName: choice.teamName,
+          userName: team.userName || null,
+          teamNo: team.teamNo ?? null,
+          position: team.position ?? null,
+          isFollowed: followedTeamIds.has(choice.teamId),
+          isSelected:
+            Boolean(choice.teamId) && choice.teamId === selectedTeamId,
+        };
+      })
+      .filter((team) => Boolean(team.teamId));
+
+    return {
+      status: STATUS.OK,
+      leagueCode: league.leagueCode,
+      leagueName: league.leagueName || league.leagueCode,
+      teams,
+    };
+  }
+
   async function inspect({
     chatId,
     action,
@@ -391,7 +467,7 @@ function createFollowTeamService(ports) {
 
       try {
         if (args.action === ACTION.ADD) {
-          await ports.sourceSwitcher(args.chatId);
+          const sourceSwitched = await ports.sourceSwitcher(args.chatId);
           const teamData = ports.mapLeagueTeamToBotTeam(
             inspected.leagueTeam,
           );
@@ -403,11 +479,17 @@ function createFollowTeamService(ports) {
           await clearPreferences({
             chatId: args.chatId,
             teamId: inspected.teamId,
+            ...(sourceSwitched
+              ? { attributes: { selectedTeam: inspected.teamId } }
+              : {}),
           });
           if (!currentTeamCache[args.chatId]) {
             currentTeamCache[args.chatId] = {};
           }
           currentTeamCache[args.chatId][inspected.teamId] = teamData;
+          if (sourceSwitched) {
+            setCachedSelectedTeam(args.chatId, inspected.teamId);
+          }
           if (bestTeamsCache[args.chatId]) {
             delete bestTeamsCache[args.chatId][inspected.teamId];
           }
@@ -434,6 +516,9 @@ function createFollowTeamService(ports) {
             leagueName: inspected.leagueName,
             changed: true,
             clearedScreenshotTeamIds: inspected.screenshotTeamIds,
+            ...(sourceSwitched
+              ? { selectedTeamId: inspected.teamId }
+              : {}),
           };
         }
 
@@ -513,7 +598,7 @@ function createFollowTeamService(ports) {
     });
   }
 
-  return { inspect, mutate, buildSummary };
+  return { listAvailableTeams, inspect, mutate, buildSummary };
 }
 
 module.exports = {

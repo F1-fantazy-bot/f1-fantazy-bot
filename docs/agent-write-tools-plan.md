@@ -591,7 +591,7 @@ LANG callback behave identically in Telegram.
 - Agent proposals canonicalize code + display name before staging; read-only
   followed-league questions remain on `list_user_leagues`.
 
-### PR-8 — `follow_team` 🟡 Implemented (current branch)
+### PR-8 — `follow_team` 🟡 Open ([#226](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/226))
 
 - Extract `src/services/followTeamService.js`. Inject explicit ports
   (no bot shim):
@@ -630,6 +630,15 @@ LANG callback behave identically in Telegram.
   without adding mutable display metadata to the staged intent; commit
   refuses a newly destructive source switch if that fingerprint changed.
   The active/selected team is never used as an implicit target.
+- An add request that omits both league and team renders followed leagues as
+  clickable cards. Selecting a league renders every team in that league as
+  clickable cards; selecting a team stages canonical `follow_team` arguments
+  and opens direct authenticated confirmation without requiring typed names.
+  This picker reads the same fresh weekly roster as mutation validation;
+  already-followed teams are visibly marked and disabled.
+- If switching from screenshot data wipes the selected screenshot team, the
+  newly followed league team becomes the durable and cached active team in the
+  same compensated transaction.
 
 ### PR-9 — `report_bug` *(with abuse controls)*
 

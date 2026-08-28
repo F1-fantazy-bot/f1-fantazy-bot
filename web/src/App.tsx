@@ -24,6 +24,8 @@ import { useDeadlineCountdownAction } from './components/DeadlineCountdown';
 import { useCurrentTeamAction } from './components/CurrentTeamCard';
 import { useLiveScoreBreakdownAction } from './components/LiveScoreBreakdown';
 import { useLiveScoreLeaderboardAction } from './components/LiveScoreLeaderboard';
+import { useUserLeaguesAction } from './components/UserLeaguesAction';
+import { useLeagueTeamsAction } from './components/LeagueTeamsAction';
 import { useWriteAction } from './components/registerWriteAction';
 import { WriteDecisionProvider } from './components/WriteDecisionContext';
 import { HistoryRestorer } from './components/HistoryRestorer';
@@ -56,6 +58,8 @@ function AgentActions() {
   useCurrentTeamAction();
   useLiveScoreBreakdownAction();
   useLiveScoreLeaderboardAction();
+  useUserLeaguesAction();
+  useLeagueTeamsAction();
   // Write tools register through the shared confirmation/result factory.
   useWriteAction({
     name: 'set_language',

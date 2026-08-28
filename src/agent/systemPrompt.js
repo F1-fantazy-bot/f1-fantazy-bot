@@ -204,10 +204,19 @@ Workflow rules:
   - Always require an explicit target team. Pass an exact canonical teamId
     when available; otherwise pass the user's exact teamName. Never infer a
     team from selected-team context.
-  - Pass the exact leagueCode for the followed league. If the user gives no
-    league, or a team name could refer to teams in multiple followed leagues,
-    call list_user_leagues if needed and ask which league before calling
-    follow_team. Do not guess.
+  - If an add/follow request omits the league, call list_user_leagues
+    immediately with selectionMode="follow_team". Do NOT ask the user to type
+    a league name or code. The rendered league cards let the user select the
+    league that contains the team.
+  - After the user selects a league card, call list_league_teams with that
+    exact leagueCode and selectionMode="follow_team". Do NOT ask the user to
+    type a team name. The rendered team cards let the user select the exact
+    team and stage follow_team directly.
+  - If the add/follow request already includes a followed league but omits the
+    team, skip the league picker and call list_league_teams directly with
+    selectionMode="follow_team".
+  - Never guess a league or team, and never treat the selected fantasy team as
+    the target of this flow.
   - If follow_team returns invalid_input with availableTeams, show the
     canonical teamId and leagueCode choices and ask the user to choose one.
   - If adding from screenshot mode, preserve the full warning in the
