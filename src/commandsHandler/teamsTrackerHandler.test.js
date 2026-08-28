@@ -78,6 +78,12 @@ describe('handleTeamsTrackerCommand', () => {
       .mockResolvedValue(null);
     azureStorageService.saveUserTeam = jest.fn().mockResolvedValue(undefined);
     azureStorageService.deleteUserTeam = jest.fn().mockResolvedValue(undefined);
+    azureStorageService.deleteAllUserTeams = jest
+      .fn()
+      .mockResolvedValue(undefined);
+    azureStorageService.listUserTeamData = jest.fn(async (chatId) => ({
+      ...(cache.currentTeamCache[chatId] || {}),
+    }));
     retainSelectedBestTeamPreferences.mockResolvedValue({});
     ensureSourceIsLeague.mockResolvedValue(false);
   });
@@ -224,6 +230,12 @@ describe('handleTeamsTrackerCallback', () => {
     azureStorageService.getLeagueTeamsData = jest.fn();
     azureStorageService.saveUserTeam = jest.fn().mockResolvedValue(undefined);
     azureStorageService.deleteUserTeam = jest.fn().mockResolvedValue(undefined);
+    azureStorageService.deleteAllUserTeams = jest
+      .fn()
+      .mockResolvedValue(undefined);
+    azureStorageService.listUserTeamData = jest.fn(async (chatId) => ({
+      ...(cache.currentTeamCache[chatId] || {}),
+    }));
     listUserLeagues.mockResolvedValue([
       { leagueCode: 'L1', leagueName: 'One' },
     ]);

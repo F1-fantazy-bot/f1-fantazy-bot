@@ -664,6 +664,34 @@ const translations = {
     'You are not following any league teams yet. Run {CMD} to follow one.':
       'אתה עדיין לא עוקב אחר אף קבוצת ליגה. הפעל {CMD} כדי לעקוב אחר קבוצה.',
     '✅ Stopped following team {TEAM}.': '✅ הפסקת לעקוב אחר הקבוצה {TEAM}.',
+    'Choose whether to add or remove a followed team.':
+      'בחר אם להוסיף קבוצה למעקב או להסיר אותה.',
+    'Provide exactly one team target: teamId or teamName.':
+      'יש לציין יעד קבוצה אחד בדיוק: מזהה קבוצה או שם קבוצה.',
+    'League {LEAGUE} is not followed. Followed leagues: {LEAGUES}.':
+      'הליגה {LEAGUE} אינה במעקב. הליגות שבמעקב: {LEAGUES}.',
+    'Multiple teams are named "{TEAM}". Choose an exact teamId and league: {TEAMS}.':
+      'יש כמה קבוצות בשם "{TEAM}". בחר מזהה קבוצה וליגה מדויקים: {TEAMS}.',
+    'Team "{TEAM}" was not found in the current data for the requested followed league. Available teams: {TEAMS}.':
+      'הקבוצה "{TEAM}" לא נמצאה בנתונים העדכניים של הליגה שבמעקב. קבוצות זמינות: {TEAMS}.',
+    'You already follow team {TEAM} ({TEAM_ID}).':
+      'אתה כבר עוקב אחר הקבוצה {TEAM} ({TEAM_ID}).',
+    'You can follow at most {MAX} league teams. Remove one before adding {TEAM}.':
+      'ניתן לעקוב אחר עד {MAX} קבוצות ליגה. הסר קבוצה לפני הוספת {TEAM}.',
+    'You are not following team {TEAM} ({TEAM_ID}). Followed team IDs: {TEAMS}.':
+      'אינך עוקב אחר הקבוצה {TEAM} ({TEAM_ID}). מזהי הקבוצות שבמעקב: {TEAMS}.',
+    'This will remove your screenshot teams {TEAMS} and follow league team "{TEAM}" ({TEAM_ID}) from {LEAGUE}.':
+      'פעולה זו תמחק את קבוצות צילומי המסך {TEAMS} ותוסיף למעקב את קבוצת הליגה "{TEAM}" ({TEAM_ID}) מהליגה {LEAGUE}.',
+    'Stop following league team "{TEAM}" ({TEAM_ID}) from {LEAGUE}.':
+      'להפסיק לעקוב אחר קבוצת הליגה "{TEAM}" ({TEAM_ID}) מהליגה {LEAGUE}.',
+    'Follow league team "{TEAM}" ({TEAM_ID}) from {LEAGUE}.':
+      'לעקוב אחר קבוצת הליגה "{TEAM}" ({TEAM_ID}) מהליגה {LEAGUE}.',
+    'Now following team {TEAM} ({TEAM_ID}) from league {LEAGUE}.':
+      'כעת עוקב אחר הקבוצה {TEAM} ({TEAM_ID}) מהליגה {LEAGUE}.',
+    'Stopped following team {TEAM} ({TEAM_ID}).':
+      'הופסק המעקב אחר הקבוצה {TEAM} ({TEAM_ID}).',
+    'Your screenshot teams changed after this action was proposed. No teams were changed; request follow_team again to review the current wipe warning.':
+      'קבוצות צילומי המסך השתנו לאחר שהפעולה הוצעה. לא בוצע שינוי; בקש שוב לעקוב אחר הקבוצה כדי לבדוק את אזהרת המחיקה העדכנית.',
     '❌ Failed to stop following team: {ERROR}':
       '❌ הפסקת המעקב אחר הקבוצה נכשלה: {ERROR}',
     '❌ That followed team no longer exists.':

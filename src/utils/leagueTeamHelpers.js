@@ -7,19 +7,16 @@ const {
 } = require('./teamId');
 const {
   currentTeamCache,
-  bestTeamsCache,
   leagueTeamsDataCache,
-
-  getUserLeagueTeamIds,
-  getSelectedTeam,
 } = require('../cache');
 const {
-  setCachedSelectedTeam,
-} = require('../services/selectTeamService');
+  createFollowTeamService,
+  ACTION,
+} = require('../services/followTeamService');
 const {
-  runChipMutation,
-  clearTeamDerivedPreferences,
-} = require('../services/activateChipService');
+  ensureSourceIsLeague,
+} = require('./teamSourceSwitcher');
+const { listUserLeagues } = require('../leagueRegistryService');
 const { NAME_TO_CODE_MAPPING } = require('../constants');
 
 function mapNameToCode(name) {
@@ -135,143 +132,66 @@ async function refreshLeagueTeamsData(leagueCode) {
   return loadLeagueTeamsData(leagueCode);
 }
 
-/**
- * Persist & cache a single league team as a followed team, without touching
- * selectedTeam. The caller is responsible for active-team resolution.
- *
- * @returns {Promise<{teamId: string, teamLabel: string}>}
- */
-async function followLeagueTeamInternal(bot, chatId, { teamId, leagueTeam }) {
-  const teamData = mapLeagueTeamToBotTeam(leagueTeam);
-
-  if (!currentTeamCache[chatId]) {
-    currentTeamCache[chatId] = {};
-  }
-  currentTeamCache[chatId][teamId] = teamData;
-
-  try {
-    await azureStorageService.saveUserTeam(bot, chatId, teamId, teamData);
-  } catch (err) {
-    delete currentTeamCache[chatId][teamId];
-    throw err;
-  }
-
-  if (bestTeamsCache[chatId]) {
-    delete bestTeamsCache[chatId][teamId];
-  }
-  try {
-    await clearTeamDerivedPreferences({ chatId, teamId });
-  } catch (err) {
-    delete currentTeamCache[chatId][teamId];
-    if (Object.keys(currentTeamCache[chatId]).length === 0) {
-      delete currentTeamCache[chatId];
-    }
-    try {
-      await azureStorageService.deleteUserTeam(bot, chatId, teamId);
-    } catch (rollbackErr) {
-      console.error(
-        `Failed to roll back followed team ${teamId} for ${chatId}:`,
-        rollbackErr,
-      );
-    }
-    throw err;
-  }
-
-  return {
-    teamId,
-    teamLabel: leagueTeam.teamName || leagueTeam.userName || teamId,
+function createTelegramFollowTeamService(bot) {
+  const storage = {
+    listUserTeams: (chatId) =>
+      azureStorageService.listUserTeamData(chatId),
+    saveUserTeam: (chatId, teamId, teamData) =>
+      azureStorageService.saveUserTeam(bot, chatId, teamId, teamData),
+    deleteUserTeam: (chatId, teamId) =>
+      azureStorageService.deleteUserTeam(bot, chatId, teamId),
+    deleteAllUserTeams: (chatId) =>
+      azureStorageService.deleteAllUserTeams(bot, chatId),
   };
-}
 
-/**
- * Remove a followed league team from cache + blob storage. When
- * `mutateSelectedTeam` is false, the caller is responsible for resolving and
- * persisting the new active team (used by the Teams Tracker save flow which
- * owns end-to-end active-team selection).
- *
- * @returns {Promise<{removed: boolean, fallbackSelectedTeam: string|null}>}
- */
-async function removeFollowedTeamInternal(
-  bot,
-  chatId,
-  teamId,
-  { mutateSelectedTeam = true } = {},
-) {
-  const teamIds = getUserLeagueTeamIds(chatId);
-  if (!teamIds.includes(teamId)) {
-    return { removed: false, fallbackSelectedTeam: null };
-  }
-
-  let fallbackSelectedTeam = getSelectedTeam(chatId);
-  let selectedTeamChanged = false;
-  if (mutateSelectedTeam && fallbackSelectedTeam === teamId) {
-    const remaining = teamIds.filter((candidate) => candidate !== teamId);
-    fallbackSelectedTeam = remaining[0] || null;
-    selectedTeamChanged = true;
-  }
-
-  const teamData = currentTeamCache[chatId][teamId];
-  await azureStorageService.deleteUserTeam(bot, chatId, teamId);
-  try {
-    await clearTeamDerivedPreferences({
-      chatId,
-      teamId,
-      attributes: mutateSelectedTeam
-        ? { selectedTeam: fallbackSelectedTeam }
-        : {},
-    });
-  } catch (err) {
-    try {
-      await azureStorageService.saveUserTeam(bot, chatId, teamId, teamData);
-    } catch (rollbackErr) {
-      console.error(
-        `Failed to restore removed team ${teamId} for ${chatId}:`,
-        rollbackErr,
-      );
-    }
-    throw err;
-  }
-
-  if (currentTeamCache[chatId]) {
-    delete currentTeamCache[chatId][teamId];
-    if (Object.keys(currentTeamCache[chatId]).length === 0) {
-      delete currentTeamCache[chatId];
-    }
-  }
-  if (bestTeamsCache[chatId]) {
-    delete bestTeamsCache[chatId][teamId];
-    if (Object.keys(bestTeamsCache[chatId]).length === 0) {
-      delete bestTeamsCache[chatId];
-    }
-  }
-  if (!mutateSelectedTeam) {
-    return { removed: true, fallbackSelectedTeam };
-  }
-
-  if (selectedTeamChanged) {
-    setCachedSelectedTeam(chatId, fallbackSelectedTeam);
-  }
-
-  await sendLogMessage(
-    bot,
-    `User ${chatId} stopped following team ${teamId}. Active team: ${
-      fallbackSelectedTeam || 'none'
-    }.`,
-  );
-
-  return { removed: true, fallbackSelectedTeam };
+  return createFollowTeamService({
+    storage,
+    logger: (message) => sendLogMessage(bot, message),
+    sourceSwitcher: (chatId) => ensureSourceIsLeague(bot, chatId),
+    listUserLeagues,
+    loadLeagueTeamsData: refreshLeagueTeamsData,
+    mapLeagueTeamToBotTeam,
+  });
 }
 
 async function followLeagueTeam(bot, chatId, selection) {
-  return await runChipMutation(chatId, () =>
-    followLeagueTeamInternal(bot, chatId, selection),
-  );
+  const result = await createTelegramFollowTeamService(bot).mutate({
+    chatId,
+    action: ACTION.ADD,
+    leagueCode: selection.leagueCode,
+    teamId: selection.teamId,
+  });
+  if (result.status !== 'ok') {
+    const error = new Error(result.summary);
+    error.code = result.status;
+    throw error;
+  }
+
+  return {
+    teamId: result.teamId,
+    teamLabel: result.teamName,
+  };
 }
 
-async function removeFollowedTeam(bot, chatId, teamId, options) {
-  return await runChipMutation(chatId, () =>
-    removeFollowedTeamInternal(bot, chatId, teamId, options),
-  );
+async function removeFollowedTeam(
+  bot,
+  chatId,
+  teamId,
+  options = {},
+) {
+  const result = await createTelegramFollowTeamService(bot).mutate({
+    chatId,
+    action: ACTION.REMOVE,
+    teamId,
+    mutateSelectedTeam: options.mutateSelectedTeam,
+  });
+
+  return result.status === 'ok'
+    ? {
+      removed: result.changed,
+      fallbackSelectedTeam: result.fallbackSelectedTeam || null,
+    }
+    : { removed: false, fallbackSelectedTeam: null };
 }
 
 function buildLeagueNameMap(leagues) {

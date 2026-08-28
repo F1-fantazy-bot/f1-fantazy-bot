@@ -495,6 +495,7 @@ async function applySaveInternal(bot, chatId, session) {
     if (previouslyFollowed.has(sel.teamId)) {continue;}
     try {
       await followLeagueTeam(bot, chatId, {
+        leagueCode: sel.leagueCode,
         teamId: sel.teamId,
         leagueTeam: sel.leagueTeam,
       });

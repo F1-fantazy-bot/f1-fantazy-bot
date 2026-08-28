@@ -80,7 +80,7 @@ async function inspectLeagueUnfollow({ chatId, leagueCode, leagueName }) {
   };
 }
 
-async function unfollowLeague(args) {
+async function unfollowLeagueInternal(args) {
   const inspected = await inspectLeagueUnfollow(args);
   if (inspected.status !== STATUS.OK) {
     return inspected;
@@ -94,6 +94,15 @@ async function unfollowLeague(args) {
       CODE: inspected.leagueCode,
     }),
   };
+}
+
+async function unfollowLeague(args) {
+  // Lazy require avoids the activateChipService → selectTeamService cycle.
+  const { runChipMutation } = require('./activateChipService');
+
+  return await runChipMutation(args.chatId, () =>
+    unfollowLeagueInternal(args),
+  );
 }
 
 module.exports = { inspectLeagueUnfollow, unfollowLeague, STATUS };

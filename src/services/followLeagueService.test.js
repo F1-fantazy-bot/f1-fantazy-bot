@@ -5,12 +5,18 @@ jest.mock('../leagueRegistryService', () => ({
   addUserLeague: jest.fn(),
   getUserLeague: jest.fn(),
 }));
+jest.mock('./activateChipService', () => ({
+  runChipMutation: jest.fn(async (_chatId, operation) => operation()),
+}));
 
 const { getLeagueData } = require('../azureStorageService');
 const {
   addUserLeague,
   getUserLeague,
 } = require('../leagueRegistryService');
+const {
+  runChipMutation,
+} = require('./activateChipService');
 const {
   normalizeLeagueCode,
   inspectLeagueFollow,
@@ -104,6 +110,10 @@ test('returns a durable no-op when the league is already followed', async () => 
     leagueCode: 'ABC123',
   });
   expect(addUserLeague).not.toHaveBeenCalled();
+  expect(runChipMutation).toHaveBeenCalledWith(
+    42,
+    expect.any(Function),
+  );
 });
 
 test('persists a verified league follow', async () => {
@@ -118,5 +128,9 @@ test('persists a verified league follow', async () => {
     42,
     'ABC123',
     'Friends League',
+  );
+  expect(runChipMutation).toHaveBeenCalledWith(
+    42,
+    expect.any(Function),
   );
 });

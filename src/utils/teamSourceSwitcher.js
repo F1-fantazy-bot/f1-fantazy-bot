@@ -22,18 +22,17 @@ const {
  * @param {Object} bot - Telegram bot instance (required for blob delete logs)
  * @param {string|number} chatId
  */
-async function wipeAllTeams(bot, chatId) {
+async function wipeAllTeamsWithStorage(chatId, storage) {
   await runChipMutation(chatId, async () => {
     const previousTeams = { ...(currentTeamCache[chatId] || {}) };
     try {
-      await azureStorageService.deleteAllUserTeams(bot, chatId);
+      await storage.deleteAllUserTeams(chatId);
       await clearAllTeamDerivedPreferencesInternal({ chatId });
     } catch (err) {
       try {
-        await azureStorageService.deleteAllUserTeams(bot, chatId);
+        await storage.deleteAllUserTeams(chatId);
         for (const [teamId, teamData] of Object.entries(previousTeams)) {
-          await azureStorageService.saveUserTeam(
-            bot,
+          await storage.saveUserTeam(
             chatId,
             teamId,
             teamData,
@@ -54,6 +53,20 @@ async function wipeAllTeams(bot, chatId) {
   });
 }
 
+async function wipeAllTeams(bot, chatId) {
+  await wipeAllTeamsWithStorage(chatId, {
+    deleteAllUserTeams: (targetChatId) =>
+      azureStorageService.deleteAllUserTeams(bot, targetChatId),
+    saveUserTeam: (targetChatId, teamId, teamData) =>
+      azureStorageService.saveUserTeam(
+        bot,
+        targetChatId,
+        teamId,
+        teamData,
+      ),
+  });
+}
+
 /**
  * Ensure the user's cache only contains league-sourced teams. If any
  * screenshot (T1/T2/T3) team is present, wipe everything. Returns true when
@@ -64,11 +77,25 @@ async function wipeAllTeams(bot, chatId) {
  * @returns {Promise<boolean>}
  */
 async function ensureSourceIsLeague(bot, chatId) {
+  return await ensureSourceIsLeagueWithStorage(chatId, {
+    deleteAllUserTeams: (targetChatId) =>
+      azureStorageService.deleteAllUserTeams(bot, targetChatId),
+    saveUserTeam: (targetChatId, teamId, teamData) =>
+      azureStorageService.saveUserTeam(
+        bot,
+        targetChatId,
+        teamId,
+        teamData,
+      ),
+  });
+}
+
+async function ensureSourceIsLeagueWithStorage(chatId, storage) {
   if (getUserScreenshotTeamIds(chatId).length === 0) {
     return false;
   }
 
-  await wipeAllTeams(bot, chatId);
+  await wipeAllTeamsWithStorage(chatId, storage);
 
   return true;
 }
@@ -94,6 +121,8 @@ async function ensureSourceIsScreenshot(bot, chatId) {
 
 module.exports = {
   wipeAllTeams,
+  wipeAllTeamsWithStorage,
   ensureSourceIsLeague,
+  ensureSourceIsLeagueWithStorage,
   ensureSourceIsScreenshot,
 };

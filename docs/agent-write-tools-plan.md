@@ -38,8 +38,12 @@ hydration.
 PR [#223](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/223)
 makes the durable selected team the automatic context for singular
 team-scoped agent operations.
-**PR-6 (`follow_league`) is implemented on the current feature branch.**
-PR-7 (`unfollow_league`) is next after PR-6 merges.
+**PR-6 (`follow_league`) merged as
+[#224](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/224).**
+**PR-7 (`unfollow_league`) merged as
+[#225](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/225).**
+**PR-8 (`follow_team`) is implemented on the current feature branch.**
+PR-9 (`report_bug`) is next after PR-8 merges.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -557,7 +561,7 @@ LANG callback behave identically in Telegram.
   in-memory chip selection is lost. Acceptable since chip selection
   is per-race anyway.
 
-### PR-6 — `follow_league` 🟡 Implemented (current branch)
+### PR-6 — `follow_league` ✅ Merged ([#224](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/224))
 
 - `followLeagueService` trims/uppercases 3-20 character alphanumeric share
   codes, verifies the league standings blob, detects an existing durable
@@ -575,7 +579,7 @@ LANG callback behave identically in Telegram.
   behavior, language ordering, prompt routing, and propose → approve →
   confirm.
 
-### PR-7 — `unfollow_league` 🟡 Implemented (current branch)
+### PR-7 — `unfollow_league` ✅ Merged ([#225](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/225))
 
 - `unfollowLeagueService` resolves an exact code or case-insensitive exact
   name against the user's durable `UserLeagues` partition, returns
@@ -585,7 +589,7 @@ LANG callback behave identically in Telegram.
 - Agent proposals canonicalize code + display name before staging; read-only
   followed-league questions remain on `list_user_leagues`.
 
-### PR-8 — `follow_team`
+### PR-8 — `follow_team` 🟡 Implemented (current branch)
 
 - Extract `src/services/followTeamService.js`. Inject explicit ports
   (no bot shim):
@@ -612,6 +616,18 @@ LANG callback behave identically in Telegram.
 - Tests + smoke, including: follow over cap (expect `limit_exceeded`),
   follow with an active screenshot team present (confirm summary
   mentions the wipe), remove flow.
+- Implemented with a port-injected `followTeamService` shared by the
+  confirmed agent tool and the legacy Telegram helpers. The service owns
+  exact canonical-ID / case-insensitive exact-name resolution against
+  followed leagues and freshly loaded league rosters, the six-team cap,
+  source switching, durable mutation locking/hydration, CAS preference
+  cleanup, and snapshot compensation.
+- `follow_team({ action, leagueCode, teamId? | teamName? })` stages a
+  canonical team ID plus the inspected screenshot-team ID fingerprint. Its
+  confirmation summary retains validation-derived source-wipe details
+  without adding mutable display metadata to the staged intent; commit
+  refuses a newly destructive source switch if that fingerprint changed.
+  The active/selected team is never used as an implicit target.
 
 ### PR-9 — `report_bug` *(with abuse controls)*
 

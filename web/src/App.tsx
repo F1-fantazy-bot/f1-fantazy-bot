@@ -89,6 +89,11 @@ function AgentActions() {
     loadingLabel: 'Checking followed league…',
   });
   useWriteAction({
+    name: 'follow_team',
+    description: 'Add or remove one followed team from a private league.',
+    loadingLabel: 'Checking league team…',
+  });
+  useWriteAction({
     name: 'confirm_write',
     description:
       'Commit a previously proposed write action by its writeNonce.',

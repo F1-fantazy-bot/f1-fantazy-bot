@@ -109,9 +109,13 @@ function resetWriteToolRegistryForTests() {
 //   a non-null envelope short-circuits with that envelope (e.g.
 //   `{ status: 'invalid_input', ... }`); returning null/undefined
 //   means "OK, stage the intent". It may instead return
-//   `{ args: canonicalArgs }` to stage an ownership-validated,
-//   canonical intent. Async allowed for ownership checks that need
-//   cache reads.
+//   `{ args: canonicalArgs, summary?: validatedSummary,
+//      intentArgs?: serializableCommitArgs }` to stage an
+//   ownership-validated, canonical intent. `summary` is useful when
+//   validation discovers side effects that are deliberately not part of the
+//   displayed args. `intentArgs` may add server-derived commit metadata and
+//   is never accepted from the LLM. Async allowed for ownership checks that
+//   need cache reads.
 // - `buildSummary` produces the human-readable confirmation prompt
 //   shown in `<WriteConfirmCard>`. Plain text; no markdown trick
 //   required — the card renders it as-is.
@@ -151,6 +155,8 @@ function defineWriteTool({
     // before calling execute, but defensive normalization here
     // keeps `commit` simple).
     let parsedArgs = parameters.parse(rawArgs ?? {});
+    let validatedSummary = null;
+    let intentArgs = null;
 
     if (typeof validate === 'function') {
       const validation = await validate({ chatId, args: parsedArgs });
@@ -159,14 +165,25 @@ function defineWriteTool({
       }
       if (validation && typeof validation === 'object' && validation.args) {
         parsedArgs = parameters.parse(validation.args);
+        if (typeof validation.summary === 'string') {
+          validatedSummary = validation.summary;
+        }
+        if (
+          validation.intentArgs &&
+          typeof validation.intentArgs === 'object' &&
+          !Array.isArray(validation.intentArgs)
+        ) {
+          intentArgs = validation.intentArgs;
+        }
       }
     }
 
-    const summary = buildSummary({ chatId, args: parsedArgs });
+    const summary =
+      validatedSummary || buildSummary({ chatId, args: parsedArgs });
     const writeNonce = await stagePendingWrite({
       chatId,
       tool: name,
-      args: parsedArgs,
+      args: intentArgs || parsedArgs,
       summary,
     });
 
