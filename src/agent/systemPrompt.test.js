@@ -123,7 +123,6 @@ test('requires an explicit team and league for follow_team', () => {
   );
   expect(prompt).toContain('will wipe all screenshot teams');
 });
-
 test('routes explicit bug reports through the confirmed report_bug tool', () => {
   const prompt = getSystemPrompt();
 

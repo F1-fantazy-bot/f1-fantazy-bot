@@ -42,10 +42,10 @@ team-scoped agent operations.
 [#224](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/224).**
 **PR-7 (`unfollow_league`) merged as
 [#225](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/225).**
-**PR-8 (`follow_team`) is open as
+**PR-8 (`follow_team`) merged as
 [#226](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/226).**
-**PR-9 (`report_bug`) is implemented on a dependent feature branch based on
-PR-8 while #226 is under manual verification.**
+**PR-9 (`report_bug`) is open against `main` as
+[#227](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/227).**
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
