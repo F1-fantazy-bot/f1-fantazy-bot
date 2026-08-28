@@ -7,7 +7,7 @@ team, set language, follow league, activate chip, …). This document is
 the working plan for closing that gap — exposing the same set of writes
 as agent tools without breaking the Telegram bot.
 
-**Current state (2026-08-27):** **PR-1 (shared write-tool
+**Current state (2026-08-28):** **PR-1 (shared write-tool
 infrastructure) is merged and delivered by
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207).**
 The review-hardening pass replaced the original process-local Map with
@@ -35,8 +35,11 @@ hydration.
 [#221](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/221).**
 **PR-5 (`activate_chip`) merged as
 [#222](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/222).**
-The current bugfix makes the durable selected team the automatic context for
-singular team-scoped agent operations. PR-6 (`follow_league`) is next.
+PR [#223](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/223)
+makes the durable selected team the automatic context for singular
+team-scoped agent operations.
+**PR-6 (`follow_league`) is implemented on the current feature branch.**
+PR-7 (`unfollow_league`) is next after PR-6 merges.
 
 > Read [`AGENTS.md`](../AGENTS.md) → "Agent (Web Chat)" first if you're
 > new to this codebase. That section is the authoritative reference for
@@ -554,17 +557,20 @@ LANG callback behave identically in Telegram.
   in-memory chip selection is lost. Acceptable since chip selection
   is per-race anyway.
 
-### PR-6 — `follow_league`
+### PR-6 — `follow_league` 🟡 Implemented (current branch)
 
-- Extract `src/services/followLeagueService.js`: validate the league
-  code shape (4 uppercase alphanumeric), call `getLeagueData(code)` —
-  if null return `not_found`, else `addUserLeague`. Returns envelope
-  including `leagueName`.
-- Refactor `pendingReplyRegistry.js#follow_league`'s handler body to
-  call the service.
-- Register `follow_league` agent tool + frontend write action.
-- Tests + smoke (`/follow_league` reply flow + web `follow_league`
-  tool, both happy and `not_found` paths).
+- `followLeagueService` trims/uppercases 3-20 character alphanumeric share
+  codes, verifies the league standings blob, detects an existing durable
+  follow, and persists through `UserLeagues`.
+- Telegram's `follow_league` pending-reply handler delegates to the service
+  while preserving retry prompts. Azure failures are logged internally and
+  shown as a generic localized message without raw storage details.
+- `follow_league({ leagueCode })` validates existence before staging,
+  canonicalizes the code in the pending intent, skips confirmation for a
+  durable no-op, and revalidates at commit.
+- Tests cover invalid/missing/existing/new leagues, Telegram retry/error
+  behavior, language ordering, prompt routing, and propose → approve →
+  confirm.
 
 ### PR-7 — `unfollow_league`
 

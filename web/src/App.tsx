@@ -79,6 +79,11 @@ function AgentActions() {
     loadingLabel: 'Preparing chip change…',
   });
   useWriteAction({
+    name: 'follow_league',
+    description: 'Follow an F1 Fantasy league by its share code.',
+    loadingLabel: 'Checking league…',
+  });
+  useWriteAction({
     name: 'confirm_write',
     description:
       'Commit a previously proposed write action by its writeNonce.',

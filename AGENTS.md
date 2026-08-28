@@ -1031,6 +1031,12 @@ when that team is unavailable in the chosen league.
   authoritative Blob/Table state, and uses `teamStateSnapshotService`
   compensation before publishing local caches.
   Omitting team arguments applies the chip change to the fresh selected team.
+- `follow_league({ leagueCode })` — shared
+  `src/services/followLeagueService.js`. The service normalizes share codes,
+  verifies the league blob, checks `UserLeagues` for a durable no-op, and
+  persists a new follow. Telegram's pending-reply flow and the agent tool
+  delegate to it. Never expose raw Azure errors in user-facing follow
+  failures.
 
 Language and selected-team hydration share the bounded/coalesced
 `src/services/userProfileSyncService.js` point lookup. Telegram refreshes

@@ -52,6 +52,7 @@ const {
   setBestTeamRankingTool,
 } = require('./writeTools/setBestTeamRankingTool');
 const { activateChipTool } = require('./writeTools/activateChipTool');
+const { followLeagueTool } = require('./writeTools/followLeagueTool');
 const { getLanguageTool } = require('./readTools/getLanguageTool');
 
 // Trim a best-teams calculator row down to the fields the React component
@@ -501,6 +502,7 @@ const tools = [
   selectTeamTool,
   setBestTeamRankingTool,
   activateChipTool,
+  followLeagueTool,
 
   defineTool({
     name: 'confirm_write',

@@ -1,0 +1,78 @@
+jest.mock('../azureStorageService', () => ({
+  getLeagueData: jest.fn(),
+}));
+jest.mock('../leagueRegistryService', () => ({
+  addUserLeague: jest.fn(),
+  getUserLeague: jest.fn(),
+}));
+
+const { getLeagueData } = require('../azureStorageService');
+const {
+  addUserLeague,
+  getUserLeague,
+} = require('../leagueRegistryService');
+const {
+  normalizeLeagueCode,
+  inspectLeagueFollow,
+  followLeague,
+} = require('./followLeagueService');
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  getLeagueData.mockResolvedValue({
+    leagueName: 'Friends League',
+  });
+  getUserLeague.mockResolvedValue(null);
+  addUserLeague.mockResolvedValue(undefined);
+});
+
+test('normalizes and validates league codes', async () => {
+  expect(normalizeLeagueCode(' ab12 ')).toBe('AB12');
+  await expect(
+    inspectLeagueFollow({ chatId: 42, leagueCode: 'bad!' }),
+  ).resolves.toMatchObject({ status: 'invalid_input' });
+  expect(getLeagueData).not.toHaveBeenCalled();
+});
+
+test('returns not_found without persistence when blob is missing', async () => {
+  getLeagueData.mockResolvedValue(null);
+
+  await expect(
+    followLeague({ chatId: 42, leagueCode: 'abc123' }),
+  ).resolves.toMatchObject({
+    status: 'not_found',
+    leagueCode: 'ABC123',
+  });
+  expect(addUserLeague).not.toHaveBeenCalled();
+});
+
+test('returns a durable no-op when the league is already followed', async () => {
+  getUserLeague.mockResolvedValue({
+    leagueCode: 'ABC123',
+    leagueName: 'Friends League',
+  });
+
+  await expect(
+    followLeague({ chatId: 42, leagueCode: 'abc123' }),
+  ).resolves.toMatchObject({
+    status: 'ok',
+    changed: false,
+    leagueCode: 'ABC123',
+  });
+  expect(addUserLeague).not.toHaveBeenCalled();
+});
+
+test('persists a verified league follow', async () => {
+  await expect(
+    followLeague({ chatId: 42, leagueCode: 'abc123' }),
+  ).resolves.toMatchObject({
+    status: 'ok',
+    changed: true,
+    leagueName: 'Friends League',
+  });
+  expect(addUserLeague).toHaveBeenCalledWith(
+    42,
+    'ABC123',
+    'Friends League',
+  );
+});

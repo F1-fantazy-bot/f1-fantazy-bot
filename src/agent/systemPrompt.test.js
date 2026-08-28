@@ -76,3 +76,14 @@ test('uses the selected team by default for singular team operations', () => {
     'the user runs /set_best_team_ranking in\n  Telegram',
   );
 });
+
+test('routes follow-league reads and writes separately', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain(
+    'call follow_league directly with leagueCode',
+  );
+  expect(prompt).toContain(
+    'remain read-only list_user_leagues requests',
+  );
+});
