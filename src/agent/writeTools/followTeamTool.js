@@ -24,12 +24,23 @@ const {
 const parameters = z
   .object({
     action: z.enum(['add', 'remove']),
-    leagueCode: z.string().trim().min(1),
+    leagueCode: z.string().trim().min(1).optional(),
     teamId: z.string().optional(),
     teamName: z.string().optional(),
   })
-  .refine((args) => Boolean(args.teamId) !== Boolean(args.teamName), {
-    message: 'exactly one of teamId or teamName is required',
+  .superRefine((args, ctx) => {
+    if (Boolean(args.teamId) === Boolean(args.teamName)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'exactly one of teamId or teamName is required',
+      });
+    }
+    if (args.action === 'add' && !args.leagueCode) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'leagueCode is required when adding a team',
+      });
+    }
   });
 
 function createAgentFollowTeamService() {
@@ -47,7 +58,7 @@ function createAgentFollowTeamService() {
 const followTeamTool = defineWriteTool({
   name: 'follow_team',
   description:
-    'Add or remove one followed F1 Fantasy team. action must be add or remove. Always pass an explicit leagueCode plus exactly one exact canonical teamId or exact teamName. The selected team is irrelevant: adding follows another team and never defaults to the active team.',
+    'Add or remove one followed F1 Fantasy team. Always pass exactly one canonical teamId or exact teamName. Adding requires leagueCode; removing by canonical teamId may omit leagueCode. The selected team is never an implicit target.',
   parameters,
   validate: async ({ chatId, args }) => {
     await getFreshLanguagePreference(chatId);

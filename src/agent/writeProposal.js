@@ -11,6 +11,7 @@ const {
 const DIRECT_PROPOSAL_TOOLS = new Set([
   'select_team',
   'follow_team',
+  'unfollow_league',
   'report_bug',
 ]);
 

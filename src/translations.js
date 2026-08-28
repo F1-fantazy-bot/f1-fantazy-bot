@@ -526,6 +526,8 @@ const translations = {
       'בחר ליגה אחת שנמצאת במעקב. הליגות במעקב: {LEAGUES}.',
     'No current team data is available for league {LEAGUE}.':
       'אין כרגע נתוני קבוצות זמינים עבור הליגה {LEAGUE}.',
+    'Stop following tracked team "{TEAM}" ({TEAM_ID}).':
+      'הפסק לעקוב אחר הקבוצה "{TEAM}" ({TEAM_ID}).',
     '❌ Failed to load league data: {ERROR}':
       '❌ טעינת נתוני הליגה נכשלה: {ERROR}',
     '❌ Failed to follow league: {ERROR}': '❌ מעקב אחר הליגה נכשל: {ERROR}',

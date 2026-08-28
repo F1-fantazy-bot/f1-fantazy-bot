@@ -1047,7 +1047,11 @@ when that team is unavailable in the chosen league.
   authenticated user's durable follow partition, canonicalizes the staged
   code/name, and removes only after confirmation under the shared durable
   per-user mutation boundary. Telegram's inline callback delegates to the
-  same service.
+  same service. A target-less web request uses
+  `list_user_leagues({ selectionMode: 'unfollow_league' })`; each followed
+  league card becomes a localized removal control that stages its canonical
+  code through the authenticated direct-proposal/direct-confirm path. Regular
+  league-list results remain read-only.
 - `follow_team({ action: 'add' | 'remove', leagueCode, teamId? | teamName? })`
   — shared `src/services/followTeamService.js`. The selected team is never an
   implicit target: callers must identify a team and the agent must identify
@@ -1079,7 +1083,14 @@ when that team is unavailable in the chosen league.
   the locked live-score snapshot. Cards mark already-followed teams and
   disable them. A new-team click sends its canonical league/team IDs to the
   authenticated direct-proposal endpoint and uses direct confirmation without
-  another model turn.
+  another model turn. A remove/untrack request with no named team calls
+  `list_followed_teams({ selectionMode: 'unfollow_team' })`; each tracked-team
+  card gets a localized remove button that stages
+  `follow_team({ action: 'remove', teamId })` directly. Canonical-ID removals
+  do not require a league code, and their confirmation omits the league clause
+  rather than naming an unrelated followed league. After each success the
+  removed card stays hidden and the active-team highlight moves to the
+  service-provided fallback.
 - `report_bug({ message })` — shared `src/services/reportBugService.js`.
   Telegram's `/report_bug` pending reply and the confirmed agent write tool
   use the same validation, delivery, and abuse-control path. Reports are

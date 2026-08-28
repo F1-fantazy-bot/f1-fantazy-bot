@@ -1,6 +1,13 @@
 import { act, type ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  test,
+  vi,
+} from 'vitest';
 import { NextRacesTable } from './NextRacesTable';
 import { UserTeamsList } from './UserTeamsList';
 import { FollowedTeamsGrid } from './FollowedTeamsGrid';
@@ -12,6 +19,11 @@ import { CurrentTeamCard } from './CurrentTeamCard';
 import { LiveScoreBreakdown } from './LiveScoreBreakdown';
 import { LiveScoreLeaderboard } from './LiveScoreLeaderboard';
 import { ToolErrorFallback } from './ToolErrorFallback';
+
+vi.mock('@copilotkit/react-core/v2', () => ({
+  useAgent: vi.fn(),
+  useCopilotKit: vi.fn(),
+}));
 
 beforeAll(() => {
   (

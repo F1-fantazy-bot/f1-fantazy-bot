@@ -22,6 +22,7 @@ export type WriteResult = {
   details?: unknown;
   uiLang?: string;
   teamId?: string;
+  fallbackSelectedTeam?: string | null;
   leagueCode?: string;
   reportAction?: {
     type?: string;

@@ -22,6 +22,7 @@ const DECISION = Object.freeze({
 const DIRECT_CONFIRM_TOOLS = Object.freeze([
   'select_team',
   'follow_team',
+  'unfollow_league',
   'report_bug',
 ]);
 
