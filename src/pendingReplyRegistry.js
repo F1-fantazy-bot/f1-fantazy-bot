@@ -499,24 +499,21 @@ const PENDING_REPLY_REGISTRY = {
     buildHandler: (chatId) => {
       // Lazy require to avoid circular dependency via pendingReplyManager
       const { registerPendingReply } = require('./pendingReplyManager');
-      const { getLeagueData } = require('./azureStorageService');
-      const { addUserLeague } = require('./leagueRegistryService');
+      const { followLeague } = require('./services/followLeagueService');
       const { sendLogMessage } = require('./utils/utils');
 
       return async (replyBot, replyMsg) => {
         const leagueCode = replyMsg.text.trim();
 
-        let leagueData;
+        let result;
         try {
-          leagueData = await getLeagueData(leagueCode);
+          result = await followLeague({ chatId, leagueCode });
         } catch (err) {
           console.error('Error fetching league data for follow:', err);
           await replyBot
             .sendMessage(
               chatId,
-              t('❌ Failed to load league data: {ERROR}', chatId, {
-                ERROR: err.message,
-              }),
+              t('❌ Failed to follow league. Please try again.', chatId),
             )
             .catch((sendErr) =>
               console.error(
@@ -528,7 +525,7 @@ const PENDING_REPLY_REGISTRY = {
           return;
         }
 
-        if (!leagueData) {
+        if (result.status !== 'ok') {
           // Blob missing → treat as invalid code; re-register pending reply
           // so the user can try again without re-typing the command.
           await registerPendingReply(chatId, 'follow_league');
@@ -537,7 +534,7 @@ const PENDING_REPLY_REGISTRY = {
             t(
               'League "{CODE}" not found. Please enter a valid league code:',
               chatId,
-              { CODE: leagueCode },
+              { CODE: result.leagueCode || leagueCode },
             ),
             '',
             t(
@@ -564,45 +561,15 @@ const PENDING_REPLY_REGISTRY = {
           return;
         }
 
-        const leagueName = leagueData.leagueName || leagueCode;
-
-        try {
-          await addUserLeague(chatId, leagueCode, leagueName);
-        } catch (err) {
-          console.error('Error persisting league follow:', err);
-          await replyBot
-            .sendMessage(
-              chatId,
-              t('❌ Failed to follow league: {ERROR}', chatId, {
-                ERROR: err.message,
-              }),
-            )
-            .catch((sendErr) =>
-              console.error(
-                'Error sending league follow error message:',
-                sendErr,
-              ),
-            );
-
-          return;
-        }
-
         await replyBot
-          .sendMessage(
-            chatId,
-            t(
-              'Now following league "{NAME}" ({CODE}).',
-              chatId,
-              { NAME: leagueName, CODE: leagueCode },
-            ),
-          )
+          .sendMessage(chatId, result.summary)
           .catch((err) =>
             console.error('Error sending league follow confirmation:', err),
           );
 
         await sendLogMessage(
           replyBot,
-          `Followed league ${leagueName} (${leagueCode}) for chatId ${chatId}`,
+          `Followed league ${result.leagueName} (${result.leagueCode}) for chatId ${chatId}`,
         ).catch(() => {});
       };
     },

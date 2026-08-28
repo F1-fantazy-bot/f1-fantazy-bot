@@ -511,8 +511,20 @@ const translations = {
     '❌ Failed to load league data: {ERROR}':
       '❌ טעינת נתוני הליגה נכשלה: {ERROR}',
     '❌ Failed to follow league: {ERROR}': '❌ מעקב אחר הליגה נכשל: {ERROR}',
+    '❌ Failed to follow league. Please try again.':
+      '❌ המעקב אחר הליגה נכשל. נסה שוב.',
     'Now following league "{NAME}" ({CODE}).':
       'עוקב כעת אחר הליגה "{NAME}" ({CODE}).',
+    'Follow league "{NAME}" ({CODE}).':
+      'לעקוב אחרי הליגה "{NAME}" ({CODE}).',
+    'You already follow league "{NAME}" ({CODE}).':
+      'אתה כבר עוקב אחרי הליגה "{NAME}" ({CODE}).',
+    'League "{CODE}" was not found.':
+      'הליגה "{CODE}" לא נמצאה.',
+    'League code "{CODE}" is invalid. Use 3-20 letters or numbers.':
+      'קוד הליגה "{CODE}" אינו תקין. השתמש ב-3 עד 20 אותיות או מספרים.',
+    'Follow league code {CODE}.':
+      'לעקוב אחרי הליגה עם הקוד {CODE}.',
     'You are not following any league. Run {CMD} to follow one first.':
       'אינך עוקב אחר אף ליגה. הפעל {CMD} כדי לעקוב אחר ליגה.',
     'Which league leaderboard do you want to see?':
@@ -654,6 +666,8 @@ const translations = {
       'כדי למצוא את קוד הליגה: היכנס לאתר \u2066F1 Fantasy\u2069, פתח את הליגה שברצונך לעקוב אחריה, לחץ על כפתור השיתוף והעתק את קוד הליגה משם.',
     '📩 If the code is correct but the league is not yet tracked, please report it to the admins via /report_bug with the league code and we will add the bot to the league as soon as possible.':
       '📩\u200F אם הקוד תקין אך הליגה עדיין לא מנוטרת, דווח לאדמינים עם קוד הליגה באמצעות \u2066/report_bug\u2069 ונוסיף את הבוט לליגה בהקדם האפשרי.',
+    'If the code is correct but the league is not yet tracked, contact the administrators and send them the league code. This agent cannot submit missing-league reports yet.':
+      'אם הקוד תקין אך הליגה עדיין לא מנוטרת, פנה לאדמינים ושלח להם את קוד הליגה. הסוכן עדיין לא יכול לשלוח דיווח על ליגה חסרה.',
     '💡 Send /cancel at any time to abort.':
       '💡\u200F שלח \u2066/cancel\u2069 בכל רגע כדי לבטל.',
     'Operation cancelled.': 'הפעולה בוטלה.',

@@ -35,6 +35,9 @@ jest.mock('./azureStorageService', () => ({
 jest.mock('./leagueRegistryService', () => ({
   addUserLeague: jest.fn().mockResolvedValue(),
 }));
+jest.mock('./services/followLeagueService', () => ({
+  followLeague: jest.fn(),
+}));
 
 jest.mock('./webUserAllowlistService', () => ({
   getAllowedUserByEmail: jest.fn(),
@@ -862,17 +865,20 @@ describe('pendingReplyRegistry', () => {
   });
 
   describe('follow_league', () => {
-    const { getLeagueData } = require('./azureStorageService');
-    const { addUserLeague } = require('./leagueRegistryService');
+    const {
+      followLeague,
+    } = require('./services/followLeagueService');
 
     beforeEach(() => {
-      getLeagueData.mockReset();
-      addUserLeague.mockReset().mockResolvedValue();
+      followLeague.mockReset();
       registerPendingReply.mockClear();
     });
 
     it('registers the league when the blob exists', async () => {
-      getLeagueData.mockResolvedValueOnce({
+      followLeague.mockResolvedValueOnce({
+        status: 'ok',
+        changed: true,
+        summary: 'Now following league "Amba" (ABC).',
         leagueName: 'Amba',
         leagueCode: 'ABC',
       });
@@ -882,8 +888,10 @@ describe('pendingReplyRegistry', () => {
 
       await resolved.handler(botMock, { text: '  ABC  ' });
 
-      expect(getLeagueData).toHaveBeenCalledWith('ABC');
-      expect(addUserLeague).toHaveBeenCalledWith(42, 'ABC', 'Amba');
+      expect(followLeague).toHaveBeenCalledWith({
+        chatId: 42,
+        leagueCode: 'ABC',
+      });
       expect(registerPendingReply).not.toHaveBeenCalled();
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         42,
@@ -892,14 +900,16 @@ describe('pendingReplyRegistry', () => {
     });
 
     it('re-registers the pending reply when the league blob is missing', async () => {
-      getLeagueData.mockResolvedValueOnce(null);
+      followLeague.mockResolvedValueOnce({
+        status: 'not_found',
+        leagueCode: 'BADCODE',
+      });
 
       const resolved = resolveCommand('follow_league', 42);
       const botMock = { sendMessage: jest.fn().mockResolvedValue() };
 
       await resolved.handler(botMock, { text: 'BADCODE' });
 
-      expect(addUserLeague).not.toHaveBeenCalled();
       expect(registerPendingReply).toHaveBeenCalledWith(42, 'follow_league');
       expect(botMock.sendMessage).toHaveBeenCalledWith(
         42,
@@ -912,16 +922,16 @@ describe('pendingReplyRegistry', () => {
       const consoleSpy = jest
         .spyOn(console, 'error')
         .mockImplementation(() => {});
-      getLeagueData.mockRejectedValueOnce(new Error('boom'));
+      followLeague.mockRejectedValueOnce(new Error('boom'));
 
       const resolved = resolveCommand('follow_league', 42);
       const botMock = { sendMessage: jest.fn().mockResolvedValue() };
 
       await resolved.handler(botMock, { text: 'ABC' });
 
-      expect(addUserLeague).not.toHaveBeenCalled();
       expect(registerPendingReply).not.toHaveBeenCalled();
       expect(botMock.sendMessage).toHaveBeenCalled();
+      expect(botMock.sendMessage.mock.calls[0][1]).not.toContain('boom');
       consoleSpy.mockRestore();
     });
 
