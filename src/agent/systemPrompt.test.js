@@ -98,7 +98,13 @@ test('routes unfollow league through its confirmed write tool', () => {
     'call\n  unfollow_league with its exact leagueCode or leagueName',
   );
   expect(prompt).toContain(
-    'Read-only questions\n  about followed leagues still use list_user_leagues',
+    'selectionMode="unfollow_league"',
+  );
+  expect(prompt).toMatch(
+    /Do NOT ask the user to type a league name\s+or code/,
+  );
+  expect(prompt).toContain(
+    'still use list_user_leagues without selectionMode',
   );
 });
 
@@ -120,6 +126,15 @@ test('requires an explicit team and league for follow_team', () => {
   );
   expect(prompt).toMatch(
     /Do NOT ask the user to\s+type a team name/,
+  );
+  expect(prompt).toContain(
+    'list_followed_teams immediately with selectionMode="unfollow_team"',
+  );
+  expect(prompt).toMatch(
+    /Do NOT\s+ask the user to type a team name or league/,
+  );
+  expect(prompt).toContain(
+    'A canonical teamId removal may\n    omit leagueCode',
   );
   expect(prompt).toContain('will wipe all screenshot teams');
 });

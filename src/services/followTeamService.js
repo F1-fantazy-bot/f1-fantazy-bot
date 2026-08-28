@@ -219,6 +219,9 @@ function createFollowTeamService(ports) {
     );
 
     if (action === ACTION.REMOVE && teamId) {
+      const selectedLeague = normalizedLeagueCode
+        ? selectedLeagues[0]
+        : null;
       if (!followedTeamIds.includes(teamId)) {
         return {
           status: STATUS.NOT_FOUND,
@@ -233,10 +236,10 @@ function createFollowTeamService(ports) {
           ),
           teamId,
           teamName: storedTeams[teamId]?.teamName || teamId,
-          leagueCode: selectedLeagues[0]?.leagueCode,
+          leagueCode: selectedLeague?.leagueCode,
           leagueName:
-            selectedLeagues[0]?.leagueName ||
-            selectedLeagues[0]?.leagueCode,
+            selectedLeague?.leagueName ||
+            selectedLeague?.leagueCode,
           changed: false,
           followedTeamIds,
         };
@@ -244,10 +247,10 @@ function createFollowTeamService(ports) {
 
       return {
         status: STATUS.OK,
-        leagueCode: selectedLeagues[0]?.leagueCode,
+        leagueCode: selectedLeague?.leagueCode,
         leagueName:
-          selectedLeagues[0]?.leagueName ||
-          selectedLeagues[0]?.leagueCode,
+          selectedLeague?.leagueName ||
+          selectedLeague?.leagueCode,
         teamId,
         teamName: storedTeams[teamId]?.teamName || teamId,
         leagueTeam: null,
@@ -418,6 +421,17 @@ function createFollowTeamService(ports) {
       );
     }
     if (inspected.action === ACTION.REMOVE) {
+      if (!inspected.leagueName) {
+        return t(
+          'Stop following tracked team "{TEAM}" ({TEAM_ID}).',
+          chatId,
+          {
+            TEAM: inspected.teamName,
+            TEAM_ID: inspected.teamId,
+          },
+        );
+      }
+
       return t(
         'Stop following league team "{TEAM}" ({TEAM_ID}) from {LEAGUE}.',
         chatId,

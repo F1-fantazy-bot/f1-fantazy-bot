@@ -253,25 +253,29 @@ const tools = [
   defineTool({
     name: 'list_followed_teams',
     description:
-      'List the F1 Fantasy teams the user is tracking, enriched with the leagues each team appears in plus the team\'s current position in each league. Returns { status, teams: [{ teamId, teamName, leagues: [{ leagueCode, leagueName, position }], isSelected }] }. status="empty" means the user has not followed any league team yet. ALWAYS call this when the user asks "which teams do I track" or asks a multi-team question like "best teams for every team I track" — for the multi-team case, surface the team names back to the user and ask which one to focus on (one team per get_best_teams call).',
-    parameters: z.object({}),
-    execute: wrapToolExecute('list_followed_teams', async () => {
+      'List the F1 Fantasy teams the user tracks, enriched with their leagues and positions. Use selectionMode="unfollow_team" when the user asks to stop tracking a team but does not name one; the frontend renders clickable removal choices. Omit selectionMode for read-only list questions.',
+    parameters: z.object({
+      selectionMode: z.enum(['unfollow_team']).optional(),
+    }),
+    execute: wrapToolExecute('list_followed_teams', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
-      return await withUiLanguage(
-        chatId,
-        await listFollowedTeams({ chatId }),
-      );
+      return await withUiLanguage(chatId, {
+        ...(await listFollowedTeams({ chatId })),
+        selectionMode: args.selectionMode,
+      });
     }),
   }),
 
   defineTool({
     name: 'list_user_leagues',
     description:
-      'List the private F1 Fantasy leagues the user follows. Returns { leagues: [{ leagueCode, leagueName, registeredAt }], selectionMode? }. Use selectionMode="follow_team" when the user wants to follow another team but has not chosen a league; the frontend renders clickable league choices.',
+      'List the private F1 Fantasy leagues the user follows. Use selectionMode="follow_team" to choose a league for adding a team, or selectionMode="unfollow_league" when the user wants to stop following a league but did not name one. Omit selectionMode for read-only lists.',
     parameters: z.object({
-      selectionMode: z.enum(['follow_team']).optional(),
+      selectionMode: z
+        .enum(['follow_team', 'unfollow_league'])
+        .optional(),
     }),
     execute: wrapToolExecute('list_user_leagues', async (args) => {
       await ensureCacheReady();

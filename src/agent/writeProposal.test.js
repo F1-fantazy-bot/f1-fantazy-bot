@@ -52,6 +52,15 @@ test('accepts only allowlisted direct-proposal tools with object args', () => {
   });
   expect(
     validatePayload({
+      tool: 'unfollow_league',
+      args: { leagueCode: 'ABC123' },
+    }),
+  ).toEqual({
+    tool: 'unfollow_league',
+    args: { leagueCode: 'ABC123' },
+  });
+  expect(
+    validatePayload({
       tool: 'set_language',
       args: { lang: 'he' },
     }),

@@ -50,6 +50,27 @@ test.each(['', '   ', '\n\t'])(
   },
 );
 
+test('allows canonical remove without a leagueCode', () => {
+  expect(
+    followTeamTool.parameters.parse({
+      action: 'remove',
+      teamId: 'Owner_1',
+    }),
+  ).toEqual({
+    action: 'remove',
+    teamId: 'Owner_1',
+  });
+});
+
+test('requires leagueCode when adding', () => {
+  expect(() =>
+    followTeamTool.parameters.parse({
+      action: 'add',
+      teamId: 'Owner_1',
+    }),
+  ).toThrow('leagueCode is required when adding a team');
+});
+
 test('canonicalizes the team and preserves the source-wipe summary', async () => {
   service.inspect.mockResolvedValue({
     status: 'ok',
@@ -122,7 +143,6 @@ test('commits through the shared service', async () => {
     chatId: 42,
     args: {
       action: 'remove',
-      leagueCode: 'ABC123',
       teamId: 'Owner_1',
     },
   });
@@ -130,7 +150,6 @@ test('commits through the shared service', async () => {
   expect(service.mutate).toHaveBeenCalledWith({
     chatId: 42,
     action: 'remove',
-    leagueCode: 'ABC123',
     teamId: 'Owner_1',
   });
 });

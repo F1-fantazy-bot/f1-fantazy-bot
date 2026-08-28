@@ -590,8 +590,12 @@ LANG callback behave identically in Telegram.
   `unfollow_league` agent tool delegate to the same service.
 - Agent proposals canonicalize code + display name before staging; read-only
   followed-league questions remain on `list_user_leagues`.
+- A target-less web request renders followed leagues as localized removal
+  cards via `list_user_leagues({ selectionMode: 'unfollow_league' })`.
+  Selecting a card stages the canonical league code and opens authenticated
+  direct confirmation without requiring typed input.
 
-### PR-8 — `follow_team` 🟡 Open ([#226](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/226))
+### PR-8 — `follow_team` ✅ Merged ([#226](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/226))
 
 - Extract `src/services/followTeamService.js`. Inject explicit ports
   (no bot shim):
@@ -639,6 +643,11 @@ LANG callback behave identically in Telegram.
 - If switching from screenshot data wipes the selected screenshot team, the
   newly followed league team becomes the durable and cached active team in the
   same compensated transaction.
+- Target-less remove/untrack requests render only the user's tracked league
+  teams with localized remove controls. Selecting a card stages canonical
+  `follow_team({ action: 'remove', teamId })` arguments directly; canonical-ID
+  removal does not require a league code or typed team name, and its
+  confirmation does not invent a league association.
 
 ### PR-9 — `report_bug` *(with abuse controls)*
 

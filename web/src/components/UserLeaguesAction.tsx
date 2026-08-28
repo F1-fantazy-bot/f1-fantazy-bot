@@ -4,6 +4,17 @@ import { useState } from 'react';
 import { isToolErrorResult, ToolErrorFallback } from './ToolErrorFallback';
 import { safeParse } from './safeParse';
 import { ToolLoading } from './ToolLoading';
+import {
+  WriteConfirmCard,
+  isConfirmationRequired,
+  type WriteConfirmationRequired,
+} from './WriteConfirmCard';
+import {
+  WriteResultCard,
+  isWriteResult,
+  type WriteResult,
+} from './WriteResultCard';
+import { useWriteDecision } from './WriteDecisionContext';
 
 type UserLeague = {
   leagueCode: string;
@@ -13,7 +24,7 @@ type UserLeague = {
 
 export type UserLeaguesResult = {
   leagues?: UserLeague[];
-  selectionMode?: 'follow_team';
+  selectionMode?: 'follow_team' | 'unfollow_league';
   lang?: string;
 };
 
@@ -24,36 +35,80 @@ export function InteractiveUserLeagues({
 }) {
   const { agent } = useAgent({ agentId: 'default' });
   const { copilotkit } = useCopilotKit();
+  const { propose } = useWriteDecision();
   const [selectedCode, setSelectedCode] = useState('');
   const [selectionComplete, setSelectionComplete] = useState(false);
+  const [confirmation, setConfirmation] =
+    useState<WriteConfirmationRequired | null>(null);
+  const [feedback, setFeedback] = useState<WriteResult | null>(null);
+  const [removedCodes, setRemovedCodes] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [errorMessage, setErrorMessage] = useState('');
-  const leagues = Array.isArray(result?.leagues) ? result.leagues : [];
-  const canSelect = result?.selectionMode === 'follow_team';
+  const leagues = Array.isArray(result?.leagues)
+    ? result.leagues.filter((league) => !removedCodes.has(league.leagueCode))
+    : [];
+  const isFollowTeamSelection = result?.selectionMode === 'follow_team';
+  const isUnfollowSelection = result?.selectionMode === 'unfollow_league';
+  const canSelect = isFollowTeamSelection || isUnfollowSelection;
   const isHebrew = result?.lang === 'he';
   const labels = isHebrew
     ? {
-        title: canSelect ? 'בחר ליגה שמכילה את הקבוצה' : 'הליגות שלי',
+        title: isFollowTeamSelection
+          ? 'בחר ליגה שמכילה את הקבוצה'
+          : isUnfollowSelection
+            ? 'בחר ליגה להסרה מהמעקב'
+            : 'הליגות שלי',
         empty: 'אין ליגות במעקב.',
         loading: 'טוען קבוצות…',
         selected: 'נבחרה',
+        remove: 'הסר ממעקב',
         error: 'לא ניתן לטעון את קבוצות הליגה. נסה שוב.',
+        removeError: 'לא ניתן להכין את הסרת הליגה. נסה שוב.',
+        uncertain:
+          'לא ניתן לאמת אם הליגה הוסרה. רענן את הליגות במעקב לפני ניסיון נוסף.',
       }
     : {
-        title: canSelect
+        title: isFollowTeamSelection
           ? 'Select the league that contains the team'
-          : 'My followed leagues',
+          : isUnfollowSelection
+            ? 'Select the league to stop following'
+            : 'My followed leagues',
         empty: 'No followed leagues.',
         loading: 'Loading teams…',
         selected: 'Selected',
+        remove: 'Stop following',
         error: 'Unable to load the league teams. Please try again.',
+        removeError: 'Unable to prepare the league removal. Please try again.',
+        uncertain:
+          'The final status could not be verified. Refresh your followed leagues before trying again.',
       };
 
   async function selectLeague(league: UserLeague) {
     if (!canSelect || selectedCode) return;
     setSelectedCode(league.leagueCode);
     setSelectionComplete(false);
+    setFeedback(null);
     setErrorMessage('');
     try {
+      if (isUnfollowSelection) {
+        const proposal = await propose('unfollow_league', {
+          leagueCode: league.leagueCode,
+        });
+        if (isConfirmationRequired(proposal)) {
+          setConfirmation(proposal);
+
+          return;
+        }
+        if (isWriteResult(proposal)) {
+          setFeedback(proposal);
+          setSelectedCode('');
+
+          return;
+        }
+        throw new Error('Unexpected unfollow-league proposal response');
+      }
+
       agent.addMessage({
         id: crypto.randomUUID(),
         role: 'developer',
@@ -68,7 +123,9 @@ export function InteractiveUserLeagues({
     } catch {
       setSelectedCode('');
       setSelectionComplete(false);
-      setErrorMessage(labels.error);
+      setErrorMessage(
+        isUnfollowSelection ? labels.removeError : labels.error,
+      );
     }
   }
 
@@ -130,9 +187,18 @@ export function InteractiveUserLeagues({
                 type="button"
                 onClick={() => selectLeague(league)}
                 disabled={Boolean(selectedCode)}
-                aria-label={`${league.leagueName}: ${league.leagueCode}`}
+                aria-label={
+                  isUnfollowSelection
+                    ? `${labels.remove}: ${league.leagueName}`
+                    : `${league.leagueName}: ${league.leagueCode}`
+                }
                 style={{
                   ...style,
+                  ...(isUnfollowSelection
+                    ? {
+                        borderColor: 'var(--app-danger-border)',
+                      }
+                    : {}),
                   cursor: selectedCode ? 'wait' : 'pointer',
                   opacity:
                     selectedCode && selectedCode !== league.leagueCode
@@ -143,7 +209,11 @@ export function InteractiveUserLeagues({
                 {content}
                 {selectedCode === league.leagueCode ? (
                   <span style={{ color: 'var(--app-primary)', fontSize: 12 }}>
-                    {selectionComplete ? labels.selected : labels.loading}
+                    {selectionComplete
+                      ? labels.selected
+                      : isUnfollowSelection
+                        ? labels.remove
+                        : labels.loading}
                   </span>
                 ) : null}
               </button>
@@ -167,6 +237,38 @@ export function InteractiveUserLeagues({
           {errorMessage}
         </div>
       ) : null}
+      {confirmation ? (
+        <WriteConfirmCard
+          result={confirmation}
+          directConfirm
+          directConfirmErrorMessage={labels.uncertain}
+          onSettled={(outcome, message, finalResult) => {
+            if (outcome === 'confirmed' && finalResult) {
+              setFeedback(finalResult);
+              setConfirmation(null);
+              setSelectedCode('');
+              if (finalResult.status === 'ok') {
+                const removedCode =
+                  finalResult.leagueCode || selectedCode;
+                setRemovedCodes((current) => {
+                  const next = new Set(current);
+                  next.add(removedCode);
+
+                  return next;
+                });
+              }
+            }
+            if (outcome === 'cancelled' || outcome === 'error') {
+              setSelectedCode('');
+              setConfirmation(null);
+            }
+            if (outcome === 'error') {
+              setErrorMessage(message || labels.removeError);
+            }
+          }}
+        />
+      ) : null}
+      {feedback ? <WriteResultCard result={feedback} /> : null}
     </section>
   );
 }
@@ -175,7 +277,7 @@ export function useUserLeaguesAction() {
   useCopilotAction({
     name: 'list_user_leagues',
     description:
-      'Show followed leagues and optionally let the user select one for follow_team.',
+      'Show followed leagues and optionally select one for follow_team or unfollow_league.',
     parameters: [],
     available: 'frontend',
     render: ({ status, result }) => {

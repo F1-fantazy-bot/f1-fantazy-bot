@@ -439,6 +439,18 @@ test('preserves Telegram exact-ID removal when no leagues remain followed', asyn
     },
   });
 
+  const inspected = await service.inspect({
+    chatId: CHAT_ID,
+    action: ACTION.REMOVE,
+    teamId: 'Owner_1',
+  });
+  expect(
+    service.buildSummary(CHAT_ID, {
+      ...inspected,
+      action: ACTION.REMOVE,
+    }),
+  ).toBe('Stop following tracked team "Fast Friends" (Owner_1).');
+
   const result = await service.mutate({
     chatId: CHAT_ID,
     action: ACTION.REMOVE,
@@ -450,6 +462,7 @@ test('preserves Telegram exact-ID removal when no leagues remain followed', asyn
     removed: true,
     teamId: 'Owner_1',
   });
+  expect(result.leagueCode).toBeUndefined();
   expect(loadLeagueTeamsData).not.toHaveBeenCalled();
   expect(storage.deleteUserTeam).toHaveBeenCalledWith(
     CHAT_ID,

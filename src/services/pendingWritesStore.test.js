@@ -221,12 +221,22 @@ describe('approval and cancellation', () => {
         teamId: 'Owner_1',
       },
     });
+    const unfollowLeagueNonce = await stagePendingWrite({
+      chatId: 1,
+      tool: 'unfollow_league',
+      args: { leagueCode: 'ABC123' },
+    });
     const languageNonce = await stagePendingWrite({
       chatId: 1,
       tool: 'set_language',
       args: { lang: 'he' },
     });
-    const expectedTools = ['select_team', 'follow_team', 'report_bug'];
+    const expectedTools = [
+      'select_team',
+      'follow_team',
+      'unfollow_league',
+      'report_bug',
+    ];
 
     await expect(
       approvePendingWrite({
@@ -239,6 +249,13 @@ describe('approval and cancellation', () => {
       approvePendingWrite({
         chatId: 1,
         writeNonce: followTeamNonce,
+        expectedTools,
+      }),
+    ).resolves.toMatchObject({ state: INTENT_STATE.APPROVED });
+    await expect(
+      approvePendingWrite({
+        chatId: 1,
+        writeNonce: unfollowLeagueNonce,
         expectedTools,
       }),
     ).resolves.toMatchObject({ state: INTENT_STATE.APPROVED });

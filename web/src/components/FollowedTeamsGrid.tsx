@@ -1,7 +1,19 @@
 import { useCopilotAction } from '@copilotkit/react-core';
+import { useState } from 'react';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { directionFor, uiLanguageOf } from './uiLanguage';
 import { ToolLoading } from './ToolLoading';
+import {
+  WriteConfirmCard,
+  isConfirmationRequired,
+  type WriteConfirmationRequired,
+} from './WriteConfirmCard';
+import {
+  WriteResultCard,
+  isWriteResult,
+  type WriteResult,
+} from './WriteResultCard';
+import { useWriteDecision } from './WriteDecisionContext';
 
 type LeagueRow = {
   leagueCode: string;
@@ -9,17 +21,18 @@ type LeagueRow = {
   position: number | null;
 };
 
-type FollowedTeam = {
+export type FollowedTeam = {
   teamId: string;
   teamName: string;
   leagues: LeagueRow[];
   isSelected: boolean;
 };
 
-type ListFollowedTeamsResult = {
+export type ListFollowedTeamsResult = {
   lang?: string;
   status?: 'ok' | 'empty';
   teams?: FollowedTeam[];
+  selectionMode?: 'unfollow_team';
 };
 
 function positionStyle(position: number | null): {
@@ -44,8 +57,12 @@ function positionStyle(position: number | null): {
 
 export function FollowedTeamsGrid({
   result,
+  onUnfollowTeam,
+  selectionLocked = false,
 }: {
   result?: ListFollowedTeamsResult;
+  onUnfollowTeam?: (team: FollowedTeam) => void;
+  selectionLocked?: boolean;
 }) {
   const lang = uiLanguageOf(result);
   const labels =
@@ -56,6 +73,7 @@ export function FollowedTeamsGrid({
           active: 'פעילה',
           noLeagues: '(לא נמצאו ליגות עבור קבוצה זו)',
           positionPrefix: 'מ',
+          remove: 'הסר ממעקב',
         }
       : {
           empty:
@@ -63,6 +81,7 @@ export function FollowedTeamsGrid({
           active: 'ACTIVE',
           noLeagues: '(no leagues resolved for this team)',
           positionPrefix: 'P',
+          remove: 'Stop tracking',
         };
   if (
     result?.status === 'empty' ||
@@ -176,9 +195,158 @@ export function FollowedTeamsGrid({
               })
             )}
           </div>
+          {onUnfollowTeam ? (
+            <button
+              type="button"
+              onClick={() => onUnfollowTeam(team)}
+              disabled={selectionLocked}
+              aria-label={`${labels.remove}: ${team.teamName}`}
+              style={{
+                marginTop: 12,
+                border: '1px solid var(--app-danger-border)',
+                borderRadius: 6,
+                background: 'var(--app-danger-surface)',
+                color: 'var(--app-danger-text)',
+                padding: '6px 10px',
+                fontWeight: 700,
+                cursor: selectionLocked ? 'wait' : 'pointer',
+                opacity: selectionLocked ? 0.6 : 1,
+              }}
+            >
+              {labels.remove}
+            </button>
+          ) : null}
         </div>
       ))}
     </div>
+  );
+}
+
+export function InteractiveFollowedTeams({
+  result,
+}: {
+  result?: ListFollowedTeamsResult;
+}) {
+  const { propose } = useWriteDecision();
+  const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [confirmation, setConfirmation] =
+    useState<WriteConfirmationRequired | null>(null);
+  const [feedback, setFeedback] = useState<WriteResult | null>(null);
+  const [removedTeamIds, setRemovedTeamIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [selectedOverride, setSelectedOverride] = useState<
+    string | null | undefined
+  >(undefined);
+  const [errorMessage, setErrorMessage] = useState('');
+  const canSelect = result?.selectionMode === 'unfollow_team';
+  const lang = uiLanguageOf(result);
+  const isHebrew = lang === 'he';
+  const labels = isHebrew
+    ? {
+        error: 'לא ניתן להכין את הסרת הקבוצה. נסה שוב.',
+        uncertain:
+          'לא ניתן לאמת אם הקבוצה הוסרה. רענן את הקבוצות במעקב לפני ניסיון נוסף.',
+      }
+    : {
+        error: 'Unable to prepare the team removal. Please try again.',
+        uncertain:
+          'The final status could not be verified. Refresh your followed teams before trying again.',
+      };
+  const displayedResult = result?.teams
+    ? {
+        ...result,
+        teams: result.teams
+          .filter((team) => !removedTeamIds.has(team.teamId))
+          .map((team) =>
+            selectedOverride === undefined
+              ? team
+              : { ...team, isSelected: team.teamId === selectedOverride },
+          ),
+      }
+    : result;
+
+  async function unfollowTeam(team: FollowedTeam) {
+    if (!canSelect || selectedTeamId) return;
+    setSelectedTeamId(team.teamId);
+    setFeedback(null);
+    setErrorMessage('');
+    try {
+      const proposal = await propose('follow_team', {
+        action: 'remove',
+        teamId: team.teamId,
+      });
+      if (isConfirmationRequired(proposal)) {
+        setConfirmation(proposal);
+
+        return;
+      }
+      if (isWriteResult(proposal)) {
+        setFeedback(proposal);
+        setSelectedTeamId('');
+
+        return;
+      }
+      throw new Error('Unexpected unfollow-team proposal response');
+    } catch {
+      setSelectedTeamId('');
+      setErrorMessage(labels.error);
+    }
+  }
+
+  return (
+    <>
+      <FollowedTeamsGrid
+        result={displayedResult}
+        onUnfollowTeam={canSelect ? unfollowTeam : undefined}
+        selectionLocked={Boolean(selectedTeamId)}
+      />
+      {confirmation ? (
+        <WriteConfirmCard
+          result={confirmation}
+          directConfirm
+          directConfirmErrorMessage={labels.uncertain}
+          onSettled={(outcome, message, finalResult) => {
+            if (outcome === 'confirmed' && finalResult) {
+              setFeedback(finalResult);
+              setConfirmation(null);
+              setSelectedTeamId('');
+              if (finalResult.status === 'ok') {
+                const removedId = finalResult.teamId || selectedTeamId;
+                setRemovedTeamIds((current) => {
+                  const next = new Set(current);
+                  next.add(removedId);
+
+                  return next;
+                });
+                setSelectedOverride(finalResult.fallbackSelectedTeam);
+              }
+            }
+            if (outcome === 'cancelled' || outcome === 'error') {
+              setSelectedTeamId('');
+              setConfirmation(null);
+            }
+            if (outcome === 'error') {
+              setErrorMessage(message || labels.error);
+            }
+          }}
+        />
+      ) : null}
+      {feedback ? <WriteResultCard result={feedback} /> : null}
+      {errorMessage ? (
+        <div
+          role="alert"
+          dir={directionFor(lang)}
+          style={{
+            color: 'var(--app-danger-text)',
+            fontSize: 12,
+            marginTop: 8,
+          }}
+        >
+          {errorMessage}
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -198,7 +366,7 @@ export function useFollowedTeamsAction() {
         return <ToolErrorFallback result={parsed} />;
       }
       return (
-        <FollowedTeamsGrid
+        <InteractiveFollowedTeams
           result={parsed as ListFollowedTeamsResult | undefined}
         />
       );
