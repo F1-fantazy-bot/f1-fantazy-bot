@@ -580,6 +580,12 @@ infrastructure](#write-tool-confirmation-infrastructure) and
 
 Phase-5 capabilities (shipped — v1 capability scope is now COMPLETE):
 
+The active roadmap for closing the remaining Telegram/agent capability gaps is
+[`docs/telegram-agent-capability-parity-plan.md`](docs/telegram-agent-capability-parity-plan.md).
+It defines the command manifest/CI contract, agent-native user capabilities,
+server-authorized admin tools, explicit exclusions, rollout phases, and
+acceptance gates.
+
 - `get_next_races` — upcoming races for the season (Phase 1).
 - `list_user_teams` — the user's tracked teams (teamId + friendly teamName) (Phase 2).
 - `get_best_teams` — top scoring fantasy combinations with optional must-include / must-exclude filters on drivers and constructors (Phase 2). The marquee _"best teams for X with Verstappen but no Alonso"_ question runs here. Reads canonical prices via `getDriversForChat` / `getConstructorsForChat` so price-aware rankings work without user-uploaded JSON. Sort criteria: `'points'` (raw projected points) or `'budget_adjusted'` (weights expected price change by the user's saved `budgetChangePointsPerMillion` preset — set via `/set_best_team_ranking` in Telegram). "Points per million" questions resolve to `'budget_adjusted'`; the deprecated `'points_per_million'` value-for-money sort was removed.
