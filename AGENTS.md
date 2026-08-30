@@ -49,6 +49,13 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
 5. **Text Routing:** `src/textMessageHandler.js` checks incoming text and dispatches to the appropriate handler; non-command text is parsed as JSON or delegated to the ASK agent.
 6. **Natural Language Prompt:** `src/prompts.js` exports `buildAskSystemPrompt(isAdmin)`, which dynamically builds the command allowlist for the ASK agent. The allowed commands are derived from `MENU_CATEGORIES` in `src/constants.js` (single source of truth) — user commands come from non-admin categories, admin commands from `adminOnly` categories. A small `EXTRA_ASK_COMMANDS` array covers chip sub-commands (`/extra_boost`, `/limitless`, `/wildcard`, `/reset_chip`) that aren't in any menu category but should be discoverable via free text. The `askHandler.js` checks `isAdminMessage(msg)` before building the prompt, so admin commands are only included for admin users. When adding a new command, simply adding it to `MENU_CATEGORIES` in `constants.js` is sufficient — it will automatically appear in the ASK prompt.
 7. **Menu/Help:** `src/commandsHandler/menuHandler.js` and `helpHandler.js` build structured menus using the definitions in `constants.js`.
+8. **Capability parity manifest:** `src/capabilityManifest.js` classifies every
+   `COMMAND_*` constant as agent `implemented`, `adapted`, `planned`, or
+   `excluded`. A new Telegram command must add its bot handler and an agent
+   mapping in the same PR, or include an explicit reviewed exception with a
+   rationale. `src/capabilityManifest.test.js` fails when a command is missing,
+   a mapped tool is not registered, an exception has no rationale, or an
+   implemented admin tool bypasses the central admin wrapper.
 
 ---
 
@@ -65,14 +72,14 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
 - `/best_teams`, `/best_team_scenarios`, `/current_team_info`, `/chips`, `/extra_boost`, `/limitless`, `/wildcard`, `/reset_chip`
 - `/set_best_team_ranking`
 - `/select_team`, `/print_cache`, `/reset_cache`
-- `/next_race_info`, `/next_races`, `/next_race_weather`, `/deadline`
+- `/next_race_info`, `/next_races`, `/next_race_weather`, `/deadline`, `/live_score`
 - `/get_current_simulation`
 - `/load_simulation`
 - `/menu`, `/help`, `/lang`, `/whats_new`
 - `/follow_league`, `/unfollow_league`, `/teams_tracker`, `/leaderboard`, `/league_graphs`, `/league_changes`
 - `/report_bug` _(reply-based — uses pending reply manager)_
 
-**Admin-only:** `/trigger_scraping`, `/trigger_api_data`, `/trigger_api_data_locked`, `/trigger_next_race_info`, `/trigger_live_score_scheduler`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/live_score`, `/upload_drivers_photo`, `/upload_constructors_photo`, `/allow_web_user`, `/revoke_web_user`, `/list_web_users`
+**Admin-only:** `/trigger_scraping`, `/trigger_api_data`, `/trigger_api_data_locked`, `/trigger_next_race_info`, `/trigger_live_score_scheduler`, `/get_botfather_commands`, `/billing_stats`, `/version`, `/list_users`, `/send_message_to_user`, `/broadcast`, `/set_nickname`, `/upload_drivers_photo`, `/upload_constructors_photo`, `/allow_web_user`, `/revoke_web_user`, `/list_web_users`
 
 ### Announcements file (`/whats_new`)
 
@@ -136,6 +143,10 @@ Use this as a checklist when introducing another Telegram command:
    - Commands added to `MENU_CATEGORIES` in `src/constants.js` are **automatically** included in the ASK prompt — no additional changes needed.
    - Admin commands (in `adminOnly` categories) are only exposed to admin users via the ASK agent.
    - If adding a command that is **not** in any menu category but should be discoverable via free text, add it to the `EXTRA_ASK_COMMANDS` array in `src/prompts.js`.
+   - Add the command to `src/capabilityManifest.js`. The default expectation is
+     a bot handler plus an agent tool/capability. Agent `adapted` or `excluded`
+     status requires a specific rationale; do not add an undocumented
+     Telegram-only command.
 
 5. **Testing**
    - Create a Jest test for the new handler (place alongside the handler as `*.test.js`). Mock external calls/fetches as needed.
@@ -689,6 +700,7 @@ f1-fantazy-bot/
 │   │   └── liveScoreCore.js          # pure: getLiveScoreForTeam / getLiveScoreLeaderboard — validates league membership
 │   ├── utils/
 │   │   └── liveScoreCalc.js          # pure scoring helpers shared by liveScoreHandler + liveScoreCore
+│   ├── adminIdentity.js              # canonical numeric admin chat IDs + shared predicate
 │   ├── agent/
 │   │   ├── identity.js               # AGENT_HARDCODED_CHAT_ID (LLM never sees it)
 │   │   ├── systemPrompt.js           # tool routing, confirmation rules, and response-language guidance
@@ -1737,6 +1749,9 @@ messages must go through `clear()` first, then through
 | `src/agent/writeToolHelpers.js` | `defineWriteTool(...)` stages serializable intents and registers commit handlers; `executeConfirmedWrite` consumes only server-approved intents. |
 | `src/agent/writeDecision.js` | Applies authenticated UI `approve`, `approve_and_confirm`, `cancel`, and compensating `revoke` decisions to durable pending-write rows. |
 | `src/agent/writeProposal.js` | Validates allowlisted direct rich-UI proposals and invokes the same registered proposal function as the LLM-facing write tool. |
+| `src/agent/adminAuthorization.js` | Server-side admin predicate enforcement plus registered admin read/write wrappers and audit logging. Admin tools must use these wrappers. |
+| `src/adminIdentity.js` | Single source of truth for numeric admin chat IDs used by Telegram checks, web auth, admin recipients, and agent tools. |
+| `src/capabilityManifest.js` | One parity decision per Telegram `COMMAND_*`, including agent tools, confirmation mode, audience, and explicit exceptions. |
 | `src/services/pendingWritesStore.js` | Azure Table `PendingAgentWrites`: chat-isolated staged/approved intents, ~5-minute TTL, immediate cancel, throttled expiry sweep, ETag-protected single-use consume. |
 | `web/src/components/WriteDecisionContext.tsx` | Builds authenticated `/api/agent/write-decision` and `/api/agent/write-proposal` requests and exposes both clients. |
 | `web/src/components/WriteConfirmCard.tsx` | Yes/Cancel UI. Records the authenticated server decision before appending any chat message; never sends a nonce on cancellation. |

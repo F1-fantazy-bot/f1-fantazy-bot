@@ -12,6 +12,13 @@ Telegram keeps slash commands and inline keyboards; the agent gets natural
 language routing, structured tools, rich cards, guided target selection, and
 confirmed writes.
 
+## Current status
+
+- Roadmap published in PR #230.
+- Phase 1 is implemented on the current feature branch: the 50-command
+  manifest, registry parity tests, shared admin chat-ID predicate, fail-closed
+  admin wrappers, and wrapper-registration enforcement are in place.
+
 ## Locked decisions
 
 - Add all agent-suitable missing user capabilities:
@@ -179,7 +186,7 @@ the authorization boundary.
 
 ## Rollout phases
 
-### Phase 1 — Parity contract and admin foundation
+### Phase 1 — Parity contract and admin foundation (implemented)
 
 - Add the capability manifest covering all 50 current Telegram commands.
 - Mark existing parity, planned work, adapted Teams Tracker, and four explicit
