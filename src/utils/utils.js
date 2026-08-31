@@ -4,8 +4,6 @@ const {
   DRIVERS_PHOTO_TYPE,
   CONSTRUCTORS_PHOTO_TYPE,
   CURRENT_TEAM_PHOTO_TYPE,
-  KILZI_CHAT_ID,
-  DORSE_CHAT_ID,
   YEHONATAN_CHAT_ID,
   HAIM_CHAT_ID,
   RONGO_CHAT_ID,
@@ -24,6 +22,7 @@ const {
 } = require('../prompts');
 const { t, getLocale } = require('../i18n');
 const { userCache } = require('../cache');
+const { ADMIN_CHAT_IDS, isAdminChatId } = require('../adminIdentity');
 
 const normalizePrice = function (value) {
   return Math.round(value * 10) / 10;
@@ -139,10 +138,9 @@ pid: ${process.pid}`;
 };
 
 exports.sendMessageToAdmins = async function (bot, message) {
-  const adminChatIds = [KILZI_CHAT_ID, DORSE_CHAT_ID];
   const msg = `${resolveLogPrefix(bot)}: ${message}`;
 
-  for (const chatId of adminChatIds) {
+  for (const chatId of ADMIN_CHAT_IDS) {
     await sendMessage(bot, chatId, msg);
   }
 };
@@ -365,12 +363,10 @@ exports.calculateTeamInfo = function (team, drivers, constructors) {
 
 exports.normalizePrice = normalizePrice;
 
-exports.isAdminMessage = function (msg) {
-  if (!msg || !msg.chat || !msg.chat.id) {
-    return false;
-  }
+exports.isAdminChatId = isAdminChatId;
 
-  return msg.chat.id === KILZI_CHAT_ID || msg.chat.id === DORSE_CHAT_ID;
+exports.isAdminMessage = function (msg) {
+  return isAdminChatId(msg?.chat?.id);
 };
 
 exports.isMessageFromAllowedUser = function (msg) {

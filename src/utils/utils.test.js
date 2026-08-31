@@ -9,6 +9,8 @@ const {
   normalizePrice,
   validateJsonData,
   formatDateTime,
+  isAdminChatId,
+  isAdminMessage,
   isMessageFromAllowedUser,
 } = utils;
 const {
@@ -23,6 +25,20 @@ const { setLanguage } = require('../i18n');
 const { userCache } = require('../cache');
 
 describe('utils', () => {
+  describe('admin identity', () => {
+    it('recognizes the two canonical admin chat IDs', () => {
+      expect(isAdminChatId(KILZI_CHAT_ID)).toBe(true);
+      expect(isAdminChatId(DORSE_CHAT_ID)).toBe(true);
+      expect(isAdminChatId(YEHONATAN_CHAT_ID)).toBe(false);
+    });
+
+    it('keeps isAdminMessage as a message-shaped adapter', () => {
+      expect(isAdminMessage({ chat: { id: KILZI_CHAT_ID } })).toBe(true);
+      expect(isAdminMessage({ chat: { id: YEHONATAN_CHAT_ID } })).toBe(false);
+      expect(isAdminMessage()).toBe(false);
+    });
+  });
+
   describe('getChatName', () => {
     it('when msg is undefined, return Unknown Chat', () => {
       const result = getChatName();

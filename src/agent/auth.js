@@ -32,7 +32,7 @@
 // the source of truth for "admin" stays in `src/constants.js` so the
 // Telegram bot and the agent stay aligned.
 
-const { KILZI_CHAT_ID, DORSE_CHAT_ID } = require('../constants');
+const { isAdminChatId } = require('../adminIdentity');
 
 const STATUS = {
   OK: 'ok',
@@ -45,12 +45,6 @@ const VALID_ISSUERS = new Set([
   'https://accounts.google.com',
   'accounts.google.com',
 ]);
-
-const ADMIN_CHAT_IDS = new Set([KILZI_CHAT_ID, DORSE_CHAT_ID]);
-
-function isAdminChatId(chatId) {
-  return ADMIN_CHAT_IDS.has(chatId);
-}
 
 let cachedOAuth2Client = null;
 
