@@ -1,7 +1,12 @@
 const { CostManagementClient } = require('@azure/arm-costmanagement');
 const { DefaultAzureCredential } = require('@azure/identity');
 
+const COST_MANAGEMENT_CLIENT_TYPE = 'f1-fantazy-bot';
+const BILLING_CACHE_TTL_MS = 4 * 60 * 60 * 1000;
+
 let costManagementClient;
+let billingCache;
+let billingRequestInFlight;
 
 /**
  * Initialize Azure Cost Management client using environment variables
@@ -26,6 +31,36 @@ function initializeAzureCostManagement() {
  * @returns {Promise<Object>} Billing data object with current and previous month data
  */
 async function getMonthlyBillingStats() {
+  const now = Date.now();
+
+  if (
+    billingCache &&
+    now - billingCache.fetchedAt < BILLING_CACHE_TTL_MS
+  ) {
+    return billingCache.data;
+  }
+
+  if (billingRequestInFlight) {
+    return billingRequestInFlight;
+  }
+
+  billingRequestInFlight = fetchMonthlyBillingStats()
+    .then((data) => {
+      billingCache = {
+        data,
+        fetchedAt: Date.now(),
+      };
+
+      return data;
+    })
+    .finally(() => {
+      billingRequestInFlight = undefined;
+    });
+
+  return billingRequestInFlight;
+}
+
+async function fetchMonthlyBillingStats() {
   try {
     // Fetch both current and previous month data in parallel
     const [currentMonth, previousMonth] = await Promise.all([
@@ -85,7 +120,14 @@ async function getBillingStatsForMonth(monthOffset = 0) {
     const scope = `/subscriptions/${subscriptionId}`;
     const queryResult = await costManagementClient.query.usage(
       scope,
-      queryDefinition
+      queryDefinition,
+      {
+        requestOptions: {
+          customHeaders: {
+            ClientType: COST_MANAGEMENT_CLIENT_TYPE,
+          },
+        },
+      }
     );
 
     return processBillingData(queryResult, period);

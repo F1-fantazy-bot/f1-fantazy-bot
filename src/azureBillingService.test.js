@@ -40,6 +40,7 @@ describe('azureBillingService', () => {
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
     process.env = originalEnv;
   });
 
@@ -133,7 +134,14 @@ describe('azureBillingService', () => {
               }),
             }),
           }),
-        })
+        }),
+        {
+          requestOptions: {
+            customHeaders: {
+              ClientType: 'f1-fantazy-bot',
+            },
+          },
+        }
       );
     });
 
@@ -211,6 +219,77 @@ describe('azureBillingService', () => {
       await expect(getMonthlyBillingStats()).rejects.toThrow(
         'Failed to get billing statistics:'
       );
+    });
+
+    it('should cache successful billing data for four hours', async () => {
+      const mockQueryResult = {
+        columns: [
+          { name: 'ServiceName' },
+          { name: 'PreTaxCost' },
+          { name: 'Currency' },
+        ],
+        rows: [['Azure Functions', 10, 'USD']],
+      };
+      let now = 1_000;
+
+      jest.spyOn(Date, 'now').mockImplementation(() => now);
+      mockCostManagementClient.query.usage.mockResolvedValue(mockQueryResult);
+
+      const firstResult = await getMonthlyBillingStats();
+
+      now += 4 * 60 * 60 * 1000 - 1;
+      const cachedResult = await getMonthlyBillingStats();
+
+      expect(cachedResult).toBe(firstResult);
+      expect(mockCostManagementClient.query.usage).toHaveBeenCalledTimes(2);
+
+      now += 1;
+      await getMonthlyBillingStats();
+
+      expect(mockCostManagementClient.query.usage).toHaveBeenCalledTimes(4);
+    });
+
+    it('should coalesce concurrent billing requests', async () => {
+      const mockQueryResult = {
+        columns: [],
+        rows: [],
+      };
+      const resolveQueries = [];
+
+      mockCostManagementClient.query.usage.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveQueries.push(resolve);
+          })
+      );
+
+      const firstRequest = getMonthlyBillingStats();
+      const secondRequest = getMonthlyBillingStats();
+
+      expect(mockCostManagementClient.query.usage).toHaveBeenCalledTimes(2);
+
+      resolveQueries.forEach((resolve) => resolve(mockQueryResult));
+
+      await expect(firstRequest).resolves.toEqual(await secondRequest);
+      expect(mockCostManagementClient.query.usage).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not cache failed billing requests', async () => {
+      mockCostManagementClient.query.usage.mockRejectedValueOnce(
+        new Error('Temporary Azure error')
+      );
+
+      await expect(getMonthlyBillingStats()).rejects.toThrow(
+        'Failed to get billing statistics:'
+      );
+
+      mockCostManagementClient.query.usage.mockResolvedValue({
+        columns: [],
+        rows: [],
+      });
+
+      await expect(getMonthlyBillingStats()).resolves.toBeDefined();
+      expect(mockCostManagementClient.query.usage).toHaveBeenCalledTimes(4);
     });
 
     it('should filter out zero-cost services', async () => {
