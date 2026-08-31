@@ -60,6 +60,7 @@ const {
 } = require('./writeTools/followTeamTool');
 const { reportBugTool } = require('./writeTools/reportBugTool');
 const { getLanguageTool } = require('./readTools/getLanguageTool');
+const { getAgentGuideTool } = require('./readTools/getAgentGuideTool');
 
 // Trim a best-teams calculator row down to the fields the React component
 // actually renders. Sending the full driver/constructor dictionaries (which
@@ -315,6 +316,7 @@ const tools = [
     }),
   }),
 
+  getAgentGuideTool,
   getLanguageTool,
 
   defineTool({

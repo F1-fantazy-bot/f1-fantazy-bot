@@ -19,6 +19,7 @@ import { CurrentTeamCard } from './CurrentTeamCard';
 import { LiveScoreBreakdown } from './LiveScoreBreakdown';
 import { LiveScoreLeaderboard } from './LiveScoreLeaderboard';
 import { ToolErrorFallback } from './ToolErrorFallback';
+import { AgentGuideCard } from './AgentGuideCard';
 
 vi.mock('@copilotkit/react-core/v2', () => ({
   useAgent: vi.fn(),
@@ -62,6 +63,43 @@ describe('all rich components honor Hebrew ui language', () => {
     element: ReactElement;
     expected: string[];
   }> = [
+    {
+      name: 'agent guide',
+      element: (
+        <AgentGuideCard
+          result={{
+            status: 'ok',
+            lang: 'he',
+            title: 'עמדת הפיקוד שלך',
+            intro: 'אפשר לשאול באופן טבעי.',
+            profile: {
+              teamCount: 1,
+              followedTeamCount: 1,
+              leagueCount: 1,
+              hasProjectionData: true,
+            },
+            recommendations: [],
+            sections: [
+              {
+                topic: 'teams',
+                tasks: [
+                  {
+                    id: 'optimize_team',
+                    topic: 'teams',
+                    icon: '🏆',
+                    title: 'שפר את הקבוצה שלך',
+                    description: 'השווה הרכבים.',
+                    example: 'הצג קבוצות מומלצות',
+                  },
+                ],
+              },
+            ],
+            notices: [],
+          }}
+        />
+      ),
+      expected: ['עמדת הפיקוד', 'אסטרטגיית קבוצה', 'נסה לשאול'],
+    },
     {
       name: 'next races',
       element: (

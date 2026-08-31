@@ -1,5 +1,20 @@
 const { getSystemPrompt } = require('./systemPrompt');
 
+test('routes help and onboarding to the agent-native guide', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain(
+    'When the user asks for help, how to get started, what the agent can do',
+  );
+  expect(prompt).toContain('call get_agent_guide');
+  expect(prompt).toContain(
+    "Do not reproduce Telegram's\n    slash-command menu",
+  );
+  expect(prompt).toContain(
+    'The tool itself hides admin guidance from non-admins',
+  );
+});
+
 test('requires select_team after the user answers with a team name', () => {
   const prompt = getSystemPrompt();
 

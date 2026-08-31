@@ -1,85 +1,19 @@
 const { getLanguage } = require('../i18n');
+const {
+  getTelegramUsageFlow,
+} = require('../cores/agentGuideCore');
 
 function buildFlowMessage(chatId) {
   const lang = getLanguage(chatId);
+  const flow = getTelegramUsageFlow(lang);
+  const steps = flow.steps
+    .map(
+      ([marker, title, body]) =>
+        `${marker} ${title}\n   ${body}`,
+    )
+    .join('\n\n');
 
-  if (lang === 'he') {
-    return `🏁 F1 Fantasy Bot - תהליך שימוש
-
-כך תפיקו את המרב מהבוט:
-
-1️⃣ עקוב אחרי הליגה שלך
-   הריצו /follow\\_league והדביקו את קוד הליגה שלכם מאפליקציית F1 Fantasy. לאחר מכן הריצו /teams\\_tracker כדי לבחור עד 6 קבוצות מהליגה שיהיו במעקב.
-
-2️⃣ בחירת צ'יפ (אופציונלי)
-   השתמשו ב-/chips כדי לבחור צ'יפ (אקסטרה בוסט, Wildcard, או Limitless) לפני חישוב הקבוצות הטובות ביותר.
-   השתמשו ב-/reset\\_chip כדי לחשב ללא צ'יפ.
-
-3️⃣ דירוג שינויי תקציב (אופציונלי)
-   השתמשו ב-/set\\_best\\_team\\_ranking כדי לכלול שינויי מחיר צפויים בדירוג של /best\\_teams.
-
-4️⃣ חישוב הקבוצות הטובות ביותר
-   הריצו /best\\_teams כדי למצוא את שילובי הקבוצה האופטימליים על סמך הנתונים שהעלאתם.
-
-5️⃣ פרטי קבוצה
-   לאחר /best\\_teams, שלחו מספר קבוצה (לדוגמה: 1, 2, 3) כדי לראות את ההעברות הנדרשות מהקבוצה הנוכחית.
-
-6️⃣ ניקוד חי
-   השתמשו ב-/live\\_score כדי לראות את הניקוד החי ושינויי המחיר של הקבוצה שבחרתם.
-
-7️⃣ מידע על מרוצים
-   • /next\\_race\\_info - פרטים על המרוץ הבא
-   • /next\\_races - לוח זמנים למרוצים הקרובים
-   • /next\\_race\\_weather - תחזית מזג אוויר למרוץ הבא
-
-8️⃣ תובנות ליגה
-   • /leaderboard - דירוג עדכני של ליגה שאתם עוקבים אחריה
-   • /league\\_graphs - גרפים לאורך העונה: פער מהמוביל, מיקומים, ותקציב לפי מרוץ
-
-💡 טיפים:
-• השתמשו ב-/menu לתפריט אינטראקטיבי
-• השתמשו ב-/print\\_cache כדי לבדוק את הנתונים השמורים
-• השתמשו ב-/reset\\_cache כדי להתחיל מחדש
-• פשוט כתבו שאלה בשפה חופשית — הבוט מבין גם טקסט רגיל!`;
-  }
-
-  return `🏁 F1 Fantasy Bot - Usage Flow
-
-Here's how to get the most out of this bot:
-
-1️⃣ Follow Your League
-   Run /follow\\_league and paste your league code from the F1 Fantasy app. Then run /teams\\_tracker to pick up to 6 teams from the league to track.
-
-2️⃣ Choose a Chip (Optional)
-   Use /chips to select a chip (Extra Boost, Wildcard, or Limitless) before calculating best teams.
-   Use /reset\\_chip to calculate without any chip.
-
-3️⃣ Adjust Budget Change Ranking (Optional)
-   Use /set\\_best\\_team\\_ranking to include expected price changes in the /best\\_teams ranking.
-
-4️⃣ Calculate Best Teams
-   Run /best\\_teams to find the optimal team combinations based on your uploaded data.
-
-5️⃣ Get Team Details
-   After /best\\_teams, send a team number (e.g., 1, 2, 3) to see the required transfers from your current team.
-
-6️⃣ Check Live Score
-   Use /live\\_score to see the current live points and price changes for your selected team.
-
-7️⃣ Explore Race Info
-   • /next\\_race\\_info - Details about the next race
-   • /next\\_races - Upcoming race schedule
-   • /next\\_race\\_weather - Weather forecast for the next race
-
-8️⃣ League Insights
-   • /leaderboard - Current standings of a league you follow
-   • /league\\_graphs - Season-long charts: gap to leader, standings, and budget per race
-
-💡 Tips:
-• Use /menu for an interactive menu of all commands
-• Use /print\\_cache to verify your cached data
-• Use /reset\\_cache to start fresh
-• Just type any question naturally — the bot understands free text too!`;
+  return `${flow.title}\n\n${flow.intro}\n\n${steps}\n\n${flow.tipsTitle}\n${flow.tips.join('\n')}`;
 }
 
 async function handleFlowCommand(bot, msg) {

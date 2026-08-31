@@ -15,9 +15,12 @@ confirmed writes.
 ## Current status
 
 - Roadmap published in PR #230.
-- Phase 1 is implemented on the current feature branch: the 50-command
-  manifest, registry parity tests, shared admin chat-ID predicate, fail-closed
-  admin wrappers, and wrapper-registration enforcement are in place.
+- Phase 1 merged in PR #231: the 50-command manifest, registry parity tests,
+  shared admin chat-ID predicate, fail-closed admin wrappers, and
+  wrapper-registration enforcement are in place.
+- Phase 2 is implemented on the current feature branch: `/help` and `/flow`
+  consume a shared guide model, and `get_agent_guide` provides personalized,
+  localized, agent-native onboarding and capability guidance.
 
 ## Locked decisions
 
@@ -198,7 +201,7 @@ the authorization boundary.
 - Update `AGENTS.md` so new-command instructions require manifest + bot + agent
   work in the same PR.
 
-### Phase 2 — Agent Guide (`/help` + `/flow`)
+### Phase 2 — Agent Guide (`/help` + `/flow`) (implemented)
 
 - Extract a shared structured capability/help model used by Telegram help/flow
   adapters and the agent.

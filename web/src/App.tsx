@@ -26,6 +26,7 @@ import { useLiveScoreBreakdownAction } from './components/LiveScoreBreakdown';
 import { useLiveScoreLeaderboardAction } from './components/LiveScoreLeaderboard';
 import { useUserLeaguesAction } from './components/UserLeaguesAction';
 import { useLeagueTeamsAction } from './components/LeagueTeamsAction';
+import { useAgentGuideAction } from './components/AgentGuideCard';
 import { useWriteAction } from './components/registerWriteAction';
 import { WriteDecisionProvider } from './components/WriteDecisionContext';
 import { HistoryRestorer } from './components/HistoryRestorer';
@@ -60,6 +61,7 @@ function AgentActions() {
   useLiveScoreLeaderboardAction();
   useUserLeaguesAction();
   useLeagueTeamsAction();
+  useAgentGuideAction();
   // Write tools register through the shared confirmation/result factory.
   useWriteAction({
     name: 'set_language',
