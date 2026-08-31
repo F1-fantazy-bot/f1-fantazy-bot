@@ -249,6 +249,7 @@ function getCapabilityByCommand(command) {
 
 function findUnwrappedAdminTools(
   capabilities,
+  catalogTools,
   registeredAdminTools,
 ) {
   return capabilities
@@ -259,7 +260,16 @@ function findUnwrappedAdminTools(
           entry.agent.status === AGENT_STATUS.ADAPTED),
     )
     .flatMap((entry) => entry.agent.tools)
-    .filter((toolName) => !registeredAdminTools.has(toolName));
+    .filter((toolName) => {
+      const matchingCatalogTools = catalogTools.filter(
+        (tool) => tool.name === toolName,
+      );
+
+      return (
+        matchingCatalogTools.length !== 1 ||
+        registeredAdminTools.get(toolName) !== matchingCatalogTools[0]
+      );
+    });
 }
 
 module.exports = {

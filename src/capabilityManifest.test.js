@@ -8,7 +8,7 @@ const constants = require('./constants');
 const { COMMAND_HANDLERS } = require('./commandsHandler/commandHandlers');
 const { tools } = require('./agent/tools');
 const {
-  getRegisteredAdminToolNames,
+  getRegisteredAdminTools,
 } = require('./agent/adminAuthorization');
 const {
   AUDIENCE,
@@ -156,6 +156,10 @@ test('keeps implemented and adapted mappings on registered agent tools', () => {
 });
 
 test('accounts for every registered agent tool', () => {
+  expect(tools.map((tool) => tool.name)).toHaveLength(
+    actualAgentToolNames().size,
+  );
+
   const mappedTools = new Set(
     COMMAND_CAPABILITIES.flatMap((entry) =>
       entry.agent.status === AGENT_STATUS.IMPLEMENTED ||
@@ -220,27 +224,39 @@ test('matches Telegram menu audience', () => {
 });
 
 test('requires implemented admin tools to use the central admin wrapper', () => {
-  const registeredAdminTools = getRegisteredAdminToolNames();
+  const registeredAdminTools = getRegisteredAdminTools();
 
   expect(
     findUnwrappedAdminTools(
       COMMAND_CAPABILITIES,
+      tools,
       registeredAdminTools,
     ),
   ).toEqual([]);
 
+  const wrappedTool = { name: 'unsafe_admin_tool' };
+  const unguardedCatalogTool = { name: 'unsafe_admin_tool' };
+  const implementedAdminFixture = [
+    {
+      audience: AUDIENCE.ADMIN,
+      agent: {
+        status: AGENT_STATUS.IMPLEMENTED,
+        tools: ['unsafe_admin_tool'],
+      },
+    },
+  ];
   expect(
     findUnwrappedAdminTools(
-      [
-        {
-          audience: AUDIENCE.ADMIN,
-          agent: {
-            status: AGENT_STATUS.IMPLEMENTED,
-            tools: ['unsafe_admin_tool'],
-          },
-        },
-      ],
-      new Set(),
+      implementedAdminFixture,
+      [unguardedCatalogTool],
+      new Map([['unsafe_admin_tool', wrappedTool]]),
+    ),
+  ).toEqual(['unsafe_admin_tool']);
+  expect(
+    findUnwrappedAdminTools(
+      implementedAdminFixture,
+      [wrappedTool, unguardedCatalogTool],
+      new Map([['unsafe_admin_tool', wrappedTool]]),
     ),
   ).toEqual(['unsafe_admin_tool']);
 });

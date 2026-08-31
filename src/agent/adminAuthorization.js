@@ -8,7 +8,7 @@ const { getNotifierBot } = require('./notifierBot');
 const { wrapToolExecute } = require('./wrapToolExecute');
 const { defineWriteTool } = require('./writeToolHelpers');
 
-const ADMIN_TOOL_REGISTRY = new Set();
+const ADMIN_TOOL_REGISTRY = new Map();
 
 function adminDeniedResult(chatId, toolName) {
   return {
@@ -102,7 +102,7 @@ function defineAdminReadTool({
       return result;
     }),
   });
-  ADMIN_TOOL_REGISTRY.add(name);
+  ADMIN_TOOL_REGISTRY.set(name, tool);
 
   return tool;
 }
@@ -163,13 +163,13 @@ function defineAdminWriteTool({
       return result;
     },
   });
-  ADMIN_TOOL_REGISTRY.add(name);
+  ADMIN_TOOL_REGISTRY.set(name, tool);
 
   return tool;
 }
 
-function getRegisteredAdminToolNames() {
-  return new Set(ADMIN_TOOL_REGISTRY);
+function getRegisteredAdminTools() {
+  return new Map(ADMIN_TOOL_REGISTRY);
 }
 
 function resetAdminToolRegistryForTests() {
@@ -181,6 +181,6 @@ module.exports = {
   requireAgentAdmin,
   defineAdminReadTool,
   defineAdminWriteTool,
-  getRegisteredAdminToolNames,
+  getRegisteredAdminTools,
   resetAdminToolRegistryForTests,
 };

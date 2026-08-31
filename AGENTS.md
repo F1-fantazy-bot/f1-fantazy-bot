@@ -54,8 +54,9 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
    `excluded`. A new Telegram command must add its bot handler and an agent
    mapping in the same PR, or include an explicit reviewed exception with a
    rationale. `src/capabilityManifest.test.js` fails when a command is missing,
-   a mapped tool is not registered, an exception has no rationale, or an
-   implemented admin tool bypasses the central admin wrapper.
+   a mapped tool is not registered, an exception has no rationale, or the
+   exact implemented admin-tool catalogue instance was not created by the
+   central admin wrapper.
 
 ---
 

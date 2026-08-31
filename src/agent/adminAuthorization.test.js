@@ -31,7 +31,7 @@ const {
   requireAgentAdmin,
   defineAdminReadTool,
   defineAdminWriteTool,
-  getRegisteredAdminToolNames,
+  getRegisteredAdminTools,
   resetAdminToolRegistryForTests,
 } = require('./adminAuthorization');
 
@@ -85,8 +85,8 @@ test('admin read wrapper derives identity server-side and blocks before execute'
   expect(result.status).toBe('forbidden');
   expect(isAdminChatId).toHaveBeenCalledWith(123);
   expect(execute).not.toHaveBeenCalled();
-  expect(getRegisteredAdminToolNames()).toEqual(
-    new Set(['list_bot_users']),
+  expect(getRegisteredAdminTools()).toEqual(
+    new Map([['list_bot_users', tool]]),
   );
 });
 
@@ -175,7 +175,7 @@ test('admin write wrapper rechecks authorization at commit', async () => {
     tool.commit({ chatId: 42, args: { message: 'Again' } }),
   ).resolves.toMatchObject({ status: 'forbidden' });
   expect(commit).toHaveBeenCalledTimes(1);
-  expect(getRegisteredAdminToolNames()).toEqual(
-    new Set(['broadcast_message']),
+  expect(getRegisteredAdminTools()).toEqual(
+    new Map([['broadcast_message', tool]]),
   );
 });
