@@ -123,6 +123,25 @@ test('routes unfollow league through its confirmed write tool', () => {
   );
 });
 
+test('routes league changes through canonical clickable league selection', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain(
+    'get_league_changes — planning-to-locked roster changes',
+  );
+  expect(prompt).toContain('call\n    get_league_changes with no arguments');
+  expect(prompt).toContain('Do NOT call list_user_leagues first');
+  expect(prompt).toMatch(
+    /do NOT ask the user to type a\s+league name or code/,
+  );
+  expect(prompt).toContain(
+    'exact canonical leagueCode supplied by\n    the selection message',
+  );
+  expect(prompt).toContain(
+    'missing_locked, missing_planning, and matchday_mismatch',
+  );
+});
+
 test('requires an explicit team and league for follow_team', () => {
   const prompt = getSystemPrompt();
 

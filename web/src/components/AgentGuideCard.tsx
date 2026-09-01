@@ -9,6 +9,11 @@ import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { safeParse } from './safeParse';
 import { ToolLoading } from './ToolLoading';
 import { directionFor, uiLanguageOf } from './uiLanguage';
+import {
+  isAgentRunActive,
+  releaseAgentRun,
+  tryAcquireAgentRun,
+} from './agentRunLock';
 
 type GuideTask = {
   id: string;
@@ -42,8 +47,6 @@ export type AgentGuideResult = {
   sections?: GuideSection[];
   notices?: string[];
 };
-
-const activeExampleRuns = new WeakSet<object>();
 
 const topicLabels: Record<string, { en: string; he: string }> = {
   teams: { en: 'Team strategy', he: 'אסטרטגיית קבוצה' },
@@ -226,13 +229,13 @@ export function AgentGuideCard({
   const busy =
     Boolean(selectedTaskId) ||
     Boolean(agent?.isRunning) ||
-    activeExampleRuns.has(agent);
+    isAgentRunActive(agent);
 
   async function runExample(task: GuideTask) {
     if (
       selectedTaskId ||
       agent.isRunning ||
-      activeExampleRuns.has(agent)
+      !tryAcquireAgentRun(agent)
     ) {
       return;
     }
@@ -247,7 +250,6 @@ export function AgentGuideCard({
         runFailed = true;
       },
     });
-    activeExampleRuns.add(agent);
     setSelectedTaskId(task.id);
     setErrorMessage('');
     try {
@@ -265,7 +267,7 @@ export function AgentGuideCard({
       setErrorMessage(labels.error);
     } finally {
       subscription.unsubscribe();
-      activeExampleRuns.delete(agent);
+      releaseAgentRun(agent);
       setSelectedTaskId('');
     }
   }

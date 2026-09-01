@@ -18,6 +18,7 @@ import { useBestTeamScenariosAction } from './components/BestTeamScenariosMatrix
 import { useUserTeamsAction } from './components/UserTeamsAction';
 import { useFollowedTeamsAction } from './components/FollowedTeamsGrid';
 import { useLeaderboardAction } from './components/LeaderboardTable';
+import { useLeagueChangesAction } from './components/LeagueChangesCard';
 import { useRaceInfoAction } from './components/RaceInfoCard';
 import { useWeatherForecastAction } from './components/WeatherForecast';
 import { useDeadlineCountdownAction } from './components/DeadlineCountdown';
@@ -51,6 +52,7 @@ function AgentActions() {
   useUserTeamsAction();
   useFollowedTeamsAction();
   useLeaderboardAction();
+  useLeagueChangesAction();
   useBestTeamsAction();
   useBestTeamScenariosAction();
   useRaceInfoAction();
@@ -195,8 +197,7 @@ function VerifiedAgentChat({
             instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
             labels={{
               title: 'F1 Fantasy Agent',
-              initial:
-                'Hi! Try: "best teams for kilzid3 with Verstappen but no Alonso".',
+              initial: 'Hi! Ask what I can do to get a personalized guide.',
             }}
           />
         </div>
@@ -300,8 +301,7 @@ export function UnauthedAgent({
               instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
               labels={{
                 title: 'F1 Fantasy Agent',
-                initial:
-                  'Hi! Try: "best teams for kilzid3 with Verstappen but no Alonso".',
+                initial: 'Hi! Ask what I can do to get a personalized guide.',
               }}
             />
           </div>
