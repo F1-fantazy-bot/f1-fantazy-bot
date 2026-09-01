@@ -22,8 +22,19 @@ import { ToolErrorFallback } from './ToolErrorFallback';
 import { AgentGuideCard } from './AgentGuideCard';
 
 vi.mock('@copilotkit/react-core/v2', () => ({
-  useAgent: vi.fn(),
-  useCopilotKit: vi.fn(),
+  UseAgentUpdate: { OnRunStatusChanged: 'run-status' },
+  useAgent: () => ({
+    agent: {
+      addMessage: vi.fn(),
+      setMessages: vi.fn(),
+      subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })),
+      messages: [],
+      isRunning: false,
+    },
+  }),
+  useCopilotKit: () => ({
+    copilotkit: { runAgent: vi.fn() },
+  }),
 }));
 
 beforeAll(() => {

@@ -1,4 +1,10 @@
 import { useCopilotAction } from '@copilotkit/react-core';
+import {
+  UseAgentUpdate,
+  useAgent,
+  useCopilotKit,
+} from '@copilotkit/react-core/v2';
+import { useState } from 'react';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { safeParse } from './safeParse';
 import { ToolLoading } from './ToolLoading';
@@ -37,6 +43,8 @@ export type AgentGuideResult = {
   notices?: string[];
 };
 
+const activeExampleRuns = new WeakSet<object>();
+
 const topicLabels: Record<string, { en: string; he: string }> = {
   teams: { en: 'Team strategy', he: 'אסטרטגיית קבוצה' },
   leagues: { en: 'League room', he: 'מתחם הליגות' },
@@ -49,14 +57,29 @@ function TaskCard({
   task,
   recommended = false,
   exampleLabel,
+  onSelect,
+  disabled = false,
+  selected = false,
 }: {
   task: GuideTask;
   recommended?: boolean;
   exampleLabel: string;
+  onSelect: (task: GuideTask) => void;
+  disabled?: boolean;
+  selected?: boolean;
 }) {
   return (
-    <article
+    <button
+      type="button"
+      onClick={() => onSelect(task)}
+      aria-disabled={disabled}
+      aria-label={`${task.title}: ${task.example}`}
       style={{
+        width: '100%',
+        color: 'inherit',
+        textAlign: 'start',
+        font: 'inherit',
+        cursor: disabled ? 'wait' : 'pointer',
         position: 'relative',
         overflow: 'hidden',
         border: recommended
@@ -68,6 +91,10 @@ function TaskCard({
           : 'var(--app-surface-muted)',
         padding: '13px 14px 12px',
         minHeight: 135,
+        opacity: disabled && !selected ? 0.55 : 1,
+        boxShadow: selected
+          ? 'inset 0 0 0 2px var(--app-primary)'
+          : 'none',
       }}
     >
       {recommended ? (
@@ -127,7 +154,7 @@ function TaskCard({
         </span>
         <div style={{ marginTop: 3 }}>&ldquo;{task.example}&rdquo;</div>
       </div>
-    </article>
+    </button>
   );
 }
 
@@ -136,6 +163,13 @@ export function AgentGuideCard({
 }: {
   result?: AgentGuideResult;
 }) {
+  const { agent } = useAgent({
+    agentId: 'default',
+    updates: [UseAgentUpdate.OnRunStatusChanged],
+  });
+  const { copilotkit } = useCopilotKit();
+  const [selectedTaskId, setSelectedTaskId] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const lang = uiLanguageOf(result);
   const isHebrew = lang === 'he';
   const labels = isHebrew
@@ -150,6 +184,8 @@ export function AgentGuideCard({
         ready: 'מוכן',
         missing: 'חסר',
         example: 'נסה לשאול',
+        running: 'שולח את הבקשה…',
+        error: 'לא ניתן לשלוח את הבקשה. נסה שוב.',
       }
     : {
         recommended: 'Your next move',
@@ -162,6 +198,8 @@ export function AgentGuideCard({
         ready: 'Ready',
         missing: 'Missing',
         example: 'Try asking',
+        running: 'Sending request…',
+        error: 'Unable to send the request. Please try again.',
       };
 
   if (result?.status === 'forbidden') {
@@ -185,6 +223,52 @@ export function AgentGuideCard({
   const recommendations = result?.recommendations || [];
   const sections = result?.sections || [];
   const profile = result?.profile || {};
+  const busy =
+    Boolean(selectedTaskId) ||
+    Boolean(agent?.isRunning) ||
+    activeExampleRuns.has(agent);
+
+  async function runExample(task: GuideTask) {
+    if (
+      selectedTaskId ||
+      agent.isRunning ||
+      activeExampleRuns.has(agent)
+    ) {
+      return;
+    }
+    const messageId = crypto.randomUUID();
+    const previousMessages = [...agent.messages];
+    let runFailed = false;
+    const subscription = agent.subscribe({
+      onRunFailed: () => {
+        runFailed = true;
+      },
+      onRunErrorEvent: () => {
+        runFailed = true;
+      },
+    });
+    activeExampleRuns.add(agent);
+    setSelectedTaskId(task.id);
+    setErrorMessage('');
+    try {
+      agent.addMessage({
+        id: messageId,
+        role: 'user',
+        content: task.example,
+      });
+      await copilotkit.runAgent({ agent });
+      if (runFailed) {
+        throw new Error('Agent run failed');
+      }
+    } catch {
+      agent.setMessages(previousMessages);
+      setErrorMessage(labels.error);
+    } finally {
+      subscription.unsubscribe();
+      activeExampleRuns.delete(agent);
+      setSelectedTaskId('');
+    }
+  }
 
   return (
     <section
@@ -306,6 +390,9 @@ export function AgentGuideCard({
                 task={task}
                 recommended
                 exampleLabel={labels.example}
+                onSelect={runExample}
+                disabled={busy}
+                selected={selectedTaskId === task.id}
               />
             ))}
           </div>
@@ -336,6 +423,9 @@ export function AgentGuideCard({
                 key={task.id}
                 task={task}
                 exampleLabel={labels.example}
+                onSelect={runExample}
+                disabled={busy}
+                selected={selectedTaskId === task.id}
               />
             ))}
           </div>
@@ -358,6 +448,31 @@ export function AgentGuideCard({
           {notice}
         </div>
       ))}
+      <div
+        role="status"
+        aria-live="polite"
+        style={{
+          minHeight: selectedTaskId ? 18 : 0,
+          marginTop: selectedTaskId ? 10 : 0,
+          color: 'var(--app-primary)',
+          fontSize: 12,
+          fontWeight: 700,
+        }}
+      >
+        {selectedTaskId ? labels.running : ''}
+      </div>
+      {errorMessage ? (
+        <div
+          role="alert"
+          style={{
+            marginTop: 10,
+            color: 'var(--app-danger-text)',
+            fontSize: 12,
+          }}
+        >
+          {errorMessage}
+        </div>
+      ) : null}
     </section>
   );
 }

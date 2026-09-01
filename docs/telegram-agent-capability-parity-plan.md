@@ -20,7 +20,9 @@ confirmed writes.
   wrapper-registration enforcement are in place.
 - Phase 2 is implemented on the current feature branch: `/help` and `/flow`
   consume a shared guide model, and `get_agent_guide` provides personalized,
-  localized, agent-native onboarding and capability guidance.
+  localized, agent-native onboarding and capability guidance. Guide task cards
+  execute their example prompts directly with one shared per-agent run lock,
+  keyboard-safe interaction, and message rollback on failed starts.
 
 ## Locked decisions
 

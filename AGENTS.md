@@ -1770,7 +1770,7 @@ messages must go through `clear()` first, then through
 | `agentWebhook/index.js` | Bridges Azure Functions v3 (context, req) onto a Web Request; handles OPTIONS preflight + CORS; tolerant of both `Uint8Array` and string body chunks. |
 | `web/src/App.tsx` | Mounts `<CopilotKit>` + `<CopilotChat />`; reads `VITE_AGENT_API_URL`. |
 | `web/src/components/NextRacesTable.tsx` | `get_next_races` rich render. |
-| `web/src/components/AgentGuideCard.tsx` | `get_agent_guide` pit-wall guide with profile status, recommended next moves, topic sections, examples, and Hebrew/RTL support. |
+| `web/src/components/AgentGuideCard.tsx` | `get_agent_guide` pit-wall guide with profile status, recommended next moves, topic sections, and Hebrew/RTL support. Every task card is an accessible prompt action: it appends the localized example as a user message and runs the same agent, with a shared per-agent lock and failure rollback. |
 | `web/src/components/BestTeamsTable.tsx` | `get_best_teams` rich render (top-10 table, captain badge, must-include highlights, penalty markers), localized via the tool result's refreshed `lang`. |
 | `web/src/components/UserTeamsList.tsx` | `list_user_teams` rich render (card grid). |
 | `web/src/components/UserTeamsAction.tsx` | Registers the teams renderer and turns non-active cards into direct authenticated `select_team` proposals that render the shared confirmation card. |
