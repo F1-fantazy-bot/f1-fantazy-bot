@@ -18,13 +18,18 @@ confirmed writes.
 - Phase 1 merged in PR #231: the 50-command manifest, registry parity tests,
   shared admin chat-ID predicate, fail-closed admin wrappers, and
   wrapper-registration enforcement are in place.
-- Phase 2 is implemented on the current feature branch: `/help` and `/flow`
+- Phase 2 merged in PR #232: `/help` and `/flow`
   consume a shared guide model, and `get_agent_guide` provides personalized,
   localized, agent-native onboarding and capability guidance. Guide task cards
   execute their example prompts directly with one shared per-agent run lock,
   keyboard-safe interaction, and message rollback on failed starts. Examples
   use the authenticated user's actual selected/owned team and followed league
   names, and cards are hidden when their prerequisites are unavailable.
+- Phase 3 is implemented on the current feature branch: league-change
+  comparison is extracted into a pure structured core, Telegram formatting is
+  unchanged, and `get_league_changes` adds followed-league authorization,
+  canonical clickable selection, safe error envelopes, and an accessible
+  localized English/Hebrew rich component.
 
 ## Locked decisions
 
@@ -215,7 +220,7 @@ the authorization boundary.
 - Build a localized guide card. Do not make Telegram slash syntax the primary
   UX.
 
-### Phase 3 — League changes
+### Phase 3 — League changes (implemented)
 
 - Extract raw comparison logic into `leagueChangesCore`; keep Telegram HTML in
   the adapter.

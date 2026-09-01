@@ -140,7 +140,7 @@ const COMMAND_CAPABILITIES = Object.freeze([
 
   user(constants.COMMAND_HELP, AGENT_STATUS.IMPLEMENTED, ['get_agent_guide']),
   user(constants.COMMAND_FLOW, AGENT_STATUS.IMPLEMENTED, ['get_agent_guide']),
-  user(constants.COMMAND_LEAGUE_CHANGES, AGENT_STATUS.PLANNED, [
+  user(constants.COMMAND_LEAGUE_CHANGES, AGENT_STATUS.IMPLEMENTED, [
     'get_league_changes',
   ]),
   user(constants.COMMAND_LEAGUE_GRAPHS, AGENT_STATUS.PLANNED, [

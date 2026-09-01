@@ -8,6 +8,10 @@ const {
   COMMAND_FOLLOW_LEAGUE,
   LEAGUE_CHANGES_CALLBACK_TYPE,
 } = require('../constants');
+const {
+  compareLeagueChanges,
+  compareTeamChanges,
+} = require('../cores/leagueChangesCore');
 
 function escapeHtml(value) {
   return String(value)
@@ -30,32 +34,6 @@ function positionPrefix(position) {
   return Number.isFinite(position) ? `${position}. ` : '';
 }
 
-function pickCaptainName(team, key) {
-  const drivers = Array.isArray(team?.drivers) ? team.drivers : [];
-  const match = drivers.find((d) => d?.[key]);
-
-  return match?.name || null;
-}
-
-function findChipsForCurrentMatchday(latestTeam) {
-  const matchdayId = latestTeam?.matchdayId;
-  if (matchdayId === undefined || matchdayId === null) {
-    return [];
-  }
-  const chips = Array.isArray(latestTeam?.chipsUsed)
-    ? latestTeam.chipsUsed
-    : [];
-
-  // The field is misleadingly named `gameDayId` in F1 Fantasy's API
-  // (`<chip>takengd`), but the value is the matchday ID where the chip
-  // was activated. So a chip belongs to this matchday iff its
-  // `gameDayId` equals the snapshot's `matchdayId`.
-  return chips
-    .filter((c) => c && c.gameDayId === matchdayId)
-    .map((c) => c?.name)
-    .filter(Boolean);
-}
-
 /**
  * Diff a single team between two locked snapshots.
  * @returns {{lines: string[], hasChanges: boolean}} HTML-safe lines describing
@@ -63,75 +41,49 @@ function findChipsForCurrentMatchday(latestTeam) {
  */
 function diffTeam(latestTeam, previousTeam, chatId) {
   const lines = [];
+  const changes = compareTeamChanges(latestTeam, previousTeam);
 
-  if (!previousTeam) {
+  if (changes.isNew) {
     lines.push(`↪ ${t('🆕 new team', chatId)}`);
 
     return { lines, hasChanges: true };
   }
 
-  const prevDriverNames = new Set(
-    (previousTeam.drivers || []).map((d) => d.name).filter(Boolean),
-  );
-  const latestDriverNames = new Set(
-    (latestTeam.drivers || []).map((d) => d.name).filter(Boolean),
-  );
-  const driversIn = [...latestDriverNames].filter((n) => !prevDriverNames.has(n));
-  const driversOut = [...prevDriverNames].filter((n) => !latestDriverNames.has(n));
-
-  const prevConstructorNames = new Set(
-    (previousTeam.constructors || []).map((c) => c.name).filter(Boolean),
-  );
-  const latestConstructorNames = new Set(
-    (latestTeam.constructors || []).map((c) => c.name).filter(Boolean),
-  );
-  const constructorsIn = [...latestConstructorNames].filter(
-    (n) => !prevConstructorNames.has(n),
-  );
-  const constructorsOut = [...prevConstructorNames].filter(
-    (n) => !latestConstructorNames.has(n),
-  );
-
-  if (driversIn.length || driversOut.length) {
+  if (changes.drivers.in.length || changes.drivers.out.length) {
     const parts = [
-      ...driversOut.map((n) => `-${escapeHtml(n)}`),
-      ...driversIn.map((n) => `+${escapeHtml(n)}`),
+      ...changes.drivers.out.map((name) => `-${escapeHtml(name)}`),
+      ...changes.drivers.in.map((name) => `+${escapeHtml(name)}`),
     ];
     lines.push(`↪ ${parts.join(' ')}`);
   }
 
-  if (constructorsIn.length || constructorsOut.length) {
+  if (changes.constructors.in.length || changes.constructors.out.length) {
     const parts = [
-      ...constructorsOut.map((n) => `-${escapeHtml(n)}`),
-      ...constructorsIn.map((n) => `+${escapeHtml(n)}`),
+      ...changes.constructors.out.map((name) => `-${escapeHtml(name)}`),
+      ...changes.constructors.in.map((name) => `+${escapeHtml(name)}`),
     ];
     lines.push(`↪ ${parts.join(' ')}`);
   }
 
-  const prevCaptain = pickCaptainName(previousTeam, 'isCaptain');
-  const latestCaptain = pickCaptainName(latestTeam, 'isCaptain');
-  if (prevCaptain !== latestCaptain) {
+  if (changes.captain) {
     lines.push(
       t('↪ Captain: {FROM} → {TO}', chatId, {
-        FROM: escapeHtml(prevCaptain || '—'),
-        TO: escapeHtml(latestCaptain || '—'),
+        FROM: escapeHtml(changes.captain.from || '—'),
+        TO: escapeHtml(changes.captain.to || '—'),
       }),
     );
   }
 
-  const prevMega = pickCaptainName(previousTeam, 'isMegaCaptain');
-  const latestMega = pickCaptainName(latestTeam, 'isMegaCaptain');
-  if (prevMega !== latestMega) {
+  if (changes.megaCaptain) {
     lines.push(
       t('↪ Mega captain: {FROM} → {TO}', chatId, {
-        FROM: escapeHtml(prevMega || '—'),
-        TO: escapeHtml(latestMega || '—'),
+        FROM: escapeHtml(changes.megaCaptain.from || '—'),
+        TO: escapeHtml(changes.megaCaptain.to || '—'),
       }),
     );
   }
 
-  const newChips = findChipsForCurrentMatchday(latestTeam);
-  for (const chipName of newChips) {
+  for (const chipName of changes.chipsActivated) {
     lines.push(
       t('↪ Chip: {CHIP}', chatId, { CHIP: escapeHtml(chipName) }),
     );
@@ -147,27 +99,51 @@ function diffTeam(latestTeam, previousTeam, chatId) {
  * @param {number|string} chatId
  */
 function formatLeagueChanges(latest, previous, chatId) {
-  const latestTeams = Array.isArray(latest.teams) ? latest.teams : [];
-  const previousByUser = new Map();
-  for (const team of Array.isArray(previous.teams) ? previous.teams : []) {
-    if (team?.userName) {
-      previousByUser.set(team.userName, team);
-    }
-  }
-
-  const sortedLatest = [...latestTeams].sort(
-    (a, b) => (a.position || Infinity) - (b.position || Infinity),
-  );
-
+  const result = compareLeagueChanges({ latest, planning: previous });
   const blocks = [];
-  let unchanged = 0;
 
-  for (const team of sortedLatest) {
-    const previousTeam = previousByUser.get(team.userName);
-    const { lines, hasChanges } = diffTeam(team, previousTeam, chatId);
-    if (!hasChanges) {
-      unchanged += 1;
-      continue;
+  for (const team of result.changedTeams) {
+    const lines = [];
+    if (team.isNew) {
+      lines.push(`↪ ${t('🆕 new team', chatId)}`);
+    } else {
+      if (team.drivers.in.length || team.drivers.out.length) {
+        lines.push(
+          `↪ ${[
+            ...team.drivers.out.map((name) => `-${escapeHtml(name)}`),
+            ...team.drivers.in.map((name) => `+${escapeHtml(name)}`),
+          ].join(' ')}`,
+        );
+      }
+      if (team.constructors.in.length || team.constructors.out.length) {
+        lines.push(
+          `↪ ${[
+            ...team.constructors.out.map((name) => `-${escapeHtml(name)}`),
+            ...team.constructors.in.map((name) => `+${escapeHtml(name)}`),
+          ].join(' ')}`,
+        );
+      }
+      if (team.captain) {
+        lines.push(
+          t('↪ Captain: {FROM} → {TO}', chatId, {
+            FROM: escapeHtml(team.captain.from || '—'),
+            TO: escapeHtml(team.captain.to || '—'),
+          }),
+        );
+      }
+      if (team.megaCaptain) {
+        lines.push(
+          t('↪ Mega captain: {FROM} → {TO}', chatId, {
+            FROM: escapeHtml(team.megaCaptain.from || '—'),
+            TO: escapeHtml(team.megaCaptain.to || '—'),
+          }),
+        );
+      }
+      for (const chipName of team.chipsActivated) {
+        lines.push(
+          t('↪ Chip: {CHIP}', chatId, { CHIP: escapeHtml(chipName) }),
+        );
+      }
     }
     const headerName = `${positionPrefix(team.position)}<b>${escapeHtml(team.teamName || team.userName || '—')}</b>`;
     blocks.push([headerName, ...lines].join('\n'));
@@ -189,8 +165,8 @@ function formatLeagueChanges(latest, previous, chatId) {
   }
 
   const tail =
-    unchanged > 0
-      ? `\n\n${t('({COUNT} other team(s) had no changes)', chatId, { COUNT: unchanged })}`
+    result.unchangedTeams.length > 0
+      ? `\n\n${t('({COUNT} other team(s) had no changes)', chatId, { COUNT: result.unchangedTeams.length })}`
       : '';
 
   return `${header}\n\n${blocks.join('\n\n')}${tail}`;
@@ -216,7 +192,9 @@ async function sendLeagueChanges(bot, chatId, leagueCode) {
     return;
   }
 
-  if (!latest) {
+  const comparison = compareLeagueChanges({ latest, planning: teamsData });
+
+  if (comparison.status === 'missing_locked') {
     await bot.sendMessage(
       chatId,
       t(
@@ -228,7 +206,7 @@ async function sendLeagueChanges(bot, chatId, leagueCode) {
     return;
   }
 
-  if (!teamsData) {
+  if (comparison.status === 'missing_planning') {
     await bot.sendMessage(
       chatId,
       t(
@@ -240,21 +218,15 @@ async function sendLeagueChanges(bot, chatId, leagueCode) {
     return;
   }
 
-  if (
-    latest.matchdayId === undefined ||
-    latest.matchdayId === null ||
-    teamsData.matchdayId === undefined ||
-    teamsData.matchdayId === null ||
-    latest.matchdayId !== teamsData.matchdayId
-  ) {
+  if (comparison.status === 'matchday_mismatch') {
     await bot.sendMessage(
       chatId,
       t(
         'The latest locked snapshot is for matchday {LOCKED_MD} but the weekly snapshot is for matchday {TEAMS_MD}. Wait for the next session lock.',
         chatId,
         {
-          LOCKED_MD: latest.matchdayId ?? '?',
-          TEAMS_MD: teamsData.matchdayId ?? '?',
+          LOCKED_MD: comparison.lockedMatchdayId ?? '?',
+          TEAMS_MD: comparison.planningMatchdayId ?? '?',
         },
       ),
     );

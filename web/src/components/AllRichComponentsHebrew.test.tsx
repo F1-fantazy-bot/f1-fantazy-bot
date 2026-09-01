@@ -20,6 +20,7 @@ import { LiveScoreBreakdown } from './LiveScoreBreakdown';
 import { LiveScoreLeaderboard } from './LiveScoreLeaderboard';
 import { ToolErrorFallback } from './ToolErrorFallback';
 import { AgentGuideCard } from './AgentGuideCard';
+import { LeagueChangesCard } from './LeagueChangesCard';
 
 vi.mock('@copilotkit/react-core/v2', () => ({
   UseAgentUpdate: { OnRunStatusChanged: 'run-status' },
@@ -203,6 +204,42 @@ describe('all rich components honor Hebrew ui language', () => {
         />
       ),
       expected: ['קבוצות', 'קבוצה', 'ניקוד', 'פער'],
+    },
+    {
+      name: 'league changes',
+      element: (
+        <LeagueChangesCard
+          result={{
+            lang: 'he',
+            status: 'ok',
+            leagueName: 'ליגת בדיקה',
+            matchdayId: 7,
+            changedTeams: [
+              {
+                teamName: 'Kilzid',
+                userName: 'Kilzid',
+                position: 1,
+                isNew: false,
+                hasChanges: true,
+                drivers: { in: ['LEC'], out: ['HAM'] },
+                constructors: { in: ['FER'], out: ['MER'] },
+                captain: { from: 'NOR', to: 'LEC' },
+                megaCaptain: null,
+                chipsActivated: ['Wildcard'],
+              },
+            ],
+            unchangedTeams: [],
+          }}
+        />
+      ),
+      expected: [
+        'שינויים בליגה',
+        'מחזור',
+        'נהגים שנכנסו',
+        'קבוצות שיצאו',
+        'קפטן',
+        "צ'יפ שהופעל",
+      ],
     },
     {
       name: 'best-team scenarios',
