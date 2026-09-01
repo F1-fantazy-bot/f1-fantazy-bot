@@ -19,6 +19,7 @@ const setMessages = vi.fn();
 const subscribe = vi.fn();
 const unsubscribe = vi.fn();
 const runAgent = vi.fn();
+const tooltipItemSorter = vi.fn();
 let subscriber: {
   onRunFailed?: () => void;
   onRunErrorEvent?: () => void;
@@ -47,7 +48,15 @@ vi.mock('recharts', () => ({
   CartesianGrid: () => null,
   XAxis: () => null,
   YAxis: () => null,
-  Tooltip: () => null,
+  Tooltip: ({
+    itemSorter,
+  }: {
+    itemSorter: (item: { value?: number }) => number;
+  }) => {
+    tooltipItemSorter.mockImplementation(itemSorter);
+
+    return null;
+  },
   Line: ({ name }: { name?: string }) => <span data-line={name} />,
   ReferenceDot: () => <span data-chip-marker="true" />,
 }));
@@ -169,7 +178,33 @@ describe('LeagueGraphCard', () => {
     expect(rendered.container.textContent).toContain('-15 pts');
     expect(rendered.container.querySelectorAll('[data-line]')).toHaveLength(2);
     expect(rendered.container.querySelectorAll('[data-chip-marker]')).toHaveLength(1);
+    const legend = rendered.container.querySelector<HTMLElement>('[role="list"]');
+    expect(legend?.style.display).toBe('grid');
+    expect(
+      [...(legend?.querySelectorAll('[role="listitem"]') || [])].map(
+        (item) => item.textContent,
+      ),
+    ).toEqual(['My Team (Active team)', 'Rival']);
     expect(rendered.container.querySelector('table')).not.toBeNull();
+    rendered.cleanup();
+  });
+
+  test.each([
+    ['gap', [8, 5, 2]],
+    ['budget', [8, 5, 2]],
+    ['standings', [2, 5, 8]],
+  ] as const)('sorts %s tooltip entries in chart order', (graphType, expected) => {
+    const result = okResult();
+    result.graphType = graphType;
+    const rendered = renderCard(result);
+    const values = [8, 2, 5];
+    const sorted = values.sort(
+      (left, right) =>
+        tooltipItemSorter({ value: left }) -
+        tooltipItemSorter({ value: right }),
+    );
+
+    expect(sorted).toEqual(expected);
     rendered.cleanup();
   });
 

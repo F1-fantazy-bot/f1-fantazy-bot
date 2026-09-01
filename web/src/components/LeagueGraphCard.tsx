@@ -95,6 +95,13 @@ function graphValue(graphType: GraphType, value: number | null): string {
   return `${value} pts`;
 }
 
+function tooltipOrder(graphType: GraphType, value: unknown): number {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return Number.POSITIVE_INFINITY;
+
+  return graphType === 'standings' ? numericValue : -numericValue;
+}
+
 export function LeagueGraphCard({ result }: { result?: LeagueGraphResult }) {
   const { agent } = useAgent({
     agentId: 'default',
@@ -446,12 +453,30 @@ export function LeagueGraphCard({ result }: { result?: LeagueGraphResult }) {
         <legend style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
           {labels.teams}
         </legend>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px 12px' }}>
+        <div
+          role="list"
+          style={{
+            display: 'grid',
+            gridTemplateColumns:
+              'repeat(auto-fit, minmax(min(180px, 100%), 1fr))',
+            gap: '7px 12px',
+          }}
+        >
           {series.map((entry, index) => {
             const key = seriesKey(entry, index);
 
             return (
-              <label key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
+              <label
+                key={key}
+                role="listitem"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  minWidth: 0,
+                  fontSize: 12,
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={!hiddenSeries.has(key)}
@@ -466,7 +491,7 @@ export function LeagueGraphCard({ result }: { result?: LeagueGraphResult }) {
                   }
                 />
                 <span aria-hidden="true" style={{ width: 12, height: 3, background: entry.color }} />
-                <span>
+                <span style={{ overflowWrap: 'anywhere' }}>
                   {entry.teamName}
                   {entry.isSelected ? ` (${labels.selected})` : ''}
                 </span>
@@ -493,7 +518,9 @@ export function LeagueGraphCard({ result }: { result?: LeagueGraphResult }) {
               width={54}
               tickFormatter={(value: number) => graphValue(graphType, value)}
             />
-            <Tooltip />
+            <Tooltip
+              itemSorter={(item) => tooltipOrder(graphType, item.value)}
+            />
             {visibleSeries.map((entry) => {
               const index = series.indexOf(entry);
 
