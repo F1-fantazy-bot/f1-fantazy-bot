@@ -8,6 +8,7 @@ function team(overrides = {}) {
   return {
     teamName: 'Fast Team',
     userName: 'owner',
+    teamNo: 1,
     position: 1,
     matchdayId: 7,
     drivers: [
@@ -75,7 +76,7 @@ describe('leagueChangesCore', () => {
     });
   });
 
-  test('joins by userName, sorts by position, and separates unchanged teams', () => {
+  test('joins by team identity, sorts by position, and separates unchanged teams', () => {
     const unchanged = team({ teamName: 'Renamed', position: 2 });
     const changed = team({
       teamName: 'Leader',
@@ -101,6 +102,46 @@ describe('leagueChangesCore', () => {
     expect(result.changedTeams).toHaveLength(1);
     expect(result.unchangedTeams).toEqual([
       expect.objectContaining({ teamName: 'Renamed', hasChanges: false }),
+    ]);
+  });
+
+  test('compares multiple teams from one account by userName and teamNo', () => {
+    const planningTeamOne = team({
+      teamName: 'Owner Team 1',
+      teamNo: 1,
+      position: 5,
+    });
+    const planningTeamTwo = team({
+      teamName: 'Owner Team 2',
+      teamNo: 2,
+      position: 6,
+      drivers: [{ name: 'Hamilton', isCaptain: true }],
+    });
+    const lockedTeamOne = team({
+      teamName: 'Owner Team 1',
+      teamNo: 1,
+      position: 1,
+    });
+    const lockedTeamTwo = team({
+      teamName: 'Owner Team 2',
+      teamNo: 2,
+      position: 2,
+      drivers: [{ name: 'Leclerc', isCaptain: true }],
+    });
+
+    const result = compareLeagueChanges({
+      latest: snapshot({ teams: [lockedTeamTwo, lockedTeamOne] }),
+      planning: snapshot({ teams: [planningTeamOne, planningTeamTwo] }),
+    });
+
+    expect(result.changedTeams).toEqual([
+      expect.objectContaining({
+        teamName: 'Owner Team 2',
+        drivers: { in: ['Leclerc'], out: ['Hamilton'] },
+      }),
+    ]);
+    expect(result.unchangedTeams).toEqual([
+      expect.objectContaining({ teamName: 'Owner Team 1' }),
     ]);
   });
 

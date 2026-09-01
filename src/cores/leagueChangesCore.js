@@ -1,6 +1,15 @@
 // Pure league-change comparison shared by Telegram and the web agent.
 // The core returns raw structured values; each surface owns localization,
 // escaping, and presentation.
+const { buildLeagueTeamId } = require('../utils/teamId');
+
+function teamIdentity(team) {
+  const teamId = buildLeagueTeamId(team?.userName, team?.teamNo);
+
+  // Older snapshots did not always include teamNo. Preserve their previous
+  // single-team matching behavior without weakening current composite ids.
+  return teamId || (team?.userName ? `legacy:${team.userName}` : null);
+}
 
 function pickCaptainName(team, key) {
   const drivers = Array.isArray(team?.drivers) ? team.drivers : [];
@@ -136,10 +145,11 @@ function compareLeagueChanges({ latest, planning } = {}) {
     };
   }
 
-  const planningByUser = new Map();
+  const planningByTeam = new Map();
   for (const team of Array.isArray(planning.teams) ? planning.teams : []) {
-    if (team?.userName) {
-      planningByUser.set(team.userName, team);
+    const identity = teamIdentity(team);
+    if (identity) {
+      planningByTeam.set(identity, team);
     }
   }
 
@@ -148,7 +158,7 @@ function compareLeagueChanges({ latest, planning } = {}) {
       (left, right) =>
         (left?.position || Infinity) - (right?.position || Infinity),
     )
-    .map((team) => normalizeTeam(team, planningByUser.get(team?.userName)));
+    .map((team) => normalizeTeam(team, planningByTeam.get(teamIdentity(team))));
 
   return {
     status: 'ok',

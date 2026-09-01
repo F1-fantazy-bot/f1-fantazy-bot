@@ -275,6 +275,35 @@ describe('leagueChangesHandler', () => {
       expect(out).not.toContain('🆕 new team');
     });
 
+    it('matches multiple teams from one account by team number', () => {
+      const snapshotTeam = (teamNo, teamName, driver, position) => ({
+        teamName,
+        userName: 'shared-owner',
+        teamNo,
+        position,
+        matchdayId: 4,
+        drivers: [{ name: driver, isCaptain: true }],
+        constructors: [],
+        chipsUsed: [],
+      });
+      const prev = mkSnapshot(4, [
+        snapshotTeam(1, 'First Team', 'X', 7),
+        snapshotTeam(2, 'Second Team', 'Y', 8),
+      ]);
+      const latest = mkSnapshot(4, [
+        snapshotTeam(1, 'First Team', 'X', 1),
+        snapshotTeam(2, 'Second Team', 'Z', 2),
+      ]);
+
+      const out = formatLeagueChanges(latest, prev, chatId);
+
+      expect(out).toContain('🥈 <b>Second Team</b>');
+      expect(out).toContain('-Y');
+      expect(out).toContain('+Z');
+      expect(out).not.toContain('<b>First Team</b>');
+      expect(out).toContain('(1 other team(s) had no changes)');
+    });
+
     it('marks teams that did not exist in previous as new', () => {
       const prev = mkSnapshot(4, []);
       const latest = mkSnapshot(4, [
