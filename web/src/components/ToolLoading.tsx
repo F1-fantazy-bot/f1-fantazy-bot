@@ -6,6 +6,7 @@ export type ToolLoadingKind =
   | 'followedTeams'
   | 'leaderboard'
   | 'leagueChanges'
+  | 'leagueGraph'
   | 'bestTeams'
   | 'scenarios'
   | 'raceInfo'
@@ -29,6 +30,7 @@ const copy: Record<ToolLoadingKind, { en: string; he: string }> = {
     en: 'Loading league changes…',
     he: 'טוען שינויים בליגה…',
   },
+  leagueGraph: { en: 'Loading league graph…', he: 'טוען גרף ליגה…' },
   bestTeams: { en: 'Computing best teams…', he: 'מחשב קבוצות מומלצות…' },
   scenarios: { en: 'Computing scenarios…', he: 'מחשב תרחישים…' },
   raceInfo: { en: 'Loading next race info…', he: 'טוען מידע על המרוץ הבא…' },

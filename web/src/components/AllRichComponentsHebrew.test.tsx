@@ -21,6 +21,7 @@ import { LiveScoreLeaderboard } from './LiveScoreLeaderboard';
 import { ToolErrorFallback } from './ToolErrorFallback';
 import { AgentGuideCard } from './AgentGuideCard';
 import { LeagueChangesCard } from './LeagueChangesCard';
+import { LeagueGraphCard } from './LeagueGraphCard';
 
 vi.mock('@copilotkit/react-core/v2', () => ({
   UseAgentUpdate: { OnRunStatusChanged: 'run-status' },
@@ -240,6 +241,43 @@ describe('all rich components honor Hebrew ui language', () => {
         'קפטן',
         "צ'יפ שהופעל",
       ],
+    },
+    {
+      name: 'league graph',
+      element: (
+        <LeagueGraphCard
+          result={{
+            status: 'ok',
+            lang: 'he',
+            leagueCode: 'ABC',
+            leagueName: 'ליגת בדיקה',
+            graphType: 'gap',
+            matchdays: [
+              { key: 'matchday_1', matchdayId: 1, label: 'בחריין' },
+            ],
+            series: [
+              {
+                teamId: 'T1',
+                teamName: 'הקבוצה שלי',
+                userName: 'owner',
+                teamNo: 1,
+                position: 1,
+                color: '#e6194b',
+                isSelected: true,
+                points: [
+                  {
+                    matchdayId: 1,
+                    label: 'בחריין',
+                    value: 0,
+                    chip: null,
+                  },
+                ],
+              },
+            ],
+          }}
+        />
+      ),
+      expected: ['פער מהמוביל', 'קבוצות בגרף', 'הקבוצה הפעילה', 'טבלת נתוני הגרף'],
     },
     {
       name: 'best-team scenarios',
