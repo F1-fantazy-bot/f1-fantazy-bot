@@ -13,6 +13,7 @@ export type ToolLoadingKind =
   | 'currentTeam'
   | 'liveScore'
   | 'liveLeaderboard'
+  | 'guide'
   | 'write';
 
 const copy: Record<ToolLoadingKind, { en: string; he: string }> = {
@@ -34,6 +35,7 @@ const copy: Record<ToolLoadingKind, { en: string; he: string }> = {
     en: 'Loading live leaderboard…',
     he: 'טוען טבלת ניקוד חי…',
   },
+  guide: { en: 'Preparing your pit wall…', he: 'מכין את עמדת הפיקוד שלך…' },
   write: { en: 'Working on it…', he: 'מבצע את הפעולה…' },
 };
 

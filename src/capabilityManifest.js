@@ -138,8 +138,8 @@ const COMMAND_CAPABILITIES = Object.freeze([
       'The agent adds or removes one canonical team per confirmation; Telegram keeps its batch toggle and Save workflow.',
   }),
 
-  user(constants.COMMAND_HELP, AGENT_STATUS.PLANNED, ['get_agent_guide']),
-  user(constants.COMMAND_FLOW, AGENT_STATUS.PLANNED, ['get_agent_guide']),
+  user(constants.COMMAND_HELP, AGENT_STATUS.IMPLEMENTED, ['get_agent_guide']),
+  user(constants.COMMAND_FLOW, AGENT_STATUS.IMPLEMENTED, ['get_agent_guide']),
   user(constants.COMMAND_LEAGUE_CHANGES, AGENT_STATUS.PLANNED, [
     'get_league_changes',
   ]),

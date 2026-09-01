@@ -1,6 +1,9 @@
 const { isAdminMessage } = require('../utils');
-const { MENU_CATEGORIES, COMMAND_BEST_TEAMS, COMMAND_FOLLOW_LEAGUE } = require('../constants');
+const { COMMAND_BEST_TEAMS, COMMAND_FOLLOW_LEAGUE } = require('../constants');
 const { t } = require('../i18n');
+const {
+  getTelegramHelpCategories,
+} = require('../cores/agentGuideCore');
 
 async function displayHelpMessage(bot, msg) {
   const chatId = msg.chat.id;
@@ -9,7 +12,7 @@ async function displayHelpMessage(bot, msg) {
   let helpMessage = `*${t('F1 Fantasy Bot - Available Commands', chatId)}*\n\n`;
 
   // Add each menu category section in their natural order
-  Object.values(MENU_CATEGORIES).forEach((category) => {
+  getTelegramHelpCategories({ isAdmin }).forEach((category) => {
     const categorySection = buildCategoryHelpSection(category, isAdmin, chatId);
     if (categorySection) {
       helpMessage += categorySection;

@@ -599,6 +599,12 @@ server-authorized admin tools, explicit exclusions, rollout phases, and
 acceptance gates.
 
 - `get_next_races` — upcoming races for the season (Phase 1).
+- `get_agent_guide` — contextual help/getting-started guide shared with the
+  Telegram help/flow capability model. Personalizes recommendations from the
+  authenticated user's team, followed-team, league, projection, and simulation
+  state. Example prompts interpolate the user's actual selected/owned team and
+  followed league names; cards whose prerequisites are missing are omitted.
+  Admin guidance is included only when `isAdminChatId(chatId)` is true.
 - `list_user_teams` — the user's tracked teams (teamId + friendly teamName) (Phase 2).
 - `get_best_teams` — top scoring fantasy combinations with optional must-include / must-exclude filters on drivers and constructors (Phase 2). The marquee _"best teams for X with Verstappen but no Alonso"_ question runs here. Reads canonical prices via `getDriversForChat` / `getConstructorsForChat` so price-aware rankings work without user-uploaded JSON. Sort criteria: `'points'` (raw projected points) or `'budget_adjusted'` (weights expected price change by the user's saved `budgetChangePointsPerMillion` preset — set via `/set_best_team_ranking` in Telegram). "Points per million" questions resolve to `'budget_adjusted'`; the deprecated `'points_per_million'` value-for-money sort was removed.
 - `get_best_team_scenarios` — 4×4 matrix of top best team across the 4 budget-adjusted weight presets (0, 1.3, 1.65, 2.0 ppm) × 4 chip scenarios (no chip, Limitless, Extra Boost, Wildcard) (Phase 3). Each cell reports `projectedPoints`, `expectedPriceChange`, and a `recommendation` (`null`/`'yellow'`/`'green'`) indicating the chip's lift vs. the no-chip baseline of the SAME ppm row, mirroring the Telegram `/best_team_scenarios` indicators.
@@ -714,6 +720,7 @@ f1-fantazy-bot/
 │   │   ├── writeDecision.js          # authenticated approve/direct-confirm/cancel/revoke decisions
 │   │   ├── writeProposal.js          # authenticated allowlisted proposals from deterministic UI controls
 │   │   ├── readTools/
+│   │   │   ├── getAgentGuideTool.js  # personalized agent-native help/flow
 │   │   │   └── getLanguageTool.js    # read current persisted account language
 │   │   ├── writeTools/
 │   │   │   ├── setLanguageTool.js    # en/he preference
@@ -1733,6 +1740,7 @@ messages must go through `clear()` first, then through
 | File | Role |
 |---|---|
 | `src/cores/<feature>Core.js` | Pure logic core, returned JSON only. |
+| `src/cores/agentGuideCore.js` | Shared help/flow taxonomy, unchanged Telegram usage-flow model, and personalized agent guide recommendations. |
 | `src/cores/bestTeamsCore.js` | `computeBestTeams({chatId, teamId?, teamName?, rankBy?, mustInclude*, mustExclude*})` — status-tagged result, normalises codes via `NAME_TO_CODE_MAPPING`, returns `unknown_filter` when a name can't be resolved. |
 | `src/cores/userTeamsCore.js` | `listUserTeams({chatId})` — array of `{teamId, teamName, isLeague, isSelected, chip, …}`. |
 | `src/cores/followedTeamsCore.js` | `listFollowedTeams({chatId})` — status-tagged. Returns `{ status: 'ok', teams: [{ teamId, teamName, leagues: [{leagueCode, leagueName, position}], isSelected }] }` deduplicated by teamId across followed leagues; `status: 'empty'` when the user has no league teams. |
@@ -1764,6 +1772,7 @@ messages must go through `clear()` first, then through
 | `agentWebhook/index.js` | Bridges Azure Functions v3 (context, req) onto a Web Request; handles OPTIONS preflight + CORS; tolerant of both `Uint8Array` and string body chunks. |
 | `web/src/App.tsx` | Mounts `<CopilotKit>` + `<CopilotChat />`; reads `VITE_AGENT_API_URL`. |
 | `web/src/components/NextRacesTable.tsx` | `get_next_races` rich render. |
+| `web/src/components/AgentGuideCard.tsx` | `get_agent_guide` pit-wall guide with profile status, user-specific recommended next moves, topic sections, and Hebrew/RTL support. Every task card is an accessible prompt action: it appends the localized example as a user message and runs the same agent, with a shared per-agent lock and failure rollback. |
 | `web/src/components/BestTeamsTable.tsx` | `get_best_teams` rich render (top-10 table, captain badge, must-include highlights, penalty markers), localized via the tool result's refreshed `lang`. |
 | `web/src/components/UserTeamsList.tsx` | `list_user_teams` rich render (card grid). |
 | `web/src/components/UserTeamsAction.tsx` | Registers the teams renderer and turns non-active cards into direct authenticated `select_team` proposals that render the shared confirmation card. |
