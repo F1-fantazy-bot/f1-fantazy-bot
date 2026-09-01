@@ -175,11 +175,11 @@ export function LeagueChangesCard({
       if (runFailed) throw new Error('Agent run failed');
     } catch {
       agent.setMessages(previousMessages);
-      setSelectedCode('');
       setErrorMessage(labels.selectError);
     } finally {
       subscription.unsubscribe();
       releaseAgentRun(agent);
+      setSelectedCode('');
     }
   }
 

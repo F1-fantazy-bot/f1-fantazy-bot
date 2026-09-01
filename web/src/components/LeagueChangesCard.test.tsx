@@ -231,6 +231,7 @@ describe('LeagueChangesCard', () => {
     );
     expect(addMessage.mock.calls[0][0].content).toContain('(ABC123)');
     expect(runAgent).toHaveBeenCalledWith({ agent });
+    expect(rendered.container.textContent).not.toContain('Loading changes');
     rendered.cleanup();
   });
 
