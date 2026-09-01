@@ -4,37 +4,11 @@ const { sendErrorMessage } = require('../utils');
 const { getLeagueData } = require('../azureStorageService');
 const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
 const { getSelectedTeam } = require('../cache');
-const { buildLeagueTeamId } = require('../utils/teamId');
-const { filterExcludedGraphTeams } = require('../utils/leagueGraphFilter');
 const {
+  buildBudgetSeries,
   buildRoundToRaceNameMap,
-  matchdayNumber,
-  TEAM_COLOR_PALETTE,
-} = require('./leagueGraphHandler');
-
-/**
- * Extract matchday keys from the teams' `raceBudgets` maps and sort them
- * numerically by trailing id (so `matchday_10` comes after `matchday_9`).
- * @param {Array<Object>} teams
- * @returns {string[]}
- */
-function getSortedBudgetMatchdayKeys(teams) {
-  const keys = new Set();
-  for (const team of teams) {
-    if (team && team.raceBudgets && typeof team.raceBudgets === 'object') {
-      for (const key of Object.keys(team.raceBudgets)) {
-        keys.add(key);
-      }
-    }
-  }
-
-  return [...keys].sort((a, b) => {
-    const numA = Number(String(a).replace(/^matchday_/, ''));
-    const numB = Number(String(b).replace(/^matchday_/, ''));
-
-    return numA - numB;
-  });
-}
+  getSortedBudgetMatchdayKeys,
+} = require('../cores/leagueGraphsCore');
 
 /**
  * Build the Chart.js config for the "budget per race" chart consumed by
@@ -48,93 +22,31 @@ function getSortedBudgetMatchdayKeys(teams) {
  * @returns {Object} Chart.js config.
  */
 function buildBudgetChartConfig(leagueData, options = {}) {
-  const roundToRaceName = options.roundToRaceName || {};
-  const selectedTeamId = options.selectedTeamId || null;
-
-  const teams = filterExcludedGraphTeams(leagueData?.teams);
-  const matchdayKeys = getSortedBudgetMatchdayKeys(teams);
-
-  // Sort legend/series order by each team's most recent recorded budget
-  // (highest first). Falls back to the latest-available matchday per team
-  // if the most recent matchday has no entry. Teams with no budget data
-  // sink to the bottom; ties break by `position` (leaderboard order).
-  const latestBudgetByTeam = new Map();
-  for (const team of teams) {
-    let latest = null;
-    for (let i = matchdayKeys.length - 1; i >= 0; i--) {
-      const raw = Number(team?.raceBudgets?.[matchdayKeys[i]]);
-      if (Number.isFinite(raw)) {
-        latest = raw;
-        break;
-      }
-    }
-    latestBudgetByTeam.set(team, latest);
-  }
-  teams.sort((a, b) => {
-    const aVal = latestBudgetByTeam.get(a);
-    const bVal = latestBudgetByTeam.get(b);
-    if (aVal === null && bVal === null) {
-      return (a.position || 0) - (b.position || 0);
-    }
-    if (aVal === null) {
-      return 1;
-    }
-    if (bVal === null) {
-      return -1;
-    }
-    if (bVal !== aVal) {
-      return bVal - aVal;
-    }
-
-    return (a.position || 0) - (b.position || 0);
-  });
-
-  const labels = matchdayKeys.map((key) => {
-    const round = matchdayNumber(key);
-    if (round !== null && roundToRaceName[round]) {
-      return roundToRaceName[round];
-    }
-
-    return round !== null ? `R${round}` : key;
-  });
-
-  const datasets = teams.map((team, idx) => {
-    const color = TEAM_COLOR_PALETTE[idx % TEAM_COLOR_PALETTE.length];
-    const teamId = buildLeagueTeamId(team.userName, team.teamNo);
-    const isSelectedTeam = !!teamId && teamId === selectedTeamId;
-
-    const data = matchdayKeys.map((key) => {
-      const raw = Number(team?.raceBudgets?.[key]);
-
-      // Leave gaps as `null` so Chart.js breaks the line instead of dropping
-      // to 0 — a team without a recorded budget for this race just has no
-      // point at that x position.
-      return Number.isFinite(raw) ? raw : null;
-    });
-
-    const teamLabel = team.teamName || team.userName || `Team ${idx + 1}`;
-
+  const graph = buildBudgetSeries(leagueData, options);
+  const datasets = graph.series.map((series) => {
     return {
-      label: teamLabel,
-      data,
-      borderColor: color,
-      backgroundColor: color,
-      borderWidth: isSelectedTeam ? 6 : 3,
+      label: series.teamName,
+      data: series.points.map((point) => point.value),
+      borderColor: series.color,
+      backgroundColor: series.color,
+      borderWidth: series.isSelected ? 6 : 3,
       fill: false,
       tension: 0.25,
       spanGaps: true,
-      pointRadius: isSelectedTeam ? 7 : 4,
-      pointHoverRadius: isSelectedTeam ? 10 : 6,
+      pointRadius: series.isSelected ? 7 : 4,
+      pointHoverRadius: series.isSelected ? 10 : 6,
       pointBorderWidth: 1,
       datalabels: { display: false },
     };
   });
-
-  const title = `${leagueData?.leagueName || leagueData?.leagueCode || 'League'} — budget per race`;
+  const title = `${graph.leagueName} — budget per race`;
 
   return {
     type: 'line',
-    data: { labels, datasets },
+    data: {
+      labels: graph.matchdays.map((matchday) => matchday.label),
+      datasets,
+    },
     options: {
       responsive: false,
       plugins: {

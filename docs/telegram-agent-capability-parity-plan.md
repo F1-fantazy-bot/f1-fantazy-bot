@@ -25,11 +25,15 @@ confirmed writes.
   keyboard-safe interaction, and message rollback on failed starts. Examples
   use the authenticated user's actual selected/owned team and followed league
   names, and cards are hidden when their prerequisites are unavailable.
-- Phase 3 is implemented on the current feature branch: league-change
-  comparison is extracted into a pure structured core, Telegram formatting is
-  unchanged, and `get_league_changes` adds followed-league authorization,
-  canonical clickable selection, safe error envelopes, and an accessible
-  localized English/Hebrew rich component.
+- Phase 3 merged in PR #234: league-change comparison is extracted into a pure
+  structured core, Telegram formatting is unchanged, and
+  `get_league_changes` adds followed-league authorization, canonical clickable
+  selection, safe error envelopes, and an accessible localized English/Hebrew
+  rich component.
+- Phase 4 is implemented on the current feature branch: the three league graph
+  series come from one pure core while Telegram keeps its existing QuickChart
+  output. `get_league_graph` provides authorized league/type card selection and
+  structured data for a localized, accessible English/Hebrew web chart.
 
 ## Locked decisions
 
@@ -229,7 +233,7 @@ the authorization boundary.
   mega-captain, chip, new-team, no-change, mismatch, and missing-snapshot
   states.
 
-### Phase 4 — League graphs
+### Phase 4 — League graphs (implemented)
 
 - Extract shared series builders for gap-to-leader, standings, and budget.
 - Keep QuickChart in the Telegram adapter.

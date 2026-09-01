@@ -3,62 +3,13 @@ const { t } = require('../i18n');
 const { sendErrorMessage } = require('../utils');
 const { getLeagueData } = require('../azureStorageService');
 const { fetchCurrentSeasonRaces } = require('../raceScheduleService');
-const { getChipEmoji } = require('../utils/chipEmojis');
 const { getSelectedTeam } = require('../cache');
-const { buildLeagueTeamId } = require('../utils/teamId');
-const { filterExcludedGraphTeams } = require('../utils/leagueGraphFilter');
 const {
+  buildStandingsSeries,
   buildRoundToRaceNameMap,
-  matchdayNumber,
+  computeRankPerMatchday,
   getSortedMatchdayKeys,
-  TEAM_COLOR_PALETTE,
-} = require('./leagueGraphHandler');
-
-/**
- * Compute each team's rank per matchday from the cumulative `raceScores`.
- *
- * Ranks use **competition ranking** (ties share a rank, next rank is skipped
- * by the number of tied teams — e.g. 1, 2, 2, 4). Mirrors how the F1 Fantasy
- * leaderboard itself handles ties.
- *
- * Missing `raceScores` entries are treated as `0` so a team's cumulative
- * total always advances (or stays flat) between races.
- *
- * @param {Array<Object>} teams
- * @param {string[]} matchdayKeys - already sorted ascending.
- * @returns {number[][]} ranksPerTeam — `ranksPerTeam[teamIndex][mdIndex] = rank`.
- */
-function computeRankPerMatchday(teams, matchdayKeys) {
-  const cumulative = teams.map(() => 0);
-  const ranksPerTeam = teams.map(() => []);
-
-  for (let mdIdx = 0; mdIdx < matchdayKeys.length; mdIdx++) {
-    const key = matchdayKeys[mdIdx];
-    for (let tIdx = 0; tIdx < teams.length; tIdx++) {
-      const raw = Number(teams[tIdx]?.raceScores?.[key]);
-      cumulative[tIdx] += Number.isFinite(raw) ? raw : 0;
-    }
-
-    const indices = teams.map((_, i) => i);
-    indices.sort((a, b) => cumulative[b] - cumulative[a]);
-
-    // Competition ranking: equal cumulative totals share the same rank,
-    // next team's rank skips by the tie count.
-    let currentRank = 0;
-    let lastScore = null;
-    let seen = 0;
-    for (const i of indices) {
-      seen += 1;
-      if (lastScore === null || cumulative[i] !== lastScore) {
-        currentRank = seen;
-        lastScore = cumulative[i];
-      }
-      ranksPerTeam[i][mdIdx] = currentRank;
-    }
-  }
-
-  return ranksPerTeam;
-}
+} = require('../cores/leagueGraphsCore');
 
 /**
  * Build the Chart.js config for the "standings per race" chart. Pure function
@@ -71,98 +22,27 @@ function computeRankPerMatchday(teams, matchdayKeys) {
  * @returns {Object} Chart.js config.
  */
 function buildStandingsChartConfig(leagueData, options = {}) {
-  const roundToRaceName = options.roundToRaceName || {};
-  const selectedTeamId = options.selectedTeamId || null;
-
-  const teams = filterExcludedGraphTeams(leagueData?.teams);
-  const matchdayKeys = getSortedMatchdayKeys(teams);
-
-  const ranksPerTeam = computeRankPerMatchday(teams, matchdayKeys);
-
-  // Sort legend/series by the **current-race rank** (ascending — rank 1 first).
-  // Teams with no races yet (empty rank series) sink to the bottom, tie-break
-  // by `position`.
-  const lastRankByTeam = new Map();
-  teams.forEach((team, idx) => {
-    const ranks = ranksPerTeam[idx];
-    const last = ranks.length > 0 ? ranks[ranks.length - 1] : null;
-    lastRankByTeam.set(team, last);
-  });
-  const indexed = teams.map((team, idx) => ({ team, idx }));
-  indexed.sort((a, b) => {
-    const aRank = lastRankByTeam.get(a.team);
-    const bRank = lastRankByTeam.get(b.team);
-    if (aRank === null && bRank === null) {
-      return (a.team.position || 0) - (b.team.position || 0);
-    }
-    if (aRank === null) {
-      return 1;
-    }
-    if (bRank === null) {
-      return -1;
-    }
-    if (aRank !== bRank) {
-      return aRank - bRank;
-    }
-
-    return (a.team.position || 0) - (b.team.position || 0);
-  });
-
-  const labels = matchdayKeys.map((key) => {
-    const round = matchdayNumber(key);
-    if (round !== null && roundToRaceName[round]) {
-      return roundToRaceName[round];
-    }
-
-    return round !== null ? `R${round}` : key;
-  });
-
-  const datasets = indexed.map(({ team, idx: origIdx }, legendIdx) => {
-    const color = TEAM_COLOR_PALETTE[legendIdx % TEAM_COLOR_PALETTE.length];
-    const teamId = buildLeagueTeamId(team.userName, team.teamNo);
-    const isSelectedTeam = !!teamId && teamId === selectedTeamId;
-
-    const data = ranksPerTeam[origIdx].slice();
-
-    // Per-point chip labels + point radii (same pattern as the gap graph).
-    const chipLabels = matchdayKeys.map(() => '');
-    const pointRadius = matchdayKeys.map(() => 4);
-    const pointBorderWidth = matchdayKeys.map(() => 1);
-
-    const chips = Array.isArray(team?.chipsUsed) ? team.chipsUsed : [];
-    for (const chip of chips) {
-      const gameDayId = Number(chip?.gameDayId);
-      if (!Number.isFinite(gameDayId)) {
-        continue;
-      }
-      const idxInSeries = matchdayKeys.findIndex(
-        (key) => matchdayNumber(key) === gameDayId,
-      );
-      if (idxInSeries === -1) {
-        continue;
-      }
-      const emoji = getChipEmoji(chip?.name);
-      const chipName = typeof chip?.name === 'string' ? chip.name : '';
-      chipLabels[idxInSeries] = chipName ? `${emoji} ${chipName}` : emoji;
-      pointRadius[idxInSeries] = 9;
-      pointBorderWidth[idxInSeries] = 2;
-    }
-
-    const teamLabel = team.teamName || team.userName || `Team ${legendIdx + 1}`;
+  const graph = buildStandingsSeries(leagueData, options);
+  const datasets = graph.series.map((series) => {
+    const chipLabels = series.points.map((point) => point.chip?.label || '');
+    const pointRadius = series.points.map((point) => (point.chip ? 9 : 4));
+    const pointBorderWidth = series.points.map((point) =>
+      point.chip ? 2 : 1,
+    );
 
     return {
-      label: teamLabel,
-      data,
-      borderColor: color,
-      backgroundColor: color,
-      borderWidth: isSelectedTeam ? 6 : 3,
+      label: series.teamName,
+      data: series.points.map((point) => point.value),
+      borderColor: series.color,
+      backgroundColor: series.color,
+      borderWidth: series.isSelected ? 6 : 3,
       fill: false,
       tension: 0.25,
       pointRadius: pointRadius.map((radius) =>
-        isSelectedTeam ? radius + 3 : radius,
+        series.isSelected ? radius + 3 : radius,
       ),
       pointHoverRadius: pointRadius.map((radius) =>
-        isSelectedTeam ? radius + 3 : radius,
+        series.isSelected ? radius + 3 : radius,
       ),
       pointBorderWidth,
       chipLabels,
@@ -172,7 +52,7 @@ function buildStandingsChartConfig(leagueData, options = {}) {
 
           return labels[ctx.dataIndex] || '';
         },
-        color,
+        color: series.color,
         anchor: 'end',
         align: 'top',
         offset: 4,
@@ -181,14 +61,14 @@ function buildStandingsChartConfig(leagueData, options = {}) {
       },
     };
   });
-
-  const title = `${leagueData?.leagueName || leagueData?.leagueCode || 'League'} — standings per race`;
-
-  const maxRank = Math.max(1, teams.length);
+  const title = `${graph.leagueName} — standings per race`;
 
   return {
     type: 'line',
-    data: { labels, datasets },
+    data: {
+      labels: graph.matchdays.map((matchday) => matchday.label),
+      datasets,
+    },
     options: {
       responsive: false,
       plugins: {
@@ -203,7 +83,7 @@ function buildStandingsChartConfig(leagueData, options = {}) {
         y: {
           reverse: true,
           min: 1,
-          max: maxRank,
+          max: graph.maxRank,
           title: {
             display: true,
             text: 'Standing',

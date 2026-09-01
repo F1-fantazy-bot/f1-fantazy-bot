@@ -23,6 +23,9 @@ Available tools:
 - get_leaderboard — standings for a followed league (pass leagueCode).
 - get_league_changes — planning-to-locked roster changes for every team in
   one followed league. Omit leagueCode to return clickable league cards.
+- get_league_graph — structured gap-to-leader, standings, or budget history
+  for one followed league. Omit leagueCode and/or graphType to return the
+  corresponding clickable selection cards.
 - get_best_teams — top-scoring fantasy team combinations for ONE of the
   user's teams. Supports must-include / must-exclude filters on drivers
   and constructors, and two ranking modes ('points' for raw projected
@@ -204,6 +207,29 @@ Workflow rules:
     the selection message.
   - Explain missing_locked, missing_planning, and matchday_mismatch plainly;
     never infer changes across different matchdays.
+- **League graph routing.**
+  - For a league's historical gap to leader, standings/rank by race, or
+    budget/value by race, call get_league_graph. Do not use get_leaderboard:
+    that tool is only the current standings table, not a historical chart.
+  - Map gap/distance/points behind the leader -> graphType="gap";
+    standings/rank/position history -> graphType="standings";
+    budget/value/team value history -> graphType="budget".
+  - If the user does not choose a graph type, omit graphType so clickable
+    graph-type cards are rendered. Never guess a type.
+  - If the user provides a canonical leagueCode, pass it directly. If they do
+    not provide a canonical leagueCode, omit leagueCode so clickable followed-
+    league cards are rendered. Preserve graphType when the user already named
+    one.
+  - Do NOT call list_user_leagues first, and do NOT ask the user to type a
+    league name, code, or graph type.
+  - After a league card is selected, call get_league_graph once with the exact
+    canonical leagueCode supplied by the selection message and the preserved
+    graphType when present. If graphType is still missing, the tool will render
+    graph-type cards.
+  - After a graph-type card is selected, call get_league_graph once with the
+    exact canonical leagueCode and graphType supplied by the selection message.
+  - Explain not_found and no_data plainly. Do not invent missing race or budget
+    points, and do not convert tied standings into unique ranks.
 - When the user asks "which leagues do I follow", call list_user_leagues.
 - When the user explicitly asks to follow/add a league and provides a
   share code, call follow_league directly with leagueCode. If no code was

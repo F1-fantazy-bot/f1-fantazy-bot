@@ -142,6 +142,28 @@ test('routes league changes through canonical clickable league selection', () =>
   );
 });
 
+test('routes league graphs through canonical league and type cards', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain(
+    'get_league_graph — structured gap-to-leader, standings, or budget history',
+  );
+  expect(prompt).toContain('gap/distance/points behind the leader');
+  expect(prompt).toContain('omit graphType so clickable');
+  expect(prompt).toContain(
+    'omit leagueCode so clickable followed-',
+  );
+  expect(prompt).toContain('Preserve graphType when the user already named');
+  expect(prompt).toContain('Do NOT call list_user_leagues first');
+  expect(prompt).toMatch(
+    /do NOT ask the user to type a\s+league name, code, or graph type/,
+  );
+  expect(prompt).toContain(
+    'exact canonical leagueCode and graphType supplied by the selection message',
+  );
+  expect(prompt).toContain('do not convert tied standings into unique ranks');
+});
+
 test('requires an explicit team and league for follow_team', () => {
   const prompt = getSystemPrompt();
 

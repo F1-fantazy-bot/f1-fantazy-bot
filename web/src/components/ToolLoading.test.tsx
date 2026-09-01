@@ -27,6 +27,7 @@ test('all loading states render Hebrew and RTL from the account context', () => 
     'followedTeams',
     'leaderboard',
     'leagueChanges',
+    'leagueGraph',
     'bestTeams',
     'scenarios',
     'raceInfo',
@@ -60,6 +61,7 @@ test('all loading states render Hebrew and RTL from the account context', () => 
   expect(container.textContent).toContain('טוען מרוצים קרובים');
   expect(container.textContent).toContain('מחשב קבוצות מומלצות');
   expect(container.textContent).toContain('טוען שינויים בליגה');
+  expect(container.textContent).toContain('טוען גרף ליגה');
   expect(container.textContent).toContain('מכין את עמדת הפיקוד');
   expect(container.textContent).toContain('מבצע את הפעולה');
   expect(container.textContent).not.toContain('Loading');

@@ -106,7 +106,7 @@ Start the web-chat agent locally with `npm run dev` (boots both the agent dev se
 
 **Cold-Start Initialization (Telegram):** `src/bot.js` stores the `initializeCaches()` promise as `cacheReady` and exports it. The Azure Function webhook (`telegramWebhook/index.js`) awaits `bot.cacheReady` before calling `bot.processUpdate(update)`. On a cold start the first request waits for caches to be ready; on warm invocations the resolved promise returns instantly. In polling dev mode `cacheReady` is unused — the natural polling delay avoids the race.
 
-**Cold-Start Initialization (Agent):** `src/agent/cacheBootstrap.js` lazily calls `initializeCaches()` before cache-dependent agent tools run. `get_next_races` can still answer without cache data, but `list_user_teams`, `list_followed_teams`, `list_user_leagues`, `get_leaderboard`, `get_league_changes`, `get_best_teams`, and `get_best_team_scenarios` all depend on the same initialized caches as Telegram.
+**Cold-Start Initialization (Agent):** `src/agent/cacheBootstrap.js` lazily calls `initializeCaches()` before cache-dependent agent tools run. `get_next_races` can still answer without cache data, but `list_user_teams`, `list_followed_teams`, `list_user_leagues`, `get_leaderboard`, `get_league_changes`, `get_league_graph`, `get_best_teams`, and `get_best_team_scenarios` all depend on the same initialized caches as Telegram.
 
 **Deployment targets:**
 - The Telegram bot is deployed as the existing Azure Function App `f1-fantazy-bot-func` via the `telegramWebhook/` function. Push to `main` → `production` slot; PR → `test` slot.
@@ -618,6 +618,13 @@ acceptance gates.
   codes, missing planning/locked snapshots, matchday mismatch, new teams,
   changed teams, and named teams with no changes. Storage exceptions stay
   private behind `wrapToolExecute`.
+- `get_league_graph` — gap-to-leader, cumulative standings, or team-budget
+  history for one followed league. Missing league/type arguments return
+  canonical clickable choices instead of asking the user to type a target.
+  The structured series preserve selected-team emphasis, excluded-team
+  filtering, current chip markers, tied ranks, null budget points, and mapped
+  race labels. Followed-league authorization happens before league storage is
+  read, and failures stay private behind `wrapToolExecute`.
 - `get_next_race_info` — full info on the next race: circuit, location, weekend format (regular/sprint), session timestamps, historical stats, multi-language track history, and opportunistic weather snapshot. Reads `nextRaceInfoCache[sharedKey]` + `weatherForecastCache`; on cache miss the core calls `getWeatherForecast` directly (Phase 4).
 - `get_race_weather` — per-session hourly weather forecast (up to 3 hours per session, filtered to drop hours already in the past) for the next race weekend (Phase 4).
 - `get_deadline` — next team-lock deadline (start of the first locking session: sprint on sprint weekends, qualifying otherwise). Returns absolute timestamps (`sessionStartsAt`, `nowIso`) — the web UI's `<DeadlineCountdown />` ticks client-side with skew compensation so the server's clock stays the source of truth (Phase 4).
@@ -1753,6 +1760,7 @@ messages must go through `clear()` first, then through
 | `src/cores/followedTeamsCore.js` | `listFollowedTeams({chatId})` — status-tagged. Returns `{ status: 'ok', teams: [{ teamId, teamName, leagues: [{leagueCode, leagueName, position}], isSelected }] }` deduplicated by teamId across followed leagues; `status: 'empty'` when the user has no league teams. |
 | `src/cores/leaderboardCore.js` | `getLeaderboard({chatId, leagueCode})` — status-tagged (`ok` / `not_followed` / `not_found` / `invalid_input`). Returns `{ leagueCode, leagueName, memberCount, fetchedAt, selectedTeamId, standings: [{ position, teamName, userName, teamNo, teamId, totalScore, gapToLeader, isSelected }] }`. |
 | `src/cores/leagueChangesCore.js` | Pure `compareLeagueChanges({latest, planning})` and `compareTeamChanges(latestTeam, planningTeam)` structure driver/constructor transfers, captain and mega-captain changes, current-matchday chips, new teams, and unchanged teams. Explicit states: `missing_locked`, `missing_planning`, and `matchday_mismatch`. |
+| `src/cores/leagueGraphsCore.js` | Pure gap-to-leader, cumulative standings, and budget series builders shared by all three Telegram QuickChart adapters and the agent. Returns stable matchday metadata plus per-team points, colors, selected-team flags, and chip annotations while preserving exclusions, ties, and null budget values. |
 | `src/cores/bestTeamScenariosCore.js` | `computeBestTeamScenarios({chatId, teamId?, teamName?})` — status-tagged (`ok` / `no_teams` / `unknown_team` / `ambiguous_team` / `missing_cache`). Returns the 4×4 matrix `{ teamId, teamName, chip, scenarios: [{ ppm, ppmLabel, results: [{ chipKey, chipLabel, projectedPoints, expectedPriceChange, recommendation: null\|'yellow'\|'green' }] }] }`. Mirrors the Telegram `/best_team_scenarios` chip-recommendation thresholds. |
 | `src/bestTeamsCalculator.js` | Accepts an optional 5th `options` arg with `mustInclude*`/`mustExclude*` filters, `rankBy: null \| 'points' \| 'budget_adjusted'`, and `resultCount`. Empty/absent options preserve legacy 4-arg behaviour byte-for-byte. |
 | `src/agent/identity.js` | Reads `AGENT_HARDCODED_CHAT_ID`, exposes `getAgentChatId()`. |
@@ -1783,6 +1791,7 @@ messages must go through `clear()` first, then through
 | `web/src/components/AgentGuideCard.tsx` | `get_agent_guide` pit-wall guide with profile status, user-specific recommended next moves, topic sections, and Hebrew/RTL support. Every task card is an accessible prompt action: it appends the localized example as a user message and runs the same agent, with a shared per-agent lock and failure rollback. |
 | `web/src/components/agentRunLock.ts` | Shared per-agent lock for interactive rich cards so two controls cannot start overlapping runs. |
 | `web/src/components/LeagueChangesCard.tsx` | `get_league_changes` rich render — accessible canonical league picker plus localized English/Hebrew and RTL views for transfers, role changes, chips, new teams, unchanged teams, missing data, mismatch, empty, loading, and error states. Picker runs listen for CopilotKit failures and roll back their injected developer message. |
+| `web/src/components/LeagueGraphCard.tsx` | `get_league_graph` rich render — localized English/Hebrew and RTL canonical league/type pickers, accessible Recharts line chart and data table, series visibility controls, selected-team emphasis, chip markers, and explicit empty/not-followed/not-found/error states. Picker runs share the per-agent lock and roll back failed injected messages. |
 | `web/src/components/BestTeamsTable.tsx` | `get_best_teams` rich render (top-10 table, captain badge, must-include highlights, penalty markers), localized via the tool result's refreshed `lang`. |
 | `web/src/components/UserTeamsList.tsx` | `list_user_teams` rich render (card grid). |
 | `web/src/components/UserTeamsAction.tsx` | Registers the teams renderer and turns non-active cards into direct authenticated `select_team` proposals that render the shared confirmation card. |
