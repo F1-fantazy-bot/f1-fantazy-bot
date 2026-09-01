@@ -19,8 +19,8 @@ const TASKS = Object.freeze({
       he: 'השווה בין ההרכבים החזויים החזקים ביותר, כולל סינון נהגים וקבוצות.',
     },
     example: {
-      en: 'Best teams for Kilzid 3 with Verstappen but without Alonso',
-      he: 'מה הקבוצות הטובות ביותר ל-Kilzid 3 עם ורסטאפן ובלי אלונסו',
+      en: 'Best teams for {TEAM} with Verstappen but without Alonso',
+      he: 'מה הקבוצות הטובות ביותר ל-{TEAM} עם ורסטאפן ובלי אלונסו',
     },
   },
   inspect_team: {
@@ -71,8 +71,8 @@ const TASKS = Object.freeze({
       he: 'צפה בליגות שבמעקב, בדירוג ובמיקום הקבוצה שבחרת.',
     },
     example: {
-      en: 'Show the leaderboard for kilzi test',
-      he: 'הצג את טבלת הדירוג של kilzi test',
+      en: 'Show the leaderboard for {LEAGUE}',
+      he: 'הצג את טבלת הדירוג של {LEAGUE}',
     },
   },
   live_score: {
@@ -84,8 +84,8 @@ const TASKS = Object.freeze({
       he: 'ראה פירוט ניקוד חי או השווה בין כל הקבוצות בליגה שבמעקב.',
     },
     example: {
-      en: 'Show the live score leaderboard for kilzi test',
-      he: 'הצג את טבלת הניקוד החי של kilzi test',
+      en: 'Show the live score leaderboard for {LEAGUE}',
+      he: 'הצג את טבלת הניקוד החי של {LEAGUE}',
     },
   },
   manage_leagues: {
@@ -97,8 +97,8 @@ const TASKS = Object.freeze({
       he: 'עקוב אחרי ליגה לפי קוד שיתוף או בחר ליגה להסרה מהמעקב.',
     },
     example: {
-      en: 'Follow league ABC123',
-      he: 'עקוב אחרי הליגה ABC123',
+      en: 'I want to follow another league',
+      he: 'אני רוצה לעקוב אחרי ליגה נוספת',
     },
   },
   race_schedule: {
@@ -233,6 +233,14 @@ function localize(value, lang) {
   return value[lang === 'he' ? 'he' : 'en'];
 }
 
+function interpolate(value, replacements) {
+  return Object.entries(replacements).reduce(
+    (text, [key, replacement]) =>
+      text.replaceAll(`{${key}}`, () => replacement),
+    value,
+  );
+}
+
 function getTelegramHelpCategories({ isAdmin }) {
   return Object.values(MENU_CATEGORIES).filter(
     (category) => isAdmin || !category.adminOnly,
@@ -254,6 +262,29 @@ function recommendationIds(profile) {
   return ['optimize_team', 'live_score', 'race_schedule'];
 }
 
+function taskIsAvailable(taskId, profile) {
+  if (
+    ['optimize_team', 'compare_scenarios'].includes(taskId) &&
+    (!profile.hasProjectionData || profile.teamCount === 0)
+  ) {
+    return false;
+  }
+  if (taskId === 'inspect_team' && profile.teamCount === 0) {
+    return false;
+  }
+  if (taskId === 'manage_teams' && profile.leagueCount === 0) {
+    return false;
+  }
+  if (
+    ['league_standings', 'live_score'].includes(taskId) &&
+    profile.leagueCount === 0
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 function buildAgentGuide({
   lang = 'en',
   topic = 'getting_started',
@@ -263,6 +294,9 @@ function buildAgentGuide({
   leagueCount = 0,
   hasSimulationData = false,
   hasProjectionData = false,
+  selectedTeamName = '',
+  teamNames = [],
+  leagueNames = [],
 } = {}) {
   const normalizedLang = lang === 'he' ? 'he' : 'en';
   const normalizedTopic = GUIDE_TOPICS.includes(topic)
@@ -290,21 +324,36 @@ function buildAgentGuide({
     hasSimulationData,
     hasProjectionData,
   };
-  const visibleTasks = Object.entries(TASKS)
+  const primaryTeamName =
+    selectedTeamName || teamNames[0] ||
+    localize({ en: 'my selected team', he: 'הקבוצה שבחרתי' }, normalizedLang);
+  const primaryLeagueName =
+    leagueNames[0] ||
+    localize({ en: 'my league', he: 'הליגה שלי' }, normalizedLang);
+  const availableTasks = Object.entries(TASKS)
     .filter(([, task]) => isAdmin || task.topic !== 'admin')
-    .filter(([, task]) =>
-      normalizedTopic === 'getting_started'
-        ? true
-        : task.topic === normalizedTopic,
-    )
+    .filter(([id]) => taskIsAvailable(id, profile))
     .map(([id, task]) => ({
       id,
       topic: task.topic,
       icon: task.icon,
       title: localize(task.title, normalizedLang),
       description: localize(task.description, normalizedLang),
-      example: localize(task.example, normalizedLang),
+      example: interpolate(localize(task.example, normalizedLang), {
+        TEAM: primaryTeamName,
+        LEAGUE: primaryLeagueName,
+      }),
     }));
+  const topicTasks = availableTasks.filter((task) =>
+      normalizedTopic === 'getting_started'
+        ? true
+        : task.topic === normalizedTopic);
+  const visibleTasks =
+    topicTasks.length > 0 || normalizedTopic === 'getting_started'
+      ? topicTasks
+      : availableTasks.filter((task) =>
+          recommendationIds(profile).includes(task.id),
+        );
   const recommended = new Set(recommendationIds(profile));
 
   return {

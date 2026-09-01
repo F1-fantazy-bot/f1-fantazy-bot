@@ -6,6 +6,7 @@ const {
   getUserLeagueTeamIds,
   getDriversForChat,
   getConstructorsForChat,
+  currentTeamCache,
   simulationInfoCache,
   sharedKey,
 } = require('../../cache');
@@ -13,6 +14,7 @@ const {
   buildAgentGuide,
   GUIDE_TOPICS,
 } = require('../../cores/agentGuideCore');
+const { listUserTeams } = require('../../cores/userTeamsCore');
 const { listUserLeagues } = require('../../leagueRegistryService');
 const {
   getFreshLanguagePreference,
@@ -43,6 +45,15 @@ const getAgentGuideTool = defineTool({
       getFreshLanguagePreference(chatId),
       listUserLeagues(chatId),
     ]);
+    const teams = listUserTeams({ chatId });
+    const teamsWithFriendlyNames = teams.filter((team) => {
+      const cachedName = currentTeamCache[chatId]?.[team.teamId]?.teamName;
+
+      return typeof cachedName === 'string' && cachedName.trim().length > 0;
+    });
+    const selectedTeam = teamsWithFriendlyNames.find(
+      (team) => team.isSelected,
+    );
 
     return buildAgentGuide({
       lang,
@@ -55,6 +66,11 @@ const getAgentGuideTool = defineTool({
       hasProjectionData:
         hasEntries(getDriversForChat(chatId)) &&
         hasEntries(getConstructorsForChat(chatId)),
+      selectedTeamName: selectedTeam?.teamName || '',
+      teamNames: teamsWithFriendlyNames.map((team) => team.teamName),
+      leagueNames: leagues.map(
+        (league) => league.leagueName || league.leagueCode,
+      ),
     });
   }),
 });

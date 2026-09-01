@@ -22,7 +22,9 @@ confirmed writes.
   consume a shared guide model, and `get_agent_guide` provides personalized,
   localized, agent-native onboarding and capability guidance. Guide task cards
   execute their example prompts directly with one shared per-agent run lock,
-  keyboard-safe interaction, and message rollback on failed starts.
+  keyboard-safe interaction, and message rollback on failed starts. Examples
+  use the authenticated user's actual selected/owned team and followed league
+  names, and cards are hidden when their prerequisites are unavailable.
 
 ## Locked decisions
 

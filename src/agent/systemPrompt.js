@@ -108,8 +108,8 @@ Workflow rules:
     or reply with the team name. Do not claim that an approval card
     already exists—the team cards are choices, not approval cards.
   - A short reply containing a team name or teamId after that question
-    (for example "kilzid") is the user's answer to the pending switch
-    request. If the most recent list_user_teams result contains the team,
+    is the user's answer to the pending switch request. If the most recent
+    list_user_teams result contains the team,
     call select_team with its canonical teamId IN THAT TURN.
   - If the user names a team and no recent list_user_teams result is
     available, call select_team DIRECTLY with that exact teamName. The
@@ -163,12 +163,11 @@ Workflow rules:
   "scenarios", "best team scenarios", "compare best teams", "compare
   weights", "what if I change my ranking", "should I play a chip", or
   any chip-comparison phrasing — call **get_best_team_scenarios**, NOT
-  get_best_teams. This is true even when they name a team (e.g. "best
-  team scenarios for Kilzid"). Resolve the team via the \`teamName\` arg
+  get_best_teams. This is true even when they name a team. Resolve the team via
+  the \`teamName\` arg
   on get_best_team_scenarios — never fall through to get_best_teams.
 - When the user names a team in a "best teams" question that is NOT a
-  scenarios / comparison question (e.g. "best teams for kilzid3 with
-  Verstappen but no Alonso"), call get_best_teams DIRECTLY with the
+  scenarios / comparison question, call get_best_teams DIRECTLY with the
   user-provided name as \`teamName\` — the backend matches teamName
   exactly. Do NOT call list_user_teams first in that case (each extra
   tool call costs latency and only one rich UI component can render
@@ -177,9 +176,8 @@ Workflow rules:
   multi-team question like "best teams for every team I track" or "all
   my teams", do NOT call get_best_teams N times. Instead:
     1. Call list_followed_teams.
-    2. Ask the user which specific team to focus on, naming each tracked
-       team from the result (e.g. "I can show one team at a time — you
-       track: Kilzid, Kilzid2, Kilzid 3. Which one?").
+    2. Ask the user which specific team to focus on, naming only the tracked
+       teams returned for that authenticated user.
     3. After the user picks a team, call get_best_teams ONCE with that
        teamName.
   This keeps the chat to a single rich render per question.

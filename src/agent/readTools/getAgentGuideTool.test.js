@@ -9,6 +9,7 @@ jest.mock('../../cache', () => ({
   getUserLeagueTeamIds: jest.fn(),
   getDriversForChat: jest.fn(),
   getConstructorsForChat: jest.fn(),
+  currentTeamCache: {},
   simulationInfoCache: {},
   sharedKey: 'shared',
 }));
@@ -22,6 +23,9 @@ jest.mock('../../cores/agentGuideCore', () => ({
     'admin',
   ],
   buildAgentGuide: jest.fn((args) => ({ status: 'ok', ...args })),
+}));
+jest.mock('../../cores/userTeamsCore', () => ({
+  listUserTeams: jest.fn(),
 }));
 jest.mock('../../leagueRegistryService', () => ({
   listUserLeagues: jest.fn(),
@@ -44,6 +48,7 @@ const cache = require('../../cache');
 const {
   buildAgentGuide,
 } = require('../../cores/agentGuideCore');
+const { listUserTeams } = require('../../cores/userTeamsCore');
 const { listUserLeagues } = require('../../leagueRegistryService');
 const {
   getFreshLanguagePreference,
@@ -63,6 +68,22 @@ beforeEach(() => {
   cache.getDriversForChat.mockReturnValue({ VER: {} });
   cache.getConstructorsForChat.mockReturnValue({ MCL: {} });
   cache.simulationInfoCache.shared = { name: 'Round 5' };
+  cache.currentTeamCache[42] = {
+    T1: { teamName: 'Friend Team' },
+    T2: { teamName: 'Second Team' },
+  };
+  listUserTeams.mockReturnValue([
+    {
+      teamId: 'T1',
+      teamName: 'Friend Team',
+      isSelected: true,
+    },
+    {
+      teamId: 'T2',
+      teamName: 'Second Team',
+      isSelected: false,
+    },
+  ]);
 });
 
 test('recognizes non-empty projection maps', () => {
@@ -84,6 +105,9 @@ test('builds the guide from authenticated user state', async () => {
     leagueCount: 1,
     hasSimulationData: true,
     hasProjectionData: true,
+    selectedTeamName: 'Friend Team',
+    teamNames: ['Friend Team', 'Second Team'],
+    leagueNames: ['ABC'],
   });
 });
 
@@ -102,5 +126,27 @@ test('uses the shared admin predicate and never accepts identity args', async ()
   expect(isAdminChatId).toHaveBeenCalledWith(42);
   expect(buildAgentGuide).toHaveBeenCalledWith(
     expect.objectContaining({ isAdmin: true, topic: 'admin' }),
+  );
+});
+
+test('does not present a screenshot teamId as a friendly team name', async () => {
+  cache.currentTeamCache[42] = {
+    T1: { drivers: ['VER'] },
+  };
+  listUserTeams.mockReturnValue([
+    {
+      teamId: 'T1',
+      teamName: 'T1',
+      isSelected: true,
+    },
+  ]);
+
+  await getAgentGuideTool.execute({ topic: 'teams' });
+
+  expect(buildAgentGuide).toHaveBeenCalledWith(
+    expect.objectContaining({
+      selectedTeamName: '',
+      teamNames: [],
+    }),
   );
 });
