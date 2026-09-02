@@ -23,6 +23,7 @@ import { AgentGuideCard } from './AgentGuideCard';
 import { LeagueChangesCard } from './LeagueChangesCard';
 import { LeagueGraphCard } from './LeagueGraphCard';
 import { RaceSummaryCard } from './RaceSummaryCard';
+import { WhatsNewCard } from './WhatsNewCard';
 
 vi.mock('@copilotkit/react-core/v2', () => ({
   UseAgentUpdate: { OnRunStatusChanged: 'run-status' },
@@ -296,6 +297,23 @@ describe('all rich components honor Hebrew ui language', () => {
         />
       ),
       expected: ['גרנד פרי סין', 'מנצחים ומפסידים', 'מגמות עונה', 'סיפורים'],
+    },
+    {
+      name: 'release announcement',
+      element: (
+        <WhatsNewCard
+          result={{
+            status: 'ok',
+            lang: 'he',
+            announcement: {
+              createdAt: '2026-04-29T07:58:42Z',
+              version: 'wow',
+              text: 'עדכון *חדש*\n\n- אפשר לעקוב אחרי ליגה',
+            },
+          }}
+        />
+      ),
+      expected: ['מה חדש', 'עדכון מיוחד', 'עדכון חדש', 'אפשר לעקוב אחרי ליגה'],
     },
     {
       name: 'best-team scenarios',

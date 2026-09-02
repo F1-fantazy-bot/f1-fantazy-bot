@@ -8,6 +8,7 @@ export type ToolLoadingKind =
   | 'leagueChanges'
   | 'leagueGraph'
   | 'raceSummary'
+  | 'whatsNew'
   | 'bestTeams'
   | 'scenarios'
   | 'raceInfo'
@@ -33,6 +34,7 @@ const copy: Record<ToolLoadingKind, { en: string; he: string }> = {
   },
   leagueGraph: { en: 'Loading league graph…', he: 'טוען גרף ליגה…' },
   raceSummary: { en: 'Creating race summary…', he: 'מכין סיכום מרוץ…' },
+  whatsNew: { en: 'Loading release notes…', he: 'טוען עדכונים…' },
   bestTeams: { en: 'Computing best teams…', he: 'מחשב קבוצות מומלצות…' },
   scenarios: { en: 'Computing scenarios…', he: 'מחשב תרחישים…' },
   raceInfo: { en: 'Loading next race info…', he: 'טוען מידע על המרוץ הבא…' },

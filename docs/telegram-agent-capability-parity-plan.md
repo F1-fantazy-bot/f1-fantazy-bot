@@ -34,10 +34,10 @@ confirmed writes.
   series come from one pure core while Telegram keeps its existing QuickChart
   output. `get_league_graph` provides authorized league/type card selection and
   structured data for a localized, accessible English/Hebrew web chart.
-- Phase 5 is implemented on the current feature branch: race-summary facts are
-  extracted into a pure core, Telegram and the agent share one controlled
-  nested-model service, and `get_race_summary` provides authorized canonical
-  league selection plus a localized English/Hebrew rich recap.
+- Phase 5 merged in PR #236: race-summary facts are extracted into a pure
+  core, Telegram and the agent share one controlled nested-model service, and
+  `get_race_summary` provides authorized canonical league selection plus a
+  localized English/Hebrew rich recap.
 
 ## Locked decisions
 
@@ -257,7 +257,7 @@ the authorization boundary.
 - Add explicit token/error telemetry and output-size controls for the nested
   model call.
 
-### Phase 6 — Release announcements
+### Phase 6 — Release announcements (implemented)
 
 - Reuse `announcementsService` through a small read core.
 - Refactor `/whats_new` to format the core result without Telegram drift.
