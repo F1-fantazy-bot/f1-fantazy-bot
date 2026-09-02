@@ -41,11 +41,11 @@ test('BuiltInAgent forwards hidden developer confirmation messages', () => {
   );
 });
 
-test('uses sequential tool calls with the supported reasoning effort', () => {
+test('uses sequential tool calls with medium reasoning effort for GPT-5.3 Chat', () => {
   buildAgent({
     endpoint: 'https://example.openai.azure.com',
     apiKey: 'key',
-    model: 'deployment',
+    model: 'gpt-5.3-chat',
   });
 
   expect(mockBuiltInAgent).toHaveBeenLastCalledWith(
@@ -54,6 +54,25 @@ test('uses sequential tool calls with the supported reasoning effort', () => {
         openai: {
           parallelToolCalls: false,
           reasoningEffort: 'medium',
+        },
+      },
+    }),
+  );
+});
+
+test('uses sequential tool calls without reasoning effort for GPT-5.6 Terra', () => {
+  buildAgent({
+    endpoint: 'https://example.openai.azure.com',
+    apiKey: 'key',
+    model: 'gpt-5.6-terra',
+  });
+
+  expect(mockBuiltInAgent).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      providerOptions: {
+        openai: {
+          parallelToolCalls: false,
+          reasoningEffort: 'none',
         },
       },
     }),

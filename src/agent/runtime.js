@@ -26,6 +26,7 @@ const { createTokenUsageMiddleware } = require('./tokenUsageMiddleware');
 const COPILOTKIT_ENDPOINT = '/api/agent/copilotkit';
 const AZURE_OPENAI_API_VERSION = '2024-04-01-preview';
 const AGENT_MAX_STEPS = 5;
+const MODELS_REQUIRING_NO_REASONING_WITH_TOOLS = new Set(['gpt-5.6-terra']);
 
 let cachedHandler = null;
 
@@ -65,6 +66,18 @@ function buildAzureLanguageModel({ endpoint, apiKey, model }) {
   return azure.chat(model);
 }
 
+function getReasoningEffort(model) {
+  const normalizedModel = String(model || '').trim().toLowerCase();
+
+  // GPT-5.6 Terra's Chat Completions endpoint rejects a reasoning effort when
+  // function tools are present, while the local GPT-5.3 Chat deployment
+  // rejects `none` and requires `medium`. The Azure deployment name is the
+  // model identifier available at this layer.
+  return MODELS_REQUIRING_NO_REASONING_WITH_TOOLS.has(normalizedModel)
+    ? 'none'
+    : 'medium';
+}
+
 function buildAgent(cfg) {
   const rawModel = buildAzureLanguageModel(cfg);
   // Wrap the Azure model with our token-usage middleware so every LLM step
@@ -94,12 +107,12 @@ function buildAgent(cfg) {
     // message (default behaviour), only the first tool's React render
     // hook fires — the rest are silently dropped from the UI. Forcing
     // sequential tool calls makes each tool call land in its own
-    // assistant message, so each gets its own rich UI render. The current
-    // Chat Completions deployment accepts `medium` reasoning effort.
+    // assistant message, so each gets its own rich UI render. Reasoning
+    // effort is chosen for the configured Chat Completions deployment.
     providerOptions: {
       openai: {
         parallelToolCalls: false,
-        reasoningEffort: 'medium',
+        reasoningEffort: getReasoningEffort(cfg.model),
       },
     },
   });
@@ -134,4 +147,5 @@ module.exports = {
   COPILOTKIT_ENDPOINT,
   getSystemPrompt,
   buildAgent,
+  getReasoningEffort,
 };
