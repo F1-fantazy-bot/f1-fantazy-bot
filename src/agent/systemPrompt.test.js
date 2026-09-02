@@ -179,6 +179,8 @@ test('routes race summaries through canonical clickable league selection', () =>
   expect(prompt).toContain("user's saved language");
   expect(prompt).toContain('Do not rewrite the');
   expect(prompt).toContain('missing_data, empty, and generation_error');
+  expect(prompt).toContain('Treat only missing_data as absent race data');
+  expect(prompt).toContain('never claim that league data');
   expect(prompt).toContain('Never expose or speculate about Azure, OpenAI');
 });
 

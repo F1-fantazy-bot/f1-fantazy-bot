@@ -6,6 +6,7 @@ const { getAzureOpenAiClient } = require('../azureOpenAiClient');
 const {
   RACE_SUMMARY_MAX_CHARACTERS,
   RACE_SUMMARY_MAX_COMPLETION_TOKENS,
+  RACE_SUMMARY_RETRY_MAX_COMPLETION_TOKENS,
   RACE_SUMMARY_MODEL,
   formatRaceSummaryUsage,
   generateRaceSummary,
@@ -69,6 +70,36 @@ test('returns an empty string for empty model output', async () => {
   await expect(
     generateRaceSummary({ summaryData: {}, language: 'en' }),
   ).resolves.toMatchObject({ text: '', truncated: false });
+});
+
+test('retries once with a bounded larger budget when reasoning exhausts the first budget', async () => {
+  create
+    .mockResolvedValueOnce({
+      choices: [
+        { finish_reason: 'length', message: { content: '' } },
+      ],
+      usage: { prompt_tokens: 20, completion_tokens: 8192, total_tokens: 8212 },
+    })
+    .mockResolvedValueOnce({
+      choices: [
+        { finish_reason: 'stop', message: { content: 'Recovered recap' } },
+      ],
+      usage: { prompt_tokens: 20, completion_tokens: 900, total_tokens: 920 },
+    });
+  const onUsage = jest.fn();
+
+  await expect(
+    generateRaceSummary({ summaryData: {}, language: 'en', onUsage }),
+  ).resolves.toMatchObject({ text: 'Recovered recap', truncated: false });
+
+  expect(create).toHaveBeenCalledTimes(2);
+  expect(create.mock.calls[0][0].max_completion_tokens).toBe(
+    RACE_SUMMARY_MAX_COMPLETION_TOKENS,
+  );
+  expect(create.mock.calls[1][0].max_completion_tokens).toBe(
+    RACE_SUMMARY_RETRY_MAX_COMPLETION_TOKENS,
+  );
+  expect(onUsage).toHaveBeenCalledTimes(2);
 });
 
 test('reports generation errors without letting telemetry failures replace them', async () => {
