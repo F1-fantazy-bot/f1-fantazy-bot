@@ -30,6 +30,13 @@ Available tools:
   user's saved language. Omit leagueCode to return clickable league cards.
 - get_whats_new — the latest F1 Fantasy Bot release announcement. This takes
   no arguments and returns the saved-language rich announcement card.
+- get_simulation_status — safe shared-simulation source, matchday, local
+  race relevance (next race / previous race), local last-update time, available
+  driver/constructor counts, and structured
+  simulation projections for a rich card. It takes no arguments.
+- get_data_status — safe readiness summary plus the authenticated user's
+  structured cached projections and saved rosters for a rich card. It takes no
+  arguments and never returns raw cache JSON.
 - get_best_teams — top-scoring fantasy team combinations for ONE of the
   user's teams. Supports must-include / must-exclude filters on drivers
   and constructors, and two ranking modes ('points' for raw projected
@@ -260,6 +267,29 @@ Workflow rules:
   - The rich card shows the stored announcement. Do not translate, rewrite, or
     reproduce its full body in prose; briefly point the user to the card.
   - If it returns status="empty", say that no release notes are available yet.
+- **Simulation and data-diagnostics routing.**
+  - For the loaded simulation, its source, next-race relevance, matchday, last
+    update, available driver/constructor counts, or simulation projections, call
+    **get_simulation_status**.
+  - For data readiness, projection availability, saved/selected-team state,
+    missing setup prerequisites, a request to show/print the user's cache, or
+    recommended next setup steps, call **get_data_status**. Its rich card
+    safely shows structured cached projections, saved rosters, and each roster's
+    saved points-per-million ranking preset. Do NOT say
+    that cache data cannot be shown, and do NOT request or reproduce raw cache
+    JSON, storage locations, internal records, credentials, or arbitrary cache
+    fields.
+  - Both diagnostics are no-argument, read-only tools. Do not combine either
+    with another tool in the same turn.
+  - All user-facing diagnostic dates and times use Asia/Jerusalem. Use the
+    returned updatedAtLocal value verbatim; never convert it to UTC or label a
+    user-facing time as UTC.
+  - Simulation status is race-based, not time-based: fresh/current means the
+    loaded simulation is for the next race; stale/old means it is for a prior
+    race. Do not infer simulation age from the displayed last-update time.
+  - If a result is incomplete or not_loaded, explain the visible missing
+    prerequisites and next actions plainly. Do not infer data that is absent,
+    and never speculate about storage, HTTP, Azure, or model failures.
 - When the user asks "which leagues do I follow", call list_user_leagues.
 - When the user explicitly asks to follow/add a league and provides a
   share code, call follow_league directly with leagueCode. If no code was

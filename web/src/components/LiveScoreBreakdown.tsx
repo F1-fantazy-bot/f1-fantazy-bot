@@ -1,6 +1,12 @@
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
-import { directionFor, localeFor, uiLanguageOf, type UiLanguage } from './uiLanguage';
+import {
+  directionFor,
+  localeFor,
+  uiLanguageOf,
+  USER_TIME_ZONE,
+  type UiLanguage,
+} from './uiLanguage';
 import { ToolLoading } from './ToolLoading';
 
 type SessionDetails = Record<string, number | undefined>;
@@ -79,6 +85,7 @@ function formatExtractedAt(
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: USER_TIME_ZONE,
   });
 }
 

@@ -263,17 +263,19 @@ the authorization boundary.
 - Refactor `/whats_new` to format the core result without Telegram drift.
 - Add `get_whats_new()` and a localized announcement card.
 
-### Phase 7 — Simulation and data diagnostics reads
+### Phase 7 — Simulation and data diagnostics reads (implemented)
 
-- Add `simulationStatusCore` for source, matchday, freshness, and available
-  driver/constructor counts.
+- Add `simulationStatusCore` for source, matchday, next-race relevance, available
+  driver/constructor counts, and bounded allowlisted projection rows.
 - Add `dataStatusCore` for an agent-safe summary of source, selected/owned teams,
-  projections, simulation metadata, missing prerequisites, and next actions.
+  structured cached projections and rosters, simulation metadata, missing
+  prerequisites, and next actions.
 - Refactor `/get_current_simulation` and `/print_cache` to consume shared
   structures while preserving Telegram output.
 - Add `get_simulation_status()` and `get_data_status()`.
-- Never expose raw cache JSON, credentials, storage paths, or internal table
-  entities.
+- Return all web-agent diagnostic timestamps in the saved language and local
+  `Asia/Jerusalem` time. Never expose raw cache JSON, credentials, storage
+  paths, or internal table entities.
 
 ### Phase 8 — Load latest simulation
 

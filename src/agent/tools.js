@@ -67,6 +67,10 @@ const {
 const { getLeagueGraphTool } = require('./readTools/getLeagueGraphTool');
 const { getRaceSummaryTool } = require('./readTools/getRaceSummaryTool');
 const { getWhatsNewTool } = require('./readTools/getWhatsNewTool');
+const {
+  getSimulationStatusTool,
+} = require('./readTools/getSimulationStatusTool');
+const { getDataStatusTool } = require('./readTools/getDataStatusTool');
 
 // Trim a best-teams calculator row down to the fields the React component
 // actually renders. Sending the full driver/constructor dictionaries (which
@@ -327,6 +331,8 @@ const tools = [
   getLeagueGraphTool,
   getRaceSummaryTool,
   getWhatsNewTool,
+  getSimulationStatusTool,
+  getDataStatusTool,
   getLanguageTool,
 
   defineTool({

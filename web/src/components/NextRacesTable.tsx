@@ -1,6 +1,6 @@
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
-import { directionFor, localeFor, uiLanguageOf } from './uiLanguage';
+import { directionFor, localeFor, uiLanguageOf, USER_TIME_ZONE } from './uiLanguage';
 import { ToolLoading } from './ToolLoading';
 
 type Session = { date?: string; time?: string };
@@ -39,6 +39,7 @@ function formatRaceDate(race: Race, locale: string): string {
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: USER_TIME_ZONE,
   });
 }
 

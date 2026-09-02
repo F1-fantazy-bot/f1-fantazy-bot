@@ -194,6 +194,30 @@ test('routes release-announcement questions through the no-argument read tool', 
   expect(prompt).toContain('status="empty"');
 });
 
+test('routes simulation and safe data diagnostics through their read tools', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain(
+    'get_simulation_status — safe shared-simulation source, matchday, local',
+  );
+  expect(prompt).toContain(
+    'get_data_status — safe readiness summary plus the authenticated user\'s',
+  );
+  expect(prompt).toContain('For the loaded simulation, its source, next-race relevance');
+  expect(prompt).toContain('**get_simulation_status**.');
+  expect(prompt).toContain('For data readiness, projection availability');
+  expect(prompt).toContain('call **get_data_status**');
+  expect(prompt).toContain('a request to show/print the user\'s cache');
+  expect(prompt).toContain('cache data cannot be shown');
+  expect(prompt).toContain('reproduce raw cache');
+  expect(prompt).toContain('Both diagnostics are no-argument, read-only tools');
+  expect(prompt).toContain('All user-facing diagnostic dates and times use Asia/Jerusalem');
+  expect(prompt).toContain('updatedAtLocal value verbatim');
+  expect(prompt).toContain('Simulation status is race-based, not time-based');
+  expect(prompt).toContain('saved points-per-million ranking preset');
+  expect(prompt).toContain('never speculate about storage, HTTP, Azure');
+});
+
 test('requires an explicit team and league for follow_team', () => {
   const prompt = getSystemPrompt();
 

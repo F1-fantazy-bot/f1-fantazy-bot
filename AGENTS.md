@@ -28,7 +28,7 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
   - `src/azureStorageService.js` and `src/azureBillingService.js` wrap Azure integrations.
 - **Internationalization:** `src/i18n.js` and `src/translations.js` provide language support (English/Hebrew) used throughout handlers.
 - **AI Assist:** `src/prompts.js` defines system prompts. `/ask`-style natural language queries are handled by `src/commandsHandler/askHandler.js`, which leverages Azure OpenAI to map free-text requests into command sequences.
-- **Logic Cores:** `src/cores/` holds **pure** business-logic functions that take inputs and return structured JSON. They do not depend on `bot`, `t()`, or `sendMessage`. Each Telegram handler is being progressively refactored into `(pure core in src/cores/) + (thin Telegram adapter)`. The same core is consumed by the web-chat agent's tools — so a question like "best teams with VER but no ALO" runs through the same calculator as the `/best_teams` command. **Refactor rule:** existing handler tests must keep passing unchanged after the extraction; if they don't, fix the refactor, not the test. Cores extracted so far: `nextRacesCore`, `bestTeamsCore`, `userTeamsCore`, `followedTeamsCore`, `leaderboardCore`, `bestTeamScenariosCore`, `nextRaceInfoCore`, `raceWeatherCore`, `deadlineCore`, `currentTeamCore`, `liveScoreCore`, `leagueChangesCore`, `leagueGraphsCore`, `raceSummaryCore`, `announcementsCore`. Cores that need side effects (e.g. weather fetch logging) accept optional `onFetch`/`onError` callbacks — the Telegram adapter wires them to bot-side helpers; the agent path omits them. Pure scoring helpers shared between a handler and its core live in `src/utils/` (e.g. `src/utils/liveScoreCalc.js` for `mapLockedTeamForScoring` / `calculateLiveScoreBreakdown` / `deriveLiveScoreOptions`) so the core never depends on the adapter.
+- **Logic Cores:** `src/cores/` holds **pure** business-logic functions that take inputs and return structured JSON. They do not depend on `bot`, `t()`, or `sendMessage`. Each Telegram handler is being progressively refactored into `(pure core in src/cores/) + (thin Telegram adapter)`. The same core is consumed by the web-chat agent's tools — so a question like "best teams with VER but no ALO" runs through the same calculator as the `/best_teams` command. **Refactor rule:** existing handler tests must keep passing unchanged after the extraction; if they don't, fix the refactor, not the test. Cores extracted so far: `nextRacesCore`, `bestTeamsCore`, `userTeamsCore`, `followedTeamsCore`, `leaderboardCore`, `bestTeamScenariosCore`, `nextRaceInfoCore`, `raceWeatherCore`, `deadlineCore`, `currentTeamCore`, `liveScoreCore`, `leagueChangesCore`, `leagueGraphsCore`, `raceSummaryCore`, `announcementsCore`, `simulationStatusCore`, `dataStatusCore`. Cores that need side effects (e.g. weather fetch logging) accept optional `onFetch`/`onError` callbacks — the Telegram adapter wires them to bot-side helpers; the agent path omits them. Pure scoring helpers shared between a handler and its core live in `src/utils/` (e.g. `src/utils/liveScoreCalc.js` for `mapLockedTeamForScoring` / `calculateLiveScoreBreakdown` / `deriveLiveScoreOptions`) so the core never depends on the adapter.
 - **Agent (Web Chat):** `src/agent/`, `agentWebhook/`, and `web/` together implement a second user-facing surface. **Identity is per-request**, propagated through `AsyncLocalStorage` from the agent webhook into `getAgentChatId()`. The webhook verifies the caller's Google ID token, looks the email up in the `WebUserAllowlist` Azure Table to resolve a Telegram chatId, then runs the entire CopilotKit invocation inside that ALS scope. When `GOOGLE_CLIENT_ID` is unset (local dev only — both production AND test slots in Azure set it) the auth gate is bypassed and `AGENT_HARDCODED_CHAT_ID` is used instead. The test slot additionally enforces an **admin-only** filter via `AGENT_REQUIRE_ADMIN=true` — see [Web auth → Test-slot admin-only gate](#test-slot-admin-only-gate). See [Web auth](#web-auth) for the full pipeline and the three new Telegram admin commands (`/allow_web_user`, `/revoke_web_user`, `/list_web_users`) that manage the allowlist.
 
 ---
@@ -582,8 +582,9 @@ Blob naming includes the team ID:
 
 A second user-facing surface that runs the same business logic as the Telegram bot through tool calls. Architecture, code layout, and the patterns for adding new capabilities live in this section.
 
-**Status (2026-08-25):** the read-only v1 capability scope, Phase 6
-hardening, Azure deployment, Google auth, and CORS rollout are complete.
+**Status (2026-09-02):** the read-only v1 capability scope, Phase 7
+simulation/data diagnostics, Azure deployment, Google auth, and CORS rollout
+are complete.
 The effectful write-tools rollout is now active: PR
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207)
 merged the durable confirmation infrastructure; `set_language` is
@@ -639,6 +640,14 @@ acceptance gates.
   returns a safe `ok`/`empty` envelope with the saved language, and the web
   card renders its Markdown source as safe text with localized English/Hebrew
   chrome and RTL support.
+- `get_simulation_status` — safe shared-simulation source, matchday, saved-
+  language `Asia/Jerusalem` last-update time, next-race relevance, counts, and bounded allowlisted
+  projection rows for the rich card. It never returns raw simulation cache
+  entries, paths, or storage details.
+- `get_data_status` — safe diagnostics for projection source/counts,
+  simulation readiness, saved/active team state, bounded structured cached
+  projections/rosters, missing prerequisites, and next actions. It never
+  returns raw cache JSON or internal entities.
 - `get_next_race_info` — full info on the next race: circuit, location, weekend format (regular/sprint), session timestamps, historical stats, multi-language track history, and opportunistic weather snapshot. Reads `nextRaceInfoCache[sharedKey]` + `weatherForecastCache`; on cache miss the core calls `getWeatherForecast` directly (Phase 4).
 - `get_race_weather` — per-session hourly weather forecast (up to 3 hours per session, filtered to drop hours already in the past) for the next race weekend (Phase 4).
 - `get_deadline` — next team-lock deadline (start of the first locking session: sprint on sprint weekends, qualifying otherwise). Returns absolute timestamps (`sessionStartsAt`, `nowIso`) — the web UI's `<DeadlineCountdown />` ticks client-side with skew compensation so the server's clock stays the source of truth (Phase 4).
@@ -1779,6 +1788,10 @@ messages must go through `clear()` first, then through
 | `src/services/raceSummaryService.js` | Controlled nested-model generation shared by Telegram and the agent. Pins the model and saved-language prompt policy, sets token/output caps, normalizes token usage, and reports usage/errors through adapter-supplied telemetry callbacks. |
 | `src/cores/announcementsCore.js` | Pure normalization of the latest `announcementsService` record into a public `ok`/`empty` envelope shared by Telegram `/whats_new` and agent `get_whats_new`. |
 | `src/agent/readTools/getWhatsNewTool.js` | Wrapped no-argument `get_whats_new` tool; combines the shared announcement result with the authenticated user's saved UI language. |
+| `src/cores/simulationStatusCore.js` | Pure, public-safe simulation metadata/count summary plus bounded allowlisted projection rows, shared by `/get_current_simulation` and agent `get_simulation_status`. |
+| `src/cores/dataStatusCore.js` | Pure, public-safe projection/simulation/team readiness summary with bounded allowlisted cached projections and roster fields, shared by `/print_cache` and agent `get_data_status`; never returns raw cache JSON. |
+| `src/agent/readTools/getSimulationStatusTool.js` | Wrapped no-argument `get_simulation_status` tool; initializes the agent cache, adds the authenticated user's saved UI language, and converts timestamps to `Asia/Jerusalem` display time. |
+| `src/agent/readTools/getDataStatusTool.js` | Wrapped no-argument `get_data_status` tool; initializes the agent cache and returns the safe structured cached-data/readiness envelope with local display time. |
 | `src/cores/bestTeamScenariosCore.js` | `computeBestTeamScenarios({chatId, teamId?, teamName?})` — status-tagged (`ok` / `no_teams` / `unknown_team` / `ambiguous_team` / `missing_cache`). Returns the 4×4 matrix `{ teamId, teamName, chip, scenarios: [{ ppm, ppmLabel, results: [{ chipKey, chipLabel, projectedPoints, expectedPriceChange, recommendation: null\|'yellow'\|'green' }] }] }`. Mirrors the Telegram `/best_team_scenarios` chip-recommendation thresholds. |
 | `src/bestTeamsCalculator.js` | Accepts an optional 5th `options` arg with `mustInclude*`/`mustExclude*` filters, `rankBy: null \| 'points' \| 'budget_adjusted'`, and `resultCount`. Empty/absent options preserve legacy 4-arg behaviour byte-for-byte. |
 | `src/agent/identity.js` | Reads `AGENT_HARDCODED_CHAT_ID`, exposes `getAgentChatId()`. |
@@ -1812,6 +1825,8 @@ messages must go through `clear()` first, then through
 | `web/src/components/LeagueGraphCard.tsx` | `get_league_graph` rich render — localized English/Hebrew and RTL canonical league/type pickers, accessible Recharts line chart and data table, series visibility controls, selected-team emphasis, chip markers, and explicit empty/not-followed/not-found/error states. Picker runs share the per-agent lock and roll back failed injected messages. |
 | `web/src/components/RaceSummaryCard.tsx` | `get_race_summary` rich render — localized English/Hebrew and RTL canonical league picker plus structured recap sections and explicit no-league, not-followed, missing-data, empty, generation-error, loading, and tool-error states. Picker runs share the per-agent lock and roll back failed injected messages. |
 | `web/src/components/WhatsNewCard.tsx` | `get_whats_new` rich render — safe Markdown-aware release announcement card with localized English/Hebrew chrome, RTL, loading, empty, malformed-result, and shared tool-error states. |
+| `web/src/components/SimulationStatusCard.tsx` | `get_simulation_status` rich render — localized English/Hebrew and RTL simulation metadata/count card plus accessible bounded driver/constructor projection tables, with loading, not-loaded, and shared tool-error states. |
+| `web/src/components/DataStatusCard.tsx` | `get_data_status` rich render — localized English/Hebrew and RTL safe cached-data/readiness card with structured projection tables, saved roster cards, team selection, missing prerequisites, next actions, loading, and shared tool-error states. |
 | `web/src/components/BestTeamsTable.tsx` | `get_best_teams` rich render (top-10 table, captain badge, must-include highlights, penalty markers), localized via the tool result's refreshed `lang`. |
 | `web/src/components/UserTeamsList.tsx` | `list_user_teams` rich render (card grid). |
 | `web/src/components/UserTeamsAction.tsx` | Registers the teams renderer and turns non-active cards into direct authenticated `select_team` proposals that render the shared confirmation card. |

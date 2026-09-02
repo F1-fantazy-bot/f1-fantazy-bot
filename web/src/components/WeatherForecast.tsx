@@ -1,6 +1,12 @@
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
-import { directionFor, localeFor, uiLanguageOf, type UiLanguage } from './uiLanguage';
+import {
+  directionFor,
+  localeFor,
+  uiLanguageOf,
+  USER_TIME_ZONE,
+  type UiLanguage,
+} from './uiLanguage';
 import { ToolLoading } from './ToolLoading';
 
 type Forecast = {
@@ -37,6 +43,7 @@ function formatTime(iso: string, lang: UiLanguage): string {
   return d.toLocaleString(localeFor(lang), {
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: USER_TIME_ZONE,
   });
 }
 
@@ -49,6 +56,7 @@ function formatSessionStart(iso: string, lang: UiLanguage): string {
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: USER_TIME_ZONE,
   });
 }
 

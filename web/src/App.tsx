@@ -22,6 +22,8 @@ import { useLeagueChangesAction } from './components/LeagueChangesCard';
 import { useLeagueGraphAction } from './components/LeagueGraphCard';
 import { useRaceSummaryAction } from './components/RaceSummaryCard';
 import { useWhatsNewAction } from './components/WhatsNewCard';
+import { useSimulationStatusAction } from './components/SimulationStatusCard';
+import { useDataStatusAction } from './components/DataStatusCard';
 import { useRaceInfoAction } from './components/RaceInfoCard';
 import { useWeatherForecastAction } from './components/WeatherForecast';
 import { useDeadlineCountdownAction } from './components/DeadlineCountdown';
@@ -59,6 +61,8 @@ function AgentActions() {
   useLeagueGraphAction();
   useRaceSummaryAction();
   useWhatsNewAction();
+  useSimulationStatusAction();
+  useDataStatusAction();
   useBestTeamsAction();
   useBestTeamScenariosAction();
   useRaceInfoAction();
