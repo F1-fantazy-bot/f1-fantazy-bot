@@ -22,6 +22,7 @@ import { ToolErrorFallback } from './ToolErrorFallback';
 import { AgentGuideCard } from './AgentGuideCard';
 import { LeagueChangesCard } from './LeagueChangesCard';
 import { LeagueGraphCard } from './LeagueGraphCard';
+import { RaceSummaryCard } from './RaceSummaryCard';
 
 vi.mock('@copilotkit/react-core/v2', () => ({
   UseAgentUpdate: { OnRunStatusChanged: 'run-status' },
@@ -278,6 +279,23 @@ describe('all rich components honor Hebrew ui language', () => {
         />
       ),
       expected: ['פער מהמוביל', 'קבוצות בגרף', 'הקבוצה הפעילה', 'טבלת נתוני הגרף'],
+    },
+    {
+      name: 'race summary',
+      element: (
+        <RaceSummaryCard
+          result={{
+            status: 'ok',
+            lang: 'he',
+            leagueName: 'ליגת בדיקה',
+            raceName: 'גרנד פרי סין',
+            raceNumber: 2,
+            summary:
+              '🏁 ליגת בדיקה — גרנד פרי סין — מרוץ 2\n\n🏆 מנצחים ומפסידים\nהקבוצה Rocket ניצחה.\n\n🔧 הבדלי קבוצות\nההרכבים היו שונים.\n\n📈 מגמות עונה\nהצמרת התהפכה.\n\n🎭 סיפורים\nהוויילדקארד הגיע בזמן.',
+          }}
+        />
+      ),
+      expected: ['גרנד פרי סין', 'מנצחים ומפסידים', 'מגמות עונה', 'סיפורים'],
     },
     {
       name: 'best-team scenarios',
