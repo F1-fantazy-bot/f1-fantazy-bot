@@ -40,3 +40,22 @@ test('BuiltInAgent forwards hidden developer confirmation messages', () => {
     }),
   );
 });
+
+test('uses sequential tool calls with the supported reasoning effort', () => {
+  buildAgent({
+    endpoint: 'https://example.openai.azure.com',
+    apiKey: 'key',
+    model: 'deployment',
+  });
+
+  expect(mockBuiltInAgent).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      providerOptions: {
+        openai: {
+          parallelToolCalls: false,
+          reasoningEffort: 'medium',
+        },
+      },
+    }),
+  );
+});

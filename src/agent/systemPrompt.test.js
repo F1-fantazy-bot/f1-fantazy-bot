@@ -184,6 +184,16 @@ test('routes race summaries through canonical clickable league selection', () =>
   expect(prompt).toContain('Never expose or speculate about Azure, OpenAI');
 });
 
+test('routes release-announcement questions through the no-argument read tool', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain('get_whats_new — the latest F1 Fantasy Bot release announcement');
+  expect(prompt).toContain('release notes, recent bot updates, changelog');
+  expect(prompt).toContain('call get_whats_new with no arguments');
+  expect(prompt).toContain('Do not translate, rewrite, or');
+  expect(prompt).toContain('status="empty"');
+});
+
 test('requires an explicit team and league for follow_team', () => {
   const prompt = getSystemPrompt();
 

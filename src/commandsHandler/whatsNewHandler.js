@@ -1,6 +1,7 @@
 const { sendErrorMessage } = require('../utils');
 const { getLocale, t } = require('../i18n');
 const { getLatestAnnouncement } = require('../announcementsService');
+const { buildWhatsNewResult } = require('../cores/announcementsCore');
 const { MAX_TELEGRAM_MESSAGE_LENGTH } = require('../constants');
 
 function escapeCommandUnderscores(text) {
@@ -39,8 +40,8 @@ function buildAnnouncementText(latest, chatId) {
 async function handleWhatsNewCommand(bot, msg) {
   const chatId = msg.chat.id;
 
-  const latest = getLatestAnnouncement();
-  if (!latest || !latest.text) {
+  const result = buildWhatsNewResult(getLatestAnnouncement());
+  if (result.status !== 'ok') {
     await bot.sendMessage(
       chatId,
       t('No release notes available yet.', chatId),
@@ -48,6 +49,7 @@ async function handleWhatsNewCommand(bot, msg) {
 
     return;
   }
+  const latest = result.announcement;
 
   let text = buildAnnouncementText(latest, chatId);
   if (text.length > MAX_TELEGRAM_MESSAGE_LENGTH) {

@@ -94,12 +94,12 @@ function buildAgent(cfg) {
     // message (default behaviour), only the first tool's React render
     // hook fires — the rest are silently dropped from the UI. Forcing
     // sequential tool calls makes each tool call land in its own
-    // assistant message, so each gets its own rich UI render. GPT-5.6 Chat
-    // Completions requires reasoning `none` when function tools are present.
+    // assistant message, so each gets its own rich UI render. The current
+    // Chat Completions deployment accepts `medium` reasoning effort.
     providerOptions: {
       openai: {
         parallelToolCalls: false,
-        reasoningEffort: 'none',
+        reasoningEffort: 'medium',
       },
     },
   });
