@@ -24,6 +24,8 @@ import { LeagueChangesCard } from './LeagueChangesCard';
 import { LeagueGraphCard } from './LeagueGraphCard';
 import { RaceSummaryCard } from './RaceSummaryCard';
 import { WhatsNewCard } from './WhatsNewCard';
+import { SimulationStatusCard } from './SimulationStatusCard';
+import { DataStatusCard } from './DataStatusCard';
 
 vi.mock('@copilotkit/react-core/v2', () => ({
   UseAgentUpdate: { OnRunStatusChanged: 'run-status' },
@@ -314,6 +316,84 @@ describe('all rich components honor Hebrew ui language', () => {
         />
       ),
       expected: ['מה חדש', 'עדכון מיוחד', 'עדכון חדש', 'אפשר לעקוב אחרי ליגה'],
+    },
+    {
+      name: 'simulation status',
+      element: (
+        <SimulationStatusCard
+          result={{
+            status: 'ok',
+            lang: 'he',
+            source: { kind: 'simulation', name: 'תחזית מונזה' },
+            matchday: 16,
+            freshness: {
+              status: 'fresh',
+              updatedAtLocal: '2 בספט׳ 2026, 14:00',
+            },
+            available: { drivers: 22, constructors: 11 },
+            projections: {
+              drivers: [{ code: 'VER', expectedPoints: 25 }],
+              constructors: [{ code: 'MCL', expectedPoints: 30 }],
+            },
+          }}
+        />
+      ),
+      expected: [
+        'מצב הסימולציה',
+        'מקור',
+        'מחזור',
+        'עדכני',
+        'נהגים זמינים',
+        'קבוצות זמינות',
+        'נתוני הסימולציה',
+        'תחזית נהגים',
+      ],
+    },
+    {
+      name: 'data status',
+      element: (
+        <DataStatusCard
+          result={{
+            status: 'incomplete',
+            lang: 'he',
+            source: 'simulation',
+            simulation: {
+              status: 'ok',
+              name: 'תחזית מונזה',
+              matchday: 16,
+              freshness: { status: 'stale' },
+            },
+            projections: { drivers: 22, constructors: 11, available: true },
+            teams: { ownedCount: 2, selected: null, hasSelectedTeam: false },
+            missingPrerequisites: ['selected_team'],
+            nextActions: ['select_team'],
+            cache: {
+              projections: {
+                drivers: [{ code: 'VER', expectedPoints: 25 }],
+                constructors: [{ code: 'MCL', expectedPoints: 30 }],
+              },
+              teams: [{
+                teamId: 'T1',
+                teamName: 'קילזי',
+                isSelected: true,
+                drivers: ['VER'],
+                constructors: ['MCL'],
+              }],
+            },
+          }}
+        />
+      ),
+      expected: [
+        'מצב הנתונים',
+        'חלק מהנתונים עדיין חסרים',
+        'תחזית מונזה',
+        'ישן',
+        'קבוצה פעילה',
+        'חסרים',
+        'בחר קבוצה פעילה',
+        'נתונים שמורים',
+        'הרכבים שמורים',
+      ],
     },
     {
       name: 'best-team scenarios',

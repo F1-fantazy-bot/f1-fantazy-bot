@@ -30,6 +30,8 @@ test('all loading states render Hebrew and RTL from the account context', () => 
     'leagueGraph',
     'raceSummary',
     'whatsNew',
+    'simulationStatus',
+    'dataStatus',
     'bestTeams',
     'scenarios',
     'raceInfo',
@@ -66,6 +68,8 @@ test('all loading states render Hebrew and RTL from the account context', () => 
   expect(container.textContent).toContain('טוען גרף ליגה');
   expect(container.textContent).toContain('מכין סיכום מרוץ');
   expect(container.textContent).toContain('טוען עדכונים');
+  expect(container.textContent).toContain('טוען מצב סימולציה');
+  expect(container.textContent).toContain('בודק מצב נתונים');
   expect(container.textContent).toContain('מכין את עמדת הפיקוד');
   expect(container.textContent).toContain('מבצע את הפעולה');
   expect(container.textContent).not.toContain('Loading');

@@ -3,7 +3,7 @@ import { Fragment, useId } from 'react';
 import { isToolErrorResult, ToolErrorFallback } from './ToolErrorFallback';
 import { safeParse } from './safeParse';
 import { ToolLoading } from './ToolLoading';
-import { directionFor, localeFor, uiLanguageOf } from './uiLanguage';
+import { directionFor, localeFor, uiLanguageOf, USER_TIME_ZONE } from './uiLanguage';
 
 type Announcement = {
   id?: string | null;
@@ -29,7 +29,7 @@ function formatAnnouncementDate(
     day: 'numeric',
     month: 'long',
     year: 'numeric',
-    timeZone: 'Asia/Jerusalem',
+    timeZone: USER_TIME_ZONE,
   }).format(date);
 }
 

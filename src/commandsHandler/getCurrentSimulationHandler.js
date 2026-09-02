@@ -5,7 +5,9 @@ const {
   simulationInfoCache,
   getPrintableCache,
   sharedKey,
+  pricesCache,
 } = require('../cache');
+const { buildSimulationStatus } = require('../cores/simulationStatusCore');
 const {
   COMMAND_RESET_CACHE,
   COMMAND_LOAD_SIMULATION,
@@ -16,6 +18,12 @@ async function handleGetCurrentSimulation(bot, msg) {
   const chatId = msg.chat.id;
   const drivers = driversCache[chatId];
   const constructors = constructorsCache[chatId];
+  const simulationStatus = buildSimulationStatus({
+    simulationInfo: simulationInfoCache[sharedKey],
+    drivers: driversCache[sharedKey],
+    constructors: constructorsCache[sharedKey],
+    pricesMetadata: pricesCache?.metadata,
+  });
 
   // Check if user has data in their cache
   if (drivers || constructors) {
@@ -27,8 +35,7 @@ async function handleGetCurrentSimulation(bot, msg) {
     return;
   }
 
-  const simulationInfo = simulationInfoCache[sharedKey];
-  if (!simulationInfo) {
+  if (simulationStatus.status === 'not_loaded') {
     await bot.sendMessage(
       chatId,
       t('No simulation data is currently loaded. Please use {CMD} to load simulation data.', chatId, { CMD: COMMAND_LOAD_SIMULATION })
@@ -41,9 +48,9 @@ async function handleGetCurrentSimulation(bot, msg) {
 
   await bot.sendMessage(chatId, printableCache, { parse_mode: 'Markdown' });
   let timeText = t('Unknown', chatId);
-  if (simulationInfo.lastUpdate) {
+  if (simulationStatus.lastUpdate) {
     try {
-      const date = new Date(simulationInfo.lastUpdate);
+      const date = new Date(simulationStatus.lastUpdate);
       const { dateStr, timeStr } = formatDateTime(date, chatId);
       timeText = `${dateStr} at ${timeStr}`;
     } catch (error) {
@@ -55,9 +62,9 @@ async function handleGetCurrentSimulation(bot, msg) {
   await bot.sendMessage(
     chatId,
     t('Current simulation: {NAME}\n{UPDATE}', chatId, {
-      NAME: simulationInfo.name,
+      NAME: simulationStatus.source?.name || simulationInfoCache[sharedKey].name,
       UPDATE: lastUpdateText,
-    })
+    }),
   );
 
   if (isAdminMessage(msg)) {

@@ -8,6 +8,7 @@ import {
 } from 'react';
 
 export type UiLanguage = 'en' | 'he';
+export const USER_TIME_ZONE = 'Asia/Jerusalem';
 
 export function uiLanguageOf(value: { lang?: string } | undefined): UiLanguage {
   return value?.lang === 'he' ? 'he' : 'en';

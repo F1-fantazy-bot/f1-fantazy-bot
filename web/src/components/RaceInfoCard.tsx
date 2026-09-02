@@ -1,6 +1,7 @@
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { ToolLoading } from './ToolLoading';
+import { USER_TIME_ZONE } from './uiLanguage';
 
 type Sessions = {
   qualifying?: string;
@@ -111,6 +112,7 @@ function formatIso(iso: string | undefined, lang: UiLanguage): string {
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: USER_TIME_ZONE,
   });
 }
 
