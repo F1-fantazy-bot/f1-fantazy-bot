@@ -164,6 +164,24 @@ test('routes league graphs through canonical league and type cards', () => {
   expect(prompt).toContain('do not convert tied standings into unique ranks');
 });
 
+test('routes race summaries through canonical clickable league selection', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain(
+    'get_race_summary — generated post-race recap',
+  );
+  expect(prompt).toContain('call get_race_summary with no arguments');
+  expect(prompt).toContain('Do NOT call list_user_leagues first');
+  expect(prompt).toMatch(/do NOT ask the user to type a\s+league name or code/);
+  expect(prompt).toContain(
+    'exact\n    canonical leagueCode supplied by the selection message',
+  );
+  expect(prompt).toContain("user's saved language");
+  expect(prompt).toContain('Do not rewrite the');
+  expect(prompt).toContain('missing_data, empty, and generation_error');
+  expect(prompt).toContain('Never expose or speculate about Azure, OpenAI');
+});
+
 test('requires an explicit team and league for follow_team', () => {
   const prompt = getSystemPrompt();
 

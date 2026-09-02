@@ -1,5 +1,6 @@
 const {
   buildAskSystemPrompt,
+  buildRaceSummarySystemPrompt,
   getAskCommands,
   EXTRA_ASK_COMMANDS,
 } = require('./prompts');
@@ -100,5 +101,30 @@ describe('buildAskSystemPrompt', () => {
         });
       }
     });
+  });
+});
+
+describe('buildRaceSummarySystemPrompt', () => {
+  test.each([
+    ['en', 'English', 'Latin letters'],
+    ['he', 'Hebrew', 'Hebrew letters'],
+  ])('preserves the controlled %s recap policy', (language, name, alphabet) => {
+    const prompt = buildRaceSummarySystemPrompt(language);
+
+    expect(prompt).toContain(`entirely in ${name}`);
+    expect(prompt).toContain(`into ${alphabet}`);
+    expect(prompt).toContain('exactly four sections');
+    expect(prompt).toContain('keyTeamDifferences');
+    expect(prompt).toContain('seasonRankChange');
+    expect(prompt).toContain('Treat roster differences as correlation');
+    expect(prompt).toContain('stay under 3000 characters');
+  });
+
+  test('adds Hebrew-specific RTL and language-quality policy', () => {
+    const prompt = buildRaceSummarySystemPrompt('he');
+
+    expect(prompt).toContain('never begin a sentence or prose paragraph');
+    expect(prompt).toContain('natural modern Israeli Hebrew');
+    expect(prompt).toContain('always use masculine grammatical forms');
   });
 });

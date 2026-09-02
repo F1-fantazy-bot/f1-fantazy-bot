@@ -30,10 +30,14 @@ confirmed writes.
   `get_league_changes` adds followed-league authorization, canonical clickable
   selection, safe error envelopes, and an accessible localized English/Hebrew
   rich component.
-- Phase 4 is implemented on the current feature branch: the three league graph
+- Phase 4 merged in PR #235: the three league graph
   series come from one pure core while Telegram keeps its existing QuickChart
   output. `get_league_graph` provides authorized league/type card selection and
   structured data for a localized, accessible English/Hebrew web chart.
+- Phase 5 is implemented on the current feature branch: race-summary facts are
+  extracted into a pure core, Telegram and the agent share one controlled
+  nested-model service, and `get_race_summary` provides authorized canonical
+  league selection plus a localized English/Hebrew rich recap.
 
 ## Locked decisions
 
@@ -242,7 +246,7 @@ the authorization boundary.
 - Preserve active-team highlighting, excluded-team filtering, chip markers,
   tied standings, missing budget points, and race-name mapping.
 
-### Phase 5 — Race summary
+### Phase 5 — Race summary (implemented)
 
 - Extract `raceSummaryCore` for source data and `raceSummaryService` for
   controlled text generation.

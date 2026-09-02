@@ -20,6 +20,7 @@ import { useFollowedTeamsAction } from './components/FollowedTeamsGrid';
 import { useLeaderboardAction } from './components/LeaderboardTable';
 import { useLeagueChangesAction } from './components/LeagueChangesCard';
 import { useLeagueGraphAction } from './components/LeagueGraphCard';
+import { useRaceSummaryAction } from './components/RaceSummaryCard';
 import { useRaceInfoAction } from './components/RaceInfoCard';
 import { useWeatherForecastAction } from './components/WeatherForecast';
 import { useDeadlineCountdownAction } from './components/DeadlineCountdown';
@@ -55,6 +56,7 @@ function AgentActions() {
   useLeaderboardAction();
   useLeagueChangesAction();
   useLeagueGraphAction();
+  useRaceSummaryAction();
   useBestTeamsAction();
   useBestTeamScenariosAction();
   useRaceInfoAction();
