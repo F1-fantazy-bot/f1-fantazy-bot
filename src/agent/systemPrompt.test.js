@@ -233,6 +233,19 @@ test('routes explicit simulation refreshes through durable confirmation', () => 
   expect(prompt).toContain('Never expose or speculate about Blob, Azure, HTTP');
 });
 
+test('routes destructive user-data resets through durable confirmation', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain('reset_user_data — permanently delete');
+  expect(prompt).toContain('For an explicit request to reset, delete, or clear all saved F1 Fantasy');
+  expect(prompt).toContain('call **reset_user_data** with no arguments');
+  expect(prompt).toContain('This is destructive and always requires the confirmation card');
+  expect(prompt).toMatch(/Do not use this for\s+resetting a chip/);
+  expect(prompt).toMatch(
+    /saved team\s+blobs, active-team setting, per-team\s+preferences/,
+  );
+});
+
 test('requires an explicit team and league for follow_team', () => {
   const prompt = getSystemPrompt();
 

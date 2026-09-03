@@ -57,6 +57,18 @@ const translations = {
       'הסימולציה העדכנית רועננה מהמקור המשותף והעמיד: {DRIVERS} נהגים ו־{CONSTRUCTORS} קבוצות{MATCHDAY}',
     ' Matchday {MATCHDAY}.': ' · מחזור {MATCHDAY}.',
     'Cache has been reset for your chat.': "המטמון אופס עבור הצ'אט שלך.",
+    'Reset all saved F1 Fantasy data for this account? This permanently deletes {TEAMS} saved team blob(s), clears the active team ({SELECTED}), {RANKING} points-per-million preference(s), {BEST} saved best-team choice(s), {CHIPS} chip preference(s), and chat-specific projection overrides (drivers: {DRIVERS}, constructors: {CONSTRUCTORS}). This cannot be undone.':
+      'לאפס את כל נתוני F1 Fantasy השמורים לחשבון זה? הפעולה תמחק לצמיתות {TEAMS} קובץ/י קבוצה שמורים, תנקה את הקבוצה הפעילה ({SELECTED}), {RANKING} העדפת/ות נקודות למיליון, {BEST} בחירת/ות קבוצה מומלצת, {CHIPS} העדפת/ות צ׳יפים ודריסות נתוני סימולציה ייחודיות לצ׳אט (נהגים: {DRIVERS}, קבוצות: {CONSTRUCTORS}). לא ניתן לבטל פעולה זו.',
+    'Reset all saved F1 Fantasy data for this account. This cannot be undone.':
+      'לאפס את כל נתוני F1 Fantasy השמורים לחשבון זה. לא ניתן לבטל פעולה זו.',
+    'No saved F1 Fantasy team data or chat-specific projection overrides are available to reset.':
+      'אין נתוני קבוצת F1 Fantasy שמורים או דריסות נתוני סימולציה ייחודיות לצ׳אט שאפשר לאפס.',
+    'Your saved data changed while this confirmation was open. Review the reset details and confirm again.':
+      'הנתונים השמורים השתנו בזמן שכרטיס האישור היה פתוח. יש לעבור שוב על פרטי האיפוס ולאשר מחדש.',
+    'Your saved F1 Fantasy data was reset. Deleted {TEAMS} team blob(s) and cleared the active team, per-team preferences, and chat-specific projection overrides.':
+      'נתוני F1 Fantasy השמורים אופסו. נמחקו {TEAMS} קובץ/י קבוצה והקבוצה הפעילה, ההעדפות לכל קבוצה ודריסות נתוני הסימולציה הייחודיות לצ׳אט נוקו.',
+    Yes: 'כן',
+    No: 'לא',
     'Next race information is currently unavailable.':
       'מידע על המרוץ הבא אינו זמין כעת.',
     'No upcoming races found for this season.':

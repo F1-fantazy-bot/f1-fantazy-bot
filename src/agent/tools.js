@@ -62,6 +62,9 @@ const { reportBugTool } = require('./writeTools/reportBugTool');
 const {
   loadLatestSimulationTool,
 } = require('./writeTools/loadLatestSimulationTool');
+const {
+  resetUserDataTool,
+} = require('./writeTools/resetUserDataTool');
 const { getLanguageTool } = require('./readTools/getLanguageTool');
 const { getAgentGuideTool } = require('./readTools/getAgentGuideTool');
 const {
@@ -551,6 +554,7 @@ const tools = [
   followTeamTool,
   reportBugTool,
   loadLatestSimulationTool,
+  resetUserDataTool,
 
   defineTool({
     name: 'confirm_write',

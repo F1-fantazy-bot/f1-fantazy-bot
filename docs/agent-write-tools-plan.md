@@ -209,6 +209,7 @@ classified for cross-process behaviour:
 | `set_language`         | Yes (`updateUserAttributes`) + in-mem `userCache.lang`                                  | PR-2 uses an outer 750 ms deadline plus a per-chat generation guard while refreshing persisted language before Telegram routes messages **and** callbacks. |
 | `set_best_team_ranking`| Yes (`updateUserAttributes`) + invalidates `bestTeamsCache`                            | Telegram recomputes on next `/best_teams`. OK.                                                   |
 | `activate_chip`        | Yes (`selectedChipByTeam` + normalized `selectedChipCache`)                            | PR-5 persists and hydrates per-team chip state across bot/agent hosts and restarts.              |
+| `reset_user_data`      | In progress — reset epoch + Blob/Table transaction                                      | Phase 9 will clear teams, preferences, and per-chat overrides only after a durable confirmation. |
 | `follow_league`        | Yes (`addUserLeague` → Azure Tables)                                                   | Each surface reads on demand. OK.                                                                |
 | `unfollow_league`      | Yes (`removeUserLeague` → Azure Tables)                                                | OK.                                                                                              |
 | `follow_team`          | Yes (`saveUserTeam` / `deleteUserTeam` → Azure Tables)                                 | OK.                                                                                              |
@@ -751,12 +752,11 @@ Implementation verification:
 ## Out of scope (user opted out)
 
 - `teams_tracker_save` (batch tracker save tool).
-- `reset_cache`.
 - Admin write tools (`/broadcast`, `/set_nickname`,
   `/allow_web_user`, `/trigger_*`).
-- Dedicated per-mutation result components. Writes use the shared confirmation
-  and result cards plus contextual selection controls where the user must pick
-  a canonical target.
+- Dedicated controls for mutations that do not carry a user-safe structured
+  result. Writes use the shared confirmation/result cards, with focused result
+  cards when a safe structured outcome materially improves clarity.
 
 ---
 

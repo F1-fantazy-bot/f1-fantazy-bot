@@ -161,7 +161,7 @@ const COMMAND_CAPABILITIES = Object.freeze([
   user(constants.COMMAND_PRINT_CACHE, AGENT_STATUS.IMPLEMENTED, [
     'get_data_status',
   ]),
-  user(constants.COMMAND_RESET_CACHE, AGENT_STATUS.PLANNED, [
+  user(constants.COMMAND_RESET_CACHE, AGENT_STATUS.IMPLEMENTED, [
     'reset_user_data',
   ], { confirmation: CONFIRMATION.REQUIRED }),
 

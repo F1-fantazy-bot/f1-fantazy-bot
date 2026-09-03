@@ -32,6 +32,7 @@ test('all loading states render Hebrew and RTL from the account context', () => 
     'whatsNew',
     'simulationStatus',
     'simulationRefresh',
+    'resetUserData',
     'dataStatus',
     'bestTeams',
     'scenarios',
@@ -71,6 +72,7 @@ test('all loading states render Hebrew and RTL from the account context', () => 
   expect(container.textContent).toContain('טוען עדכונים');
   expect(container.textContent).toContain('טוען מצב סימולציה');
   expect(container.textContent).toContain('מרענן את הסימולציה העדכנית');
+  expect(container.textContent).toContain('מאפס את הנתונים השמורים שלך');
   expect(container.textContent).toContain('בודק מצב נתונים');
   expect(container.textContent).toContain('מכין את עמדת הפיקוד');
   expect(container.textContent).toContain('מבצע את הפעולה');

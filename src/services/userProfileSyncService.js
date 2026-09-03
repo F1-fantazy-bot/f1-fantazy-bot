@@ -6,6 +6,9 @@
 // initialization + lookup latency.
 
 const { getUserById } = require('../userRegistryService');
+const {
+  reconcileUserResetEpoch,
+} = require('./userResetEpochService');
 
 const USER_PROFILE_REFRESH_TIMEOUT_MS = 750;
 const inFlightProfiles = new Map();
@@ -36,7 +39,10 @@ async function getFreshUserProfile(
         }, timeoutMs);
       });
 
-      return await Promise.race([lookup, deadline]);
+      const user = await Promise.race([lookup, deadline]);
+      reconcileUserResetEpoch(chatId, user);
+
+      return user;
     } finally {
       if (timeout) {
         clearTimeout(timeout);

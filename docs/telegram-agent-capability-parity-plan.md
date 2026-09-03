@@ -44,9 +44,11 @@ confirmed writes.
   share public-safe diagnostics cores with `get_simulation_status` and
   `get_data_status`, including saved-language Asia/Jerusalem times and
   structured cached projections/rosters instead of raw cache JSON.
-- Phase 8 is in progress: `/load_simulation` is being delegated to one
+- Phase 8 merged in PR #239: `/load_simulation` is delegated to one
   serialized simulation-refresh service and exposed as a confirmed agent
   action with an explicit per-process cache boundary.
+- Phase 9 is in progress: `/reset_cache` is being extracted into a
+  reset-safe shared service and exposed as a confirmed agent action.
 
 ## Locked decisions
 
@@ -286,7 +288,7 @@ the authorization boundary.
   `Asia/Jerusalem` time. Never expose raw cache JSON, credentials, storage
   paths, or internal table entities.
 
-### Phase 8 — Load latest simulation (in progress)
+### Phase 8 — Load latest simulation (implemented)
 
 - Extract `simulationRefreshService` from `loadSimulationData`.
 - Keep `/load_simulation` as a thin adapter.
@@ -295,7 +297,7 @@ the authorization boundary.
 - State clearly that each Function process refreshes its own cache from the
   same durable Blob source.
 
-### Phase 9 — Confirmed user-data reset
+### Phase 9 — Confirmed user-data reset (in progress)
 
 - Extract a bot-free, port-injected `resetUserDataService`.
 - Add confirmed `reset_user_data()`.

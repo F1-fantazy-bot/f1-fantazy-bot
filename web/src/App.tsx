@@ -87,6 +87,12 @@ function AgentActions() {
     loadingKind: 'simulationRefresh',
   });
   useWriteAction({
+    name: 'reset_user_data',
+    description:
+      'Permanently reset the signed-in user\'s saved F1 Fantasy team data after confirmation.',
+    loadingKind: 'resetUserData',
+  });
+  useWriteAction({
     name: 'select_team',
     description: 'Change the signed-in user active fantasy team.',
     loadingLabel: 'Preparing team selection…',
