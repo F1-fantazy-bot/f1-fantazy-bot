@@ -27,6 +27,7 @@ import { WhatsNewCard } from './WhatsNewCard';
 import { SimulationStatusCard } from './SimulationStatusCard';
 import { DataStatusCard } from './DataStatusCard';
 import { SimulationRefreshCard } from './SimulationRefreshCard';
+import { ResetUserDataCard } from './ResetUserDataCard';
 
 vi.mock('@copilotkit/react-core/v2', () => ({
   UseAgentUpdate: { OnRunStatusChanged: 'run-status' },
@@ -375,6 +376,35 @@ describe('all rich components honor Hebrew ui language', () => {
         'מחזור',
         'נהגים',
         'קבוצות',
+      ],
+    },
+    {
+      name: 'user-data reset',
+      element: (
+        <ResetUserDataCard
+          result={{
+            status: 'ok',
+            tool: 'reset_user_data',
+            uiLang: 'he',
+            summary: 'נתוני F1 Fantasy השמורים אופסו.',
+            impact: {
+              teamBlobs: 2,
+              selectedTeam: true,
+              rankingPreferences: 2,
+              selectedBestTeams: 1,
+              chipPreferences: 2,
+              driverProjectionOverride: true,
+              constructorProjectionOverride: false,
+            },
+          }}
+        />
+      ),
+      expected: [
+        'נתוני המשתמש אופסו',
+        'קבוצות שנמחקו',
+        'קבוצה פעילה',
+        'העדפות דירוג',
+        'העדפות צ׳יפים',
       ],
     },
     {

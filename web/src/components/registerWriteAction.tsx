@@ -12,6 +12,10 @@ import {
   isSimulationRefreshResult,
   SimulationRefreshCard,
 } from './SimulationRefreshCard';
+import {
+  isResetUserDataResult,
+  ResetUserDataCard,
+} from './ResetUserDataCard';
 
 // Shared factory for registering the frontend render hook of any
 // write tool (or `confirm_write`). Centralises the propose/confirm
@@ -65,6 +69,9 @@ export function useWriteAction({
       if (isWriteResult(parsed)) {
         if (isSimulationRefreshResult(parsed)) {
           return <SimulationRefreshCard result={parsed} />;
+        }
+        if (isResetUserDataResult(parsed)) {
+          return <ResetUserDataCard result={parsed} />;
         }
         return <InteractiveWriteResult result={parsed} />;
       }

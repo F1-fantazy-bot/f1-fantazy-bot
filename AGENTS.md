@@ -553,7 +553,11 @@ Blob naming includes the team ID:
 ### Updated Command Behaviors
 
 - **`selectChip()`** is now async and accepts `bot` as a parameter (needed for `resolveSelectedTeam`).
-- **`/reset_cache`** deletes all teams via `deleteAllUserTeams(bot, chatId)` and clears `selectedTeam`.
+- **`/reset_cache`** delegates to `resetUserDataService`: it deletes all team
+  blobs, clears the active team, per-team ranking/selected-best/chip preferences,
+  and chat-specific projection overrides. A durable per-user reset epoch makes
+  the agent and Telegram processes drop stale user-scoped caches on their next
+  profile refresh.
 - **`/print_cache`** (`getPrintableCache`) shows all teams in a JSON object with a `SelectedTeam` field indicating the active team, plus a `Teams` object containing all team data.
 
 ### Constants
@@ -584,7 +588,8 @@ A second user-facing surface that runs the same business logic as the Telegram b
 
 **Status (2026-09-03):** the read-only v1 capability scope, Phase 7
 simulation/data diagnostics, Azure deployment, Google auth, and CORS rollout
-are complete. Phase 8's confirmed shared-simulation refresh is in progress.
+are complete. Phase 8's confirmed shared-simulation refresh is complete;
+Phase 9's confirmed user-data reset is in progress.
 The effectful write-tools rollout is now active: PR
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207)
 merged the durable confirmation infrastructure; `set_language` is
@@ -767,7 +772,8 @@ f1-fantazy-bot/
 │   │   │   ├── followLeagueTool.js   # confirmed league follow
 │   │   │   ├── unfollowLeagueTool.js # confirmed league removal
 │   │   │   ├── followTeamTool.js     # confirmed league-team follow/removal
-│   │   │   └── reportBugTool.js      # confirmed administrator report
+│   │   │   ├── reportBugTool.js      # confirmed administrator report
+│   │   │   └── resetUserDataTool.js  # confirmed permanent user-data reset
 │   │   └── runtime.js                # BuiltInAgent + CopilotRuntime + createCopilotRuntimeHandler (+ wrapLanguageModel)
 │   ├── services/
 │   │   ├── pendingWritesStore.js     # Azure Table-backed staged/approved intents + TTL + ETag consume
@@ -784,6 +790,8 @@ f1-fantazy-bot/
 │   │   ├── userMutationLockService.js # Azure Table per-user cross-process lease
 │   │   ├── userMutationHydrationService.js # authoritative state after lease acquisition
 │   │   ├── teamStateSnapshotService.js # Blob/Table/cache compensation snapshots
+│   │   ├── resetUserDataService.js   # confirmed reset mutation + compensation
+│   │   ├── userResetEpochService.js  # durable reset epoch cache reconciliation
 │   │   └── telegramUserPreferencesService.js # one-route refresh of language/team/ranking
 │   ├── bestTeamsCalculator.js        # exports an optional `options` arg: filters + rankBy + resultCount
 │   └── commandsHandler/
@@ -1085,10 +1093,11 @@ Concrete write tools currently available:
 | `follow_team` | `followTeamService` | `/teams_tracker` helpers/callbacks |
 | `report_bug` | `reportBugService` | `/report_bug` pending reply |
 | `load_latest_simulation` | `simulationRefreshService` | `/load_simulation` |
+| `reset_user_data` | `resetUserDataService` | `/reset_cache` |
 
-`confirm_write` is the tenth supporting tool. It is not a business mutation:
+`confirm_write` is the eleventh supporting tool. It is not a business mutation:
 it consumes one authenticated, approved staged intent and dispatches to the
-registered commit handler for one of the nine tools above.
+registered commit handler for one of the ten tools above.
 
 **Selected-team default:** every singular team-scoped agent read/write uses
 the durable selected team when `teamId`/`teamName` is omitted. Do not ask
@@ -1788,6 +1797,8 @@ messages must go through `clear()` first, then through
 | `src/cores/raceSummaryCore.js` | Pure race-summary source facts shared by Telegram and the agent: latest matchday, excluded-team filtering, rank movement, locked-roster matchday guard/fallback, race ordering, and winner comparisons. |
 | `src/services/raceSummaryService.js` | Controlled nested-model generation shared by Telegram and the agent. Pins the model and saved-language prompt policy, sets token/output caps, normalizes token usage, and reports usage/errors through adapter-supplied telemetry callbacks. |
 | `src/services/simulationRefreshService.js` | Serialized per-Node-process refresh of the shared durable simulation and price inputs. Telegram `/load_simulation`, cache startup, and confirmed agent `load_latest_simulation` delegate here; it preserves operational telemetry through injected event ports and returns only safe source/time/matchday/count metadata to the agent. Each running Function/bot process owns a separate in-memory cache. |
+| `src/services/resetUserDataService.js` | Bot-free, port-injected reset mutation shared by Telegram `/reset_cache` and confirmed agent `reset_user_data`. It locks/hydrates authoritative user state, fingerprints the confirmation impact, deletes only that user's blobs/preferences/overrides, compensates from a snapshot on failure, then publishes a durable reset epoch. |
+| `src/services/userResetEpochService.js` | Reconciles a newer durable `userResetEpoch` during profile refresh and clears only that user's process-local teams, preferences, best-team results, chips, and projection overrides. |
 | `src/cores/announcementsCore.js` | Pure normalization of the latest `announcementsService` record into a public `ok`/`empty` envelope shared by Telegram `/whats_new` and agent `get_whats_new`. |
 | `src/agent/readTools/getWhatsNewTool.js` | Wrapped no-argument `get_whats_new` tool; combines the shared announcement result with the authenticated user's saved UI language. |
 | `src/cores/simulationStatusCore.js` | Pure, public-safe simulation metadata/count summary plus bounded allowlisted projection rows, shared by `/get_current_simulation` and agent `get_simulation_status`. |
@@ -1830,6 +1841,7 @@ messages must go through `clear()` first, then through
 | `web/src/components/SimulationStatusCard.tsx` | `get_simulation_status` rich render — localized English/Hebrew and RTL simulation metadata/count card plus accessible bounded driver/constructor projection tables, with loading, not-loaded, and shared tool-error states. |
 | `web/src/components/DataStatusCard.tsx` | `get_data_status` rich render — localized English/Hebrew and RTL safe cached-data/readiness card with structured projection tables, saved roster cards, team selection, missing prerequisites, next actions, loading, and shared tool-error states. |
 | `web/src/components/SimulationRefreshCard.tsx` | Confirmed `load_latest_simulation` result — localized English/Hebrew and RTL safe source/local-time/matchday/count card that makes the per-process cache boundary explicit. |
+| `web/src/components/ResetUserDataCard.tsx` | Confirmed `reset_user_data` result — localized English/Hebrew and RTL card that shows only the safe counts/categories cleared, never storage data or internal errors. |
 | `web/src/components/BestTeamsTable.tsx` | `get_best_teams` rich render (top-10 table, captain badge, must-include highlights, penalty markers), localized via the tool result's refreshed `lang`. |
 | `web/src/components/UserTeamsList.tsx` | `list_user_teams` rich render (card grid). |
 | `web/src/components/UserTeamsAction.tsx` | Registers the teams renderer and turns non-active cards into direct authenticated `select_team` proposals that render the shared confirmation card. |

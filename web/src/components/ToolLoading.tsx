@@ -11,6 +11,7 @@ export type ToolLoadingKind =
   | 'whatsNew'
   | 'simulationStatus'
   | 'simulationRefresh'
+  | 'resetUserData'
   | 'dataStatus'
   | 'bestTeams'
   | 'scenarios'
@@ -45,6 +46,10 @@ const copy: Record<ToolLoadingKind, { en: string; he: string }> = {
   simulationRefresh: {
     en: 'Refreshing the latest simulation…',
     he: 'מרענן את הסימולציה העדכנית…',
+  },
+  resetUserData: {
+    en: 'Resetting your saved data…',
+    he: 'מאפס את הנתונים השמורים שלך…',
   },
   dataStatus: { en: 'Checking data status…', he: 'בודק מצב נתונים…' },
   bestTeams: { en: 'Computing best teams…', he: 'מחשב קבוצות מומלצות…' },
