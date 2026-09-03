@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 # infra/agent-func/apply-settings.sh
 #
-# Idempotently configures f1-fantazy-agent-func (BOTH slots). It sets
-# app settings using `az functionapp config appsettings set --settings`, which
-# is ADDITIVE: it only touches the keys passed via --settings; everything else
-# (notably WEBSITE_RUN_FROM_PACKAGE set by the GH deploy action) is preserved.
-# It also ensures each slot's system-assigned identity can read Cost Management
-# data for the configured subscription.
+# Idempotently configures app settings on f1-fantazy-agent-func (BOTH slots)
+# using `az functionapp config appsettings set --settings`, which is ADDITIVE:
+# it only touches the keys passed via --settings; everything else (notably
+# WEBSITE_RUN_FROM_PACKAGE set by the GH deploy action) is preserved.
 #
 # This script is the canonical owner of agent app settings. The ARM
 # template (azuredeploy.json) intentionally does NOT manage appSettings —
@@ -138,55 +136,10 @@ apply_to_slot() {
     --output none --only-show-errors
 }
 
-ensure_cost_management_reader() {
-  local slot_label="$1"
-  local slot_args=()
-
-  if [[ "$slot_label" != "production" ]]; then
-    slot_args+=(--slot "$slot_label")
-  fi
-
-  local principal_id
-  principal_id=$(az functionapp identity show \
-    --name "$APP" \
-    --resource-group "$RG" \
-    --subscription "$SUB" \
-    ${slot_args[@]+"${slot_args[@]}"} \
-    --query principalId -o tsv)
-
-  if [[ -z "$principal_id" ]]; then
-    echo "Unable to resolve the ${slot_label} slot managed identity." >&2
-    return 1
-  fi
-
-  local role_scope="/subscriptions/${SUB}"
-  local existing_assignment
-  existing_assignment=$(az role assignment list \
-    --assignee-object-id "$principal_id" \
-    --scope "$role_scope" \
-    --query "[?roleDefinitionName == 'Cost Management Reader'] | [0].id" \
-    -o tsv)
-
-  if [[ -n "$existing_assignment" ]]; then
-    echo "Cost Management Reader already assigned to ${slot_label} slot."
-    return
-  fi
-
-  echo "Granting Cost Management Reader to ${slot_label} slot..."
-  az role assignment create \
-    --assignee-object-id "$principal_id" \
-    --assignee-principal-type ServicePrincipal \
-    --role "Cost Management Reader" \
-    --scope "$role_scope" \
-    --only-show-errors \
-    --output none
-}
-
 apply_production() {
   # Production: full Google sign-in + allowlist; everyone on the
   # WebUserAllowlist can chat as themselves.
   apply_to_slot "production" "$PROD_ORIGINS" "$PROD_PATTERN" "$PROD_GOOGLE_CLIENT_ID" "false"
-  ensure_cost_management_reader "production"
 }
 
 apply_test() {
@@ -196,12 +149,8 @@ apply_test() {
   # src/agent/auth.js#isAdminChatId. Non-admin allowlisted users still
   # work on prod; the test slot returns FORBIDDEN reason=not_admin.
   apply_to_slot "test" "$TEST_ORIGINS" "$TEST_PATTERN" "$TEST_GOOGLE_CLIENT_ID" "true"
-  ensure_cost_management_reader "test"
 }
 
-# Each deployment slot has an independent system-assigned managed identity.
-# The billing tool queries subscription-level Cost Management data, so the
-# selected slot(s) need this read-only built-in role.
 case "$AGENT_SETTINGS_SLOT" in
   both)
     apply_production

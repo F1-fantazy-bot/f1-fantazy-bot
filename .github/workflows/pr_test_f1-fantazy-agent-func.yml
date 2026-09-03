@@ -155,7 +155,7 @@ jobs:
                 "slotSetting": false }
             ]
 
-      - name: Configure test-slot billing access
+      - name: Apply test-slot agent settings
         env:
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_00873174CBBD48D3871911006820901C }}
           GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
