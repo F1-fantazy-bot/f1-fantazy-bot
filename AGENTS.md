@@ -98,6 +98,7 @@ Required environment variables (see `readme.md` for full list):
   - **Note:** `AZURE_STORAGE_CONNECTION_STRING` is also used by the Pending Reply Manager and User Registry Service for Azure Table Storage (no additional env var needed).
 - Azure Management API for billing and manual Logic App triggers: `AZURE_SUBSCRIPTION_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`
   - `AZURE_RESOURCE_GROUP` is optional and defaults to `f1-fantazy-bot`.
+  - The deployed web agent instead uses its slot's system-assigned managed identity. `infra/agent-func/apply-settings.sh` writes `AZURE_SUBSCRIPTION_ID` and idempotently grants both slot identities the subscription-scoped `Cost Management Reader` role required by `get_billing_stats`.
 - Agent (web chat) only: `AGENT_HARDCODED_CHAT_ID` — the Telegram chatId the agent acts as for v1 (single-user mode). Read by `src/agent/identity.js`; the LLM never sees this value. Required by `agentWebhook/` and by `scripts/dev-agent-server.js`.
 
 Start the bot with `npm start` (polling in dev) or configure webhook as needed for production.
