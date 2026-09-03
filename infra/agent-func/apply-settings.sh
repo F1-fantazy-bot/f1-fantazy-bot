@@ -37,6 +37,8 @@
 #   ALLOW_EMPTY_GOOGLE_CLIENT_ID
 #                           Set to "true" only when you intentionally want to
 #                           write an empty GOOGLE_CLIENT_ID and disable auth.
+#   AGENT_SETTINGS_SLOT    `both` (default), `production`, or `test`. The PR
+#                           deployment uses `test` so it cannot alter production.
 
 set -euo pipefail
 
@@ -64,6 +66,7 @@ TEST_PATTERN="${TEST_PREVIEW_PATTERN:-}"
 PROD_GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
 TEST_GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
 ALLOW_EMPTY_GOOGLE_CLIENT_ID="${ALLOW_EMPTY_GOOGLE_CLIENT_ID:-false}"
+AGENT_SETTINGS_SLOT="${AGENT_SETTINGS_SLOT:-both}"
 
 KV_BASE="https://${KV_NAME}.vault.azure.net/secrets"
 
@@ -179,20 +182,41 @@ ensure_cost_management_reader() {
     --output none
 }
 
-# Production: full Google sign-in + allowlist; everyone on the
-# WebUserAllowlist can chat as themselves.
-apply_to_slot "production" "$PROD_ORIGINS" "$PROD_PATTERN" "$PROD_GOOGLE_CLIENT_ID" "false"
-# Test slot: same Google client + same allowlist, BUT an additional
-# admin-only filter (AGENT_REQUIRE_ADMIN=true) — the test slot is
-# locked down to admin chatIds (KILZI/DORSE) per
-# src/agent/auth.js#isAdminChatId. Non-admin allowlisted users still
-# work on prod; the test slot returns FORBIDDEN reason=not_admin.
-apply_to_slot "test"       "$TEST_ORIGINS" "$TEST_PATTERN" "$TEST_GOOGLE_CLIENT_ID" "true"
+apply_production() {
+  # Production: full Google sign-in + allowlist; everyone on the
+  # WebUserAllowlist can chat as themselves.
+  apply_to_slot "production" "$PROD_ORIGINS" "$PROD_PATTERN" "$PROD_GOOGLE_CLIENT_ID" "false"
+  ensure_cost_management_reader "production"
+}
+
+apply_test() {
+  # Test slot: same Google client + same allowlist, BUT an additional
+  # admin-only filter (AGENT_REQUIRE_ADMIN=true) — the test slot is
+  # locked down to admin chatIds (KILZI/DORSE) per
+  # src/agent/auth.js#isAdminChatId. Non-admin allowlisted users still
+  # work on prod; the test slot returns FORBIDDEN reason=not_admin.
+  apply_to_slot "test" "$TEST_ORIGINS" "$TEST_PATTERN" "$TEST_GOOGLE_CLIENT_ID" "true"
+  ensure_cost_management_reader "test"
+}
 
 # Each deployment slot has an independent system-assigned managed identity.
-# The billing tool queries subscription-level Cost Management data, so both
-# identities need this read-only built-in role.
-ensure_cost_management_reader "production"
-ensure_cost_management_reader "test"
+# The billing tool queries subscription-level Cost Management data, so the
+# selected slot(s) need this read-only built-in role.
+case "$AGENT_SETTINGS_SLOT" in
+  both)
+    apply_production
+    apply_test
+    ;;
+  production)
+    apply_production
+    ;;
+  test)
+    apply_test
+    ;;
+  *)
+    echo "AGENT_SETTINGS_SLOT must be one of: both, production, test." >&2
+    exit 1
+    ;;
+esac
 
 echo "Done. WEBSITE_RUN_FROM_PACKAGE and other externally-managed settings are preserved."
