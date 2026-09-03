@@ -51,6 +51,11 @@ const translations = {
       'נתוני הסימולציה נטענו ונשמרו בהצלחה.',
     'Failed to load simulation data: {ERROR}':
       'טעינת נתוני סימולציה נכשלה: {ERROR}',
+    'Refresh the latest shared F1 Fantasy simulation in this app process. It reads the durable shared source; other running bot and agent processes refresh their own in-memory cache separately.':
+      'לרענן את סימולציית F1 Fantasy העדכנית בתהליך היישום הזה. הנתונים נקראים מהמקור המשותף והעמיד; תהליכי בוט וסוכן אחרים שכבר פועלים מרעננים את המטמון שלהם בנפרד.',
+    'Latest simulation refreshed from the shared durable source: {DRIVERS} drivers and {CONSTRUCTORS} constructors{MATCHDAY}':
+      'הסימולציה העדכנית רועננה מהמקור המשותף והעמיד: {DRIVERS} נהגים ו־{CONSTRUCTORS} קבוצות{MATCHDAY}',
+    ' Matchday {MATCHDAY}.': ' · מחזור {MATCHDAY}.',
     'Cache has been reset for your chat.': "המטמון אופס עבור הצ'אט שלך.",
     'Next race information is currently unavailable.':
       'מידע על המרוץ הבא אינו זמין כעת.',

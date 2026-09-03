@@ -582,9 +582,9 @@ Blob naming includes the team ID:
 
 A second user-facing surface that runs the same business logic as the Telegram bot through tool calls. Architecture, code layout, and the patterns for adding new capabilities live in this section.
 
-**Status (2026-09-02):** the read-only v1 capability scope, Phase 7
+**Status (2026-09-03):** the read-only v1 capability scope, Phase 7
 simulation/data diagnostics, Azure deployment, Google auth, and CORS rollout
-are complete.
+are complete. Phase 8's confirmed shared-simulation refresh is in progress.
 The effectful write-tools rollout is now active: PR
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207)
 merged the durable confirmation infrastructure; `set_language` is
@@ -1084,10 +1084,11 @@ Concrete write tools currently available:
 | `unfollow_league` | `unfollowLeagueService` | league-unfollow callbacks |
 | `follow_team` | `followTeamService` | `/teams_tracker` helpers/callbacks |
 | `report_bug` | `reportBugService` | `/report_bug` pending reply |
+| `load_latest_simulation` | `simulationRefreshService` | `/load_simulation` |
 
-`confirm_write` is the ninth supporting tool. It is not a business mutation:
+`confirm_write` is the tenth supporting tool. It is not a business mutation:
 it consumes one authenticated, approved staged intent and dispatches to the
-registered commit handler for one of the eight tools above.
+registered commit handler for one of the nine tools above.
 
 **Selected-team default:** every singular team-scoped agent read/write uses
 the durable selected team when `teamId`/`teamName` is omitted. Do not ask
@@ -1786,6 +1787,7 @@ messages must go through `clear()` first, then through
 | `src/cores/leagueGraphsCore.js` | Pure gap-to-leader, cumulative standings, and budget series builders shared by all three Telegram QuickChart adapters and the agent. Returns stable matchday metadata plus per-team points, colors, selected-team flags, and chip annotations while preserving exclusions, ties, and null budget values. |
 | `src/cores/raceSummaryCore.js` | Pure race-summary source facts shared by Telegram and the agent: latest matchday, excluded-team filtering, rank movement, locked-roster matchday guard/fallback, race ordering, and winner comparisons. |
 | `src/services/raceSummaryService.js` | Controlled nested-model generation shared by Telegram and the agent. Pins the model and saved-language prompt policy, sets token/output caps, normalizes token usage, and reports usage/errors through adapter-supplied telemetry callbacks. |
+| `src/services/simulationRefreshService.js` | Serialized per-Node-process refresh of the shared durable simulation and price inputs. Telegram `/load_simulation`, cache startup, and confirmed agent `load_latest_simulation` delegate here; it preserves operational telemetry through injected event ports and returns only safe source/time/matchday/count metadata to the agent. Each running Function/bot process owns a separate in-memory cache. |
 | `src/cores/announcementsCore.js` | Pure normalization of the latest `announcementsService` record into a public `ok`/`empty` envelope shared by Telegram `/whats_new` and agent `get_whats_new`. |
 | `src/agent/readTools/getWhatsNewTool.js` | Wrapped no-argument `get_whats_new` tool; combines the shared announcement result with the authenticated user's saved UI language. |
 | `src/cores/simulationStatusCore.js` | Pure, public-safe simulation metadata/count summary plus bounded allowlisted projection rows, shared by `/get_current_simulation` and agent `get_simulation_status`. |
@@ -1827,6 +1829,7 @@ messages must go through `clear()` first, then through
 | `web/src/components/WhatsNewCard.tsx` | `get_whats_new` rich render — safe Markdown-aware release announcement card with localized English/Hebrew chrome, RTL, loading, empty, malformed-result, and shared tool-error states. |
 | `web/src/components/SimulationStatusCard.tsx` | `get_simulation_status` rich render — localized English/Hebrew and RTL simulation metadata/count card plus accessible bounded driver/constructor projection tables, with loading, not-loaded, and shared tool-error states. |
 | `web/src/components/DataStatusCard.tsx` | `get_data_status` rich render — localized English/Hebrew and RTL safe cached-data/readiness card with structured projection tables, saved roster cards, team selection, missing prerequisites, next actions, loading, and shared tool-error states. |
+| `web/src/components/SimulationRefreshCard.tsx` | Confirmed `load_latest_simulation` result — localized English/Hebrew and RTL safe source/local-time/matchday/count card that makes the per-process cache boundary explicit. |
 | `web/src/components/BestTeamsTable.tsx` | `get_best_teams` rich render (top-10 table, captain badge, must-include highlights, penalty markers), localized via the tool result's refreshed `lang`. |
 | `web/src/components/UserTeamsList.tsx` | `list_user_teams` rich render (card grid). |
 | `web/src/components/UserTeamsAction.tsx` | Registers the teams renderer and turns non-active cards into direct authenticated `select_team` proposals that render the shared confirmation card. |

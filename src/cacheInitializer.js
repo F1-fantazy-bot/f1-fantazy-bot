@@ -1,8 +1,5 @@
 const {
-  driversCache,
-  constructorsCache,
   currentTeamCache,
-  simulationInfoCache,
   sharedKey,
   nextRaceInfoCache,
   userCache,
@@ -11,23 +8,12 @@ const {
   normalizeBestTeamBudgetChangePointsPerMillion,
   normalizeSelectedChipByTeam,
   normalizeSelectedBestTeamByTeam,
-  setPrices,
-  clearPrices,
 } = require('./cache');
 const {
   sendLogMessage,
   sendErrorMessage,
-  sendMessageToAdmins,
-  validateJsonData,
 } = require('./utils');
 const {
-  LOG_CHANNEL_ID,
-  NAME_TO_CODE_DRIVERS_MAPPING,
-  NAME_TO_CODE_CONSTRUCTORS_MAPPING,
-} = require('./constants');
-const {
-  getFantasyData,
-  getPricesData,
   listAllUserTeamData,
   getNextRaceInfoData,
   getLeagueTeamsData,
@@ -38,7 +24,7 @@ const { fetchRemainingRaceCount } = require('./raceScheduleService');
 const { listUserLeagues } = require('./leagueRegistryService');
 const { buildLeagueTeamId } = require('./utils/teamId');
 const { mapLeagueTeamToBotTeam } = require('./utils/leagueTeamHelpers');
-const { applyPrices } = require('./priceData');
+const { refreshSimulationData } = require('./services/simulationRefreshService');
 
 /**
  * Initialize all application caches with data from Azure Storage
@@ -134,173 +120,7 @@ async function initializeCaches(bot) {
  * @throws {Error} If data validation fails or there are critical errors
  */
 async function loadSimulationData(bot) {
-  // Get main fantasy data
-  const fantasyDataJson = await getFantasyData();
-
-  await sendLogMessage(
-    bot,
-    `Fantasy data json downloaded successfully. Simulation: ${
-      fantasyDataJson?.SimulationName
-    }${
-      fantasyDataJson?.SimulationLastUpdate
-        ? ` (Last updated: ${fantasyDataJson.SimulationLastUpdate})`
-        : ''
-    }`
-  );
-
-  // Validate the main fantasy data
-  const isValid = await validateJsonData(
-    bot,
-    fantasyDataJson,
-    LOG_CHANNEL_ID,
-    false
-  );
-
-  if (!isValid) {
-    throw new Error('Fantasy data validation failed');
-  }
-
-  // Store simulation info in cache
-  simulationInfoCache[sharedKey] = {
-    name: fantasyDataJson.SimulationName,
-    lastUpdate: fantasyDataJson.SimulationLastUpdate || null,
-  };
-
-  const notFounds = {
-    drivers: [],
-    constructors: [],
-  };
-
-  // Process drivers data
-  driversCache[sharedKey] = Object.fromEntries(
-    fantasyDataJson.Drivers.map((driver) => [driver.DR, driver])
-  );
-
-  Object.values(driversCache[sharedKey]).forEach((driver) => {
-    const driverCode = driver.DR;
-    const driversCodeInMapping = Object.values(NAME_TO_CODE_DRIVERS_MAPPING);
-    if (!driversCodeInMapping.includes(driverCode)) {
-      notFounds.drivers.push(driverCode);
-    }
-  });
-
-  // Process constructors data
-  constructorsCache[sharedKey] = Object.fromEntries(
-    fantasyDataJson.Constructors.map((constructor) => [
-      constructor.CN,
-      constructor,
-    ])
-  );
-
-  Object.values(constructorsCache[sharedKey]).forEach((constructor) => {
-    const constructorCode = constructor.CN;
-    const constructorsCodeInMapping = Object.values(
-      NAME_TO_CODE_CONSTRUCTORS_MAPPING
-    );
-    if (!constructorsCodeInMapping.includes(constructorCode)) {
-      notFounds.constructors.push(constructorCode);
-    }
-  });
-
-  try {
-    const pricesData = await getPricesData();
-    const pricedData = applyPrices(
-      {
-        drivers: driversCache[sharedKey],
-        constructors: constructorsCache[sharedKey],
-      },
-      pricesData,
-    );
-
-    driversCache[sharedKey] = pricedData.drivers;
-    constructorsCache[sharedKey] = pricedData.constructors;
-    setPrices({
-      drivers: pricedData.priceMaps.drivers,
-      constructors: pricedData.priceMaps.constructors,
-      driverEntries: pricesData.drivers,
-      constructorEntries: pricesData.constructors,
-      metadata: {
-        fetchedAt: pricesData.fetchedAt || null,
-        matchdayId: pricesData.matchdayId || null,
-      },
-    });
-
-    await sendLogMessage(
-      bot,
-      `Prices data loaded successfully${
-        pricesData?.matchdayId ? ` for matchday ${pricesData.matchdayId}` : ''
-      }`,
-    );
-    await reportPriceDataGaps(bot, pricedData.report);
-  } catch (error) {
-    clearPrices();
-    await sendErrorMessage(
-      bot,
-      `Failed to load prices data; falling back to simulation prices: ${error.message}`,
-    );
-  }
-
-  // Log any missing mappings
-  if (notFounds.drivers.length > 0) {
-    const message = `
-🔴🔴🔴
-Drivers not found in mapping: ${notFounds.drivers.join(', ')}
-🔴🔴🔴`;
-
-    await sendErrorMessage(bot, message);
-    await sendMessageToAdmins(bot, message);
-  }
-
-  if (notFounds.constructors.length > 0) {
-    const message = `
-🔴🔴🔴
-Constructors not found in mapping: ${notFounds.constructors.join(', ')}
-🔴🔴🔴`;
-
-    await sendErrorMessage(bot, message);
-    await sendMessageToAdmins(bot, message);
-  }
-}
-
-async function reportPriceDataGaps(bot, report) {
-  const messages = [];
-  const addMessage = (label, values) => {
-    if (values.length > 0) {
-      messages.push(`${label}: ${values.join(', ')}`);
-    }
-  };
-
-  addMessage('Driver prices not mapped from prices.json', report.drivers.unmapped);
-  addMessage('Driver prices invalid in prices.json', report.drivers.invalid);
-  addMessage(
-    'Drivers missing from prices.json, using fallback prices',
-    report.drivers.missing,
-  );
-  addMessage(
-    'Constructor prices not mapped from prices.json',
-    report.constructors.unmapped,
-  );
-  addMessage(
-    'Constructor prices invalid in prices.json',
-    report.constructors.invalid,
-  );
-  addMessage(
-    'Constructors missing from prices.json, using fallback prices',
-    report.constructors.missing,
-  );
-
-  if (messages.length === 0) {
-    return;
-  }
-
-  await sendErrorMessage(
-    bot,
-    `
-🔴🔴🔴
-Price data gaps:
-${messages.join('\n')}
-🔴🔴🔴`,
-  );
+  return await refreshSimulationData({ bot });
 }
 
 /**

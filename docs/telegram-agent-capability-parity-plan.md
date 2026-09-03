@@ -38,6 +38,15 @@ confirmed writes.
   core, Telegram and the agent share one controlled nested-model service, and
   `get_race_summary` provides authorized canonical league selection plus a
   localized English/Hebrew rich recap.
+- Phase 6 merged in PR #237: `/whats_new` and `get_whats_new` share the same
+  announcement core and render a localized, safe rich announcement card.
+- Phase 7 merged in PR #238: `/get_current_simulation` and `/print_cache`
+  share public-safe diagnostics cores with `get_simulation_status` and
+  `get_data_status`, including saved-language Asia/Jerusalem times and
+  structured cached projections/rosters instead of raw cache JSON.
+- Phase 8 is in progress: `/load_simulation` is being delegated to one
+  serialized simulation-refresh service and exposed as a confirmed agent
+  action with an explicit per-process cache boundary.
 
 ## Locked decisions
 
@@ -277,7 +286,7 @@ the authorization boundary.
   `Asia/Jerusalem` time. Never expose raw cache JSON, credentials, storage
   paths, or internal table entities.
 
-### Phase 8 — Load latest simulation
+### Phase 8 — Load latest simulation (in progress)
 
 - Extract `simulationRefreshService` from `loadSimulationData`.
 - Keep `/load_simulation` as a thin adapter.
