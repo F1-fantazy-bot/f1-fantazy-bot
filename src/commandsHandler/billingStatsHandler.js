@@ -1,6 +1,7 @@
 const { getMonthlyBillingStats } = require('../azureBillingService');
 const { sendErrorMessage, isAdminMessage } = require('../utils/utils');
 const { t } = require('../i18n');
+const { billingComparison } = require('../cores/adminReadCore');
 
 /**
  * Handle the billing statistics command
@@ -96,12 +97,9 @@ function formatBillingMessage(billingData, chatId) {
   message += formatMonthSection(previousMonth, t('Previous Month', chatId), chatId);
 
   // Comparison if both months have data
-  if (currentMonth.hasData && previousMonth.hasData) {
-    const currentCost = currentMonth.totalCost;
-    const previousCost = previousMonth.totalCost;
-    const difference = currentCost - previousCost;
-    const percentChange =
-      previousCost > 0 ? (difference / previousCost) * 100 : 0;
+  const comparison = billingComparison(currentMonth, previousMonth);
+  if (comparison) {
+    const { difference, percentage: percentChange } = comparison;
 
     message += `*📈 ${t('Month-over-Month Comparison:', chatId)}*\n`;
     if (difference > 0) {

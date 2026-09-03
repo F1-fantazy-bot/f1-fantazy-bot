@@ -6,6 +6,7 @@ const {
   formatDateTime,
 } = require('../utils/utils');
 const { t } = require('../i18n');
+const { sortWebUsersByAddedAtDesc } = require('../cores/adminReadCore');
 
 /**
  * Handle the /list_web_users admin command. Renders the web allowlist
@@ -52,15 +53,7 @@ async function handleListWebUsersCommand(bot, msg) {
       usersByChatId.set(String(u.chatId), u);
     }
 
-    const sorted = [...allowed].sort((a, b) => {
-      const aTime = Date.parse(a.addedAt || '');
-      const bTime = Date.parse(b.addedAt || '');
-      if (Number.isNaN(aTime) && Number.isNaN(bTime)) {return 0;}
-      if (Number.isNaN(aTime)) {return 1;}
-      if (Number.isNaN(bTime)) {return -1;}
-
-      return bTime - aTime;
-    });
+    const sorted = sortWebUsersByAddedAtDesc(allowed);
 
     let message = `*${t('Web Allowlist', chatId)}* (${sorted.length})\n\n`;
 

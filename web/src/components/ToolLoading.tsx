@@ -12,6 +12,11 @@ export type ToolLoadingKind =
   | 'simulationStatus'
   | 'simulationRefresh'
   | 'resetUserData'
+  | 'adminVersion'
+  | 'billingStats'
+  | 'botUsers'
+  | 'webUsers'
+  | 'botfatherSetup'
   | 'dataStatus'
   | 'bestTeams'
   | 'scenarios'
@@ -51,6 +56,11 @@ const copy: Record<ToolLoadingKind, { en: string; he: string }> = {
     en: 'Resetting your saved data…',
     he: 'מאפס את הנתונים השמורים שלך…',
   },
+  adminVersion: { en: 'Loading deployment version…', he: 'טוען גרסת פריסה…' },
+  billingStats: { en: 'Loading billing statistics…', he: 'טוען נתוני חיוב…' },
+  botUsers: { en: 'Loading bot users…', he: 'טוען משתמשי בוט…' },
+  webUsers: { en: 'Loading allowed web users…', he: 'טוען משתמשי ווב מורשים…' },
+  botfatherSetup: { en: 'Loading BotFather setup…', he: 'טוען הגדרת BotFather…' },
   dataStatus: { en: 'Checking data status…', he: 'בודק מצב נתונים…' },
   bestTeams: { en: 'Computing best teams…', he: 'מחשב קבוצות מומלצות…' },
   scenarios: { en: 'Computing scenarios…', he: 'מחשב תרחישים…' },

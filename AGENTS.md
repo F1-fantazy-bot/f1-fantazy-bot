@@ -588,8 +588,9 @@ A second user-facing surface that runs the same business logic as the Telegram b
 
 **Status (2026-09-03):** the read-only v1 capability scope, Phase 7
 simulation/data diagnostics, Azure deployment, Google auth, and CORS rollout
-are complete. Phase 8's confirmed shared-simulation refresh is complete;
-Phase 9's confirmed user-data reset is in progress.
+are complete. Phase 8's confirmed shared-simulation refresh and Phase 9's
+confirmed user-data reset are complete; Phase 10's admin read tools are in
+progress.
 The effectful write-tools rollout is now active: PR
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207)
 merged the durable confirmation infrastructure; `set_language` is
@@ -763,7 +764,8 @@ f1-fantazy-bot/
 │   │   ├── writeProposal.js          # authenticated allowlisted proposals from deterministic UI controls
 │   │   ├── readTools/
 │   │   │   ├── getAgentGuideTool.js  # personalized agent-native help/flow
-│   │   │   └── getLanguageTool.js    # read current persisted account language
+│   │   │   ├── getLanguageTool.js    # read current persisted account language
+│   │   │   └── adminReadTools.js     # centrally guarded version, billing, directories, BotFather
 │   │   ├── writeTools/
 │   │   │   ├── setLanguageTool.js    # en/he preference
 │   │   │   ├── selectTeamTool.js     # confirmed active-team selection
@@ -1795,6 +1797,7 @@ messages must go through `clear()` first, then through
 | `src/cores/leagueChangesCore.js` | Pure `compareLeagueChanges({latest, planning})` and `compareTeamChanges(latestTeam, planningTeam)` structure driver/constructor transfers, captain and mega-captain changes, current-matchday chips, new teams, and unchanged teams. Explicit states: `missing_locked`, `missing_planning`, and `matchday_mismatch`. |
 | `src/cores/leagueGraphsCore.js` | Pure gap-to-leader, cumulative standings, and budget series builders shared by all three Telegram QuickChart adapters and the agent. Returns stable matchday metadata plus per-team points, colors, selected-team flags, and chip annotations while preserving exclusions, ties, and null budget values. |
 | `src/cores/raceSummaryCore.js` | Pure race-summary source facts shared by Telegram and the agent: latest matchday, excluded-team filtering, rank movement, locked-roster matchday guard/fallback, race ordering, and winner comparisons. |
+| `src/cores/adminReadCore.js` | Pure, bounded admin read view models: safe version fields, billing totals and service breakdowns, Telegram/web user directories, and BotFather command setup. Shared Telegram adapters retain their established formatting. |
 | `src/services/raceSummaryService.js` | Controlled nested-model generation shared by Telegram and the agent. Pins the model and saved-language prompt policy, sets token/output caps, normalizes token usage, and reports usage/errors through adapter-supplied telemetry callbacks. |
 | `src/services/simulationRefreshService.js` | Serialized per-Node-process refresh of the shared durable simulation and price inputs. Telegram `/load_simulation`, cache startup, and confirmed agent `load_latest_simulation` delegate here; it preserves operational telemetry through injected event ports and returns only safe source/time/matchday/count metadata to the agent. Each running Function/bot process owns a separate in-memory cache. |
 | `src/services/resetUserDataService.js` | Bot-free, port-injected reset mutation shared by Telegram `/reset_cache` and confirmed agent `reset_user_data`. It locks/hydrates authoritative user state, fingerprints the confirmation impact, deletes only that user's blobs/preferences/overrides, compensates from a snapshot on failure, then publishes a durable reset epoch. |
@@ -1805,6 +1808,7 @@ messages must go through `clear()` first, then through
 | `src/cores/dataStatusCore.js` | Pure, public-safe projection/simulation/team readiness summary with bounded allowlisted cached projections and roster fields, shared by `/print_cache` and agent `get_data_status`; never returns raw cache JSON. |
 | `src/agent/readTools/getSimulationStatusTool.js` | Wrapped no-argument `get_simulation_status` tool; initializes the agent cache, adds the authenticated user's saved UI language, and converts timestamps to `Asia/Jerusalem` display time. |
 | `src/agent/readTools/getDataStatusTool.js` | Wrapped no-argument `get_data_status` tool; initializes the agent cache and returns the safe structured cached-data/readiness envelope with local display time. |
+| `src/agent/readTools/adminReadTools.js` | Centrally admin-guarded no-argument `get_admin_version`, `get_billing_stats`, `list_bot_users`, `list_web_users`, and `get_botfather_setup` tools. They use `wrapToolExecute`, keep raw backend errors out of results, and add the authenticated user's saved UI language. |
 | `src/cores/bestTeamScenariosCore.js` | `computeBestTeamScenarios({chatId, teamId?, teamName?})` — status-tagged (`ok` / `no_teams` / `unknown_team` / `ambiguous_team` / `missing_cache`). Returns the 4×4 matrix `{ teamId, teamName, chip, scenarios: [{ ppm, ppmLabel, results: [{ chipKey, chipLabel, projectedPoints, expectedPriceChange, recommendation: null\|'yellow'\|'green' }] }] }`. Mirrors the Telegram `/best_team_scenarios` chip-recommendation thresholds. |
 | `src/bestTeamsCalculator.js` | Accepts an optional 5th `options` arg with `mustInclude*`/`mustExclude*` filters, `rankBy: null \| 'points' \| 'budget_adjusted'`, and `resultCount`. Empty/absent options preserve legacy 4-arg behaviour byte-for-byte. |
 | `src/agent/identity.js` | Reads `AGENT_HARDCODED_CHAT_ID`, exposes `getAgentChatId()`. |
@@ -1840,6 +1844,7 @@ messages must go through `clear()` first, then through
 | `web/src/components/WhatsNewCard.tsx` | `get_whats_new` rich render — safe Markdown-aware release announcement card with localized English/Hebrew chrome, RTL, loading, empty, malformed-result, and shared tool-error states. |
 | `web/src/components/SimulationStatusCard.tsx` | `get_simulation_status` rich render — localized English/Hebrew and RTL simulation metadata/count card plus accessible bounded driver/constructor projection tables, with loading, not-loaded, and shared tool-error states. |
 | `web/src/components/DataStatusCard.tsx` | `get_data_status` rich render — localized English/Hebrew and RTL safe cached-data/readiness card with structured projection tables, saved roster cards, team selection, missing prerequisites, next actions, loading, and shared tool-error states. |
+| `web/src/components/AdminReadCards.tsx` | Admin-only rich renders for version, bounded billing, bot/web user directories, and BotFather setup. All cards localize English/Hebrew, set RTL, format dates in `Asia/Jerusalem`, use accessible tables, and show safe forbidden/unavailable/empty/capped states. |
 | `web/src/components/SimulationRefreshCard.tsx` | Confirmed `load_latest_simulation` result — localized English/Hebrew and RTL safe source/local-time/matchday/count card that makes the per-process cache boundary explicit. |
 | `web/src/components/ResetUserDataCard.tsx` | Confirmed `reset_user_data` result — localized English/Hebrew and RTL card that shows only the safe counts/categories cleared, never storage data or internal errors. |
 | `web/src/components/BestTeamsTable.tsx` | `get_best_teams` rich render (top-10 table, captain badge, must-include highlights, penalty markers), localized via the tool result's refreshed `lang`. |

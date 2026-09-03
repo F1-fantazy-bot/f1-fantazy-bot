@@ -47,8 +47,11 @@ confirmed writes.
 - Phase 8 merged in PR #239: `/load_simulation` is delegated to one
   serialized simulation-refresh service and exposed as a confirmed agent
   action with an explicit per-process cache boundary.
-- Phase 9 is in progress: `/reset_cache` is being extracted into a
-  reset-safe shared service and exposed as a confirmed agent action.
+- Phase 9 merged in PR #240: `/reset_cache` now delegates to a reset-safe
+  shared service and `reset_user_data` exposes the same confirmed action to
+  the agent.
+- Phase 10 is in progress: the five read-only admin capabilities are being
+  extracted into safe structured views and localized agent cards.
 
 ## Locked decisions
 
@@ -297,7 +300,7 @@ the authorization boundary.
 - State clearly that each Function process refreshes its own cache from the
   same durable Blob source.
 
-### Phase 9 — Confirmed user-data reset (in progress)
+### Phase 9 — Confirmed user-data reset (implemented)
 
 - Extract a bot-free, port-injected `resetUserDataService`.
 - Add confirmed `reset_user_data()`.
@@ -308,7 +311,7 @@ the authorization boundary.
 - Reuse mutation leases, hydration, ETag CAS, snapshot compensation, and
   persist-before-cache publication.
 
-### Phase 10 — Admin read tools
+### Phase 10 — Admin read tools (in progress)
 
 Add centrally guarded:
 

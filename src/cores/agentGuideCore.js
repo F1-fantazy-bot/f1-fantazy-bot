@@ -158,8 +158,8 @@ const TASKS = Object.freeze({
     icon: '🛡️',
     title: { en: 'Administrative capabilities', he: 'יכולות ניהול' },
     description: {
-      en: 'Admin-only web tools are being added in later parity phases. Telegram admin commands remain available.',
-      he: 'כלי ניהול לסוכן יתווספו בשלבי ההשוואה הבאים. פקודות הניהול בטלגרם נשארות זמינות.',
+      en: 'Admins can inspect deployed version, billing, user directories, web access, and BotFather setup here. Administrative changes remain available on Telegram while later parity phases are completed.',
+      he: 'מנהלים יכולים לבדוק כאן גרסה, חיוב, ספריות משתמשים, גישת ווב והגדרות BotFather. שינויי ניהול נשארים זמינים בטלגרם עד להשלמת שלבי ההשוואה הבאים.',
     },
     example: {
       en: 'What admin capabilities are available here?',
