@@ -59,6 +59,9 @@ const {
   followTeamTool,
 } = require('./writeTools/followTeamTool');
 const { reportBugTool } = require('./writeTools/reportBugTool');
+const {
+  loadLatestSimulationTool,
+} = require('./writeTools/loadLatestSimulationTool');
 const { getLanguageTool } = require('./readTools/getLanguageTool');
 const { getAgentGuideTool } = require('./readTools/getAgentGuideTool');
 const {
@@ -547,6 +550,7 @@ const tools = [
   unfollowLeagueTool,
   followTeamTool,
   reportBugTool,
+  loadLatestSimulationTool,
 
   defineTool({
     name: 'confirm_write',

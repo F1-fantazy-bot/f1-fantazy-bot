@@ -218,6 +218,21 @@ test('routes simulation and safe data diagnostics through their read tools', () 
   expect(prompt).toContain('never speculate about storage, HTTP, Azure');
 });
 
+test('routes explicit simulation refreshes through durable confirmation', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain(
+    'load_latest_simulation — confirmed refresh of the latest shared F1 Fantasy',
+  );
+  expect(prompt).toContain('For an explicit request to refresh, load, or update');
+  expect(prompt).toContain('call **load_latest_simulation** with no arguments');
+  expect(prompt).toContain('The confirmation card is required');
+  expect(prompt).toContain('do not call confirm_write before the user clicks Yes');
+  expect(prompt).toContain('this Function process refreshed');
+  expect(prompt).toContain('same durable shared source');
+  expect(prompt).toContain('Never expose or speculate about Blob, Azure, HTTP');
+});
+
 test('requires an explicit team and league for follow_team', () => {
   const prompt = getSystemPrompt();
 

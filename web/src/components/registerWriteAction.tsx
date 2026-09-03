@@ -7,7 +7,11 @@ import {
 import { InteractiveWriteResult } from './InteractiveWriteResult';
 import { isWriteResult, type WriteResult } from './WriteResultCard';
 import { safeParse } from './safeParse';
-import { ToolLoading } from './ToolLoading';
+import { ToolLoading, type ToolLoadingKind } from './ToolLoading';
+import {
+  isSimulationRefreshResult,
+  SimulationRefreshCard,
+} from './SimulationRefreshCard';
 
 // Shared factory for registering the frontend render hook of any
 // write tool (or `confirm_write`). Centralises the propose/confirm
@@ -25,12 +29,14 @@ export type UseWriteActionOptions = {
   name: string;
   description: string;
   loadingLabel?: string;
+  loadingKind?: ToolLoadingKind;
 };
 
 export function useWriteAction({
   name,
   description,
   loadingLabel,
+  loadingKind,
 }: UseWriteActionOptions) {
   useCopilotAction({
     name,
@@ -39,7 +45,12 @@ export function useWriteAction({
     available: 'frontend',
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
-        return <ToolLoading kind="write" englishLabel={loadingLabel} />;
+        return (
+          <ToolLoading
+            kind={loadingKind ?? 'write'}
+            englishLabel={loadingLabel}
+          />
+        );
       }
       const parsed = safeParse(result);
 
@@ -52,6 +63,9 @@ export function useWriteAction({
       }
 
       if (isWriteResult(parsed)) {
+        if (isSimulationRefreshResult(parsed)) {
+          return <SimulationRefreshCard result={parsed} />;
+        }
         return <InteractiveWriteResult result={parsed} />;
       }
 

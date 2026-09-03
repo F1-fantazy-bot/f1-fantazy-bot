@@ -155,7 +155,7 @@ const COMMAND_CAPABILITIES = Object.freeze([
   user(constants.COMMAND_GET_CURRENT_SIMULATION, AGENT_STATUS.IMPLEMENTED, [
     'get_simulation_status',
   ]),
-  user(constants.COMMAND_LOAD_SIMULATION, AGENT_STATUS.PLANNED, [
+  user(constants.COMMAND_LOAD_SIMULATION, AGENT_STATUS.IMPLEMENTED, [
     'load_latest_simulation',
   ], { confirmation: CONFIRMATION.REQUIRED }),
   user(constants.COMMAND_PRINT_CACHE, AGENT_STATUS.IMPLEMENTED, [

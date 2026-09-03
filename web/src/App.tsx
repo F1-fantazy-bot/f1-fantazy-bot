@@ -81,6 +81,12 @@ function AgentActions() {
     loadingLabel: 'Preparing language change…',
   });
   useWriteAction({
+    name: 'load_latest_simulation',
+    description:
+      'Refresh the latest shared F1 Fantasy simulation after confirmation.',
+    loadingKind: 'simulationRefresh',
+  });
+  useWriteAction({
     name: 'select_team',
     description: 'Change the signed-in user active fantasy team.',
     loadingLabel: 'Preparing team selection…',

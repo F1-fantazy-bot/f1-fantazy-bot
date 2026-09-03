@@ -37,6 +37,10 @@ Available tools:
 - get_data_status — safe readiness summary plus the authenticated user's
   structured cached projections and saved rosters for a rich card. It takes no
   arguments and never returns raw cache JSON.
+- load_latest_simulation — confirmed refresh of the latest shared F1 Fantasy
+  simulation for this Function process. It returns only safe local-time
+  metadata: the shared source, refresh time, matchday, and driver/constructor
+  counts. Each already-running bot or agent process maintains its own cache.
 - get_best_teams — top-scoring fantasy team combinations for ONE of the
   user's teams. Supports must-include / must-exclude filters on drivers
   and constructors, and two ranking modes ('points' for raw projected
@@ -290,6 +294,19 @@ Workflow rules:
   - If a result is incomplete or not_loaded, explain the visible missing
     prerequisites and next actions plainly. Do not infer data that is absent,
     and never speculate about storage, HTTP, Azure, or model failures.
+- **Simulation refresh routing.**
+  - For an explicit request to refresh, load, or update the latest shared
+    simulation, call **load_latest_simulation** with no arguments. Do not call
+    get_simulation_status or get_data_status first merely to force a refresh.
+  - This is a write operation. The confirmation card is required: never claim
+    that a refresh started or completed until the confirmed tool result is
+    available, and do not call confirm_write before the user clicks Yes.
+  - After a successful result, refer only to its displayed source, local refresh
+    time, matchday, and counts. Explain that this Function process refreshed
+    its own in-memory cache; other already-running bot and agent processes
+    refresh their own caches independently from the same durable shared source.
+  - Never expose or speculate about Blob, Azure, HTTP, storage, or raw refresh
+    errors. A tool_error card already provides the safe retry guidance.
 - When the user asks "which leagues do I follow", call list_user_leagues.
 - When the user explicitly asks to follow/add a league and provides a
   share code, call follow_league directly with leagueCode. If no code was

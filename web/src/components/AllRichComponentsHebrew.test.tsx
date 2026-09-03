@@ -26,6 +26,7 @@ import { RaceSummaryCard } from './RaceSummaryCard';
 import { WhatsNewCard } from './WhatsNewCard';
 import { SimulationStatusCard } from './SimulationStatusCard';
 import { DataStatusCard } from './DataStatusCard';
+import { SimulationRefreshCard } from './SimulationRefreshCard';
 
 vi.mock('@copilotkit/react-core/v2', () => ({
   UseAgentUpdate: { OnRunStatusChanged: 'run-status' },
@@ -347,6 +348,33 @@ describe('all rich components honor Hebrew ui language', () => {
         'קבוצות זמינות',
         'נתוני הסימולציה',
         'תחזית נהגים',
+      ],
+    },
+    {
+      name: 'simulation refresh',
+      element: (
+        <SimulationRefreshCard
+          result={{
+            status: 'ok',
+            tool: 'load_latest_simulation',
+            uiLang: 'he',
+            summary:
+              'הסימולציה העדכנית רועננה מהמקור המשותף והעמיד: 22 נהגים ו־11 קבוצות · מחזור 14.',
+            source: { kind: 'durable_shared_source' },
+            fetchedAt: '3 בספט׳ 2026, 11:16',
+            matchday: 14,
+            counts: { drivers: 22, constructors: 11 },
+          }}
+        />
+      ),
+      expected: [
+        'הסימולציה רועננה',
+        'מקור',
+        'נתוני סימולציה משותפים ועמידים',
+        'רוענן',
+        'מחזור',
+        'נהגים',
+        'קבוצות',
       ],
     },
     {
