@@ -33,6 +33,13 @@ import { useLiveScoreLeaderboardAction } from './components/LiveScoreLeaderboard
 import { useUserLeaguesAction } from './components/UserLeaguesAction';
 import { useLeagueTeamsAction } from './components/LeagueTeamsAction';
 import { useAgentGuideAction } from './components/AgentGuideCard';
+import {
+  useAdminVersionAction,
+  useBillingStatsAction,
+  useBotUsersAction,
+  useWebUsersAction,
+  useBotfatherSetupAction,
+} from './components/AdminReadCards';
 import { useWriteAction } from './components/registerWriteAction';
 import { WriteDecisionProvider } from './components/WriteDecisionContext';
 import { HistoryRestorer } from './components/HistoryRestorer';
@@ -74,6 +81,11 @@ function AgentActions() {
   useUserLeaguesAction();
   useLeagueTeamsAction();
   useAgentGuideAction();
+  useAdminVersionAction();
+  useBillingStatsAction();
+  useBotUsersAction();
+  useWebUsersAction();
+  useBotfatherSetupAction();
   // Write tools register through the shared confirmation/result factory.
   useWriteAction({
     name: 'set_language',

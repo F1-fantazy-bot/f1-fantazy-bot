@@ -174,19 +174,19 @@ const COMMAND_CAPABILITIES = Object.freeze([
       'Telegram lifecycle entry point; web sign-in and the agent guide own onboarding.',
   }),
 
-  admin(constants.COMMAND_VERSION, AGENT_STATUS.PLANNED, [
+  admin(constants.COMMAND_VERSION, AGENT_STATUS.IMPLEMENTED, [
     'get_admin_version',
   ]),
-  admin(constants.COMMAND_BILLING_STATS, AGENT_STATUS.PLANNED, [
+  admin(constants.COMMAND_BILLING_STATS, AGENT_STATUS.IMPLEMENTED, [
     'get_billing_stats',
   ]),
-  admin(constants.COMMAND_LIST_USERS, AGENT_STATUS.PLANNED, [
+  admin(constants.COMMAND_LIST_USERS, AGENT_STATUS.IMPLEMENTED, [
     'list_bot_users',
   ]),
-  admin(constants.COMMAND_LIST_WEB_USERS, AGENT_STATUS.PLANNED, [
+  admin(constants.COMMAND_LIST_WEB_USERS, AGENT_STATUS.IMPLEMENTED, [
     'list_web_users',
   ]),
-  admin(constants.COMMAND_GET_BOTFATHER_COMMANDS, AGENT_STATUS.PLANNED, [
+  admin(constants.COMMAND_GET_BOTFATHER_COMMANDS, AGENT_STATUS.IMPLEMENTED, [
     'get_botfather_setup',
   ]),
   admin(constants.COMMAND_SET_NICKNAME, AGENT_STATUS.PLANNED, [

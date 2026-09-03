@@ -15,6 +15,20 @@ test('routes help and onboarding to the agent-native guide', () => {
   );
 });
 
+test('routes administrative reads through centrally guarded no-argument tools', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain('get_admin_version — admin-only deployed commit');
+  expect(prompt).toContain('get_billing_stats — admin-only current and previous');
+  expect(prompt).toContain('list_bot_users — admin-only, bounded');
+  expect(prompt).toContain('list_web_users — admin-only, bounded');
+  expect(prompt).toContain('get_botfather_setup — admin-only copyable');
+  expect(prompt).toContain('These five tools take no arguments');
+  expect(prompt).toMatch(/server checks the authenticated\s+identity before it reads any data/);
+  expect(prompt).toContain('status="forbidden"');
+  expect(prompt).toContain('do not ask the tool to bypass its\n    safe output cap');
+});
+
 test('requires select_team after the user answers with a team name', () => {
   const prompt = getSystemPrompt();
 

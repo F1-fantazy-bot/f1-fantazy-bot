@@ -337,7 +337,8 @@ f1-fantazy-bot/
 - **`npm run dev:agent`** - Start the web-chat agent backend on `:7071`
 - **`npm run dev:web`** - Start the Vite frontend (defaults to `:5173`)
 - **`npm run dev`** - Start both the agent backend and Vite frontend at once (via `concurrently`)
-- **`npm run deploy:agent-func`** - Apply the agent Function App ARM template (provisions `f1-fantazy-agent-func` + `test` slot + Key Vault role assignments). Usually invoked by the `deploy-infra-agent-func.yml` workflow; runnable locally for first-time provisioning.
+- **`npm run deploy:agent-func`** - Apply the agent Function App ARM template and app settings (provisions `f1-fantazy-agent-func` + `test` slot and grants Key Vault Secrets User). Usually invoked by the `deploy-infra-agent-func.yml` workflow; runnable locally for first-time provisioning.
+- **`npm run bootstrap:agent-billing-role`** - Explicitly grant both agent slot identities the subscription-scoped Cost Management Reader role. Run only for first-time bootstrap or after recreating a slot identity, using a principal authorized to manage subscription RBAC.
 - **`npm run deploy:agent-web`** - Apply the agent Static Web App ARM template (provisions `f1-fantazy-agent-web` Free SKU).
 - **`npm run deploy:agent`** - Chains both of the above.
 
@@ -347,7 +348,7 @@ The agent is a SEPARATE Function App (`f1-fantazy-agent-func`) and a Static Web 
 
 ### Prerequisites
 
-- `az` CLI logged in to subscription `5cfc4033-d828-4bdb-b9ea-de042e483715` with permission to deploy ARM templates and create role assignments at Key Vault scope.
+- `az` CLI logged in to subscription `5cfc4033-d828-4bdb-b9ea-de042e483715` with permission to deploy ARM templates and create role assignments at Key Vault and subscription scopes.
 - The existing GitHub repo secrets used by the Telegram bot workflows (`AZUREAPPSERVICE_CLIENTID_…`, `AZUREAPPSERVICE_TENANTID_…`, `AZUREAPPSERVICE_SUBSCRIPTIONID_…`) — already in place; the agent workflows reuse them.
 
 ### Steps
@@ -363,13 +364,21 @@ The agent is a SEPARATE Function App (`f1-fantazy-agent-func`) and a Static Web 
 
    The agent also reads `TELEGRAM_BOT_TOKEN` from Key Vault secret `telegram-bot-token` for Telegram log/error notifications. Both agent slots use that same notifier token; the settings script distinguishes them in the message body by writing `LOG_ENV=production` on prod and `LOG_ENV=test` on the test slot, while keeping `NODE_ENV=production` for the Node runtime.
 
-2. **Provision the agent Function App** (creates `f1-fantazy-agent-func` + `test` slot + KV role assignments + app settings on both slots). Skips Telegram bot resources — verified via `az deployment group what-if`:
+2. **Provision the agent Function App** (creates `f1-fantazy-agent-func` + `test` slot, configures app settings on both slots, and grants the Key Vault managed-identity roles). Skips Telegram bot resources — verified via `az deployment group what-if`:
 
    ```bash
    DEPLOYMENT_SUFFIX=bootstrap npm run deploy:agent-func
    ```
 
-   This chains TWO steps: (a) `az deployment group create` applies the ARM template (creates/updates the function app + slots + KV role assignments), then (b) `bash infra/agent-func/apply-settings.sh` sets app settings via `az functionapp config appsettings set` — which is ADDITIVE (it preserves externally-managed keys like `WEBSITE_RUN_FROM_PACKAGE`). This split exists because ARM's `siteConfig.appSettings` is a full-replace and would wipe the deploy action's package pointer on every re-apply.
+   This chains TWO steps: (a) `az deployment group create` applies the ARM template (creates/updates the function app + slots + Key Vault role assignments), then (b) `bash infra/agent-func/apply-settings.sh` sets app settings via `az functionapp config appsettings set`. App-setting updates are ADDITIVE, preserving externally-managed keys such as `WEBSITE_RUN_FROM_PACKAGE`. This split exists because ARM's `siteConfig.appSettings` is a full-replace and would wipe the deploy action's package pointer on every re-apply. Set `AGENT_SETTINGS_SLOT=test` or `production` when converging one slot only; it defaults to `both` for infrastructure deployment.
+
+   The billing read tool additionally requires both slot identities to have `Cost Management Reader` at subscription scope. Configure that separately with an identity authorized to read and create subscription role assignments:
+
+   ```bash
+   npm run bootstrap:agent-billing-role
+   ```
+
+   This is intentionally excluded from routine infrastructure and PR deployments. Re-run it only if a Function slot is created again or its system-assigned identity changes. Use `AGENT_ROLE_SLOT=test` or `production` to target one identity; it defaults to `both`.
 
 3. **Provision the Static Web App**:
 

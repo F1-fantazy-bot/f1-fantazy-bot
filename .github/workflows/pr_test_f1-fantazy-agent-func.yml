@@ -55,6 +55,12 @@ jobs:
           echo "COMMIT_MESSAGE=$COMMIT_MESSAGE" >> .env
           echo "COMMIT_LINK=$COMMIT_LINK" >> .env
 
+      - name: Upload test-slot configuration script
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-test-slot-config
+          path: infra/agent-func/apply-settings.sh
+
       - name: Strip non-agent paths from the package
         shell: bash
         run: |
@@ -89,6 +95,12 @@ jobs:
 
       - name: Unzip artifact for deployment
         run: unzip release.zip
+
+      - name: Download test-slot configuration script
+        uses: actions/download-artifact@v4
+        with:
+          name: agent-test-slot-config
+          path: agent-test-slot-config
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -142,3 +154,10 @@ jobs:
                 "value": ${{ toJSON(env.COMMIT_LINK) }},
                 "slotSetting": false }
             ]
+
+      - name: Apply test-slot agent settings
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_00873174CBBD48D3871911006820901C }}
+          GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          AGENT_SETTINGS_SLOT: test
+        run: bash agent-test-slot-config/apply-settings.sh

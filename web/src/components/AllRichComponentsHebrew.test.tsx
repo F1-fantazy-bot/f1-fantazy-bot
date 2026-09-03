@@ -28,6 +28,13 @@ import { SimulationStatusCard } from './SimulationStatusCard';
 import { DataStatusCard } from './DataStatusCard';
 import { SimulationRefreshCard } from './SimulationRefreshCard';
 import { ResetUserDataCard } from './ResetUserDataCard';
+import {
+  AdminVersionCard,
+  BillingStatsCard,
+  BotUsersCard,
+  WebUsersCard,
+  BotfatherSetupCard,
+} from './AdminReadCards';
 
 vi.mock('@copilotkit/react-core/v2', () => ({
   UseAgentUpdate: { OnRunStatusChanged: 'run-status' },
@@ -406,6 +413,96 @@ describe('all rich components honor Hebrew ui language', () => {
         'העדפות דירוג',
         'העדפות צ׳יפים',
       ],
+    },
+    {
+      name: 'admin version',
+      element: (
+        <AdminVersionCard
+          result={{
+            status: 'ok',
+            lang: 'he',
+            version: {
+              commitId: 'abc123',
+              commitMessage: 'עדכון מנהלים',
+              commitLink: 'https://example.test/commit',
+            },
+          }}
+        />
+      ),
+      expected: ['גרסת פריסה', 'מזהה Commit', 'הודעת Commit', 'קישור ל-Commit'],
+    },
+    {
+      name: 'admin billing',
+      element: (
+        <BillingStatsCard
+          result={{
+            status: 'ok',
+            lang: 'he',
+            billing: {
+              currentMonth: {
+                hasData: true,
+                totalCost: 12.5,
+                period: { monthName: 'ספטמבר', year: 2026 },
+                services: [{ serviceName: 'Functions', cost: 12.5, currency: 'USD' }],
+              },
+              previousMonth: { hasData: false },
+              comparison: null,
+            },
+          }}
+        />
+      ),
+      expected: ['חיוב Azure', 'החודש הנוכחי', 'סה״כ', 'פילוח שירותים'],
+    },
+    {
+      name: 'admin bot users',
+      element: (
+        <BotUsersCard
+          result={{
+            status: 'ok',
+            lang: 'he',
+            directory: {
+              totalCount: 1,
+              displayedCount: 1,
+              users: [{ chatId: '7', nickname: 'פול', lang: 'he' }],
+            },
+          }}
+        />
+      ),
+      expected: ['משתמשי הבוט', 'שם', 'מזהה צ׳אט', 'שפה'],
+    },
+    {
+      name: 'admin web users',
+      element: (
+        <WebUsersCard
+          result={{
+            status: 'ok',
+            lang: 'he',
+            directory: {
+              totalCount: 1,
+              displayedCount: 1,
+              users: [{ email: 'admin@example.com', chatId: '7', linkedDisplay: 'פול' }],
+            },
+          }}
+        />
+      ),
+      expected: ['משתמשי ווב מורשים', 'אימייל', 'משתמש מקושר', 'נוסף על ידי'],
+    },
+    {
+      name: 'BotFather setup',
+      element: (
+        <BotfatherSetupCard
+          result={{
+            status: 'ok',
+            lang: 'he',
+            setup: {
+              totalCount: 1,
+              displayedCount: 1,
+              commands: [{ command: 'help', description: 'עזרה' }],
+            },
+          }}
+        />
+      ),
+      expected: ['הגדרת BotFather', 'פקודה', 'תיאור'],
     },
     {
       name: 'data status',

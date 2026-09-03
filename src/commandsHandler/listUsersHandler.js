@@ -1,6 +1,7 @@
 const { listAllUsers } = require('../userRegistryService');
 const { sendErrorMessage, isAdminMessage, formatDateTime } = require('../utils/utils');
 const { t, getLanguageName } = require('../i18n');
+const { sortUsersByLastSeenDesc } = require('../cores/adminReadCore');
 
 /**
  * Handle the /list_users admin command.
@@ -87,33 +88,6 @@ function formatUsersMessage(users, chatId) {
   });
 
   return message;
-}
-
-/**
- * Sort users by last seen time in descending order (most recent first).
- * Users with invalid/missing lastSeen are pushed to the end.
- * @param {Array} users - Array of user objects from listAllUsers
- * @returns {Array} Sorted users array
- */
-function sortUsersByLastSeenDesc(users) {
-  return [...users].sort((a, b) => {
-    const lastSeenA = Date.parse(a.lastSeen);
-    const lastSeenB = Date.parse(b.lastSeen);
-
-    if (Number.isNaN(lastSeenA) && Number.isNaN(lastSeenB)) {
-      return 0;
-    }
-
-    if (Number.isNaN(lastSeenA)) {
-      return 1;
-    }
-
-    if (Number.isNaN(lastSeenB)) {
-      return -1;
-    }
-
-    return lastSeenB - lastSeenA;
-  });
 }
 
 module.exports = { handleListUsersCommand };

@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # infra/agent-func/apply-settings.sh
 #
-# Idempotently sets app settings on f1-fantazy-agent-func (BOTH slots).
-# Safe to re-run any number of times — uses `az functionapp config
-# appsettings set --settings`, which is ADDITIVE: it only touches the
-# keys passed via --settings; everything else (notably
+# Idempotently configures app settings on f1-fantazy-agent-func (BOTH slots)
+# using `az functionapp config appsettings set --settings`, which is ADDITIVE:
+# it only touches the keys passed via --settings; everything else (notably
 # WEBSITE_RUN_FROM_PACKAGE set by the GH deploy action) is preserved.
 #
 # This script is the canonical owner of agent app settings. The ARM
@@ -36,6 +35,8 @@
 #   ALLOW_EMPTY_GOOGLE_CLIENT_ID
 #                           Set to "true" only when you intentionally want to
 #                           write an empty GOOGLE_CLIENT_ID and disable auth.
+#   AGENT_SETTINGS_SLOT    `both` (default), `production`, or `test`. The PR
+#                           deployment uses `test` so it cannot alter production.
 
 set -euo pipefail
 
@@ -63,6 +64,7 @@ TEST_PATTERN="${TEST_PREVIEW_PATTERN:-}"
 PROD_GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
 TEST_GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
 ALLOW_EMPTY_GOOGLE_CLIENT_ID="${ALLOW_EMPTY_GOOGLE_CLIENT_ID:-false}"
+AGENT_SETTINGS_SLOT="${AGENT_SETTINGS_SLOT:-both}"
 
 KV_BASE="https://${KV_NAME}.vault.azure.net/secrets"
 
@@ -99,6 +101,9 @@ apply_to_slot() {
     "WEBSITE_NODE_DEFAULT_VERSION=~22"
     "NODE_ENV=production"
     "LOG_ENV=${slot_label}"
+    # Azure Cost Management requires the target subscription at runtime. This is
+    # an identifier, not a credential; DefaultAzureCredential uses the slot MSI.
+    "AZURE_SUBSCRIPTION_ID=${SUB}"
     "AZURE_OPEN_AI_MODEL=${MODEL}"
     "AZURE_STORAGE_CONTAINER_NAME=${STORAGE_CONTAINER}"
     "AZURE_OPENAI_ENDPOINT=@Microsoft.KeyVault(SecretUri=${KV_BASE}/azure-openai-endpoint/)"
@@ -131,14 +136,36 @@ apply_to_slot() {
     --output none --only-show-errors
 }
 
-# Production: full Google sign-in + allowlist; everyone on the
-# WebUserAllowlist can chat as themselves.
-apply_to_slot "production" "$PROD_ORIGINS" "$PROD_PATTERN" "$PROD_GOOGLE_CLIENT_ID" "false"
-# Test slot: same Google client + same allowlist, BUT an additional
-# admin-only filter (AGENT_REQUIRE_ADMIN=true) — the test slot is
-# locked down to admin chatIds (KILZI/DORSE) per
-# src/agent/auth.js#isAdminChatId. Non-admin allowlisted users still
-# work on prod; the test slot returns FORBIDDEN reason=not_admin.
-apply_to_slot "test"       "$TEST_ORIGINS" "$TEST_PATTERN" "$TEST_GOOGLE_CLIENT_ID" "true"
+apply_production() {
+  # Production: full Google sign-in + allowlist; everyone on the
+  # WebUserAllowlist can chat as themselves.
+  apply_to_slot "production" "$PROD_ORIGINS" "$PROD_PATTERN" "$PROD_GOOGLE_CLIENT_ID" "false"
+}
+
+apply_test() {
+  # Test slot: same Google client + same allowlist, BUT an additional
+  # admin-only filter (AGENT_REQUIRE_ADMIN=true) — the test slot is
+  # locked down to admin chatIds (KILZI/DORSE) per
+  # src/agent/auth.js#isAdminChatId. Non-admin allowlisted users still
+  # work on prod; the test slot returns FORBIDDEN reason=not_admin.
+  apply_to_slot "test" "$TEST_ORIGINS" "$TEST_PATTERN" "$TEST_GOOGLE_CLIENT_ID" "true"
+}
+
+case "$AGENT_SETTINGS_SLOT" in
+  both)
+    apply_production
+    apply_test
+    ;;
+  production)
+    apply_production
+    ;;
+  test)
+    apply_test
+    ;;
+  *)
+    echo "AGENT_SETTINGS_SLOT must be one of: both, production, test." >&2
+    exit 1
+    ;;
+esac
 
 echo "Done. WEBSITE_RUN_FROM_PACKAGE and other externally-managed settings are preserved."

@@ -4,7 +4,7 @@
   "metadata": {
     "_generator": {
       "name": "hand-authored",
-      "comment": "ARM template for the F1 Fantasy AGENT Function App (separate from the Telegram bot). Provisions a Linux Y1 Consumption Function App with `production` + `test` slots, both reusing the existing App Service Plan, storage account, App Insights, and Key Vault. Grants each slot's system-assigned MSI the 'Key Vault Secrets User' role on the existing `f1-fantasy-kv` so app settings can use @Microsoft.KeyVault references."
+      "comment": "ARM template for the F1 Fantasy AGENT Function App (separate from the Telegram bot). Provisions a Linux Y1 Consumption Function App with `production` + `test` slots, both reusing the existing App Service Plan, storage account, App Insights, and Key Vault. Grants each slot's system-assigned MSI the 'Key Vault Secrets User' role on the existing `f1-fantasy-kv` so app settings can use @Microsoft.KeyVault references. The separate ensure-billing-role.sh bootstrap script grants each slot 'Cost Management Reader' at subscription scope for the admin billing read tool."
     }
   },
   "parameters": {

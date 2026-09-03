@@ -1,6 +1,7 @@
 const { isAdminMessage } = require('../utils');
 const { USER_COMMANDS_CONFIG } = require('../constants');
 const { t } = require('../i18n');
+const { buildBotfatherSetup } = require('../cores/adminReadCore');
 
 async function handleGetBotfatherCommands(bot, msg) {
   const chatId = msg.chat.id;
@@ -14,8 +15,10 @@ async function handleGetBotfatherCommands(bot, msg) {
     return;
   }
 
-  const botFatherCommands = USER_COMMANDS_CONFIG.map(
-    (cmd) => `${cmd.constant.substring(1)} - ${cmd.description}`
+  const botFatherCommands = buildBotfatherSetup(USER_COMMANDS_CONFIG, {
+    limit: USER_COMMANDS_CONFIG.length,
+  }).commands.map((command) =>
+    `${command.command} - ${command.description}`,
   ).join('\n');
 
   await bot
