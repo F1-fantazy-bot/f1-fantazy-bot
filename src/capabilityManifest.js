@@ -198,10 +198,10 @@ const COMMAND_CAPABILITIES = Object.freeze([
   admin(constants.COMMAND_REVOKE_WEB_USER, AGENT_STATUS.IMPLEMENTED, [
     'revoke_web_user',
   ], { confirmation: CONFIRMATION.REQUIRED }),
-  admin(constants.COMMAND_SEND_MESSAGE_TO_USER, AGENT_STATUS.PLANNED, [
+  admin(constants.COMMAND_SEND_MESSAGE_TO_USER, AGENT_STATUS.IMPLEMENTED, [
     'send_user_message',
   ], { confirmation: CONFIRMATION.GUIDED }),
-  admin(constants.COMMAND_BROADCAST, AGENT_STATUS.PLANNED, [
+  admin(constants.COMMAND_BROADCAST, AGENT_STATUS.IMPLEMENTED, [
     'broadcast_message',
   ], { confirmation: CONFIRMATION.REQUIRED }),
   admin(constants.COMMAND_TRIGGER_SCRAPING, AGENT_STATUS.PLANNED, [

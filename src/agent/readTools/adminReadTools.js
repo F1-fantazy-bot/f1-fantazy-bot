@@ -52,10 +52,15 @@ const getBillingStatsTool = defineAdminReadTool({
 const botUserParameters = z
   .object({
     selectionMode: z
-      .enum(['set_user_nickname', 'allow_web_user'])
+      .enum([
+        'set_user_nickname',
+        'allow_web_user',
+        'send_user_message',
+      ])
       .optional(),
     nickname: z.string().trim().min(1).max(160).optional(),
     email: z.string().trim().min(3).max(320).optional(),
+    message: z.string().optional(),
   })
   .superRefine((args, context) => {
     if (args.nickname && args.selectionMode !== 'set_user_nickname') {
@@ -70,6 +75,12 @@ const botUserParameters = z
         message: 'email requires allow_web_user selectionMode',
       });
     }
+    if (args.message && args.selectionMode !== 'send_user_message') {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'message requires send_user_message selectionMode',
+      });
+    }
   });
 
 const listWebUserParameters = z.object({
@@ -79,7 +90,7 @@ const listWebUserParameters = z.object({
 const listBotUsersTool = defineAdminReadTool({
   name: 'list_bot_users',
   description:
-    'Admin only. List registered Telegram bot users, newest activity first. The result is capped to a safe maximum and reports if more users exist. Use selectionMode="set_user_nickname" or "allow_web_user" only to show canonical clickable target choices for that confirmed admin write.',
+    'Admin only. List registered Telegram bot users, newest activity first. The result is capped to a safe maximum and reports if more users exist. Use selectionMode="set_user_nickname", "allow_web_user", or "send_user_message" only to show canonical clickable target choices for that confirmed admin write.',
   parameters: botUserParameters,
   execute: async ({ chatId, args }) => {
     const users = await listAllUsers();
@@ -92,6 +103,7 @@ const listBotUsersTool = defineAdminReadTool({
           mode: args.selectionMode,
           nickname: args.nickname || null,
           email: args.email ? normalizeEmail(args.email) : null,
+          message: args.message || null,
         }
         : null,
     });

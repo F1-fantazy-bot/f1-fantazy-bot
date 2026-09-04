@@ -122,6 +122,18 @@ function AgentActions() {
     loadingKind: 'adminAccess',
   });
   useWriteAction({
+    name: 'send_user_message',
+    description:
+      'Send a confirmed text message to one selected registered bot user.',
+    loadingKind: 'adminMessaging',
+  });
+  useWriteAction({
+    name: 'broadcast_message',
+    description:
+      'Send a confirmed text broadcast to all registered bot users.',
+    loadingKind: 'adminMessaging',
+  });
+  useWriteAction({
     name: 'select_team',
     description: 'Change the signed-in user active fantasy team.',
     loadingLabel: 'Preparing team selection…',

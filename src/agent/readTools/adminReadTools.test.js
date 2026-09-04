@@ -161,6 +161,16 @@ test('returns only current bounded directory rows as canonical guided write targ
     directory: { users: [{ chatId: '7' }] },
   });
   await expect(
+    listBotUsersTool.execute({
+      selectionMode: 'send_user_message',
+      message: 'Important update',
+    }),
+  ).resolves.toMatchObject({
+    status: 'ok',
+    selection: { mode: 'send_user_message', message: 'Important update' },
+    directory: { users: [{ chatId: '7' }] },
+  });
+  await expect(
     listWebUsersTool.execute({ selectionMode: 'revoke_web_user' }),
   ).resolves.toMatchObject({
     status: 'ok',

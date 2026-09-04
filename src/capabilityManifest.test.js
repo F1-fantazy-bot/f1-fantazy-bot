@@ -270,8 +270,6 @@ test('pins the current planned admin rollout backlog', () => {
 
   expect(plannedAdminCommands.sort()).toEqual(
     [
-      constants.COMMAND_SEND_MESSAGE_TO_USER,
-      constants.COMMAND_BROADCAST,
       constants.COMMAND_TRIGGER_SCRAPING,
       constants.COMMAND_TRIGGER_API_DATA,
       constants.COMMAND_TRIGGER_API_DATA_LOCKED,

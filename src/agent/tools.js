@@ -89,6 +89,10 @@ const {
   allowWebUserTool,
   revokeWebUserTool,
 } = require('./writeTools/adminAccessTools');
+const {
+  sendUserMessageTool,
+  broadcastMessageTool,
+} = require('./writeTools/adminMessagingTools');
 
 // Trim a best-teams calculator row down to the fields the React component
 // actually renders. Sending the full driver/constructor dictionaries (which
@@ -575,6 +579,8 @@ const tools = [
   setUserNicknameTool,
   allowWebUserTool,
   revokeWebUserTool,
+  sendUserMessageTool,
+  broadcastMessageTool,
 
   defineTool({
     name: 'confirm_write',
