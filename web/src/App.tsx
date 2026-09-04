@@ -134,6 +134,31 @@ function AgentActions() {
     loadingKind: 'adminMessaging',
   });
   useWriteAction({
+    name: 'trigger_scraping',
+    description: 'Run the confirmed F1 Fantasy source-data scrape.',
+    loadingKind: 'manualTrigger',
+  });
+  useWriteAction({
+    name: 'trigger_api_data',
+    description: 'Run the confirmed shared API-data workflow.',
+    loadingKind: 'manualTrigger',
+  });
+  useWriteAction({
+    name: 'trigger_api_data_locked',
+    description: 'Run the confirmed locked API-data workflow.',
+    loadingKind: 'manualTrigger',
+  });
+  useWriteAction({
+    name: 'trigger_next_race_info',
+    description: 'Run the confirmed next-race information scheduler.',
+    loadingKind: 'manualTrigger',
+  });
+  useWriteAction({
+    name: 'trigger_live_score_scheduler',
+    description: 'Run the confirmed live-score scheduler.',
+    loadingKind: 'manualTrigger',
+  });
+  useWriteAction({
     name: 'select_team',
     description: 'Change the signed-in user active fantasy team.',
     loadingLabel: 'Preparing team selection…',

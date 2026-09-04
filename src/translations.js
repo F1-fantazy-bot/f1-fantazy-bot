@@ -494,6 +494,29 @@ const translations = {
       'אנא הזן טקסט או תמונה לשידור.',
     'No registered users found to broadcast to.':
       'לא נמצאו משתמשים רשומים לשידור.',
+    'F1 Fantasy Scraper': 'סורק F1 Fantasy',
+    'API Data': 'נתוני API',
+    'Locked API Data': 'נתוני API נעולים',
+    'Next Race Info Scheduler': 'מתזמן מידע המרוץ הבא',
+    'Live Score Scheduler': 'מתזמן ניקוד חי',
+    'Run the F1 Fantasy scraper now? This starts a source-data scraping workflow and may refresh shared inputs.':
+      'להפעיל עכשיו את סורק F1 Fantasy? הפעולה מתחילה תהליך איסוף נתוני מקור ועשויה לרענן נתונים משותפים.',
+    'Run API data processing now? This starts the shared current-data workflow and may update shared fantasy data.':
+      'להפעיל עכשיו עיבוד נתוני API? הפעולה מתחילה את תהליך הנתונים העדכניים ועשויה לעדכן נתוני פנטזי משותפים.',
+    'Run locked API data processing now? This starts the locked-snapshot workflow and may update shared locked data.':
+      'להפעיל עכשיו עיבוד נתוני API נעולים? הפעולה מתחילה את תהליך תמונת המצב הנעולה ועשויה לעדכן נתונים נעולים משותפים.',
+    'Run the next-race information scheduler now? This starts the shared race-information workflow.':
+      'להפעיל עכשיו את מתזמן המידע למרוץ הבא? הפעולה מתחילה את תהליך מידע המרוץ המשותף.',
+    'Run the live-score scheduler now? This starts the shared live-score polling workflow.':
+      'להפעיל עכשיו את מתזמן הניקוד החי? הפעולה מתחילה את תהליך הדגימה של הניקוד החי המשותף.',
+    'Started {LABEL}. Run reference: {REFERENCE}.':
+      'הופעל {LABEL}. מזהה הרצה: {REFERENCE}.',
+    '{LABEL} already has an active or recent run. Reference: {REFERENCE}. Wait before retrying.':
+      'ל־{LABEL} כבר יש הרצה פעילה או אחרונה. מזהה: {REFERENCE}. יש להמתין לפני ניסיון נוסף.',
+    'The {LABEL} request may already be running. Do not retry yet. Run reference: {REFERENCE}.':
+      'ייתכן שבקשת {LABEL} כבר פועלת. אין לנסות שוב עדיין. מזהה הרצה: {REFERENCE}.',
+    'Unable to start {LABEL}. Please try again.':
+      'לא ניתן היה להפעיל את {LABEL}. נסה שוב.',
     'Please enter a message to send.': 'נא להזין הודעה לשליחה.',
     'Messages can contain at most {MAX} characters.':
       'הודעות יכולות להכיל עד {MAX} תווים.',

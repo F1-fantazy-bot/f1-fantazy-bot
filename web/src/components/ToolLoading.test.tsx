@@ -40,6 +40,7 @@ test('all loading states render Hebrew and RTL from the account context', () => 
     'botfatherSetup',
     'adminAccess',
     'adminMessaging',
+    'manualTrigger',
     'dataStatus',
     'bestTeams',
     'scenarios',
@@ -87,6 +88,7 @@ test('all loading states render Hebrew and RTL from the account context', () => 
   expect(container.textContent).toContain('טוען הגדרת BotFather');
   expect(container.textContent).toContain('מכין שינוי גישת מנהל');
   expect(container.textContent).toContain('מכין הודעת מנהל');
+  expect(container.textContent).toContain('מכין הפעלה ידנית');
   expect(container.textContent).toContain('בודק מצב נתונים');
   expect(container.textContent).toContain('מכין את עמדת הפיקוד');
   expect(container.textContent).toContain('מבצע את הפעולה');

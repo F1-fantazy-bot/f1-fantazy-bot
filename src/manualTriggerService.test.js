@@ -1,9 +1,18 @@
 const mockGetToken = jest.fn();
+const mockAcquireManualTriggerLease = jest.fn();
+const mockMarkManualTriggerLease = jest.fn();
+const mockReleaseManualTriggerLease = jest.fn();
 
 jest.mock('@azure/identity', () => ({
   DefaultAzureCredential: jest.fn(() => ({
     getToken: mockGetToken,
   })),
+}));
+
+jest.mock('./services/manualTriggerLeaseService', () => ({
+  acquireManualTriggerLease: mockAcquireManualTriggerLease,
+  markManualTriggerLease: mockMarkManualTriggerLease,
+  releaseManualTriggerLease: mockReleaseManualTriggerLease,
 }));
 
 const { DefaultAzureCredential } = require('@azure/identity');
@@ -27,6 +36,7 @@ describe('manualTriggerService', () => {
   const originalFetch = global.fetch;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     process.env = {
       ...originalEnv,
       AZURE_SUBSCRIPTION_ID: 'sub-123',
@@ -34,7 +44,19 @@ describe('manualTriggerService', () => {
     delete process.env.AZURE_RESOURCE_GROUP;
     global.fetch = jest.fn();
     mockGetToken.mockResolvedValue({ token: 'token-123' });
-    DefaultAzureCredential.mockClear();
+    mockAcquireManualTriggerLease.mockImplementation((triggerId) =>
+      Promise.resolve({
+        status: 'acquired',
+        lease: {
+          triggerId,
+          owner: 'owner-1',
+          runReference: `${triggerId}-run-1`,
+          expiresAt: '2026-09-04T12:00:00.000Z',
+        },
+      }),
+    );
+    mockMarkManualTriggerLease.mockResolvedValue(true);
+    mockReleaseManualTriggerLease.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -51,7 +73,11 @@ describe('manualTriggerService', () => {
 
     const result = await triggerManualJob('api_data');
 
-    expect(result).toEqual({ success: true });
+    expect(result).toMatchObject({
+      success: true,
+      triggerId: 'api_data',
+      runReference: 'api_data-run-1',
+    });
     expect(DefaultAzureCredential).toHaveBeenCalledTimes(1);
     expect(mockGetToken).toHaveBeenCalledWith(
       'https://management.azure.com/.default',
@@ -84,7 +110,11 @@ describe('manualTriggerService', () => {
 
     const result = await triggerManualJob('next_race_info');
 
-    expect(result).toEqual({ success: true });
+    expect(result).toMatchObject({
+      success: true,
+      triggerId: 'next_race_info',
+      runReference: 'next_race_info-run-1',
+    });
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining(
@@ -121,10 +151,11 @@ describe('manualTriggerService', () => {
 
     const result = await triggerManualJob('api_data');
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: false,
       error: 'Missing required Azure configuration: AZURE_SUBSCRIPTION_ID',
     });
+    expect(mockReleaseManualTriggerLease).toHaveBeenCalled();
     expect(DefaultAzureCredential).not.toHaveBeenCalled();
     expect(global.fetch).not.toHaveBeenCalled();
   });
@@ -150,10 +181,12 @@ describe('manualTriggerService', () => {
 
     const result = await triggerManualJob('live_score_scheduler');
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: false,
+      uncertain: true,
       error: 'Azure Management API failed (403): Forbidden',
     });
+    expect(mockReleaseManualTriggerLease).not.toHaveBeenCalled();
   });
 
   it('returns callback invocation failures', async () => {
@@ -167,10 +200,31 @@ describe('manualTriggerService', () => {
 
     const result = await triggerManualJob('api_data_locked');
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: false,
+      uncertain: true,
       error: 'Logic App callback failed (500): Boom',
     });
+  });
+
+  it('does not contact Azure when the same job has an active durable lease', async () => {
+    mockAcquireManualTriggerLease.mockResolvedValue({
+      status: 'deduplicated',
+      lease: {
+        triggerId: 'api_data',
+        owner: 'other-worker',
+        runReference: 'api_data-existing',
+        expiresAt: '2026-09-04T12:05:00.000Z',
+      },
+    });
+
+    await expect(triggerManualJob('api_data')).resolves.toMatchObject({
+      success: false,
+      deduplicated: true,
+      runReference: 'api_data-existing',
+    });
+    expect(DefaultAzureCredential).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('exports the configured trigger registry', () => {
