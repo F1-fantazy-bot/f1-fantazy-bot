@@ -499,6 +499,15 @@ const translations = {
     'Please enter the nickname for {NAME}:': 'אנא הזן כינוי עבור {NAME}:',
     'Nickname for {NAME} ({ID}) set to "{NICKNAME}".':
       'הכינוי עבור {NAME} ({ID}) הוגדר ל"{NICKNAME}".',
+    'Set the nickname for {NAME} ({ID}) to "{NICKNAME}".':
+      'להגדיר את הכינוי עבור {NAME} ({ID}) ל"{NICKNAME}".',
+    'Nickname for {NAME} ({ID}) is already "{NICKNAME}".':
+      'הכינוי עבור {NAME} ({ID}) כבר מוגדר ל"{NICKNAME}".',
+    'Please choose a registered bot user.': 'נא לבחור משתמש בוט רשום.',
+    'User {ID} was not found.': 'המשתמש {ID} לא נמצא.',
+    'Please enter a nickname.': 'נא להזין כינוי.',
+    'The target changed while this confirmation was open. Review the details and confirm again.':
+      'היעד השתנה בזמן שהאישור היה פתוח. יש לעבור שוב על הפרטים ולאשר מחדש.',
     '❌ Error setting nickname: {ERROR}': '❌ שגיאה בהגדרת כינוי: {ERROR}',
     'We support only text. Please enter the nickname.':
       'אנו תומכים רק בטקסט. אנא הזן את הכינוי.',
@@ -764,6 +773,10 @@ const translations = {
       '❌ שגיאה באחזור רשימת המשתמשים המורשים: {ERROR}',
     '✅ Allowed {EMAIL} on the web agent, mapped to {NAME} ({ID}).':
       '✅ {EMAIL} אושר באתר ומקושר אל {NAME} ({ID}).',
+    'Allow {EMAIL} on the web agent, mapped to {NAME} ({ID}).':
+      'לאשר את {EMAIL} באתר ולקשר אותו אל {NAME} ({ID}).',
+    '{EMAIL} is already allowed on the web agent for {NAME} ({ID}).':
+      '{EMAIL} כבר מורשה באתר ומקושר אל {NAME} ({ID}).',
     '🚫 Revoked {EMAIL} from the web agent allowlist.':
       '🚫 {EMAIL} הוסר מרשימת המשתמשים המורשים באתר.',
     '{EMAIL} was not on the web allowlist — nothing to do.':

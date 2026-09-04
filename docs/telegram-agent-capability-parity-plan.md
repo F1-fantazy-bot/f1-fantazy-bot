@@ -50,8 +50,10 @@ confirmed writes.
 - Phase 9 merged in PR #240: `/reset_cache` now delegates to a reset-safe
   shared service and `reset_user_data` exposes the same confirmed action to
   the agent.
-- Phase 10 is in progress: the five read-only admin capabilities are being
-  extracted into safe structured views and localized agent cards.
+- Phase 10 merged in PR #241: the five read-only admin capabilities use
+  central guards, safe structured views, and localized agent cards.
+- Phase 11 is in progress: the confirmed admin identity/access writes are
+  being extracted behind shared services and guided directory targets.
 
 ## Locked decisions
 
@@ -311,7 +313,7 @@ the authorization boundary.
 - Reuse mutation leases, hydration, ETag CAS, snapshot compensation, and
   persist-before-cache publication.
 
-### Phase 10 — Admin read tools (in progress)
+### Phase 10 — Admin read tools (merged in PR #241)
 
 Add centrally guarded:
 
@@ -325,7 +327,7 @@ Extract reusable structured cores/view models, preserve Telegram formatting,
 add localized tables/cards and safe result caps, and prove non-admin requests
 make zero backend calls.
 
-### Phase 11 — Admin identity/access writes
+### Phase 11 — Admin identity/access writes (in progress)
 
 Add centrally guarded confirmed tools:
 

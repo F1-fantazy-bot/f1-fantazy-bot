@@ -38,6 +38,7 @@ test('all loading states render Hebrew and RTL from the account context', () => 
     'botUsers',
     'webUsers',
     'botfatherSetup',
+    'adminAccess',
     'dataStatus',
     'bestTeams',
     'scenarios',
@@ -83,6 +84,7 @@ test('all loading states render Hebrew and RTL from the account context', () => 
   expect(container.textContent).toContain('טוען משתמשי בוט');
   expect(container.textContent).toContain('טוען משתמשי ווב מורשים');
   expect(container.textContent).toContain('טוען הגדרת BotFather');
+  expect(container.textContent).toContain('מכין שינוי גישת מנהל');
   expect(container.textContent).toContain('בודק מצב נתונים');
   expect(container.textContent).toContain('מכין את עמדת הפיקוד');
   expect(container.textContent).toContain('מבצע את הפעולה');

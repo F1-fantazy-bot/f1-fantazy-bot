@@ -19,6 +19,7 @@ jest.mock('./constants', () => ({
 jest.mock('./userRegistryService', () => ({
   getUserById: jest.fn(),
   listAllUsers: jest.fn(),
+  updateUserAttributes: jest.fn(),
 }));
 
 jest.mock('./pendingReplyManager', () => ({
@@ -57,7 +58,11 @@ const {
   sendErrorMessage,
   sendMessageToAdmins,
 } = require('./utils/utils');
-const { getUserById, listAllUsers } = require('./userRegistryService');
+const {
+  getUserById,
+  listAllUsers,
+  updateUserAttributes,
+} = require('./userRegistryService');
 const { registerPendingReply } = require('./pendingReplyManager');
 const { processPhotoByType } = require('./photoProcessingService');
 const {
@@ -969,6 +974,47 @@ describe('pendingReplyRegistry', () => {
         const resolved = resolveCommand('follow_league', 1);
         expect(resolved.validate({})).toBe(false);
       });
+    });
+  });
+
+  describe('set_nickname', () => {
+    beforeEach(() => {
+      getUserById.mockReset();
+      updateUserAttributes.mockReset().mockResolvedValue();
+    });
+
+    it('keeps the two-step Telegram flow while delegating the final update to the shared service', async () => {
+      getUserById.mockResolvedValue({
+        chatId: '12345',
+        chatName: 'Foo User',
+      });
+      const botMock = { sendMessage: jest.fn().mockResolvedValue() };
+
+      const stepOne = resolveCommand('set_nickname', 7, {
+        step: 'collect_user_id',
+      });
+      await stepOne.handler(botMock, { text: '12345' });
+      expect(registerPendingReply).toHaveBeenCalledWith(7, 'set_nickname', {
+        step: 'collect_nickname',
+        targetChatId: '12345',
+        targetChatName: 'Foo User',
+      });
+
+      const stepTwo = resolveCommand('set_nickname', 7, {
+        step: 'collect_nickname',
+        targetChatId: '12345',
+        targetChatName: 'Foo User',
+      });
+      await stepTwo.handler(botMock, { text: 'TheFoo' });
+
+      expect(updateUserAttributes).toHaveBeenCalledWith('12345', {
+        nickname: 'TheFoo',
+      });
+      expect(t).toHaveBeenCalledWith(
+        'Nickname for {NAME} ({ID}) set to "{NICKNAME}".',
+        7,
+        { NAME: 'Foo User', ID: '12345', NICKNAME: 'TheFoo' },
+      );
     });
   });
 

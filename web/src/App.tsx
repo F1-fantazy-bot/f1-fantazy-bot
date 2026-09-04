@@ -105,6 +105,23 @@ function AgentActions() {
     loadingKind: 'resetUserData',
   });
   useWriteAction({
+    name: 'set_user_nickname',
+    description: 'Set a registered bot user nickname after confirmation.',
+    loadingKind: 'adminAccess',
+  });
+  useWriteAction({
+    name: 'allow_web_user',
+    description:
+      'Allow a Google email to use the web agent as a registered bot user after confirmation.',
+    loadingKind: 'adminAccess',
+  });
+  useWriteAction({
+    name: 'revoke_web_user',
+    description:
+      'Revoke a Google email from web-agent access after confirmation.',
+    loadingKind: 'adminAccess',
+  });
+  useWriteAction({
     name: 'select_team',
     description: 'Change the signed-in user active fantasy team.',
     loadingLabel: 'Preparing team selection…',

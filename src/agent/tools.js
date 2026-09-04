@@ -84,6 +84,11 @@ const {
   listWebUsersTool,
   getBotfatherSetupTool,
 } = require('./readTools/adminReadTools');
+const {
+  setUserNicknameTool,
+  allowWebUserTool,
+  revokeWebUserTool,
+} = require('./writeTools/adminAccessTools');
 
 // Trim a best-teams calculator row down to the fields the React component
 // actually renders. Sending the full driver/constructor dictionaries (which
@@ -567,6 +572,9 @@ const tools = [
   reportBugTool,
   loadLatestSimulationTool,
   resetUserDataTool,
+  setUserNicknameTool,
+  allowWebUserTool,
+  revokeWebUserTool,
 
   defineTool({
     name: 'confirm_write',

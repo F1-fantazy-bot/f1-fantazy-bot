@@ -465,10 +465,11 @@ describe('all rich components honor Hebrew ui language', () => {
               displayedCount: 1,
               users: [{ chatId: '7', nickname: 'פול', lang: 'he' }],
             },
+            selection: { mode: 'set_user_nickname', nickname: 'קוטב' },
           }}
         />
       ),
-      expected: ['משתמשי הבוט', 'שם', 'מזהה צ׳אט', 'שפה'],
+      expected: ['משתמשי הבוט', 'שם', 'מזהה צ׳אט', 'שפה', 'הגדר כינוי'],
     },
     {
       name: 'admin web users',
