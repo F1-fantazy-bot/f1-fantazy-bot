@@ -63,6 +63,22 @@ test('routes confirmed admin messaging through guided recipients and a fresh bro
   );
 });
 
+test('routes confirmed admin manual triggers through one safe leased job at a time', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain('trigger_scraping — admin-only confirmed');
+  expect(prompt).toContain('trigger_api_data — admin-only confirmed');
+  expect(prompt).toContain('trigger_api_data_locked — admin-only confirmed');
+  expect(prompt).toContain('trigger_next_race_info — admin-only confirmed');
+  expect(prompt).toContain('trigger_live_score_scheduler — admin-only confirmed');
+  expect(prompt).toContain('Never accept an arbitrary trigger');
+  expect(prompt).toContain('different impact preview');
+  expect(prompt).toMatch(/active\/recent or uncertain run/);
+  expect(prompt).toMatch(
+    /Never expose Azure, HTTP, storage, credential, or workflow errors/,
+  );
+});
+
 test('requires select_team after the user answers with a team name', () => {
   const prompt = getSystemPrompt();
 

@@ -93,6 +93,13 @@ const {
   sendUserMessageTool,
   broadcastMessageTool,
 } = require('./writeTools/adminMessagingTools');
+const {
+  triggerScrapingTool,
+  triggerApiDataTool,
+  triggerApiDataLockedTool,
+  triggerNextRaceInfoTool,
+  triggerLiveScoreSchedulerTool,
+} = require('./writeTools/adminManualTriggerTools');
 
 // Trim a best-teams calculator row down to the fields the React component
 // actually renders. Sending the full driver/constructor dictionaries (which
@@ -581,6 +588,11 @@ const tools = [
   revokeWebUserTool,
   sendUserMessageTool,
   broadcastMessageTool,
+  triggerScrapingTool,
+  triggerApiDataTool,
+  triggerApiDataLockedTool,
+  triggerNextRaceInfoTool,
+  triggerLiveScoreSchedulerTool,
 
   defineTool({
     name: 'confirm_write',

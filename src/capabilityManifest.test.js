@@ -261,22 +261,14 @@ test('requires implemented admin tools to use the central admin wrapper', () => 
   ).toEqual(['unsafe_admin_tool']);
 });
 
-test('pins the current planned admin rollout backlog', () => {
+test('has no remaining planned admin rollout work', () => {
   const plannedAdminCommands = COMMAND_CAPABILITIES.filter(
     (entry) =>
       entry.audience === AUDIENCE.ADMIN &&
       entry.agent.status === AGENT_STATUS.PLANNED,
   ).map((entry) => entry.command);
 
-  expect(plannedAdminCommands.sort()).toEqual(
-    [
-      constants.COMMAND_TRIGGER_SCRAPING,
-      constants.COMMAND_TRIGGER_API_DATA,
-      constants.COMMAND_TRIGGER_API_DATA_LOCKED,
-      constants.COMMAND_TRIGGER_NEXT_RACE_INFO,
-      constants.COMMAND_TRIGGER_LIVE_SCORE_SCHEDULER,
-    ].sort(),
-  );
+  expect(plannedAdminCommands).toEqual([]);
 });
 
 test('pins the four approved exceptions and adapted Teams Tracker flow', () => {

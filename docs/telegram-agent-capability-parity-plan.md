@@ -54,8 +54,10 @@ confirmed writes.
   central guards, safe structured views, and localized agent cards.
 - Phase 11 merged in PR #242: confirmed admin identity/access writes share a
   service with Telegram and use guided directory targets.
-- Phase 12 is in progress: confirmed admin messaging is being extracted behind
-  shared delivery and audience-validation services.
+- Phase 12 merged in PR #243: confirmed admin messaging shares delivery and
+  audience-validation services with Telegram.
+- Phase 13 is in progress: confirmed admin manual triggers are gaining durable
+  job-scoped deduplication and safe run references.
 
 ## Locked decisions
 
@@ -340,7 +342,7 @@ Add centrally guarded confirmed tools:
 Extract shared services from pending-reply handlers. Use guided targets,
 normalized exact email handling, previews, no-op detection, and audit logs.
 
-### Phase 12 — Admin messaging (in progress)
+### Phase 12 — Admin messaging (merged in PR #243)
 
 Add centrally guarded confirmed tools:
 
@@ -352,7 +354,7 @@ validation/chunking, fresh recipient/audience checks, a broadcast count warning,
 safe sent/failed results, and actor/target correlation logging. Preserve
 Telegram's text/image flow.
 
-### Phase 13 — Admin manual triggers
+### Phase 13 — Admin manual triggers (in progress)
 
 Add five separate centrally guarded confirmed tools:
 

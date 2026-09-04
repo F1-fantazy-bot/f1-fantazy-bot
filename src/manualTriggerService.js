@@ -1,4 +1,9 @@
 const { DefaultAzureCredential } = require('@azure/identity');
+const {
+  acquireManualTriggerLease,
+  markManualTriggerLease,
+  releaseManualTriggerLease,
+} = require('./services/manualTriggerLeaseService');
 
 const MANAGEMENT_SCOPE = 'https://management.azure.com/.default';
 const LOGIC_APP_API_VERSION = '2019-05-01';
@@ -118,8 +123,9 @@ async function getCallbackUrl(azureConfig, trigger, token) {
   return body.value;
 }
 
-async function invokeCallbackTrigger(azureConfig, trigger, token) {
+async function invokeCallbackTrigger(azureConfig, trigger, token, onDispatch) {
   const callbackUrl = await getCallbackUrl(azureConfig, trigger, token);
+  onDispatch();
   const response = await fetch(callbackUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -132,11 +138,21 @@ async function invokeCallbackTrigger(azureConfig, trigger, token) {
   }
 }
 
-async function runSchedulerTrigger(azureConfig, trigger, token) {
+async function runSchedulerTrigger(azureConfig, trigger, token, onDispatch) {
+  onDispatch();
   await postManagementUrl(buildTriggerUrl(azureConfig, trigger, 'run'), token);
 }
 
-async function triggerManualJob(triggerId) {
+async function triggerManualJob(
+  triggerId,
+  {
+    leaseService = {
+      acquireManualTriggerLease,
+      markManualTriggerLease,
+      releaseManualTriggerLease,
+    },
+  } = {},
+) {
   const trigger = MANUAL_TRIGGERS[triggerId];
   if (!trigger) {
     return {
@@ -145,22 +161,90 @@ async function triggerManualJob(triggerId) {
     };
   }
 
+  let acquired;
+  try {
+    acquired = await leaseService.acquireManualTriggerLease(triggerId);
+  } catch (error) {
+    return {
+      success: false,
+      triggerId,
+      error: error.message,
+    };
+  }
+
+  if (acquired.status === 'deduplicated') {
+    return {
+      success: false,
+      deduplicated: true,
+      triggerId,
+      runReference: acquired.lease.runReference,
+      leaseExpiresAt: acquired.lease.expiresAt,
+    };
+  }
+
+  const lease = acquired.lease;
+  let dispatchStarted = false;
   try {
     const azureConfig = getAzureConfig();
     const token = await getManagementToken();
 
     if (trigger.mode === TRIGGER_MODES.CALLBACK) {
-      await invokeCallbackTrigger(azureConfig, trigger, token);
+      await invokeCallbackTrigger(azureConfig, trigger, token, () => {
+        dispatchStarted = true;
+      });
     } else if (trigger.mode === TRIGGER_MODES.RUN) {
-      await runSchedulerTrigger(azureConfig, trigger, token);
+      await runSchedulerTrigger(azureConfig, trigger, token, () => {
+        dispatchStarted = true;
+      });
     } else {
       throw new Error(`Unsupported manual trigger mode: ${trigger.mode}`);
     }
 
-    return { success: true };
+    try {
+      await leaseService.markManualTriggerLease(lease, 'triggered');
+    } catch (error) {
+      console.error(
+        `Failed to mark manual trigger lease for ${triggerId}:`,
+        error,
+      );
+    }
+
+    return {
+      success: true,
+      triggerId,
+      runReference: lease.runReference,
+      leaseExpiresAt: lease.expiresAt,
+    };
   } catch (error) {
+    // Before dispatch, the run definitely did not reach the Logic App, so
+    // release the lease and let an administrator retry. Once POST has begun,
+    // preserve it: a transport error may still represent an accepted run.
+    if (!dispatchStarted) {
+      try {
+        await leaseService.releaseManualTriggerLease(lease);
+      } catch (releaseError) {
+        console.error(
+          `Failed to release manual trigger lease for ${triggerId}:`,
+          releaseError,
+        );
+      }
+    } else {
+      try {
+        await leaseService.markManualTriggerLease(lease, 'uncertain');
+      } catch (markError) {
+        console.error(
+          `Failed to mark uncertain manual trigger lease for ${triggerId}:`,
+          markError,
+        );
+      }
+    }
+
     return {
       success: false,
+      triggerId,
+      runReference: lease.runReference,
+      leaseExpiresAt: lease.expiresAt,
+      uncertain: dispatchStarted,
       error: error.message,
     };
   }

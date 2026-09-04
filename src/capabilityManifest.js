@@ -204,21 +204,21 @@ const COMMAND_CAPABILITIES = Object.freeze([
   admin(constants.COMMAND_BROADCAST, AGENT_STATUS.IMPLEMENTED, [
     'broadcast_message',
   ], { confirmation: CONFIRMATION.REQUIRED }),
-  admin(constants.COMMAND_TRIGGER_SCRAPING, AGENT_STATUS.PLANNED, [
+  admin(constants.COMMAND_TRIGGER_SCRAPING, AGENT_STATUS.IMPLEMENTED, [
     'trigger_scraping',
   ], { confirmation: CONFIRMATION.REQUIRED }),
-  admin(constants.COMMAND_TRIGGER_API_DATA, AGENT_STATUS.PLANNED, [
+  admin(constants.COMMAND_TRIGGER_API_DATA, AGENT_STATUS.IMPLEMENTED, [
     'trigger_api_data',
   ], { confirmation: CONFIRMATION.REQUIRED }),
-  admin(constants.COMMAND_TRIGGER_API_DATA_LOCKED, AGENT_STATUS.PLANNED, [
+  admin(constants.COMMAND_TRIGGER_API_DATA_LOCKED, AGENT_STATUS.IMPLEMENTED, [
     'trigger_api_data_locked',
   ], { confirmation: CONFIRMATION.REQUIRED }),
-  admin(constants.COMMAND_TRIGGER_NEXT_RACE_INFO, AGENT_STATUS.PLANNED, [
+  admin(constants.COMMAND_TRIGGER_NEXT_RACE_INFO, AGENT_STATUS.IMPLEMENTED, [
     'trigger_next_race_info',
   ], { confirmation: CONFIRMATION.REQUIRED }),
   admin(
     constants.COMMAND_TRIGGER_LIVE_SCORE_SCHEDULER,
-    AGENT_STATUS.PLANNED,
+    AGENT_STATUS.IMPLEMENTED,
     ['trigger_live_score_scheduler'],
     { confirmation: CONFIRMATION.REQUIRED },
   ),

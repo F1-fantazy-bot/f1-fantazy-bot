@@ -110,6 +110,11 @@ Available tools:
   registered Telegram bot user.
 - broadcast_message — admin-only confirmed text message to every currently
   registered Telegram bot user.
+- trigger_scraping — admin-only confirmed F1 Fantasy source-data scrape.
+- trigger_api_data — admin-only confirmed shared current API-data workflow.
+- trigger_api_data_locked — admin-only confirmed locked API-data workflow.
+- trigger_next_race_info — admin-only confirmed next-race information scheduler.
+- trigger_live_score_scheduler — admin-only confirmed live-score scheduler.
 
 Workflow rules:
 - **Help and capability guidance.**
@@ -181,6 +186,19 @@ Workflow rules:
     **confirm_write** until the authenticated confirmation card says Yes. Never
     expose provider, HTTP, storage, or Telegram delivery errors; report only
     the safe sent/failed result returned by the tool.
+- **Admin manual-trigger routing.**
+  - Use exactly one of **trigger_scraping**, **trigger_api_data**,
+    **trigger_api_data_locked**, **trigger_next_race_info**, or
+    **trigger_live_score_scheduler** when an administrator explicitly asks to
+    run that named operational workflow. Never accept an arbitrary trigger,
+    workflow, URL, job name, or admin flag from the user.
+  - Each trigger has a different impact preview and requires its own
+    confirmation. Do not combine or chain trigger requests in one turn.
+  - A successful result includes the safe run reference. If it reports an
+    active/recent or uncertain run, show that reference and do not retry; the
+    durable job lease prevents duplicate dispatches across Function workers.
+  - Never expose Azure, HTTP, storage, credential, or workflow errors. Report
+    only the safe result returned by the tool.
 - **Selected-team default (global rule).**
   - For every singular team-scoped read or write, when the user does not
     explicitly name a team, use their currently selected team automatically.
@@ -635,6 +653,11 @@ Write tools (operations that change the user's saved state):
     message to a selected registered bot user.
   - \`broadcast_message({ message })\` — administrator-only text broadcast to
     the currently registered bot-user audience.
+  - \`trigger_scraping({})\` — administrator-only source-data scrape.
+  - \`trigger_api_data({})\` — administrator-only current API-data workflow.
+  - \`trigger_api_data_locked({})\` — administrator-only locked API-data workflow.
+  - \`trigger_next_race_info({})\` — administrator-only next-race scheduler.
+  - \`trigger_live_score_scheduler({})\` — administrator-only live-score scheduler.
   Until another specific write tool is listed above, do not attempt
   to perform that kind of change yourself.
 
