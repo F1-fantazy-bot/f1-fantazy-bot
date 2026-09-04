@@ -23,10 +23,27 @@ test('routes administrative reads through centrally guarded no-argument tools', 
   expect(prompt).toContain('list_bot_users — admin-only, bounded');
   expect(prompt).toContain('list_web_users — admin-only, bounded');
   expect(prompt).toContain('get_botfather_setup — admin-only copyable');
-  expect(prompt).toContain('These five tools take no arguments');
+  expect(prompt).toContain('guided-selection mode and optional pending');
   expect(prompt).toMatch(/server checks the authenticated\s+identity before it reads any data/);
   expect(prompt).toContain('status="forbidden"');
   expect(prompt).toContain('do not ask the tool to bypass its\n    safe output cap');
+});
+
+test('routes confirmed admin identity and access writes through guided canonical targets', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain('set_user_nickname — admin-only confirmed');
+  expect(prompt).toContain('allow_web_user — admin-only confirmed');
+  expect(prompt).toContain('revoke_web_user — admin-only confirmed');
+  expect(prompt).toContain('selectionMode="set_user_nickname"');
+  expect(prompt).toContain('selectionMode="allow_web_user"');
+  expect(prompt).toContain('selectionMode="revoke_web_user"');
+  expect(prompt).toMatch(/do NOT\s+ask the administrator to type a chat ID/i);
+  expect(prompt).toMatch(
+    /do NOT ask the administrator to type an existing email/i,
+  );
+  expect(prompt).toContain('Never call confirm_write before the user clicks');
+  expect(prompt).toMatch(/target changed while the card\s+was open/);
 });
 
 test('requires select_team after the user answers with a team name', () => {

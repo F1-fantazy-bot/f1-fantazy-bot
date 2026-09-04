@@ -1,6 +1,6 @@
 import { act, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterAll, beforeAll, expect, test } from 'vitest';
+import { afterAll, beforeAll, expect, test, vi } from 'vitest';
 import {
   AdminVersionCard,
   BillingStatsCard,
@@ -8,6 +8,20 @@ import {
   BotfatherSetupCard,
   WebUsersCard,
 } from './AdminReadCards';
+
+vi.mock('@copilotkit/react-core/v2', () => ({
+  UseAgentUpdate: { OnRunStatusChanged: 'run-status' },
+  useAgent: () => ({
+    agent: {
+      addMessage: vi.fn(),
+      setMessages: vi.fn(),
+      subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })),
+      messages: [],
+      isRunning: false,
+    },
+  }),
+  useCopilotKit: () => ({ copilotkit: { runAgent: vi.fn() } }),
+}));
 
 beforeAll(() => {
   (
@@ -166,5 +180,47 @@ test('renders a safe localized forbidden state', () => {
   expect(container.textContent).toContain('מנהלים בלבד');
   expect(container.firstElementChild?.getAttribute('dir')).toBe('rtl');
   expect(container.textContent).not.toContain('Commit ID');
+  cleanup();
+});
+
+test('renders localized canonical admin target choices without asking for an ID or existing email', () => {
+  const { container, cleanup } = render(
+    <>
+      <BotUsersCard
+        result={{
+          status: 'ok',
+          lang: 'he',
+          selection: { mode: 'set_user_nickname', nickname: 'קוטב' },
+          directory: {
+            users: [{ chatId: '7', nickname: 'פול', lang: 'he' }],
+          },
+        }}
+      />
+      <WebUsersCard
+        result={{
+          status: 'ok',
+          lang: 'he',
+          selection: { mode: 'revoke_web_user' },
+          directory: {
+            users: [{ email: 'admin@example.com', chatId: '7' }],
+          },
+        }}
+      />
+    </>,
+  );
+
+  const buttons = Array.from(container.querySelectorAll('button'));
+  expect(buttons.map((button) => button.textContent)).toEqual(
+    expect.arrayContaining(['הגדר כינוי', 'בטל גישה']),
+  );
+  expect(buttons[0]?.getAttribute('aria-label')).toContain('פול');
+  expect(buttons[1]?.getAttribute('aria-label')).toContain(
+    'admin@example.com',
+  );
+  expect(
+    Array.from(container.querySelectorAll('article')).every(
+      (card) => card.getAttribute('dir') === 'rtl',
+    ),
+  ).toBe(true);
   cleanup();
 });

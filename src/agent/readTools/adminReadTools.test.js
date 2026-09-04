@@ -141,3 +141,30 @@ test('still lists allowlisted web users when only the linked directory lookup fa
     },
   });
 });
+
+test('returns only current bounded directory rows as canonical guided write targets', async () => {
+  listAllUsers.mockResolvedValue([
+    { chatId: '7', chatName: 'Fast Driver', lastSeen: '2026-09-01T08:00:00.000Z' },
+  ]);
+  listAllowedUsers.mockResolvedValue([
+    { email: 'admin@example.com', chatId: '7' },
+  ]);
+
+  await expect(
+    listBotUsersTool.execute({
+      selectionMode: 'allow_web_user',
+      email: 'Admin@Example.COM',
+    }),
+  ).resolves.toMatchObject({
+    status: 'ok',
+    selection: { mode: 'allow_web_user', email: 'admin@example.com' },
+    directory: { users: [{ chatId: '7' }] },
+  });
+  await expect(
+    listWebUsersTool.execute({ selectionMode: 'revoke_web_user' }),
+  ).resolves.toMatchObject({
+    status: 'ok',
+    selection: { mode: 'revoke_web_user' },
+    directory: { users: [{ email: 'admin@example.com' }] },
+  });
+});

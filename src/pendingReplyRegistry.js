@@ -20,20 +20,11 @@ const {
   createReportBugService,
   MAX_BUG_REPORT_LENGTH,
 } = require('./services/reportBugService');
-const { getUserById, listAllUsers, updateUserAttributes } = require('./userRegistryService');
-const {
-  getAllowedUserByEmail,
-  addAllowedUser,
-  removeAllowedUser,
-} = require('./webUserAllowlistService');
-const { userCache } = require('./cache');
+const { getUserById, listAllUsers } = require('./userRegistryService');
+const { createAdminAccessService, isValidEmail } = require('./services/adminAccessService');
 
-// Basic RFC 5322 "looks-like-an-email" gate. Deliberately loose — Google's
-// identity provider is the real validator. We only want to catch obvious
-// typos before persisting to Azure Table Storage.
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-function looksLikeEmail(text) {
-  return typeof text === 'string' && EMAIL_REGEX.test(text.trim());
+function adminAccessService() {
+  return createAdminAccessService();
 }
 
 /**
@@ -344,9 +335,12 @@ const PENDING_REPLY_REGISTRY = {
           // Step 1: Admin provided a valid target chat ID (validated by buildValidate)
           const targetChatId = replyMsg.text.trim();
 
-          let user;
+          let inspected;
           try {
-            user = await getUserById(targetChatId);
+            inspected = await adminAccessService().inspectNickname({
+              chatId,
+              targetChatId,
+            });
           } catch (err) {
             console.error(
               'Error fetching user in set_nickname handler:',
@@ -369,16 +363,20 @@ const PENDING_REPLY_REGISTRY = {
             return;
           }
 
+          if (inspected.status !== 'ok') {
+            return;
+          }
+
           await registerPendingReply(chatId, 'set_nickname', {
             step: 'collect_nickname',
             targetChatId,
-            targetChatName: user.chatName,
+            targetChatName: inspected.user.chatName,
           });
 
           const collectNicknamePrompt = `${t(
             'Please enter the nickname for {NAME}:',
             chatId,
-            { NAME: user.chatName },
+            { NAME: inspected.user.chatName },
           )}\n\n${t('💡 Send /cancel at any time to abort.', chatId)}`;
 
           await replyBot
@@ -393,15 +391,14 @@ const PENDING_REPLY_REGISTRY = {
           const nickname = replyMsg.text.trim();
 
           try {
-            await updateUserAttributes(data.targetChatId, { nickname });
-
-            // Update in-memory userCache
-            const key = String(data.targetChatId);
-            if (!userCache[key]) {
-              userCache[key] = {};
+            const result = await adminAccessService().setUserNickname({
+              chatId,
+              targetChatId: data.targetChatId,
+              nickname,
+            });
+            if (result.status !== 'ok') {
+              return;
             }
-
-            userCache[key].nickname = nickname;
 
             await replyBot
               .sendMessage(
@@ -441,9 +438,12 @@ const PENDING_REPLY_REGISTRY = {
           }
 
           try {
-            const user = await getUserById(replyMsg.text.trim());
+            const inspected = await adminAccessService().inspectNickname({
+              chatId,
+              targetChatId: replyMsg.text.trim(),
+            });
 
-            return user !== null;
+            return inspected.status === 'ok';
           } catch (err) {
             console.error('Error validating user ID for nickname:', err);
 
@@ -627,17 +627,33 @@ const PENDING_REPLY_REGISTRY = {
         if (data.step === 'collect_chat_id') {
           const targetChatId = replyMsg.text.trim();
 
-          let user;
+          let result;
           try {
-            user = await getUserById(targetChatId);
+            result = await adminAccessService().allowWebUser({
+              chatId,
+              email: data.email,
+              targetChatId,
+            });
           } catch (err) {
-            console.error('Error fetching user in allow_web_user handler:', err);
+            const writeError = err.adminAccessOperation === 'allow_web_user';
+            console.error(
+              writeError
+                ? 'Error writing web allowlist:'
+                : 'Error fetching user in allow_web_user handler:',
+              err,
+            );
             await replyBot
               .sendMessage(
                 chatId,
-                t('❌ Error fetching user: {ERROR}', chatId, {
+                t(
+                  writeError
+                    ? '❌ Error allowlisting user: {ERROR}'
+                    : '❌ Error fetching user: {ERROR}',
+                  chatId,
+                  {
                   ERROR: err.message,
-                }),
+                  },
+                ),
               )
               .catch((sendErr) =>
                 console.error('Error sending allow_web_user error:', sendErr),
@@ -646,28 +662,12 @@ const PENDING_REPLY_REGISTRY = {
             return;
           }
 
-          try {
-            await addAllowedUser(data.email, targetChatId, chatId);
-          } catch (err) {
-            console.error('Error writing web allowlist:', err);
-            await replyBot
-              .sendMessage(
-                chatId,
-                t('❌ Error allowlisting user: {ERROR}', chatId, {
-                  ERROR: err.message,
-                }),
-              )
-              .catch((sendErr) =>
-                console.error(
-                  'Error sending allow_web_user write-error message:',
-                  sendErr,
-                ),
-              );
-
+          if (result.status !== 'ok') {
             return;
           }
 
-          const linkedName = user.nickname || user.chatName || targetChatId;
+          const linkedName =
+            result.user.nickname || result.user.chatName || targetChatId;
           await replyBot
             .sendMessage(
               chatId,
@@ -690,7 +690,7 @@ const PENDING_REPLY_REGISTRY = {
     },
     buildValidate: (chatId, data) => {
       if (!data || data.step === 'collect_email') {
-        return (replyMsg) => looksLikeEmail(replyMsg.text);
+        return (replyMsg) => isValidEmail(replyMsg.text);
       }
 
       // Step 2: chat ID must exist in the user registry.
@@ -700,9 +700,12 @@ const PENDING_REPLY_REGISTRY = {
         }
 
         try {
-          const user = await getUserById(replyMsg.text.trim());
+          const inspected = await adminAccessService().inspectNickname({
+            chatId,
+            targetChatId: replyMsg.text.trim(),
+          });
 
-          return user !== null;
+          return inspected.status === 'ok';
         } catch (err) {
           console.error('Error validating chat ID for allow_web_user:', err);
 
@@ -725,17 +728,29 @@ const PENDING_REPLY_REGISTRY = {
     buildHandler: (chatId) => async (replyBot, replyMsg) => {
       const email = replyMsg.text.trim().toLowerCase();
 
-      let existing;
+      let result;
       try {
-        existing = await getAllowedUserByEmail(email);
+        result = await adminAccessService().revokeWebUser({ chatId, email });
       } catch (err) {
-        console.error('Error looking up web user for revoke:', err);
+        const writeError = err.adminAccessOperation === 'revoke_web_user';
+        console.error(
+          writeError
+            ? 'Error removing web allowlist row:'
+            : 'Error looking up web user for revoke:',
+          err,
+        );
         await replyBot
           .sendMessage(
             chatId,
-            t('❌ Error looking up web user: {ERROR}', chatId, {
+            t(
+              writeError
+                ? '❌ Error revoking web user: {ERROR}'
+                : '❌ Error looking up web user: {ERROR}',
+              chatId,
+              {
               ERROR: err.message,
-            }),
+              },
+            ),
           )
           .catch((sendErr) =>
             console.error('Error sending revoke lookup error:', sendErr),
@@ -744,7 +759,7 @@ const PENDING_REPLY_REGISTRY = {
         return;
       }
 
-      if (!existing) {
+      if (result.status === 'not_found') {
         await replyBot
           .sendMessage(
             chatId,
@@ -759,21 +774,7 @@ const PENDING_REPLY_REGISTRY = {
         return;
       }
 
-      try {
-        await removeAllowedUser(email);
-      } catch (err) {
-        console.error('Error removing web allowlist row:', err);
-        await replyBot
-          .sendMessage(
-            chatId,
-            t('❌ Error revoking web user: {ERROR}', chatId, {
-              ERROR: err.message,
-            }),
-          )
-          .catch((sendErr) =>
-            console.error('Error sending revoke delete error:', sendErr),
-          );
-
+      if (result.status !== 'ok') {
         return;
       }
 
@@ -793,7 +794,7 @@ const PENDING_REPLY_REGISTRY = {
         `Revoked web user ${email} (revoked by ${chatId})`,
       ).catch(() => {});
     },
-    buildValidate: () => (replyMsg) => looksLikeEmail(replyMsg.text),
+    buildValidate: () => (replyMsg) => isValidEmail(replyMsg.text),
     buildResendPrompt: (chatId) =>
       t('Please enter a valid Google email address.', chatId),
   },

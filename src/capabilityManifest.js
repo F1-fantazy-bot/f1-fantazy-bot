@@ -189,13 +189,13 @@ const COMMAND_CAPABILITIES = Object.freeze([
   admin(constants.COMMAND_GET_BOTFATHER_COMMANDS, AGENT_STATUS.IMPLEMENTED, [
     'get_botfather_setup',
   ]),
-  admin(constants.COMMAND_SET_NICKNAME, AGENT_STATUS.PLANNED, [
+  admin(constants.COMMAND_SET_NICKNAME, AGENT_STATUS.IMPLEMENTED, [
     'set_user_nickname',
   ], { confirmation: CONFIRMATION.GUIDED }),
-  admin(constants.COMMAND_ALLOW_WEB_USER, AGENT_STATUS.PLANNED, [
+  admin(constants.COMMAND_ALLOW_WEB_USER, AGENT_STATUS.IMPLEMENTED, [
     'allow_web_user',
   ], { confirmation: CONFIRMATION.REQUIRED }),
-  admin(constants.COMMAND_REVOKE_WEB_USER, AGENT_STATUS.PLANNED, [
+  admin(constants.COMMAND_REVOKE_WEB_USER, AGENT_STATUS.IMPLEMENTED, [
     'revoke_web_user',
   ], { confirmation: CONFIRMATION.REQUIRED }),
   admin(constants.COMMAND_SEND_MESSAGE_TO_USER, AGENT_STATUS.PLANNED, [

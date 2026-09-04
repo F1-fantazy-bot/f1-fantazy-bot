@@ -13,6 +13,7 @@ const {
 const {
   getFreshLanguagePreference,
 } = require('../../services/setLanguageService');
+const { normalizeEmail } = require('../../services/adminAccessService');
 const { defineAdminReadTool } = require('../adminAuthorization');
 
 async function withAdminLanguage(chatId, result) {
@@ -48,17 +49,51 @@ const getBillingStatsTool = defineAdminReadTool({
   },
 });
 
+const botUserParameters = z
+  .object({
+    selectionMode: z
+      .enum(['set_user_nickname', 'allow_web_user'])
+      .optional(),
+    nickname: z.string().trim().min(1).max(160).optional(),
+    email: z.string().trim().min(3).max(320).optional(),
+  })
+  .superRefine((args, context) => {
+    if (args.nickname && args.selectionMode !== 'set_user_nickname') {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'nickname requires set_user_nickname selectionMode',
+      });
+    }
+    if (args.email && args.selectionMode !== 'allow_web_user') {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'email requires allow_web_user selectionMode',
+      });
+    }
+  });
+
+const listWebUserParameters = z.object({
+  selectionMode: z.enum(['revoke_web_user']).optional(),
+});
+
 const listBotUsersTool = defineAdminReadTool({
   name: 'list_bot_users',
   description:
-    'Admin only. List registered Telegram bot users, newest activity first. The result is capped to a safe maximum and reports if more users exist. Takes no arguments.',
-  parameters: z.object({}),
-  execute: async ({ chatId }) => {
+    'Admin only. List registered Telegram bot users, newest activity first. The result is capped to a safe maximum and reports if more users exist. Use selectionMode="set_user_nickname" or "allow_web_user" only to show canonical clickable target choices for that confirmed admin write.',
+  parameters: botUserParameters,
+  execute: async ({ chatId, args }) => {
     const users = await listAllUsers();
 
     return await withAdminLanguage(chatId, {
       status: 'ok',
       directory: buildBotUserDirectory(users),
+      selection: args.selectionMode
+        ? {
+          mode: args.selectionMode,
+          nickname: args.nickname || null,
+          email: args.email ? normalizeEmail(args.email) : null,
+        }
+        : null,
     });
   },
 });
@@ -66,9 +101,9 @@ const listBotUsersTool = defineAdminReadTool({
 const listWebUsersTool = defineAdminReadTool({
   name: 'list_web_users',
   description:
-    'Admin only. List Google accounts allowed to use the web agent, joined with their Telegram display name when available. The result is capped to a safe maximum. Takes no arguments.',
-  parameters: z.object({}),
-  execute: async ({ chatId }) => {
+    'Admin only. List Google accounts allowed to use the web agent, joined with their Telegram display name when available. The result is capped to a safe maximum. Use selectionMode="revoke_web_user" only to show canonical clickable revocation choices.',
+  parameters: listWebUserParameters,
+  execute: async ({ chatId, args }) => {
     const [allowedUsers, registryUsers] = await Promise.all([
       listAllowedUsers(),
       // The linked display name is helpful but non-authoritative. Keep the
@@ -79,6 +114,9 @@ const listWebUsersTool = defineAdminReadTool({
     return await withAdminLanguage(chatId, {
       status: 'ok',
       directory: buildWebUserDirectory(allowedUsers, registryUsers),
+      selection: args.selectionMode
+        ? { mode: args.selectionMode }
+        : null,
     });
   },
 });
@@ -102,4 +140,6 @@ module.exports = {
   listBotUsersTool,
   listWebUsersTool,
   getBotfatherSetupTool,
+  botUserParameters,
+  listWebUserParameters,
 };

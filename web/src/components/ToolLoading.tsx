@@ -17,6 +17,7 @@ export type ToolLoadingKind =
   | 'botUsers'
   | 'webUsers'
   | 'botfatherSetup'
+  | 'adminAccess'
   | 'dataStatus'
   | 'bestTeams'
   | 'scenarios'
@@ -61,6 +62,10 @@ const copy: Record<ToolLoadingKind, { en: string; he: string }> = {
   botUsers: { en: 'Loading bot users…', he: 'טוען משתמשי בוט…' },
   webUsers: { en: 'Loading allowed web users…', he: 'טוען משתמשי ווב מורשים…' },
   botfatherSetup: { en: 'Loading BotFather setup…', he: 'טוען הגדרת BotFather…' },
+  adminAccess: {
+    en: 'Preparing administrator access change…',
+    he: 'מכין שינוי גישת מנהל…',
+  },
   dataStatus: { en: 'Checking data status…', he: 'בודק מצב נתונים…' },
   bestTeams: { en: 'Computing best teams…', he: 'מחשב קבוצות מומלצות…' },
   scenarios: { en: 'Computing scenarios…', he: 'מחשב תרחישים…' },
