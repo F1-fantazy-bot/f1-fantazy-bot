@@ -106,6 +106,10 @@ Available tools:
   to one registered bot user for web-agent access.
 - revoke_web_user — admin-only confirmed removal of one normalized Google email
   from web-agent access.
+- send_user_message — admin-only confirmed text message to one selected
+  registered Telegram bot user.
+- broadcast_message — admin-only confirmed text message to every currently
+  registered Telegram bot user.
 
 Workflow rules:
 - **Help and capability guidance.**
@@ -124,7 +128,7 @@ Workflow rules:
     configuration, call **get_botfather_setup**.
   - These read tools never accept a user-supplied chat ID or admin flag as
     authorization. The two directory tools accept only their documented
-    guided-selection mode and optional pending nickname/email context; the
+    guided-selection mode and optional pending nickname/email/message context; the
     server checks the authenticated identity before it reads any data.
   - If a tool returns status="forbidden", simply state that the request is
     available only to administrators. Do not retry, infer privileged data, or
@@ -159,6 +163,24 @@ Workflow rules:
   - If any admin tool returns status="forbidden", state that it is available
     only to administrators. Do not retry, disclose directory data, or expose
     Azure, storage, HTTP, or internal errors.
+- **Admin messaging write routing.**
+  - The agent supports text-only administrator messages. Do not offer to send
+    photos, files, voice notes, or other Telegram attachments; those remain
+    available only in Telegram.
+  - To send a message to one registered bot user, require the message text and
+    an exact selected recipient. If the text is known but the recipient is not,
+    call **list_bot_users** with selectionMode="send_user_message" and that
+    message. The clickable directory supplies the canonical chatId; do NOT ask
+    the administrator to type one. If the recipient is selected before text is
+    known, ask only for the message text and keep that exact recipient.
+  - To broadcast, call **broadcast_message** with the text. Its confirmation
+    preview includes the current recipient count. The service rechecks the
+    audience at commit; if it changed, show the safe result and require a new
+    confirmation rather than sending to a changed audience.
+  - Every message send is a separate confirmed write. Do not call
+    **confirm_write** until the authenticated confirmation card says Yes. Never
+    expose provider, HTTP, storage, or Telegram delivery errors; report only
+    the safe sent/failed result returned by the tool.
 - **Selected-team default (global rule).**
   - For every singular team-scoped read or write, when the user does not
     explicitly name a team, use their currently selected team automatically.
@@ -609,6 +631,10 @@ Write tools (operations that change the user's saved state):
     normalized Google email to a selected registered bot user.
   - \`revoke_web_user({ email })\` — administrator-only removal of a selected
     normalized Google email from web-agent access.
+  - \`send_user_message({ chatId, message })\` — administrator-only text
+    message to a selected registered bot user.
+  - \`broadcast_message({ message })\` — administrator-only text broadcast to
+    the currently registered bot-user audience.
   Until another specific write tool is listed above, do not attempt
   to perform that kind of change yourself.
 

@@ -20,11 +20,16 @@ const {
   createReportBugService,
   MAX_BUG_REPORT_LENGTH,
 } = require('./services/reportBugService');
-const { getUserById, listAllUsers } = require('./userRegistryService');
+const { getUserById } = require('./userRegistryService');
 const { createAdminAccessService, isValidEmail } = require('./services/adminAccessService');
+const { createAdminMessagingService } = require('./services/adminMessagingService');
 
 function adminAccessService() {
   return createAdminAccessService();
+}
+
+function adminMessagingService(replyBot) {
+  return createAdminMessagingService({ messenger: replyBot });
 }
 
 /**
@@ -99,9 +104,12 @@ const PENDING_REPLY_REGISTRY = {
           // Step 1: Admin provided a valid target chat ID (validated by buildValidate)
           const targetChatId = replyMsg.text.trim();
 
-          let user;
+          let inspected;
           try {
-            user = await getUserById(targetChatId);
+            inspected = await adminMessagingService(replyBot).inspectRecipient({
+              chatId,
+              targetChatId,
+            });
           } catch (err) {
             console.error(
               'Error fetching user in send_message_to_user handler:',
@@ -124,6 +132,10 @@ const PENDING_REPLY_REGISTRY = {
             return;
           }
 
+          if (inspected.status !== 'ok') {
+            return;
+          }
+
           await registerPendingReply(chatId, 'send_message_to_user', {
             step: 'collect_message',
             targetChatId,
@@ -132,7 +144,7 @@ const PENDING_REPLY_REGISTRY = {
           const collectMessagePrompt = `${t(
             'What message or image do you want to send to {NAME}?',
             chatId,
-            { NAME: user.chatName },
+            { NAME: inspected.recipient.chatName },
           )}\n\n${t('💡 Send /cancel at any time to abort.', chatId)}`;
 
           await replyBot
@@ -145,28 +157,40 @@ const PENDING_REPLY_REGISTRY = {
         } else if (data.step === 'collect_message') {
           // Step 2: Admin provided the message text or photo
           try {
-            // Prefix with admin notice localized to the TARGET user's language
             const hasPhoto =
               Array.isArray(replyMsg.photo) && replyMsg.photo.length > 0;
             const photoFileId = hasPhoto
               ? replyMsg.photo[replyMsg.photo.length - 1].file_id
               : null;
             const messageText = replyMsg.text || replyMsg.caption || '';
-            const prefixedMessage = t(
-              '📩 Message from bot admin:\n\n{MESSAGE}',
-              Number(data.targetChatId),
-              { MESSAGE: messageText },
-            );
+            const result = await adminMessagingService(replyBot).sendDirect({
+              actorChatId: chatId,
+              targetChatId: data.targetChatId,
+              message: messageText,
+              photoFileId,
+            });
 
-            if (hasPhoto) {
-              await replyBot.sendPhoto(Number(data.targetChatId), photoFileId, {
-                caption: prefixedMessage,
-              });
-            } else {
-              await replyBot.sendMessage(
-                Number(data.targetChatId),
-                prefixedMessage,
+            if (result.status !== 'ok') {
+              const deliveryError = new Error(
+                result.errorMessage || result.summary,
               );
+              console.error(
+                'Error sending message to target user:',
+                deliveryError,
+              );
+              await replyBot
+                .sendMessage(
+                  chatId,
+                  t('Failed to send content to user {ID}: {ERROR}', chatId, {
+                    ID: data.targetChatId,
+                    ERROR: result.errorMessage || result.summary,
+                  }),
+                )
+                .catch((sendErr) =>
+                  console.error('Error sending failure notification:', sendErr),
+                );
+
+              return;
             }
 
             await replyBot
@@ -235,9 +259,19 @@ const PENDING_REPLY_REGISTRY = {
   },
   broadcast: {
     buildHandler: (chatId) => async (replyBot, replyMsg) => {
-      let users;
+      let result;
       try {
-        users = await listAllUsers();
+        const hasPhoto =
+          Array.isArray(replyMsg.photo) && replyMsg.photo.length > 0;
+        const photoFileId = hasPhoto
+          ? replyMsg.photo[replyMsg.photo.length - 1].file_id
+          : null;
+        const broadcastText = replyMsg.text || replyMsg.caption || '';
+        result = await adminMessagingService(replyBot).broadcast({
+          actorChatId: chatId,
+          message: broadcastText,
+          photoFileId,
+        });
       } catch (err) {
         console.error('Error fetching users for broadcast:', err);
         await replyBot
@@ -254,7 +288,7 @@ const PENDING_REPLY_REGISTRY = {
         return;
       }
 
-      if (!users || users.length === 0) {
+      if (result.status === 'not_found') {
         await replyBot
           .sendMessage(
             chatId,
@@ -267,36 +301,8 @@ const PENDING_REPLY_REGISTRY = {
         return;
       }
 
-      let successCount = 0;
-      const failures = [];
-      const hasPhoto =
-        Array.isArray(replyMsg.photo) && replyMsg.photo.length > 0;
-      const photoFileId = hasPhoto
-        ? replyMsg.photo[replyMsg.photo.length - 1].file_id
-        : null;
-      const broadcastText = replyMsg.text || replyMsg.caption || '';
-
-      for (const user of users) {
-        try {
-          const prefixedMessage = t(
-            '📢 Broadcast from bot admin:\n\n{MESSAGE}',
-            Number(user.chatId),
-            { MESSAGE: broadcastText },
-          );
-
-          if (hasPhoto) {
-            await replyBot.sendPhoto(Number(user.chatId), photoFileId, {
-              caption: prefixedMessage,
-            });
-          } else {
-            await replyBot.sendMessage(Number(user.chatId), prefixedMessage);
-          }
-          successCount++;
-        } catch (err) {
-          console.error(`Error sending broadcast to user ${user.chatId}:`, err);
-          failures.push(`${user.chatName || 'Unknown'} (${user.chatId})`);
-        }
-      }
+      const successCount = result.delivery.sent;
+      const failures = result.failureLabels;
 
       let summary = t(
         'Broadcast complete.\n\n✅ Sent successfully: {SUCCESS}\n❌ Failed: {FAILED}',

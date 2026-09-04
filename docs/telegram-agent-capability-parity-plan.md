@@ -52,8 +52,10 @@ confirmed writes.
   the agent.
 - Phase 10 merged in PR #241: the five read-only admin capabilities use
   central guards, safe structured views, and localized agent cards.
-- Phase 11 is in progress: the confirmed admin identity/access writes are
-  being extracted behind shared services and guided directory targets.
+- Phase 11 merged in PR #242: confirmed admin identity/access writes share a
+  service with Telegram and use guided directory targets.
+- Phase 12 is in progress: confirmed admin messaging is being extracted behind
+  shared delivery and audience-validation services.
 
 ## Locked decisions
 
@@ -327,7 +329,7 @@ Extract reusable structured cores/view models, preserve Telegram formatting,
 add localized tables/cards and safe result caps, and prove non-admin requests
 make zero backend calls.
 
-### Phase 11 — Admin identity/access writes (in progress)
+### Phase 11 — Admin identity/access writes (merged in PR #242)
 
 Add centrally guarded confirmed tools:
 
@@ -338,7 +340,7 @@ Add centrally guarded confirmed tools:
 Extract shared services from pending-reply handlers. Use guided targets,
 normalized exact email handling, previews, no-op detection, and audit logs.
 
-### Phase 12 — Admin messaging
+### Phase 12 — Admin messaging (in progress)
 
 Add centrally guarded confirmed tools:
 

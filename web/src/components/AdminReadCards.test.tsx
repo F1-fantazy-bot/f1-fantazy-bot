@@ -206,17 +206,30 @@ test('renders localized canonical admin target choices without asking for an ID 
           },
         }}
       />
+      <BotUsersCard
+        result={{
+          status: 'ok',
+          lang: 'he',
+          selection: { mode: 'send_user_message', message: 'הודעה חשובה' },
+          directory: {
+            users: [{ chatId: '8', nickname: 'דני', lang: 'he' }],
+          },
+        }}
+      />
     </>,
   );
 
   const buttons = Array.from(container.querySelectorAll('button'));
   expect(buttons.map((button) => button.textContent)).toEqual(
-    expect.arrayContaining(['הגדר כינוי', 'בטל גישה']),
+    expect.arrayContaining(['הגדר כינוי', 'בטל גישה', 'שלח הודעה']),
   );
   expect(buttons[0]?.getAttribute('aria-label')).toContain('פול');
   expect(buttons[1]?.getAttribute('aria-label')).toContain(
     'admin@example.com',
   );
+  expect(
+    buttons.some((button) => button.getAttribute('aria-label')?.includes('דני')),
+  ).toBe(true);
   expect(
     Array.from(container.querySelectorAll('article')).every(
       (card) => card.getAttribute('dir') === 'rtl',

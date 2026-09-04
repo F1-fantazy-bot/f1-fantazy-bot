@@ -494,6 +494,26 @@ const translations = {
       'אנא הזן טקסט או תמונה לשידור.',
     'No registered users found to broadcast to.':
       'לא נמצאו משתמשים רשומים לשידור.',
+    'Please enter a message to send.': 'נא להזין הודעה לשליחה.',
+    'Messages can contain at most {MAX} characters.':
+      'הודעות יכולות להכיל עד {MAX} תווים.',
+    'Preview truncated. The complete {LENGTH}-character message will be delivered.':
+      'התצוגה המקדימה קוצרה. ההודעה המלאה, באורך {LENGTH} תווים, תישלח.',
+    'Send this message to {NAME} ({ID}):':
+      'לשלוח את ההודעה הזו אל {NAME} ({ID}):',
+    'Broadcast this message to {COUNT} registered users:':
+      'לשדר את ההודעה הזו ל־{COUNT} משתמשים רשומים:',
+    'Message part {CURRENT}/{TOTAL}:\n\n':
+      'חלק {CURRENT}/{TOTAL} של ההודעה:\n\n',
+    'The broadcast audience changed while this confirmation was open. Review the recipient count and confirm again.':
+      'קהל השידור השתנה בזמן שכרטיס האישור היה פתוח. יש לבדוק שוב את מספר הנמענים ולאשר מחדש.',
+    'Message sent to {NAME} ({ID}).': 'ההודעה נשלחה אל {NAME} ({ID}).',
+    'Unable to deliver the message to {NAME} ({ID}). Please try again.':
+      'לא ניתן היה למסור את ההודעה ל־{NAME} ({ID}). נסה שוב.',
+    'Broadcast completed: delivered to all {TOTAL} registered users.':
+      'השידור הושלם ונמסר לכל {TOTAL} המשתמשים הרשומים.',
+    'Broadcast delivery finished: sent to {SENT} of {TOTAL} registered users; {FAILED} could not be reached.':
+      'שליחת השידור הסתיימה: נשלח ל־{SENT} מתוך {TOTAL} משתמשים רשומים; לא ניתן היה להגיע ל־{FAILED}.',
     'Please enter the chat ID of the user you want to set a nickname for:':
       'אנא הזן את מזהה הצ׳אט של המשתמש שעבורו תרצה להגדיר כינוי:',
     'Please enter the nickname for {NAME}:': 'אנא הזן כינוי עבור {NAME}:',

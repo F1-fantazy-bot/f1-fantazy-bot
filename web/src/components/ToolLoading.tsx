@@ -18,6 +18,7 @@ export type ToolLoadingKind =
   | 'webUsers'
   | 'botfatherSetup'
   | 'adminAccess'
+  | 'adminMessaging'
   | 'dataStatus'
   | 'bestTeams'
   | 'scenarios'
@@ -65,6 +66,10 @@ const copy: Record<ToolLoadingKind, { en: string; he: string }> = {
   adminAccess: {
     en: 'Preparing administrator access change…',
     he: 'מכין שינוי גישת מנהל…',
+  },
+  adminMessaging: {
+    en: 'Preparing administrator message…',
+    he: 'מכין הודעת מנהל…',
   },
   dataStatus: { en: 'Checking data status…', he: 'בודק מצב נתונים…' },
   bestTeams: { en: 'Computing best teams…', he: 'מחשב קבוצות מומלצות…' },

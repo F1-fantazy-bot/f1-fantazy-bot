@@ -46,6 +46,23 @@ test('routes confirmed admin identity and access writes through guided canonical
   expect(prompt).toMatch(/target changed while the card\s+was open/);
 });
 
+test('routes confirmed admin messaging through guided recipients and a fresh broadcast audience', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain('send_user_message — admin-only confirmed');
+  expect(prompt).toContain('broadcast_message — admin-only confirmed');
+  expect(prompt).toContain('selectionMode="send_user_message"');
+  expect(prompt).toMatch(/do NOT ask\s+the administrator to type one/i);
+  expect(prompt).toContain('The agent supports text-only administrator messages');
+  expect(prompt).toMatch(
+    /confirmation\s+preview includes the current recipient count/,
+  );
+  expect(prompt).toContain('audience at commit');
+  expect(prompt).toMatch(
+    /Never\s+expose provider, HTTP, storage, or Telegram delivery errors/,
+  );
+});
+
 test('requires select_team after the user answers with a team name', () => {
   const prompt = getSystemPrompt();
 
