@@ -1,6 +1,7 @@
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { ToolLoading } from './ToolLoading';
+import './BestTeamsTable.css';
 
 type BestTeamRow = {
   row: number;
@@ -244,6 +245,7 @@ function HighlightedCode({
     display: 'inline-block',
     padding: '2px 6px',
     margin: '2px 3px 2px 0',
+    whiteSpace: 'nowrap',
     borderRadius: 4,
     fontSize: 12,
     fontWeight: 600,
@@ -285,6 +287,7 @@ export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
 
   return (
     <div
+      className="best-teams"
       dir={lang === 'he' ? 'rtl' : 'ltr'}
       style={{
         margin: '8px 0',
@@ -338,16 +341,32 @@ export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
               textAlign: 'start',
             }}
           >
-            <th style={cellHeader}>#</th>
-            <th style={cellHeader}>{labels.drivers}</th>
-            <th style={cellHeader}>{labels.constructors}</th>
-            <th style={cellHeader}>{labels.price}</th>
-            <th style={cellHeader}>{labels.points}</th>
+            <th scope="col" style={cellHeader}>
+              #
+            </th>
+            <th scope="col" style={cellHeader}>
+              {labels.drivers}
+            </th>
+            <th scope="col" style={cellHeader}>
+              {labels.constructors}
+            </th>
+            <th scope="col" style={cellHeader}>
+              {labels.price}
+            </th>
+            <th scope="col" style={cellHeader}>
+              {labels.points}
+            </th>
             {showBudgetAdjusted ? (
-              <th style={cellHeader}>{labels.budgetAdjustedShort}</th>
+              <th scope="col" style={cellHeader}>
+                {labels.budgetAdjustedShort}
+              </th>
             ) : null}
-            <th style={cellHeader}>{labels.transfers}</th>
-            <th style={cellHeader}>{labels.priceChange}</th>
+            <th scope="col" style={cellHeader}>
+              {labels.transfers}
+            </th>
+            <th scope="col" style={cellHeader}>
+              {labels.priceChange}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -356,8 +375,8 @@ export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
               key={team.row}
               style={{ borderTop: '1px solid var(--app-border)' }}
             >
-              <td style={cellBody}>
-                <strong>{team.row}</strong>
+              <td className="best-teams__rank" style={cellBody}>
+                <strong>#{team.row}</strong>
                 {team.transfersNeeded === 0 ? (
                   <div
                     style={{ fontSize: 11, color: 'var(--app-success-text)' }}
@@ -366,7 +385,10 @@ export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
                   </div>
                 ) : null}
               </td>
-              <td style={cellBody}>
+              <td className="best-teams__roster" style={cellBody}>
+                <span className="best-teams__label" aria-hidden="true">
+                  {labels.drivers}
+                </span>
                 {team.drivers.map((code) => (
                   <HighlightedCode
                     key={code}
@@ -377,7 +399,10 @@ export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
                   />
                 ))}
               </td>
-              <td style={cellBody}>
+              <td className="best-teams__roster" style={cellBody}>
+                <span className="best-teams__label" aria-hidden="true">
+                  {labels.constructors}
+                </span>
                 {team.constructors.map((code) => (
                   <HighlightedCode
                     key={code}
@@ -388,8 +413,16 @@ export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
                   />
                 ))}
               </td>
-              <td style={cellBody}>{team.totalPrice.toFixed(1)}</td>
               <td style={cellBody}>
+                <span className="best-teams__label" aria-hidden="true">
+                  {labels.price}
+                </span>
+                {team.totalPrice.toFixed(1)}
+              </td>
+              <td style={cellBody}>
+                <span className="best-teams__label" aria-hidden="true">
+                  {labels.points}
+                </span>
                 <strong>{team.projectedPoints.toFixed(1)}</strong>
                 {team.penalty > 0 ? (
                   <div
@@ -401,13 +434,24 @@ export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
               </td>
               {showBudgetAdjusted ? (
                 <td style={cellBody}>
+                  <span className="best-teams__label" aria-hidden="true">
+                    {labels.budgetAdjustedShort}
+                  </span>
                   {team.budgetAdjustedPoints != null
                     ? team.budgetAdjustedPoints.toFixed(1)
                     : '—'}
                 </td>
               ) : null}
-              <td style={cellBody}>{team.transfersNeeded}</td>
               <td style={cellBody}>
+                <span className="best-teams__label" aria-hidden="true">
+                  {labels.transfers}
+                </span>
+                {team.transfersNeeded}
+              </td>
+              <td style={cellBody}>
+                <span className="best-teams__label" aria-hidden="true">
+                  {labels.priceChange}
+                </span>
                 {team.expectedPriceChange != null
                   ? `${team.expectedPriceChange >= 0 ? '+' : ''}${team.expectedPriceChange.toFixed(2)}`
                   : '—'}
