@@ -1,0 +1,54 @@
+.best-teams {
+  container-type: inline-size;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.best-teams__label {
+  display: none;
+}
+
+/* Use the card's available width, including padding inside chat messages. */
+@container (max-width: 640px) {
+  .best-teams table,
+  .best-teams tbody {
+    display: block;
+  }
+
+  /* Keep column headers available to assistive technology. */
+  .best-teams thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .best-teams tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 8px;
+  }
+
+  .best-teams tbody td {
+    min-width: 0;
+    padding: 6px !important;
+    text-align: start;
+  }
+
+  .best-teams__rank,
+  .best-teams__roster {
+    grid-column: 1 / -1;
+  }
+
+  .best-teams__label {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--app-muted);
+    font-size: 12px;
+    font-weight: 600;
+  }
+}
