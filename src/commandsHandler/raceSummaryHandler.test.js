@@ -197,7 +197,7 @@ describe('raceSummaryHandler', () => {
     expect(request.messages[1].content).toContain('Chinese Grand Prix');
     expect(sendLogMessage).toHaveBeenCalledWith(
       bot,
-      'Race summary Azure OpenAI model - gpt-5.6-sol, tokens - prompt: 10, completion: 5, total: 15',
+      'Race summary Azure OpenAI model - gpt-6-astra, tokens - prompt: 10, completion: 5, total: 15',
     );
   });
 

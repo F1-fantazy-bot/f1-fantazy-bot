@@ -1,7 +1,7 @@
 const { getAzureOpenAiClient } = require('../azureOpenAiClient');
 const { buildRaceSummarySystemPrompt } = require('../prompts');
 
-const RACE_SUMMARY_MODEL = 'gpt-5.6-sol';
+const RACE_SUMMARY_MODEL = 'gpt-6-astra';
 // max_completion_tokens includes both reasoning and visible output tokens. A
 // budget close to the requested prose length can therefore end before the
 // model emits any visible text. Keep both attempts bounded while allowing one
