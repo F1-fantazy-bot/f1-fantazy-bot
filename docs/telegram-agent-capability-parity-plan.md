@@ -58,7 +58,7 @@ confirmed writes.
   audience-validation services with Telegram.
 - Phase 13 merged in PR #244: confirmed admin manual triggers have durable
   job-scoped deduplication and safe run references.
-- Phase 14 is in progress: the final contract forbids planned mappings and a
+- Phase 14 merged in PR #247: the final contract forbids planned mappings and a
   generated report records the complete 50-command disposition.
 
 ## Locked decisions
@@ -370,7 +370,7 @@ Each delegates to `manualTriggerService`, has an impact-specific confirmation,
 uses a durable job-specific deduplication/lease boundary, and returns a visible
 run/result reference without exposing raw service errors.
 
-### Phase 14 — Parity closure (in progress)
+### Phase 14 — Parity closure (merged in PR #247)
 
 - Resolve all manifest `planned` entries.
 - Add a CI assertion that no `planned` statuses remain.
