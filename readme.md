@@ -61,7 +61,7 @@ A **web-chat agent** (preview) provides a second channel for the same functional
 - **Second channel** for the bot: a Vite + React + CopilotKit chat UI talking to a CopilotKit v2 `BuiltInAgent` running on Azure OpenAI
 - **Same business logic** as the Telegram bot — both surfaces call pure cores in `src/cores/`
 - **Generative UI**: tool results render as tailored React components (e.g. `<NextRacesTable />`) rather than plain text
-- Currently ships three tools (`get_next_races`, `list_user_teams`, `get_best_teams` with must-include / must-exclude filters); more capabilities land phase by phase
+- **Capability parity closed**: all 50 Telegram commands have an explicit agent decision — 45 full mappings, one adapted Teams Tracker flow, and four reviewed Telegram-only exceptions. See the generated [capability parity report](docs/telegram-agent-capability-parity-report.md) for the complete tool catalogue.
 
 ### Bot Administration
 
@@ -339,6 +339,7 @@ f1-fantazy-bot/
 - **`npm run dev`** - Start both the agent backend and Vite frontend at once (via `concurrently`)
 - **`npm run deploy:agent-func`** - Apply the agent Function App ARM template and app settings (provisions `f1-fantazy-agent-func` + `test` slot and grants Key Vault Secrets User). Usually invoked by the `deploy-infra-agent-func.yml` workflow; runnable locally for first-time provisioning.
 - **`npm run bootstrap:agent-billing-role`** - Explicitly grant both agent slot identities the subscription-scoped Cost Management Reader role. Run only for first-time bootstrap or after recreating a slot identity, using a principal authorized to manage subscription RBAC.
+- **`npm run bootstrap:agent-manual-trigger-role`** - Explicitly grant both agent slot identities Logic App Contributor on only the five workflows exposed through confirmed agent manual-trigger tools. Run after first-time provisioning or recreating a slot identity, using a principal authorized to manage resource-level RBAC.
 - **`npm run deploy:agent-web`** - Apply the agent Static Web App ARM template (provisions `f1-fantazy-agent-web` Free SKU).
 - **`npm run deploy:agent`** - Chains both of the above.
 
@@ -379,6 +380,14 @@ The agent is a SEPARATE Function App (`f1-fantazy-agent-func`) and a Static Web 
    ```
 
    This is intentionally excluded from routine infrastructure and PR deployments. Re-run it only if a Function slot is created again or its system-assigned identity changes. Use `AGENT_ROLE_SLOT=test` or `production` to target one identity; it defaults to `both`.
+
+   Confirmed manual-trigger tools additionally require each slot identity to have `Logic App Contributor` on the five exact configured workflow resources. Configure those narrowly scoped assignments separately; this is also intentionally excluded from routine deployments:
+
+   ```bash
+   npm run bootstrap:agent-manual-trigger-role
+   ```
+
+   Use `AGENT_ROLE_SLOT=test` or `production` to target one identity. Re-run after recreating a slot identity or adding an agent-exposed workflow.
 
 3. **Provision the Static Web App**:
 

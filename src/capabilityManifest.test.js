@@ -4,6 +4,10 @@ jest.mock('@copilotkit/runtime/v2', () => ({
 
 const fs = require('fs');
 const path = require('path');
+const {
+  buildCapabilityParityReport,
+  getStatusCounts,
+} = require('../scripts/generateCapabilityParityReport');
 const constants = require('./constants');
 const { COMMAND_HANDLERS } = require('./commandsHandler/commandHandlers');
 const { tools } = require('./agent/tools');
@@ -261,14 +265,26 @@ test('requires implemented admin tools to use the central admin wrapper', () => 
   ).toEqual(['unsafe_admin_tool']);
 });
 
-test('has no remaining planned admin rollout work', () => {
-  const plannedAdminCommands = COMMAND_CAPABILITIES.filter(
-    (entry) =>
-      entry.audience === AUDIENCE.ADMIN &&
-      entry.agent.status === AGENT_STATUS.PLANNED,
-  ).map((entry) => entry.command);
+test('closes the final 50-command parity contract with no planned work', () => {
+  expect(getStatusCounts()).toEqual({
+    [AGENT_STATUS.IMPLEMENTED]: 45,
+    [AGENT_STATUS.ADAPTED]: 1,
+    [AGENT_STATUS.PLANNED]: 0,
+    [AGENT_STATUS.EXCLUDED]: 4,
+  });
+});
 
-  expect(plannedAdminCommands).toEqual([]);
+test('keeps the published parity report generated from the manifest', () => {
+  const reportPath = path.join(
+    __dirname,
+    '..',
+    'docs',
+    'telegram-agent-capability-parity-report.md',
+  );
+
+  expect(fs.readFileSync(reportPath, 'utf8')).toBe(
+    buildCapabilityParityReport(),
+  );
 });
 
 test('pins the four approved exceptions and adapted Teams Tracker flow', () => {

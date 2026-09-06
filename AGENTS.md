@@ -54,9 +54,10 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
    `excluded`. A new Telegram command must add its bot handler and an agent
    mapping in the same PR, or include an explicit reviewed exception with a
    rationale. `src/capabilityManifest.test.js` fails when a command is missing,
-   a mapped tool is not registered, an exception has no rationale, or the
-   exact implemented admin-tool catalogue instance was not created by the
-   central admin wrapper.
+   a mapped tool is not registered, an exception has no rationale, a `planned`
+   status remains, the generated final parity report drifts from the manifest,
+   or the exact implemented admin-tool catalogue instance was not created by
+   the central admin wrapper.
 
 ---
 
@@ -98,7 +99,7 @@ Required environment variables (see `readme.md` for full list):
   - **Note:** `AZURE_STORAGE_CONNECTION_STRING` is also used by the Pending Reply Manager and User Registry Service for Azure Table Storage (no additional env var needed).
 - Azure Management API for billing and manual Logic App triggers: `AZURE_SUBSCRIPTION_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`
   - `AZURE_RESOURCE_GROUP` is optional and defaults to `f1-fantazy-bot`.
-  - The deployed web agent instead uses its slot's system-assigned managed identity. `infra/agent-func/apply-settings.sh` writes `AZURE_SUBSCRIPTION_ID`; the explicitly invoked `infra/agent-func/ensure-billing-role.sh` bootstrap script grants both slot identities the subscription-scoped `Cost Management Reader` role required by `get_billing_stats`. Routine deployment identities do not need subscription-level RBAC administration.
+  - The deployed web agent instead uses its slot's system-assigned managed identity. `infra/agent-func/apply-settings.sh` writes `AZURE_SUBSCRIPTION_ID`; the explicitly invoked `infra/agent-func/ensure-billing-role.sh` bootstrap script grants both slot identities the subscription-scoped `Cost Management Reader` role required by `get_billing_stats`. `infra/agent-func/ensure-manual-trigger-role.sh` separately grants each slot `Logic App Contributor` on only the five workflows exposed by the confirmed trigger tools. Routine deployment identities do not need to administer either role set.
 - Agent (web chat) only: `AGENT_HARDCODED_CHAT_ID` — the Telegram chatId the agent acts as for v1 (single-user mode). Read by `src/agent/identity.js`; the LLM never sees this value. Required by `agentWebhook/` and by `scripts/dev-agent-server.js`.
 
 Start the bot with `npm start` (polling in dev) or configure webhook as needed for production.
@@ -587,13 +588,13 @@ Blob naming includes the team ID:
 
 A second user-facing surface that runs the same business logic as the Telegram bot through tool calls. Architecture, code layout, and the patterns for adding new capabilities live in this section.
 
-**Status (2026-09-04):** the read-only v1 capability scope, Phase 7
+**Status (2026-09-05):** the read-only v1 capability scope, Phase 7
 simulation/data diagnostics, Azure deployment, Google auth, and CORS rollout
 are complete. Phase 8's confirmed shared-simulation refresh and Phase 9's
 confirmed user-data reset are complete; Phase 10's admin read tools merged in
 PR #241, Phase 11's confirmed admin identity/access writes merged in PR #242,
-Phase 12's confirmed admin messaging merged in PR #243, and Phase 13's
-confirmed manual triggers are in progress.
+Phase 12's confirmed admin messaging merged in PR #243, Phase 13's confirmed
+manual triggers merged in PR #244, and Phase 14 parity closure is in progress.
 The effectful write-tools rollout is now active: PR
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207)
 merged the durable confirmation infrastructure; `set_language` is
@@ -1837,6 +1838,9 @@ messages must go through `clear()` first, then through
 | `src/agent/adminAuthorization.js` | Server-side admin predicate enforcement plus registered admin read/write wrappers and audit logging. Admin tools must use these wrappers. |
 | `src/adminIdentity.js` | Single source of truth for numeric admin chat IDs used by Telegram checks, web auth, admin recipients, and agent tools. |
 | `src/capabilityManifest.js` | One parity decision per Telegram `COMMAND_*`, including agent tools, confirmation mode, audience, and explicit exceptions. |
+| `scripts/generateCapabilityParityReport.js` | Builds/checks the final 50-command capability report directly from the manifest. CI rejects report drift and any remaining `planned` status. |
+| `docs/telegram-agent-capability-parity-report.md` | Generated final catalogue: 45 implemented mappings, one adapted Teams Tracker flow, four reviewed Telegram-only exceptions, and the final smoke matrix. |
+| `infra/agent-func/ensure-manual-trigger-role.sh` | One-time least-privilege RBAC bootstrap: grants each agent Function slot Logic App Contributor only on the five workflows exposed by confirmed manual-trigger tools. |
 | `src/services/pendingWritesStore.js` | Azure Table `PendingAgentWrites`: chat-isolated staged/approved intents, ~5-minute TTL, immediate cancel, throttled expiry sweep, ETag-protected single-use consume. |
 | `web/src/components/WriteDecisionContext.tsx` | Builds authenticated `/api/agent/write-decision` and `/api/agent/write-proposal` requests and exposes both clients. |
 | `web/src/components/WriteConfirmCard.tsx` | Yes/Cancel UI. Records the authenticated server decision before appending any chat message; never sends a nonce on cancellation. |
