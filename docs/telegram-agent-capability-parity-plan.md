@@ -56,8 +56,10 @@ confirmed writes.
   service with Telegram and use guided directory targets.
 - Phase 12 merged in PR #243: confirmed admin messaging shares delivery and
   audience-validation services with Telegram.
-- Phase 13 is in progress: confirmed admin manual triggers are gaining durable
+- Phase 13 merged in PR #244: confirmed admin manual triggers have durable
   job-scoped deduplication and safe run references.
+- Phase 14 merged in PR #247: the final contract forbids planned mappings and a
+  generated report records the complete 50-command disposition.
 
 ## Locked decisions
 
@@ -354,7 +356,7 @@ validation/chunking, fresh recipient/audience checks, a broadcast count warning,
 safe sent/failed results, and actor/target correlation logging. Preserve
 Telegram's text/image flow.
 
-### Phase 13 — Admin manual triggers (in progress)
+### Phase 13 — Admin manual triggers (merged in PR #244)
 
 Add five separate centrally guarded confirmed tools:
 
@@ -368,7 +370,7 @@ Each delegates to `manualTriggerService`, has an impact-specific confirmation,
 uses a durable job-specific deduplication/lease boundary, and returns a visible
 run/result reference without exposing raw service errors.
 
-### Phase 14 — Parity closure
+### Phase 14 — Parity closure (merged in PR #247)
 
 - Resolve all manifest `planned` entries.
 - Add a CI assertion that no `planned` statuses remain.

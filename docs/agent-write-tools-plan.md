@@ -749,11 +749,14 @@ Implementation verification:
 - **System prompt token cost.** Mitigated by a single shared
   write-semantics paragraph plus short per-tool descriptions.
 
-## Out of scope (user opted out)
+## Out of scope for the original user-write rollout
 
 - `teams_tracker_save` (batch tracker save tool).
-- Admin write tools (`/broadcast`, `/set_nickname`,
-  `/allow_web_user`, `/trigger_*`).
+- Admin writes were intentionally excluded from this initial plan. They were
+  later delivered by the Telegram/agent parity roadmap: Phases 11–13 added
+  identity/access, messaging, and separately confirmed manual-trigger tools.
+  See [`telegram-agent-capability-parity-report.md`](telegram-agent-capability-parity-report.md)
+  for the final catalogue.
 - Dedicated controls for mutations that do not carry a user-safe structured
   result. Writes use the shared confirmation/result cards, with focused result
   cards when a safe structured outcome materially improves clarity.
