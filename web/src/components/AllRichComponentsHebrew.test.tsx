@@ -20,6 +20,7 @@ import { LiveScoreBreakdown } from './LiveScoreBreakdown';
 import { LiveScoreLeaderboard } from './LiveScoreLeaderboard';
 import { ToolErrorFallback } from './ToolErrorFallback';
 import { AgentGuideCard } from './AgentGuideCard';
+import { ActionChoicesCard } from './ActionChoicesCard';
 import { LeagueChangesCard } from './LeagueChangesCard';
 import { LeagueGraphCard } from './LeagueGraphCard';
 import { RaceSummaryCard } from './RaceSummaryCard';
@@ -89,6 +90,11 @@ describe('all rich components honor Hebrew ui language', () => {
     element: ReactElement;
     expected: string[];
   }> = [
+    {
+      name: 'action choices',
+      element: <ActionChoicesCard result={{ status: 'selection_required', lang: 'he', choice: 'league', options: [{ label: 'הליגה שלי', action: 'get_live_score_for_team', args: { leagueCode: 'USER-CODE' } }] }} />,
+      expected: ['בחר ליגה', 'הליגה שלי'],
+    },
     {
       name: 'agent guide',
       element: (

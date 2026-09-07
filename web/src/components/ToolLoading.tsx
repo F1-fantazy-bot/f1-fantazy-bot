@@ -1,6 +1,7 @@
 import { directionFor, useUiLanguage } from './uiLanguage';
 
 export type ToolLoadingKind =
+  | 'choices'
   | 'nextRaces'
   | 'userTeams'
   | 'followedTeams'
@@ -33,6 +34,7 @@ export type ToolLoadingKind =
   | 'write';
 
 const copy: Record<ToolLoadingKind, { en: string; he: string }> = {
+  choices: { en: 'Loading choices…', he: 'טוען אפשרויות…' },
   nextRaces: { en: 'Loading upcoming races…', he: 'טוען מרוצים קרובים…' },
   userTeams: { en: 'Loading your teams…', he: 'טוען את הקבוצות שלך…' },
   followedTeams: {

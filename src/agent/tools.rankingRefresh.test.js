@@ -86,17 +86,19 @@ beforeEach(() => {
   });
 });
 
-test('live score refreshes selected team only when team args are omitted', async () => {
+test('live score without a team opens the roster picker instead of resolving the active team', async () => {
   getLiveScoreForTeam.mockResolvedValue({ status: 'ok' });
   const tool = tools.find(
     (candidate) => candidate.name === 'get_live_score_for_team',
   );
 
-  await tool.execute({ leagueCode: 'ABC' });
-  expect(getFreshSelectedTeamPreference).toHaveBeenCalledWith(42);
-  expect(
-    getFreshSelectedTeamPreference.mock.invocationCallOrder[0],
-  ).toBeLessThan(getLiveScoreForTeam.mock.invocationCallOrder[0]);
+  const { listLeagueTeams } = require('../cores/liveScoreCore');
+  listLeagueTeams.mockResolvedValue({ status: 'ok', leagueCode: 'ABC', teams: [{ teamId: 'T2', teamName: 'Second team' }] });
+  const result = await tool.execute({ leagueCode: 'ABC' });
+  expect(result.status).toBe('selection_required');
+  expect(result.options.map((option) => option.action)).toEqual(['get_live_score_leaderboard', 'get_live_score_for_team']);
+  expect(getFreshSelectedTeamPreference).not.toHaveBeenCalled();
+  expect(getLiveScoreForTeam).not.toHaveBeenCalled();
 
   jest.clearAllMocks();
   getLiveScoreForTeam.mockResolvedValue({ status: 'ok' });

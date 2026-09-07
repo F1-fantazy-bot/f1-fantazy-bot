@@ -504,6 +504,7 @@ export function useBestTeamsAction() {
       if (isToolErrorResult(parsed)) {
         return <ToolErrorFallback result={parsed} />;
       }
+      if (isActionChoices(parsed)) return <ActionChoicesCard result={parsed} />;
       return (
         <BestTeamsTable result={parsed as GetBestTeamsResult | undefined} />
       );
@@ -518,3 +519,4 @@ function safeParse(value: string): unknown {
     return undefined;
   }
 }
+import { ActionChoicesCard, isActionChoices } from './ActionChoicesCard';

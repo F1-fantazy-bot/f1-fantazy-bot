@@ -306,6 +306,7 @@ export function useLeagueTeamsAction() {
       if (isToolErrorResult(parsed)) {
         return <ToolErrorFallback result={parsed} />;
       }
+      if (isActionChoices(parsed)) return <ActionChoicesCard result={parsed} />;
 
       return (
         <InteractiveLeagueTeams
@@ -315,3 +316,4 @@ export function useLeagueTeamsAction() {
     },
   });
 }
+import { ActionChoicesCard, isActionChoices } from './ActionChoicesCard';

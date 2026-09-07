@@ -39,12 +39,10 @@ const {
 const {
   refreshChipPreferencesSafely,
 } = require('../services/activateChipService');
-const {
-  getFreshSelectedTeamPreference,
-} = require('../services/selectTeamService');
 const { getAgentChatId } = require('./identity');
 const { ensureCacheReady } = require('./cacheBootstrap');
 const { wrapToolExecute } = require('./wrapToolExecute');
+const { getActionChoicesTool, wrapSelectableExecute } = require('./readTools/getActionChoicesTool');
 const { executeConfirmedWrite } = require('./writeToolHelpers');
 const { setLanguageTool } = require('./writeTools/setLanguageTool');
 const { selectTeamTool } = require('./writeTools/selectTeamTool');
@@ -136,6 +134,7 @@ async function withUiLanguage(chatId, result) {
 }
 
 const tools = [
+  getActionChoicesTool,
   defineTool({
     name: 'get_next_races',
     description:
@@ -206,7 +205,7 @@ const tools = [
         .optional()
         .describe('Constructor codes the team MUST NOT contain.'),
     }),
-    execute: wrapToolExecute('get_best_teams', async (args) => {
+    execute: wrapSelectableExecute('get_best_teams', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
       const [language] = await Promise.all([
@@ -275,7 +274,7 @@ const tools = [
           'Exact teamName. Used only when teamId is not provided.',
         ),
     }),
-    execute: wrapToolExecute('get_best_team_scenarios', async (args) => {
+    execute: wrapSelectableExecute('get_best_team_scenarios', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
       await refreshChipPreferencesSafely(chatId);
@@ -336,15 +335,16 @@ const tools = [
   defineTool({
     name: 'get_leaderboard',
     description:
-      'Get the standings (leaderboard) for one of the user\'s followed F1 Fantasy leagues. Pass the canonical `leagueCode` (e.g. "C7UYMMWIO07") — call `list_user_leagues` first if the user named a league by display name. Returns { status, leagueCode, leagueName, memberCount, fetchedAt, selectedTeamId, standings: [{ position, teamName, totalScore, gapToLeader, teamId, isSelected }] }. status="not_followed" means the user does not follow this league. status="not_found" means the league exists but the standings blob has not been generated yet.',
+      'Get standings for a followed league. Pass a canonical leagueCode when known; otherwise omit it to render clickable followed-league cards immediately. Never ask the user to type a league. Returns standings with selected-team highlighting, or safe not_followed/not_found states.',
     parameters: z.object({
       leagueCode: z
         .string()
+        .optional()
         .describe(
-          'Canonical league code (e.g. "C7UYMMWIO07"). Look up via list_user_leagues if the user gave a display name.',
+          'Canonical followed-league code. Omit to show clickable league choices.',
         ),
     }),
-    execute: wrapToolExecute('get_leaderboard', async (args) => {
+    execute: wrapSelectableExecute('get_leaderboard', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
@@ -413,7 +413,7 @@ const tools = [
   defineTool({
     name: 'get_current_team',
     description:
-      "Get the user's CURRENT saved/selected F1 Fantasy roster — what they currently HAVE, not what they should have or what's best. Returns { status, teamId, teamName, chip, drivers, constructors, boostDriver, extraBoostDriver, freeTransfers, teamInfo: { totalPrice, costCapRemaining, overallBudget, teamExpectedPoints, teamPriceChange }, budgetChangePointsPerMillion, budgetAdjustedPoints }. status=`no_teams` means the user hasn't uploaded a team yet. status=`ambiguous_team` means they have multiple teams and no selection — surface the candidates and ask which team to focus on. status=`unknown_team` means the supplied teamId/teamName didn't match. status=`missing_cache` means drivers or constructors data is missing. NEVER call this when the user asks for projected/best/future/recommended/optimized teams — use `get_best_teams` or `get_best_team_scenarios` instead.",
+      "Get the user's CURRENT saved/selected roster, captain, chip, budget, projected points and saved ranking preference. Omit team arguments to use the selected team. Unresolved targets return clickable team choices in this same result; never ask users to type a team. no_teams means no saved teams; missing_cache means projections are missing. For recommended/optimized/future lineups use get_best_teams or get_best_team_scenarios instead.",
     parameters: z.object({
       teamId: z
         .string()
@@ -428,7 +428,7 @@ const tools = [
           'Exact teamName. Used only when teamId is not provided.',
         ),
     }),
-    execute: wrapToolExecute('get_current_team', async (args) => {
+    execute: wrapSelectableExecute('get_current_team', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
       const [language] = await Promise.all([
@@ -457,7 +457,7 @@ const tools = [
       leagueName: z.string().optional(),
       selectionMode: z.enum(['follow_team']).optional(),
     }),
-    execute: wrapToolExecute('list_league_teams', async (args) => {
+    execute: wrapSelectableExecute('list_league_teams', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
@@ -484,7 +484,7 @@ const tools = [
   defineTool({
     name: 'get_live_score_for_team',
     description:
-      'Get the live-score breakdown for ONE team in one followed league (per-driver / per-constructor points with captain/mega-captain multipliers, transfer penalty, and chip effects). A league is required; when teamId/teamName is omitted the tool automatically uses the user\'s selected team. Pass an explicit team only when the user requests a different team or the selected team is unavailable in that league. Pass EITHER `leagueCode` or `leagueName`. Returns status ok / not_followed / not_found / team_not_found (with availableTeams) / invalid_input.',
+      'Get live points and driver/constructor breakdown for one team in a followed league. Call immediately for live-score requests, including תוצאות לייב. Omit league arguments to render clickable followed-league cards. Once the league is known, omitted team arguments ALWAYS show locked-roster team cards plus All teams in this league, even if an active team is saved. Never infer the active team. A team-card click supplies its canonical teamId; the all-teams card calls get_live_score_leaderboard. Never ask users to type these choices.',
     parameters: z.object({
       leagueCode: z
         .string()
@@ -511,12 +511,9 @@ const tools = [
           'Team name as shown in the league\'s roster. Used only when teamId is not provided.',
         ),
     }),
-    execute: wrapToolExecute('get_live_score_for_team', async (args) => {
+    execute: wrapSelectableExecute('get_live_score_for_team', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
-      if (!args.teamId && !args.teamName) {
-        await getFreshSelectedTeamPreference(chatId);
-      }
 
       return await withUiLanguage(
         chatId,
@@ -549,7 +546,7 @@ const tools = [
           'League display name as the user typed it. The tool resolves this against the user\'s followed leagues (case-insensitive substring match). Provide this when the user named a league by display name — DO NOT call list_user_leagues first.',
         ),
     }),
-    execute: wrapToolExecute('get_live_score_leaderboard', async (args) => {
+    execute: wrapSelectableExecute('get_live_score_leaderboard', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
 

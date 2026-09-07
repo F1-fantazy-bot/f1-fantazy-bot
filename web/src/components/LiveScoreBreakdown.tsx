@@ -487,6 +487,7 @@ export function useLiveScoreBreakdownAction() {
       if (isToolErrorResult(parsed)) {
         return <ToolErrorFallback result={parsed} />;
       }
+      if (isActionChoices(parsed)) return <ActionChoicesCard result={parsed} />;
       return (
         <LiveScoreBreakdown
           result={parsed as LiveScoreTeamResult | undefined}
@@ -503,3 +504,4 @@ function safeParse(value: string): unknown {
     return undefined;
   }
 }
+import { ActionChoicesCard, isActionChoices } from './ActionChoicesCard';

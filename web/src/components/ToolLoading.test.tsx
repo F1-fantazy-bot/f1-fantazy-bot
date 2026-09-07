@@ -22,6 +22,7 @@ afterAll(() => {
 
 test('all loading states render Hebrew and RTL from the account context', () => {
   const kinds: ToolLoadingKind[] = [
+    'choices',
     'nextRaces',
     'userTeams',
     'followedTeams',
