@@ -70,10 +70,10 @@ function choiceResult({ action, choice, context = {}, lang, options }) {
     action,
     choice,
     lang,
-    options: options.map(({ label, detail, args }) => ({
+    options: options.map(({ label, detail, args, action: optionAction }) => ({
       label,
       detail,
-      action,
+      action: optionAction || action,
       args: { ...context, ...args },
     })),
   };
@@ -119,6 +119,16 @@ async function getActionChoices(input) {
         teamName: undefined,
       },
     }));
+    options.unshift({
+      label: lang === 'he' ? 'כל הקבוצות בליגה' : 'All teams in this league',
+      action: 'get_live_score_leaderboard',
+      args: {
+        leagueCode: result.leagueCode,
+        leagueName: undefined,
+        teamId: undefined,
+        teamName: undefined,
+      },
+    });
   } else if (choice === 'preset' && action === 'set_best_team_ranking') {
     options = availablePresets(chatId).map((preset) => ({
       label: `${preset.label} (${preset.value})`,
@@ -218,6 +228,9 @@ function wrapSelectableExecute(action, execute) {
         choice: 'league',
         context: args,
       });
+    }
+    if (action === 'get_live_score_for_team' && !args.teamId && !args.teamName) {
+      return await getActionChoices({ action, choice: 'team', context: args });
     }
     const result = await execute(args);
     if (

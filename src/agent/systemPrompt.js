@@ -69,7 +69,7 @@ Available tools:
 - get_live_score_for_team — per-team live score breakdown (per-driver
   and per-constructor points with captain/mega-captain multipliers,
   transfer penalty, chip effects) for ONE team in ONE followed league.
-  Defaults to the user's selected team when no teamId/teamName.
+  Without teamId/teamName, always shows team cards plus All teams in this league.
 - get_live_score_leaderboard — all-teams live-score leaderboard for
   ONE followed league, sorted by current live points. User's own team
   row is marked for highlighting.
@@ -240,6 +240,10 @@ Workflow rules:
   - Never expose Azure, HTTP, storage, credential, or workflow errors. Report
     only the safe result returned by the tool.
 - **Selected-team default (global rule).**
+  - EXCEPTION: live scores always require a team/all-teams choice when no team
+    was explicitly requested. Never infer teamId from the active team or earlier
+    profile context for get_live_score_for_team. League selection opens the team
+    picker even when the user has a saved active team.
   - For every singular team-scoped read or write, when the user does not
     explicitly name a team, use their currently selected team automatically.
     Omit teamId/teamName and let the tool resolve the selected team. NEVER
@@ -579,9 +583,11 @@ Workflow rules:
     "live breakdown", "תוצאות לייב" → call **get_live_score_for_team**
     immediately, with no arguments when no league was named. Missing league
     renders clickable league cards. After the league click, omit teamId/teamName
-    unless the user named a team; the tool automatically uses the selected team.
-    If that team is unavailable, the same result renders locked-roster team
-    cards. Preserve an explicitly requested team across league selection.
+    unless the user explicitly named a team. The tool ALWAYS renders team cards
+    plus "All teams in this league" when no explicit team is provided, even if
+    an active team is saved. Wait for a click: team cards call
+    get_live_score_for_team with their canonical teamId; the all-teams card
+    calls get_live_score_leaderboard with the canonical leagueCode.
   - "All teams live", "compare live scores in [league]", "where do
     I rank live this race" → call **get_live_score_leaderboard** immediately.
     Omit the league when absent to render clickable league cards. No team

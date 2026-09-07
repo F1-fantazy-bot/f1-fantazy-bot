@@ -159,7 +159,7 @@ test('uses the selected team by default for singular team operations', () => {
     /omit teamId\/teamName so the tool applies the\s+change to the selected team automatically/,
   );
   expect(prompt).toMatch(
-    /tool automatically uses the selected team/,
+    /EXCEPTION: live scores always require a team\/all-teams choice/,
   );
   expect(prompt).not.toContain(
     'Requires a team\n  plus one presetId',

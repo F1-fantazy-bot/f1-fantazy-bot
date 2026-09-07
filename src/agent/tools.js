@@ -39,9 +39,6 @@ const {
 const {
   refreshChipPreferencesSafely,
 } = require('../services/activateChipService');
-const {
-  getFreshSelectedTeamPreference,
-} = require('../services/selectTeamService');
 const { getAgentChatId } = require('./identity');
 const { ensureCacheReady } = require('./cacheBootstrap');
 const { wrapToolExecute } = require('./wrapToolExecute');
@@ -487,7 +484,7 @@ const tools = [
   defineTool({
     name: 'get_live_score_for_team',
     description:
-      'Get live points and driver/constructor breakdown for one team in a followed league. Call immediately for live-score requests, including תוצאות לייב. Omit league arguments to render clickable followed-league cards. Once the league is known, omitted team arguments use the selected team; an unavailable team returns clickable locked-roster choices. Preserve a named team across league selection. Never ask the user to type league/team choices.',
+      'Get live points and driver/constructor breakdown for one team in a followed league. Call immediately for live-score requests, including תוצאות לייב. Omit league arguments to render clickable followed-league cards. Once the league is known, omitted team arguments ALWAYS show locked-roster team cards plus All teams in this league, even if an active team is saved. Never infer the active team. A team-card click supplies its canonical teamId; the all-teams card calls get_live_score_leaderboard. Never ask users to type these choices.',
     parameters: z.object({
       leagueCode: z
         .string()
@@ -517,9 +514,6 @@ const tools = [
     execute: wrapSelectableExecute('get_live_score_for_team', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
-      if (!args.teamId && !args.teamName) {
-        await getFreshSelectedTeamPreference(chatId);
-      }
 
       return await withUiLanguage(
         chatId,

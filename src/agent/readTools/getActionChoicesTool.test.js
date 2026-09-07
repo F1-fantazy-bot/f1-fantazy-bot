@@ -141,10 +141,27 @@ test('live team recovery uses the authorized locked roster, not owned cached tea
     teamName: 'gone',
   });
   expect(listUserTeams).not.toHaveBeenCalled();
-  expect(result.options[0].args).toMatchObject({
+  expect(result.options[1].args).toMatchObject({
     leagueCode: 'CANONICAL',
     teamId: 'LOCKED_1',
   });
+  expect(result.options[0]).toMatchObject({
+    label: 'כל הקבוצות בליגה',
+    action: 'get_live_score_leaderboard',
+    args: { leagueCode: 'CANONICAL' },
+  });
+  expect(result.options[0].args.teamName).toBeUndefined();
+  expect(result.options[0].args.teamId).toBeUndefined();
+});
+
+test.each(['en', 'he'])('live scores always offer teams and the league-wide option in %s', async (lang) => {
+  getFreshLanguagePreference.mockResolvedValue({ lang });
+  const execute = jest.fn().mockResolvedValue({ status: 'ok', teamId: 'ACTIVE_TEAM' });
+  const result = await wrapSelectableExecute('get_live_score_for_team', execute)({ leagueCode: 'CANONICAL' });
+  expect(execute).not.toHaveBeenCalled();
+  expect(result.choice).toBe('team');
+  expect(result.options.map((option) => option.action)).toEqual(['get_live_score_leaderboard', 'get_live_score_for_team']);
+  expect(result.options[0].label).toBe(lang === 'he' ? 'כל הקבוצות בליגה' : 'All teams in this league');
 });
 
 test('ambiguous league names never silently choose the first match', async () => {
