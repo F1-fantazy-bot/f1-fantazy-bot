@@ -70,9 +70,9 @@ The CI contract verifies all 50 `COMMAND_*` constants are represented once, each
 | `/upload_drivers_photo` | admin | excluded | — | none | Projection image import remains Telegram-only; general browser file uploads are outside the agent scope. |
 | `/upload_constructors_photo` | admin | excluded | — | none | Projection image import remains Telegram-only; general browser file uploads are outside the agent scope. |
 
-## Agent-native supporting tool
+## Agent-native supporting tools
 
-`confirm_write` is the shared authenticated confirmation dispatcher for staged write intents. It is not a standalone Telegram command, but CI accounts for it alongside all manifest mappings.
+Supporting tools: `confirm_write`, `get_action_choices`. The confirmation dispatcher commits approved staged writes; action choices provide authenticated clickable clarification. Neither is a standalone Telegram command, but CI accounts for both alongside all manifest mappings.
 
 ## Final smoke matrix
 

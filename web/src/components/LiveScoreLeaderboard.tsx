@@ -286,6 +286,7 @@ export function useLiveScoreLeaderboardAction() {
       if (isToolErrorResult(parsed)) {
         return <ToolErrorFallback result={parsed} />;
       }
+      if (isActionChoices(parsed)) return <ActionChoicesCard result={parsed} />;
       return (
         <LiveScoreLeaderboard
           result={parsed as LiveScoreLeaderboardResult | undefined}
@@ -302,3 +303,4 @@ function safeParse(value: string): unknown {
     return undefined;
   }
 }
+import { ActionChoicesCard, isActionChoices } from './ActionChoicesCard';

@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
 import { BestTeamsTable } from './BestTeamsTable';
 
 beforeAll(() => {
@@ -101,3 +101,4 @@ describe('BestTeamsTable localization', () => {
     container.remove();
   });
 });
+vi.mock('@copilotkit/react-core/v2', () => ({}));

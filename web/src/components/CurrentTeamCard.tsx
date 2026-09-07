@@ -382,6 +382,7 @@ export function useCurrentTeamAction() {
       if (isToolErrorResult(parsed)) {
         return <ToolErrorFallback result={parsed} />;
       }
+      if (isActionChoices(parsed)) return <ActionChoicesCard result={parsed} />;
       return (
         <CurrentTeamCard result={parsed as CurrentTeamResult | undefined} />
       );
@@ -396,3 +397,4 @@ function safeParse(value: string): unknown {
     return undefined;
   }
 }
+import { ActionChoicesCard, isActionChoices } from './ActionChoicesCard';

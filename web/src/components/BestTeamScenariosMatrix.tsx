@@ -355,6 +355,7 @@ export function useBestTeamScenariosAction() {
       if (isToolErrorResult(parsed)) {
         return <ToolErrorFallback result={parsed} />;
       }
+      if (isActionChoices(parsed)) return <ActionChoicesCard result={parsed} />;
       return (
         <BestTeamScenariosMatrix
           result={parsed as BestTeamScenariosResult | undefined}
@@ -371,3 +372,4 @@ function safeParse(value: string): unknown {
     return undefined;
   }
 }
+import { ActionChoicesCard, isActionChoices } from './ActionChoicesCard';

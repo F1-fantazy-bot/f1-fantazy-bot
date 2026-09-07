@@ -1,5 +1,18 @@
 const { getSystemPrompt } = require('./systemPrompt');
 
+test('requires clickable choices for every finite clarification and preserves pending actions', () => {
+  const prompt = getSystemPrompt();
+  expect(prompt).toContain('NEVER ask a multiple-choice question only in prose');
+  expect(prompt).toContain('Preserve filters, rankBy, chip, presetId, and league');
+  expect(prompt).toContain('Choosing a team for a read must NOT switch');
+  expect(prompt).toContain('"תוצאות לייב" → call **get_live_score_for_team**');
+  expect(prompt).toContain('action="set_language", choice="language"');
+  expect(prompt).toContain('action="set_best_team_ranking", choice="preset"');
+  expect(prompt).toContain('action="activate_chip", choice="chip"');
+  expect(prompt).not.toContain('ask which league they want');
+  expect(prompt).not.toContain('surface the candidates (`teamIds` field)');
+});
+
 test('routes help and onboarding to the agent-native guide', () => {
   const prompt = getSystemPrompt();
 

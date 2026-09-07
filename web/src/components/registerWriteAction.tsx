@@ -1,4 +1,5 @@
 import { useCopilotAction } from '@copilotkit/react-core';
+import { ActionChoicesCard, writeActionChoices } from './ActionChoicesCard';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import {
   WriteConfirmCard,
@@ -47,7 +48,7 @@ export function useWriteAction({
     description,
     parameters: [],
     available: 'frontend',
-    render: ({ status, result }) => {
+    render: ({ status, result, args }) => {
       if (status === 'inProgress' || status === 'executing') {
         return (
           <ToolLoading
@@ -65,6 +66,8 @@ export function useWriteAction({
       if (isConfirmationRequired(parsed)) {
         return <WriteConfirmCard result={parsed} />;
       }
+      const choices = writeActionChoices(parsed, args);
+      if (choices) return <ActionChoicesCard result={choices} />;
 
       if (isWriteResult(parsed)) {
         if (isSimulationRefreshResult(parsed)) {

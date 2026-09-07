@@ -594,7 +594,7 @@ are complete. Phase 8's confirmed shared-simulation refresh and Phase 9's
 confirmed user-data reset are complete; Phase 10's admin read tools merged in
 PR #241, Phase 11's confirmed admin identity/access writes merged in PR #242,
 Phase 12's confirmed admin messaging merged in PR #243, Phase 13's confirmed
-manual triggers merged in PR #244, and Phase 14 parity closure is in progress.
+manual triggers merged in PR #244, and Phase 14 parity closure merged in PR #247.
 The effectful write-tools rollout is now active: PR
 [#207](https://github.com/F1-fantazy-bot/f1-fantazy-bot/pull/207)
 merged the durable confirmation infrastructure; `set_language` is
@@ -668,9 +668,9 @@ acceptance gates.
 **Multi-team "every team I track" pattern.** When the user asks a multi-team
 question like _"best teams by points-per-million for every team I track"_,
 the agent does NOT fan out N `get_best_teams` calls. It calls
-`list_followed_teams`, surfaces the team names back to the user, and asks
-them to pick one team to focus on — then runs `get_best_teams` ONCE for
-the chosen team. This keeps the chat to a single rich render per question
+`get_action_choices({ action: 'get_best_teams', choice: 'team', context })`
+and waits for a canonical team-card click — then runs `get_best_teams` ONCE
+with the preserved filters/ranking and chosen team. This keeps the chat to a single rich render per question
 and sidesteps the `parallelToolCalls: false` rendering constraint.
 
 ### Architecture
@@ -895,7 +895,7 @@ useCopilotAction({
 
 > **Pitfall (Phase 2):** if you don't disable parallel tool calls (`providerOptions: { openai: { parallelToolCalls: false } }` on the `BuiltInAgent`), Azure OpenAI is free to emit multiple tools in the SAME assistant message — and CopilotKit's `useLazyToolRenderer` only renders `toolCalls[0]`. You'll see ONE of N tool results render and the rest silently disappear from the UI (the LLM's text reply will still describe them correctly, just no rich component). Fix: keep parallel calls disabled in `src/agent/runtime.js`.
 
-> **Pitfall (Phase 5):** the `useLazyToolRenderer` "only renders `toolCalls[0]`" rule also means a multi-call clarify-then-fetch flow inside ONE turn drops the second tool's UI. For live score, ask which league when needed, then call `get_live_score_for_team` ONCE with the league and no team arguments—the core uses the selected team. Only if that team is unavailable should a later turn call `list_league_teams`, ask for a different team, and retry once.
+> **Live-score selection:** call `get_live_score_for_team` immediately, even with no league arguments. `wrapSelectableExecute` returns clickable followed-league choices in that same result; after a league click the core uses the selected team. Unavailable teams return clickable locked-roster choices. Never ask a text-only league/team question or chain a read-only list merely to render choices.
 
 > **Pitfall (Phase 5):** selected-team live score is league-aware. `liveScoreCore` defaults to `selectedTeam`, but if that team is not in the chosen league it returns `team_not_found` with `availableTeams`; only then should the agent ask for a different team. Do not pre-emptively ask on every live-score request.
 
@@ -1695,6 +1695,18 @@ npm run dev:web      # only Vite frontend on :5173/:5174
 `scripts/dev-agent-server.js` is the dev wrapper around `agentWebhook/index.js` — it loads `.env`, wraps the same handler in a plain Node HTTP server, and lets us exercise the full pipeline without installing Azure Functions Core Tools (`func`).
 
 ### Adding a new agent read tool (checklist)
+
+**Clickable clarification is mandatory for finite choices.** Use an existing
+guided picker or `get_action_choices` with the pending action and preserved
+arguments. Do not replace cards with prose lists of team IDs, league codes,
+chips, languages, ranking presets, or driver/constructor filters. Account
+options must come from the authenticated user's data. `ActionChoicesCard`
+continues through the same agent, shares `agentRunLock`, rolls back failed
+injected messages, and never approves writes. Read selection must not change
+the active team. Shared write rendering also turns validated
+`availableTeams`/`availablePresets`/`availableChips` failures into cards.
+The complete routing audit is in
+[`docs/agent-clickable-choice-audit.md`](docs/agent-clickable-choice-audit.md).
 
 This checklist is for query-only tools backed by pure cores. Mutations must
 follow [Adding a new agent write tool](#adding-a-new-agent-write-tool).

@@ -41,6 +41,7 @@ import {
   useBotfatherSetupAction,
 } from './components/AdminReadCards';
 import { useWriteAction } from './components/registerWriteAction';
+import { useActionChoicesAction } from './components/ActionChoicesCard';
 import { WriteDecisionProvider } from './components/WriteDecisionContext';
 import { HistoryRestorer } from './components/HistoryRestorer';
 import { ClearHistoryButton } from './components/ClearHistoryButton';
@@ -61,6 +62,7 @@ const GOOGLE_CLIENT_ID =
 
 function AgentActions() {
   useNextRacesAction();
+  useActionChoicesAction();
   useUserTeamsAction();
   useFollowedTeamsAction();
   useLeaderboardAction();
