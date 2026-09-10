@@ -1,0 +1,39 @@
+.transfer-plan { container-type: inline-size; padding: 16px; border: 1px solid var(--app-border); border-radius: 14px; background: var(--app-surface); color: var(--app-text); font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+.transfer-plan :is(h3,h4,h5,p,dl,dd) { margin: 0; }
+.transfer-plan h3 { font-size: 20px; margin-top: 4px; }
+.transfer-plan h4 { font-size: 14px; margin-bottom: 10px; }
+.transfer-plan h5 { font-size: 12px; color: var(--app-muted); margin-bottom: 8px; }
+.transfer-plan__header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.transfer-plan__header > div { flex: 1; }
+.transfer-plan__eyebrow { color: var(--app-muted); font-size: 12px; }
+.transfer-plan__badge, .transfer-plan__penalty { display: inline-block; padding: 4px 8px; border-radius: 6px; background: var(--app-surface-muted); font-size: 12px; }
+.transfer-plan__penalty { background: var(--app-danger-surface); color: var(--app-danger-text); }
+.transfer-plan__summary { display: flex; flex-wrap: wrap; gap: 16px 24px; padding: 16px 0; border-bottom: 1px solid var(--app-border); }
+.transfer-plan__summary dt, .transfer-player__metrics dt { font-size: 11px; color: var(--app-muted); }
+.transfer-plan__summary dd { font-size: 18px; font-weight: 700; margin-top: 4px; }
+.transfer-plan__summary > div:nth-child(-n+2) dd { font-size: 26px; }
+.transfer-plan__category, .transfer-plan__assignments, .transfer-plan__roster { margin-top: 18px; }
+.transfer-plan__transfer-group { display: grid; grid-template-columns: minmax(0,1fr) 20px minmax(0,1fr); gap: 8px; }
+.transfer-plan__arrow { align-self: center; text-align: center; color: var(--app-muted); font-size: 20px; }
+.transfer-plan__tiles { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,200px),1fr)); gap: 8px; }
+.transfer-player { display: flex; gap: 10px; padding: 10px; min-width: 0; border-radius: 10px; background: var(--app-surface-subtle); border: 1px solid var(--app-border); align-items: flex-start; }
+.transfer-player__image { flex: 0 0 48px; height: 56px; border-radius: 8px; overflow: hidden; display: grid; place-items: center; background: var(--app-surface-muted); font-weight: 700; font-size: 12px; }
+.transfer-player__image--constructor { background: #20232b; color: white; }
+.transfer-player__image img { width: 48px; height: 56px; object-fit: cover; object-position: top; }
+.transfer-player__image--constructor img { object-fit: contain; padding: 6px; box-sizing: border-box; }
+.transfer-player__body { min-width: 0; flex: 1; }
+.transfer-player__body > strong { display: block; line-height: 1.4; }
+.transfer-player__code { display: block; color: var(--app-muted); font-size: 11px; margin: 3px 0; }
+.transfer-player__metrics { display: grid; gap: 6px; margin-top: 8px !important; }
+.transfer-player__metrics > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; }
+.transfer-player__metrics dd { font-size: 12px; font-weight: 600; }
+.transfer-plan__assignments { display: grid; gap: 12px; }
+.transfer-plan__empty { padding-top: 18px; }
+.transfer-plan__roster { border-top: 1px solid var(--app-border); }
+.transfer-plan__roster summary { padding: 14px 0; cursor: pointer; font-weight: 600; min-height: 44px; box-sizing: border-box; }
+.transfer-plan__roster summary:focus-visible { outline: 2px solid var(--app-text); outline-offset: 2px; }
+.transfer-plan__roster section { margin: 8px 0 16px; }
+@container (max-width: 420px) {
+  .transfer-plan__transfer-group { grid-template-columns: minmax(0,1fr); gap: 12px; }
+  .transfer-plan__arrow { display: none; }
+}

@@ -699,7 +699,7 @@ describe('all rich components honor Hebrew ui language', () => {
     {
       name: 'transfer plan',
       element: <BestTeamChangesCard result={{ status: 'ok', lang: 'he', row: 1, noChanges: true }} />,
-      expected: ['תוכנית העברות', 'אין צורך בשינויים', 'נהגים', 'הסר', 'הוסף'],
+      expected: ['תוכנית העברות', 'אין צורך בשינויים', 'הצג הרכב סופי'],
     },
     {
       name: 'tool errors',

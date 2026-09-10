@@ -1944,3 +1944,11 @@ new selection. Missing/inaccessible references disclose no snapshot data.
 `bestTeamChangesCore` reuses `calculateChangesToTeam` and preserves driver IDs;
 no-changes detection includes captain and chip instructions. `BestTeamChangesCard`
 and recommendation buttons reuse the shared choice run lock and rollback.
+
+Transfer snapshots add structured outgoing/incoming players and canonical captain/
+Extra Boost records from stored inputs. The frontend transfer card uses the static
+`web/src/assets/playerAssets.json` manifest (official F1 sources, verified URLs),
+with names/codes and failed-image fallbacks. Ambiguous code-only identities never
+resolve portraits. Transfers are category groups, not inferred pairings; the final
+roster uses a native disclosure collapsed by default. Compact recommendation
+controls retain the row in their accessible label and use the shared run lock.

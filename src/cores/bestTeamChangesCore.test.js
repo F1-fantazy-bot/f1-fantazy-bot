@@ -24,3 +24,11 @@ test.each([
 ])('%s is included in the transfer instructions', (chip, overrides) => {
   expect(build(overrides, chip)).toMatchObject({ noChanges: false, chipToActivate: chip });
 });
+
+test('structured transfers and assignments retain canonical IDs despite duplicate codes', () => {
+  const result = build({ driver_ids: ['f', 'b', 'c', 'd', 'e'], boost_driver_id: 'f', transfers_needed: 1 });
+  expect(result.outgoingDrivers[0]).toMatchObject({ id: 'a', code: 'a', ambiguousCode: true });
+  expect(result.incomingDrivers[0]).toMatchObject({ id: 'f', code: 'a', ambiguousCode: true });
+  expect(result.captainPlayer).toMatchObject({ id: 'f', code: 'a' });
+  expect(result.extraBoostPlayer).toBeNull();
+});

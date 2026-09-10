@@ -17,6 +17,7 @@ import { isToolErrorResult, ToolErrorFallback } from './ToolErrorFallback';
 
 type ActionOption = {
   label: string;
+  accessibleLabel?: string;
   detail?: string;
   action: string;
   args: Record<string, unknown>;
@@ -176,10 +177,10 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
       dir={directionFor(lang)}
       aria-labelledby={compact ? undefined : heading}
       style={{
-        border: '1px solid var(--app-border)',
+        border: compact ? 'none' : '1px solid var(--app-border)',
         borderRadius: 12,
         padding: compact ? 0 : 16,
-        margin: '8px 0',
+        margin: compact ? 0 : '8px 0',
         background: 'var(--app-surface)',
         color: 'var(--app-text)',
       }}
@@ -194,7 +195,7 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
       )}
       <div
         style={{
-          display: 'grid',
+          display: compact ? 'flex' : 'grid',
           gridTemplateColumns:
             'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
           gap: 12,
@@ -204,12 +205,16 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
           <button
             key={index}
             type="button"
+            aria-label={option.accessibleLabel}
             disabled={
               pending !== null || agent.isRunning || isAgentRunActive(agent)
             }
             onClick={() => void select(option, index)}
             style={{
-              padding: compact ? 6 : 16,
+              padding: compact ? '8px' : 16,
+              minHeight: compact ? 44 : undefined,
+              minWidth: 0,
+              whiteSpace: compact ? 'nowrap' : undefined,
               textAlign: 'start',
               border: '1px solid var(--app-border)',
               borderRadius: 8,

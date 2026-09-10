@@ -379,8 +379,8 @@ export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
               style={{ borderTop: '1px solid var(--app-border)' }}
             >
               <td className="best-teams__rank" style={cellBody}>
-                <strong>#{team.row}</strong>
-                {result.calculationId && <RecommendationButton calculationId={result.calculationId} row={team.row} lang={result.lang} />}
+                <div className="best-teams__recommendation"><strong>#{team.row}</strong>
+                {result.calculationId && <RecommendationButton calculationId={result.calculationId} row={team.row} lang={result.lang} />}</div>
                 {team.noChanges === true ? (
                   <div
                     style={{ fontSize: 11, color: 'var(--app-success-text)' }}
@@ -490,7 +490,7 @@ const cellHeader: React.CSSProperties = {
 
 const cellBody: React.CSSProperties = {
   padding: '10px 12px',
-  verticalAlign: 'top',
+  verticalAlign: 'middle',
 };
 
 export function useBestTeamsAction() {
