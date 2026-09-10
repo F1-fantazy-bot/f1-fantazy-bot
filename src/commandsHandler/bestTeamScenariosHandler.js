@@ -2,7 +2,6 @@ const { validateJsonData } = require('../utils');
 const { calculateBestTeams } = require('../bestTeamsCalculator');
 const {
   currentTeamCache,
-  selectedChipCache,
   sharedKey,
   resolveSelectedTeam,
   remainingRaceCountCache,
@@ -143,17 +142,17 @@ async function handleBestTeamScenariosMessage(bot, chatId) {
   }
   const cachedJsonData = prepared.calculationData;
 
-  const selectedChip = selectedChipCache[chatId]?.[teamId];
   const remainingRaceCount = remainingRaceCountCache[sharedKey];
   const safeRemainingRaceCount = Number.isFinite(remainingRaceCount)
     ? remainingRaceCount
     : 0;
 
   const ppmScenarios = [0, 1.3, 1.65, 2];
+  // Calculate each scenario independently of saved chip preferences.
   const chipScenarios = [
     {
       label: t('Without Chip', chatId),
-      chip: selectedChip,
+      chip: null,
     },
     {
       label: t('Limitless', chatId),

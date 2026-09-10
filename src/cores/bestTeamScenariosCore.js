@@ -143,11 +143,9 @@ function computeBestTeamScenarios({ chatId, teamId, teamName }) {
     ? remainingRaceCount
     : 0;
 
-  // Mirror the Telegram /best_team_scenarios chip set: the user's current
-  // chip occupies the first slot (under a "Without Chip" label so the
-  // recommendation deltas are sensible against THAT baseline).
+  // Scenarios are independent of saved chip preferences; the first is always chip-free.
   const chipScenarios = [
-    { chipKey: selectedChip, chipLabel: 'Without Chip' },
+    { chipKey: null, chipLabel: 'Without Chip' },
     { chipKey: LIMITLESS_CHIP, chipLabel: 'Limitless' },
     { chipKey: EXTRA_BOOST_CHIP, chipLabel: 'Extra Boost' },
     { chipKey: WILDCARD_CHIP, chipLabel: 'Wildcard' },
@@ -213,7 +211,7 @@ function computeBestTeamScenarios({ chatId, teamId, teamName }) {
     status: 'ok',
     teamId: resolvedTeamId,
     teamName: currentTeam.teamName || resolvedTeamId,
-    chip: selectedChip,
+    chip: selectedChip, // Saved-selection metadata only; never a scenario input.
     scenarios,
   };
 }
