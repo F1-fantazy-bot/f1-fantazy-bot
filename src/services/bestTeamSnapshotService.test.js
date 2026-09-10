@@ -57,8 +57,9 @@ test('unauthorized references and removed teams do not disclose data', async () 
 test.each([0, -1, 1.5, 3, undefined])('invalid row %s returns available rows', async (row) => {
   expect(await service.getChanges(42, await save(), row)).toMatchObject({ status: 'invalid_selection', rows: [1, 2] });
 });
-test('durable updates on another server preserve the authorized recalculation request', async () => {
+test('changed inputs on another server preserve the authorized recalculation request', async () => {
   const id = await save(); mockVersion = 'v2';
+  require('../azureStorageService').getUserTeam.mockResolvedValueOnce({ ...result.calculationData.CurrentTeam, freeTransfers: 0 });
   expect(await service.getChanges(42, id, 1)).toMatchObject({ status: 'outdated_result', request: { teamId: 'T1', mustIncludeDrivers: ['A'], rankBy: 'points' } });
 });
 test('expired results require a new selection', async () => {
@@ -107,4 +108,30 @@ test('reading details performs no snapshot or user-data writes', async () => {
   expect(mockStore.submitTransaction).not.toHaveBeenCalled();
   expect(mockStore.deleteEntity).not.toHaveBeenCalled();
   expect(JSON.stringify(cache.currentTeamCache[42])).toBe(before);
+});
+
+test('first selection survives a cold-start rewrite of identical source blobs', async () => {
+  const id = await save();
+  // Another function instance refreshes the same league roster on startup.
+  mockVersion = 'rewritten-on-startup';
+  await jest.isolateModulesAsync(async () => {
+    const otherCache = require('../cache');
+    otherCache.currentTeamCache[42] = { T1: { teamName: 'First' } };
+    otherCache.remainingRaceCountCache[otherCache.sharedKey] = 10;
+    const otherService = require('./bestTeamSnapshotService');
+    expect(await otherService.getChanges(42, id, 1)).toMatchObject({
+      status: 'ok', row: 1, projectedPoints: 30,
+    });
+  });
+});
+
+test('source changes during the read still reject inconsistent inputs', async () => {
+  const source = require('../azureStorageService');
+  const data = await source.getFantasyData();
+  source.getFantasyData.mockImplementationOnce(async () => {
+    mockVersion = 'changed-during-read';
+
+    return data;
+  });
+  await expect(service.loadCalculationContext(42, 'T1')).rejects.toThrow('Inputs changed during calculation');
 });

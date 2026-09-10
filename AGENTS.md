@@ -1937,8 +1937,9 @@ payloads or storage failures fail the tool safely instead of returning unusable
 buttons. The optional core context loader leaves the Telegram path unchanged.
 
 `get_best_team_changes({ calculationId, row })` retrieves that exact row and
-checks fresh durable source versions, effective inputs, preferences and reset
-epoch. It never reruns the optimizer to resolve a number. Expired or changed
+checks fresh durable input contents, preferences and reset epoch. Source ETags
+guard consistency during each read, but identical blob rewrites (including
+cold-start league refreshes) do not invalidate a calculation. It never reruns the optimizer to resolve a number. Expired or changed
 results offer recalculation for the original authorized request and require a
 new selection. Missing/inaccessible references disclose no snapshot data.
 `bestTeamChangesCore` reuses `calculateChangesToTeam` and preserves driver IDs;
@@ -1948,7 +1949,8 @@ and recommendation buttons reuse the shared choice run lock and rollback.
 Transfer snapshots add structured outgoing/incoming players and canonical captain/
 Extra Boost records from stored inputs. The frontend transfer card uses the static
 `web/src/assets/playerAssets.json` manifest (official F1 sources, verified URLs),
-with names/codes and failed-image fallbacks. Ambiguous code-only identities never
+with explicit abbreviated-name aliases, archived driver portraits, and
+names/codes plus failed-image fallbacks. Ambiguous code-only identities never
 resolve portraits. Transfers are category groups, not inferred pairings; the final
 roster uses a native disclosure collapsed by default. Compact recommendation
 controls retain the row in their accessible label and use the shared run lock.

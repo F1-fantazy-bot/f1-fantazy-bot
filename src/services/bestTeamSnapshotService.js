@@ -59,7 +59,9 @@ async function loadCalculationContext(chatId, teamId) {
     chip: cache.normalizeSelectedChipByTeam(user?.selectedChipByTeam)[teamId] || null,
   };
 
-  return { ...context, fingerprint: hash({ context, versions: after, reset: user?.userResetEpoch,
+  // ETags guard the read above, but are not calculation inputs. Startup league
+  // refreshes can rewrite identical blobs between calculation and selection.
+  return { ...context, fingerprint: hash({ context, reset: user?.userResetEpoch,
     ranking: user?.bestTeamBudgetChangePointsPerMillion, chips: user?.selectedChipByTeam }) };
 }
 async function dependencies(chatId, teamId) {

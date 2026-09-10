@@ -6,9 +6,9 @@ export function MetricNumber({ value, digits = 1, signed = false, money = false 
 }
 export function TransferPlayerTile({ player, kind, he, metrics = false, captain = false, boost = false }: { player: TransferPlayer; kind: 'driver' | 'constructor'; he: boolean; metrics?: boolean; captain?: boolean; boost?: boolean }) {
   const [failedUrl, setFailedUrl] = useState<string>();
-  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const normalize = (s: string) => s.normalize('NFD').toLowerCase().replace(/[^a-z0-9]/g, '');
   const asset = manifest.players.find((item) => item.kind === kind && (player.name
-    ? normalize(item.name) === normalize(player.name)
+    ? [item.name, ...item.aliases].some((name) => normalize(name) === normalize(player.name!))
     : !player.ambiguousCode && player.id === player.code && item.code === player.code));
   return <div className="transfer-player">
     <div className={`transfer-player__image transfer-player__image--${kind}`}>
