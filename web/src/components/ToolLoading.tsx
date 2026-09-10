@@ -22,6 +22,7 @@ export type ToolLoadingKind =
   | 'adminMessaging'
   | 'manualTrigger'
   | 'dataStatus'
+  | 'bestTeamChanges'
   | 'bestTeams'
   | 'scenarios'
   | 'raceInfo'
@@ -79,6 +80,7 @@ const copy: Record<ToolLoadingKind, { en: string; he: string }> = {
     he: 'מכין הפעלה ידנית…',
   },
   dataStatus: { en: 'Checking data status…', he: 'בודק מצב נתונים…' },
+  bestTeamChanges: { en: 'Loading transfer plan…', he: 'טוען תוכנית העברות…' },
   bestTeams: { en: 'Computing best teams…', he: 'מחשב קבוצות מומלצות…' },
   scenarios: { en: 'Computing scenarios…', he: 'מחשב תרחישים…' },
   raceInfo: { en: 'Loading next race info…', he: 'טוען מידע על המרוץ הבא…' },

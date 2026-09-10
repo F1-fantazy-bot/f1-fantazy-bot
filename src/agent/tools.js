@@ -1,3 +1,5 @@
+const { buildBestTeamChanges } = require('../cores/bestTeamChangesCore');
+const bestTeamSnapshots = require('../services/bestTeamSnapshotService');
 // CopilotKit v2 tool catalogue for the agent.
 //
 // Each tool uses `defineTool` from `@copilotkit/runtime/v2`:
@@ -166,7 +168,7 @@ const tools = [
   defineTool({
     name: 'get_best_teams',
     description:
-      'Compute the top scoring F1 Fantasy teams the user could field next race. Supports must-include / must-exclude filters on drivers and constructors so you can answer questions like "best teams with Verstappen but no Alonso". Pass driver/constructor codes (e.g. VER, ALO, MCL, FER) — full names like "Verstappen" or "McLaren" are also accepted but codes are safer. Identify the user\'s team by `teamId` (preferred, obtained from list_user_teams) or `teamName` (exact match). Result shape: { status, teamId, teamName, chip, rankBy, bestTeams: [...] }. On status "unknown_filter" the result includes a `filters` field listing which inputs failed to resolve — tell the user which names you could not map.',
+      'Compute the top scoring F1 Fantasy teams the user could field next race. Supports must-include / must-exclude filters on drivers and constructors so you can answer questions like "best teams with Verstappen but no Alonso". Pass driver/constructor codes (e.g. VER, ALO, MCL, FER) — full names like "Verstappen" or "McLaren" are also accepted but codes are safer. Identify the user\'s team by `teamId` (preferred, obtained from list_user_teams) or `teamName` (exact match). Successful results include an opaque calculationId and numbered bestTeams rows. Use get_best_team_changes with that calculationId and row for numeric replies or transfer details. On status "unknown_filter" the result includes a `filters` field listing which inputs failed to resolve — tell the user which names you could not map.',
     parameters: z.object({
       teamId: z
         .string()
@@ -221,6 +223,8 @@ const tools = [
         teamName: args.teamName,
         rankBy: args.rankBy ?? null,
         resultCount: 10,
+        includeCalculationData: true,
+        loadCalculationContext: bestTeamSnapshots.loadCalculationContext,
         mustIncludeDrivers: args.mustIncludeDrivers,
         mustExcludeDrivers: args.mustExcludeDrivers,
         mustIncludeConstructors: args.mustIncludeConstructors,
@@ -235,8 +239,12 @@ const tools = [
         return { ...rest, lang: language.lang };
       }
 
+      const fingerprint = result.snapshotFingerprint;
+      const calculationId = await bestTeamSnapshots.saveCalculation(chatId, result, args, fingerprint);
+
       return {
         status: 'ok',
+        calculationId,
         lang: language.lang,
         teamId: result.teamId,
         teamName: result.teamName,
@@ -251,8 +259,28 @@ const tools = [
           mustExcludeConstructors:
             result.filters.mustExcludeConstructors.resolved,
         },
-        bestTeams: result.bestTeams.map(summariseBestTeam),
+        bestTeams: result.bestTeams.map((target) => ({
+          ...summariseBestTeam(target),
+          noChanges: buildBestTeamChanges({ calculationData: result.calculationData, target, chip: result.chip, ppm: result.budgetChangePointsPerMillion, remainingRaceCount: result.remainingRaceCount || 0 }).noChanges,
+        })),
       };
+    }),
+  }),
+
+  defineTool({
+    name: 'get_best_team_changes',
+    description: 'Read-only transfer details for an exact displayed best-team recommendation. Use the calculationId from the latest successful get_best_teams result in this conversation for numeric replies; never guess an ID or recalculate to resolve a row. Outdated results require recalculation and a new selection. Does not save preferences, activate chips, or perform transfers.',
+    parameters: z.object({ calculationId: z.string().optional(), row: z.number().optional() }),
+    execute: wrapToolExecute('get_best_team_changes', async ({ calculationId, row }) => {
+      await ensureCacheReady();
+      const chatId = getAgentChatId();
+      const [language] = await Promise.all([
+        getFreshLanguagePreference(chatId),
+        refreshBestTeamRankingPreferencesSafely(chatId),
+        refreshChipPreferencesSafely(chatId),
+      ]);
+
+      return { ...await bestTeamSnapshots.getChanges(chatId, calculationId, row), lang: language.lang };
     }),
   }),
 

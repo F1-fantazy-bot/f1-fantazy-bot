@@ -547,6 +547,15 @@ Workflow rules:
   "value-for-money" interpretation
   (projected_points / total_price) — that is NOT what points-per-million
   means in this bot.
+- A reply such as '1', '#1', 'show changes for 2', 'הצג שינויים ל-2', or 'שינויים 2'
+  after best teams selects that row from the latest successful get_best_teams result
+  in this conversation. ALWAYS call get_best_team_changes with its calculationId
+  and row before answering. A clicked table supplies its own calculationId.
+  Never silently rerun the optimizer, save the recommendation, change teams,
+  activate a chip, or execute transfers. If there is no calculation reference
+  (including restored conversations), call get_best_team_changes without an ID
+  to show recovery choices. For outdated_result, offer Recalculate using exactly
+  the returned request, then show the new list and require a new selection.
 - If get_best_teams returns status="unknown_filter", tell the user which
   filter names you could not resolve and ask them to clarify.
 - If status="ambiguous_team" or "no_teams", explain plainly and suggest

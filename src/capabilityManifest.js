@@ -59,6 +59,7 @@ const admin = (command, status, tools, options) =>
 const COMMAND_CAPABILITIES = Object.freeze([
   user(constants.COMMAND_BEST_TEAMS, AGENT_STATUS.IMPLEMENTED, [
     'get_best_teams',
+    'get_best_team_changes',
   ]),
   user(constants.COMMAND_BEST_TEAM_SCENARIOS, AGENT_STATUS.IMPLEMENTED, [
     'get_best_team_scenarios',

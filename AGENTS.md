@@ -1924,3 +1924,23 @@ With this reference and the checklist above, adding features—especially new co
 Project-scoped Copilot CLI skills live under `.github/skills/<name>/SKILL.md` and are auto-discovered by the CLI when running inside this repo.
 
 - **`release-announcement`** — Given a commit SHA or ISO date (or auto-detected from the previous `headCommit` saved in `data/announcements.json`), walks the commits up to `HEAD`, lets the admin pick which are user-visible, and produces three Hebrew announcement drafts (תמציתי / שובב / מפורט) ready to be sent via `/broadcast`. After printing the drafts, asks the admin which version to keep and **prepends** it to `data/announcements.json` (newest first) so `/whats_new` can display it later. The only file the skill writes; otherwise read-only on the repo and never sends anything itself. See `.github/skills/release-announcement/SKILL.md`.
+
+### Best-team recommendation snapshots
+
+The web agent's `get_best_teams` reads current durable calculation inputs through
+`bestTeamSnapshotService` without changing saved rosters or preferences. It stores
+up to ten displayed rows in the dedicated `BestTeamCalculations` Azure Table,
+partitioned by a hash of authenticated identity, with a 24-hour expiry, bounded
+cleanup, and a twenty-calculation per-user admission limit. Metadata and each
+row's transfer details are separate entities in one atomic transaction; oversized
+payloads or storage failures fail the tool safely instead of returning unusable
+buttons. The optional core context loader leaves the Telegram path unchanged.
+
+`get_best_team_changes({ calculationId, row })` retrieves that exact row and
+checks fresh durable source versions, effective inputs, preferences and reset
+epoch. It never reruns the optimizer to resolve a number. Expired or changed
+results offer recalculation for the original authorized request and require a
+new selection. Missing/inaccessible references disclose no snapshot data.
+`bestTeamChangesCore` reuses `calculateChangesToTeam` and preserves driver IDs;
+no-changes detection includes captain and chip instructions. `BestTeamChangesCard`
+and recommendation buttons reuse the shared choice run lock and rollback.

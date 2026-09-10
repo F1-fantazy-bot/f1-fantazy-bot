@@ -153,6 +153,8 @@ async function computeBestTeams({
   teamName: requestedTeamName,
   rankBy = null,
   resultCount,
+  includeCalculationData = false,
+  loadCalculationContext,
   mustIncludeDrivers,
   mustExcludeDrivers,
   mustIncludeConstructors,
@@ -164,18 +166,23 @@ async function computeBestTeams({
   }
   const { teamId } = pick;
 
-  const drivers = getDriversForChat(chatId);
-  const constructors = getConstructorsForChat(chatId);
-  const currentTeam = currentTeamCache[chatId]?.[teamId];
+  // The web agent injects fresh read-only inputs; Telegram retains its cache path.
+  const context = loadCalculationContext
+    ? await loadCalculationContext(chatId, teamId)
+    : null;
+  if (context?.status) {
+    return { status: 'missing_cache', teamId };
+  }
+  const drivers = context?.drivers || getDriversForChat(chatId);
+  const constructors = context?.constructors || getConstructorsForChat(chatId);
+  const currentTeam = context?.currentTeam || currentTeamCache[chatId]?.[teamId];
 
   if (!drivers || !constructors || !currentTeam) {
     return { status: 'missing_cache', teamId };
   }
 
-  const budgetChangePointsPerMillion = getBestTeamBudgetChangePointsPerMillion(
-    chatId,
-    teamId,
-  );
+  const budgetChangePointsPerMillion =
+    context?.ppm ?? getBestTeamBudgetChangePointsPerMillion(chatId, teamId);
   const remainingRaceCount = remainingRaceCountCache[sharedKey];
   if (
     budgetChangePointsPerMillion > 0 &&
@@ -199,13 +206,13 @@ async function computeBestTeams({
     return { status: 'unknown_filter', teamId, filters };
   }
 
-  const chip = selectedChipCache[chatId]?.[teamId];
+  const chip = context ? context.chip : selectedChipCache[chatId]?.[teamId];
   const prepared = prepareBestTeamsData({
     drivers,
     constructors,
     currentTeam,
-    driverEntries: pricesCache.driverEntries,
-    nextRaceInfo: nextRaceInfoCache[sharedKey],
+    driverEntries: context?.driverEntries || pricesCache.driverEntries,
+    nextRaceInfo: context?.nextRaceInfo || nextRaceInfoCache[sharedKey],
   });
   if (prepared.status !== 'ok') {
     return { ...prepared, teamId };
@@ -238,11 +245,14 @@ async function computeBestTeams({
     teamName: currentTeam.teamName || teamId,
     currentTeam,
     bestTeams,
+    ...(includeCalculationData
+      ? { remainingRaceCount, snapshotFingerprint: context?.fingerprint }
+      : {}),
     chip,
     rankBy,
     budgetChangePointsPerMillion,
     filters,
-    ...(prepared.usesPlayerIds
+    ...(prepared.usesPlayerIds || includeCalculationData
       ? { calculationData: cachedJsonData }
       : {}),
   };

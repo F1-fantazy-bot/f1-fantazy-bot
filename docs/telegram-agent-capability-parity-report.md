@@ -19,7 +19,7 @@ The CI contract verifies all 50 `COMMAND_*` constants are represented once, each
 
 | Telegram command | Audience | Agent status | Agent tool mapping | Confirmation | Reviewed note |
 | --- | --- | --- | --- | --- | --- |
-| `/best_teams` | user | implemented | `get_best_teams` | none | — |
+| `/best_teams` | user | implemented | `get_best_teams`, `get_best_team_changes` | none | — |
 | `/best_team_scenarios` | user | implemented | `get_best_team_scenarios` | none | — |
 | `/current_team_info` | user | implemented | `get_current_team` | none | — |
 | `/chips` | user | implemented | `activate_chip` | required | — |
