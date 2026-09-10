@@ -17,6 +17,7 @@ import { isToolErrorResult, ToolErrorFallback } from './ToolErrorFallback';
 
 type ActionOption = {
   label: string;
+  accessibleLabel?: string;
   detail?: string;
   action: string;
   args: Record<string, unknown>;
@@ -25,6 +26,7 @@ export type ActionChoicesResult = {
   status: 'selection_required';
   lang?: string;
   choice:
+    | 'recommendation'
     | 'team'
     | 'league'
     | 'preset'
@@ -107,7 +109,7 @@ export function writeActionChoices(
   return null;
 }
 
-export function ActionChoicesCard({ result }: { result: ActionChoicesResult }) {
+export function ActionChoicesCard({ result, compact = false }: { result: ActionChoicesResult; compact?: boolean }) {
   const { agent } = useAgent({
     agentId: 'default',
     updates: [UseAgentUpdate.OnRunStatusChanged],
@@ -119,6 +121,7 @@ export function ActionChoicesCard({ result }: { result: ActionChoicesResult }) {
   const lang = uiLanguageOf(result);
   const he = lang === 'he';
   const titles = {
+    recommendation: he ? 'בחר המלצה' : 'Choose a recommendation',
     team: he ? 'בחר קבוצה' : 'Choose a team',
     league: he ? 'בחר ליגה' : 'Choose a league',
     preset: he ? 'בחר העדפת דירוג' : 'Choose a ranking preference',
@@ -172,17 +175,17 @@ export function ActionChoicesCard({ result }: { result: ActionChoicesResult }) {
   return (
     <section
       dir={directionFor(lang)}
-      aria-labelledby={heading}
+      aria-labelledby={compact ? undefined : heading}
       style={{
-        border: '1px solid var(--app-border)',
+        border: compact ? 'none' : '1px solid var(--app-border)',
         borderRadius: 12,
-        padding: 16,
-        margin: '8px 0',
+        padding: compact ? 0 : 16,
+        margin: compact ? 0 : '8px 0',
         background: 'var(--app-surface)',
         color: 'var(--app-text)',
       }}
     >
-      <h3 id={heading}>{titles[result.choice]}</h3>
+      <h3 hidden={compact} id={heading}>{titles[result.choice]}</h3>
       {result.options.length === 0 && (
         <p>
           {he
@@ -192,7 +195,7 @@ export function ActionChoicesCard({ result }: { result: ActionChoicesResult }) {
       )}
       <div
         style={{
-          display: 'grid',
+          display: compact ? 'flex' : 'grid',
           gridTemplateColumns:
             'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
           gap: 12,
@@ -202,12 +205,16 @@ export function ActionChoicesCard({ result }: { result: ActionChoicesResult }) {
           <button
             key={index}
             type="button"
+            aria-label={option.accessibleLabel}
             disabled={
               pending !== null || agent.isRunning || isAgentRunActive(agent)
             }
             onClick={() => void select(option, index)}
             style={{
-              padding: 16,
+              padding: compact ? '8px' : 16,
+              minHeight: compact ? 44 : undefined,
+              minWidth: 0,
+              whiteSpace: compact ? 'nowrap' : undefined,
               textAlign: 'start',
               border: '1px solid var(--app-border)',
               borderRadius: 8,

@@ -1,3 +1,4 @@
+import { RecommendationButton, useBestTeamChangesAction } from './BestTeamChangesCard';
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { ToolLoading } from './ToolLoading';
@@ -5,6 +6,7 @@ import './BestTeamsTable.css';
 
 type BestTeamRow = {
   row: number;
+  noChanges?: boolean;
   drivers: string[];
   constructors: string[];
   boostDriver: string;
@@ -19,6 +21,7 @@ type BestTeamRow = {
 
 type GetBestTeamsOkResult = {
   status: 'ok';
+  calculationId?: string;
   lang?: string;
   teamId: string;
   teamName: string;
@@ -376,8 +379,9 @@ export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
               style={{ borderTop: '1px solid var(--app-border)' }}
             >
               <td className="best-teams__rank" style={cellBody}>
-                <strong>#{team.row}</strong>
-                {team.transfersNeeded === 0 ? (
+                <div className="best-teams__recommendation"><strong>#{team.row}</strong>
+                {result.calculationId && <RecommendationButton calculationId={result.calculationId} row={team.row} lang={result.lang} />}</div>
+                {team.noChanges === true ? (
                   <div
                     style={{ fontSize: 11, color: 'var(--app-success-text)' }}
                   >
@@ -469,7 +473,7 @@ export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
         }}
       >
         ⭐ {labels.captain} · ⭐⭐ {labels.megaCaptain} ·{' '}
-        {labels.filterLegend}
+        {labels.filterLegend} · {lang === 'he' ? 'אפשר גם להקליד את מספר ההמלצה.' : 'You can also type the recommendation number.'}
       </div>
     </div>
   );
@@ -486,10 +490,11 @@ const cellHeader: React.CSSProperties = {
 
 const cellBody: React.CSSProperties = {
   padding: '10px 12px',
-  verticalAlign: 'top',
+  verticalAlign: 'middle',
 };
 
 export function useBestTeamsAction() {
+  useBestTeamChangesAction();
   useCopilotAction({
     name: 'get_best_teams',
     description:

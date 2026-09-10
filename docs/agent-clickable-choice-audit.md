@@ -45,3 +45,14 @@ bug-report body, or an unknown name for which no candidates are available.
   this does not claim a live Azure model routing or deployed-site test.
 - Telegram behavior and `src/agent/runtime.js` are unchanged. Parallel tool
   calls remain disabled.
+
+### Best-team recommendation details
+
+`get_best_teams` supplies a durable, authenticated calculation reference. Every
+recommendation offers **Show changes** in desktop and mobile layouts; numeric
+replies resolve against the latest successful result in the current conversation.
+`get_best_team_changes` is read-only and never updates the saved recommendation,
+active team, roster, or chip. Invalid rows offer the stored rows; missing results
+provide a calculation choice. Outdated results offer **Recalculate** with the
+original team, filters and ranking, followed by a new selection. These buttons
+reuse `ActionChoicesCard`'s shared run lock and failed-run message rollback.

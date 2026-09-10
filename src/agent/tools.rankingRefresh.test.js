@@ -155,3 +155,12 @@ test.each([
     refreshChipPreferencesSafely.mock.invocationCallOrder[0],
   ).toBeLessThan(core.mock.invocationCallOrder[0]);
 });
+
+test('transfer-detail selection derives identity from the authenticated request', async () => {
+  const snapshots = require('../services/bestTeamSnapshotService');
+  const read = jest.spyOn(snapshots, 'getChanges').mockResolvedValue({ status: 'invalid_selection', rows: [1, 2] });
+  const tool = tools.find((candidate) => candidate.name === 'get_best_team_changes');
+  expect(await tool.execute({ calculationId: 'opaque', row: 2, chatId: 99 })).toEqual({ status: 'invalid_selection', rows: [1, 2], lang: 'en' });
+  expect(read).toHaveBeenCalledWith(42, 'opaque', 2);
+  read.mockRestore();
+});

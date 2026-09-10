@@ -1,3 +1,4 @@
+import { BestTeamChangesCard } from './BestTeamChangesCard';
 import { act, type ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
@@ -694,6 +695,11 @@ describe('all rich components honor Hebrew ui language', () => {
         />
       ),
       expected: ['טבלת ניקוד חי', 'מחזור', 'קבוצה', 'נקודות חי', 'אתה'],
+    },
+    {
+      name: 'transfer plan',
+      element: <BestTeamChangesCard result={{ status: 'ok', lang: 'he', row: 1, noChanges: true }} />,
+      expected: ['תוכנית העברות', 'אין צורך בשינויים', 'הצג הרכב סופי'],
     },
     {
       name: 'tool errors',
