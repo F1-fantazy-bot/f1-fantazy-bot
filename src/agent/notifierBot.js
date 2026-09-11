@@ -15,6 +15,8 @@
 // `console.log` first.
 
 const TelegramBot = require('node-telegram-bot-api');
+const { getAgentChatId } = require('./identity');
+const { getDisplayName } = require('../utils/utils');
 
 // Prefix used by `sendLogMessage` / `sendErrorMessage` /
 // `sendMessageToAdmins` in `src/utils/utils.js` to tag the log line.
@@ -24,10 +26,23 @@ const AGENT_LOG_PREFIX = 'AGENT';
 
 let cachedBot = null;
 
+// Resolve on each log call: the notifier is shared by concurrent requests.
+function getLogContext() {
+  try {
+    const chatId = getAgentChatId();
+
+    return `user: ${getDisplayName(chatId)} (${chatId})`;
+  } catch {
+    // Startup/background logs can run without an agent identity.
+    return '';
+  }
+}
+
 function makeNoopBot() {
   return {
     sendMessage: async () => undefined,
     _logPrefix: AGENT_LOG_PREFIX,
+    _getLogContext: getLogContext,
   };
 }
 
@@ -49,6 +64,7 @@ function getNotifierBot() {
   try {
     cachedBot = new TelegramBot(token, { polling: false });
     cachedBot._logPrefix = AGENT_LOG_PREFIX;
+    cachedBot._getLogContext = getLogContext;
   } catch (err) {
     console.error(
       'AGENT: Failed to construct notifier TelegramBot, falling back to noop:',

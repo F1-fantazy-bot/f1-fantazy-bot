@@ -78,7 +78,7 @@ describe('formatLine', () => {
     );
   });
 
-  test('appends email when provided', () => {
+  test('appends email on its own line when provided', () => {
     const line = formatLine({
       modelId: 'gpt-4o',
       step: 1,
@@ -88,7 +88,7 @@ describe('formatLine', () => {
       email: 'foo@example.com',
     });
     expect(line).toBe(
-      'Agent step usage — model: gpt-4o, step: 1, prompt: 10, completion: 5, total: 15, email: foo@example.com',
+      'Agent step usage — model: gpt-4o, step: 1, prompt: 10, completion: 5, total: 15\nemail: foo@example.com',
     );
   });
 });

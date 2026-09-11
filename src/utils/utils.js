@@ -75,6 +75,16 @@ const resolveLogPrefix = function (bot) {
   return 'BOT';
 };
 
+// Notifier bots may attach request-scoped metadata without coupling these
+// shared helpers to the web agent.
+const resolveLogContext = function (bot) {
+  if (!bot || typeof bot._getLogContext !== 'function') {return '';}
+
+  const context = bot._getLogContext();
+
+  return context ? `\n${context}` : '';
+};
+
 const resolveLogEnv = function () {
   const rawEnv = process.env.LOG_ENV || process.env.NODE_ENV;
 
@@ -100,7 +110,7 @@ exports.sendLogMessage = async function (bot, logMessage) {
   }
 
   const env = resolveLogEnv();
-  let log = `${resolveLogPrefix(bot)}: ${logMessage}
+  let log = `${resolveLogPrefix(bot)}: ${logMessage}${resolveLogContext(bot)}
 env: ${env}`;
 
   if (shouldIncludePidInLog(env)) {
@@ -122,7 +132,7 @@ exports.sendErrorMessage = async function (bot, errorMessage) {
   await exports.sendLogMessage(bot, errorMessage);
 
   const env = resolveLogEnv();
-  let log = `${resolveLogPrefix(bot)}: ${errorMessage}
+  let log = `${resolveLogPrefix(bot)}: ${errorMessage}${resolveLogContext(bot)}
 env: ${env}`;
 
   if (shouldIncludePidInLog(env)) {
