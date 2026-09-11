@@ -27,9 +27,7 @@
 #   TEST_ALLOWED_ORIGINS   (default: https://test.f1.kilzid.com,https://proud-sky-035c6b003.7.azurestaticapps.net)
 #   TEST_PREVIEW_PATTERN   (default: empty)
 #   GOOGLE_CLIENT_ID       OAuth 2.0 Web client ID. When set, enables Google
-#                           sign-in on BOTH the production AND test slots. The
-#                           test slot additionally runs an admin-only filter —
-#                           see AGENT_REQUIRE_ADMIN below.
+#                           sign-in + allowlist checks on BOTH slots.
 #                           When unset, this script preserves any existing
 #                           GOOGLE_CLIENT_ID app setting instead of clearing it.
 #   ALLOW_EMPTY_GOOGLE_CLIENT_ID
@@ -58,9 +56,7 @@ PROD_PATTERN="${PROD_PREVIEW_PATTERN:-}"
 # per-PR origin churn.
 TEST_ORIGINS="${TEST_ALLOWED_ORIGINS:-https://test.f1.kilzid.com,https://proud-sky-035c6b003.7.azurestaticapps.net}"
 TEST_PATTERN="${TEST_PREVIEW_PATTERN:-}"
-# When set, the Google auth gate runs on BOTH slots. The test slot
-# additionally requires AGENT_REQUIRE_ADMIN=true (see below) so only
-# admin chatIds (KILZI/DORSE) can reach the agent on PR previews.
+# When set, Google sign-in + allowlist checks run on BOTH slots.
 PROD_GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
 TEST_GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
 ALLOW_EMPTY_GOOGLE_CLIENT_ID="${ALLOW_EMPTY_GOOGLE_CLIENT_ID:-false}"
@@ -88,7 +84,6 @@ apply_to_slot() {
   local cors_origins="$2"
   local cors_pattern="$3"
   local google_client_id="$4"
-  local require_admin="$5"
   local slot_args=()
 
   if [[ "$slot_label" != "production" ]]; then
@@ -113,7 +108,8 @@ apply_to_slot() {
     "AGENT_HARDCODED_CHAT_ID=@Microsoft.KeyVault(SecretUri=${KV_BASE}/agent-hardcoded-chat-id/)"
     "AGENT_CORS_ALLOWED_ORIGINS=${cors_origins}"
     "AGENT_CORS_PREVIEW_ORIGIN_PATTERN=${cors_pattern}"
-    "AGENT_REQUIRE_ADMIN=${require_admin}"
+    # Clear the legacy admin gate for both slots, including older deployments.
+    "AGENT_REQUIRE_ADMIN=false"
     "AzureWebJobsStorage=${STORAGE_CS}"
     "APPLICATIONINSIGHTS_CONNECTION_STRING=${APPINSIGHTS_CS}"
   )
@@ -139,16 +135,12 @@ apply_to_slot() {
 apply_production() {
   # Production: full Google sign-in + allowlist; everyone on the
   # WebUserAllowlist can chat as themselves.
-  apply_to_slot "production" "$PROD_ORIGINS" "$PROD_PATTERN" "$PROD_GOOGLE_CLIENT_ID" "false"
+  apply_to_slot "production" "$PROD_ORIGINS" "$PROD_PATTERN" "$PROD_GOOGLE_CLIENT_ID"
 }
 
 apply_test() {
-  # Test slot: same Google client + same allowlist, BUT an additional
-  # admin-only filter (AGENT_REQUIRE_ADMIN=true) — the test slot is
-  # locked down to admin chatIds (KILZI/DORSE) per
-  # src/agent/auth.js#isAdminChatId. Non-admin allowlisted users still
-  # work on prod; the test slot returns FORBIDDEN reason=not_admin.
-  apply_to_slot "test" "$TEST_ORIGINS" "$TEST_PATTERN" "$TEST_GOOGLE_CLIENT_ID" "true"
+  # Test uses the same Google sign-in + allowlist access as production.
+  apply_to_slot "test" "$TEST_ORIGINS" "$TEST_PATTERN" "$TEST_GOOGLE_CLIENT_ID"
 }
 
 case "$AGENT_SETTINGS_SLOT" in

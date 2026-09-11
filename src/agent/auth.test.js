@@ -300,196 +300,31 @@ describe('isAdminChatId', () => {
   });
 });
 
-describe('authenticateRequest — admin-only gate (AGENT_REQUIRE_ADMIN)', () => {
-  function reqWithToken(token) {
-    return { headers: { authorization: `Bearer ${token}` } };
-  }
+describe('authenticateRequest — allowlist access', () => {
+  test.each([undefined, 'false', 'true'])(
+    'allows non-admin members even with legacy AGENT_REQUIRE_ADMIN=%s',
+    async (legacySetting) => {
+      process.env.GOOGLE_CLIENT_ID = 'client-id';
+      if (legacySetting === undefined) {
+        delete process.env.AGENT_REQUIRE_ADMIN;
+      } else {
+        process.env.AGENT_REQUIRE_ADMIN = legacySetting;
+      }
 
-  // Each test sets clientId via options to keep the env minimal and
-  // explicit. We toggle the admin flag via options too so we don't
-  // rely on shared process.env state across tests.
+      const result = await authenticateRequest({
+        headers: { authorization: 'Bearer good' },
+      }, {
+        verifyToken: jest.fn().mockResolvedValue({ email: 'tester@example.com', sub: '3' }),
+        lookupAllowedUser: jest.fn().mockResolvedValue({ chatId: '740312192' }),
+      });
 
-  test('admin chatId passes when requireAdmin=true', async () => {
-    const result = await authenticateRequest(reqWithToken('good'), {
-      clientId: 'client-id',
-      requireAdmin: true,
-      verifyToken: jest.fn().mockResolvedValueOnce({
-        email: 'kilzi@example.com',
-        sub: '1',
-        name: 'Kilzi',
-      }),
-      lookupAllowedUser: jest.fn().mockResolvedValueOnce({
-        email: 'kilzi@example.com',
-        chatId: String(KILZI_CHAT_ID),
-      }),
-    });
-
-    expect(result).toEqual({
-      status: STATUS.OK,
-      email: 'kilzi@example.com',
-      chatId: KILZI_CHAT_ID,
-      name: 'Kilzi',
-      sub: '1',
-    });
-  });
-
-  test('DORSE chatId passes when requireAdmin=true (second admin entry)', async () => {
-    const result = await authenticateRequest(reqWithToken('good'), {
-      clientId: 'client-id',
-      requireAdmin: true,
-      verifyToken: jest
-        .fn()
-        .mockResolvedValueOnce({ email: 'dorse@example.com', sub: '2' }),
-      lookupAllowedUser: jest.fn().mockResolvedValueOnce({
-        email: 'dorse@example.com',
-        chatId: String(DORSE_CHAT_ID),
-      }),
-    });
-
-    expect(result.status).toBe(STATUS.OK);
-    expect(result.chatId).toBe(DORSE_CHAT_ID);
-  });
-
-  test('non-admin allowlisted chatId is FORBIDDEN with reason=not_admin', async () => {
-    const result = await authenticateRequest(reqWithToken('good'), {
-      clientId: 'client-id',
-      requireAdmin: true,
-      verifyToken: jest
-        .fn()
-        .mockResolvedValueOnce({ email: 'tester@example.com', sub: '3' }),
-      lookupAllowedUser: jest.fn().mockResolvedValueOnce({
+      expect(result).toEqual({
+        status: STATUS.OK,
         email: 'tester@example.com',
-        // A real, on-allowlist, non-admin chatId.
-        chatId: '740312192',
-      }),
-    });
-
-    expect(result).toEqual({
-      status: STATUS.FORBIDDEN,
-      reason: 'not_admin',
-      email: 'tester@example.com',
-    });
-  });
-
-  test('non-admin allowlisted chatId is OK when requireAdmin=false (prod parity)', async () => {
-    const result = await authenticateRequest(reqWithToken('good'), {
-      clientId: 'client-id',
-      requireAdmin: false,
-      verifyToken: jest
-        .fn()
-        .mockResolvedValueOnce({ email: 'tester@example.com', sub: '3' }),
-      lookupAllowedUser: jest.fn().mockResolvedValueOnce({
-        email: 'tester@example.com',
-        chatId: '740312192',
-      }),
-    });
-
-    expect(result.status).toBe(STATUS.OK);
-    expect(result.chatId).toBe(740312192);
-  });
-
-  test('reads AGENT_REQUIRE_ADMIN=true from env when option is not provided', async () => {
-    process.env.GOOGLE_CLIENT_ID = 'client-id';
-    process.env.AGENT_REQUIRE_ADMIN = 'true';
-
-    const result = await authenticateRequest(reqWithToken('good'), {
-      verifyToken: jest
-        .fn()
-        .mockResolvedValueOnce({ email: 'tester@example.com', sub: '3' }),
-      lookupAllowedUser: jest.fn().mockResolvedValueOnce({
-        email: 'tester@example.com',
-        chatId: '740312192',
-      }),
-    });
-
-    expect(result.status).toBe(STATUS.FORBIDDEN);
-    expect(result.reason).toBe('not_admin');
-  });
-
-  test('AGENT_REQUIRE_ADMIN unset is treated as false (prod default)', async () => {
-    process.env.GOOGLE_CLIENT_ID = 'client-id';
-    delete process.env.AGENT_REQUIRE_ADMIN;
-
-    const result = await authenticateRequest(reqWithToken('good'), {
-      verifyToken: jest
-        .fn()
-        .mockResolvedValueOnce({ email: 'tester@example.com', sub: '3' }),
-      lookupAllowedUser: jest.fn().mockResolvedValueOnce({
-        email: 'tester@example.com',
-        chatId: '740312192',
-      }),
-    });
-
-    expect(result.status).toBe(STATUS.OK);
-  });
-
-  test('AGENT_REQUIRE_ADMIN="false" string is treated as false (only "true" enables)', async () => {
-    process.env.GOOGLE_CLIENT_ID = 'client-id';
-    process.env.AGENT_REQUIRE_ADMIN = 'false';
-
-    const result = await authenticateRequest(reqWithToken('good'), {
-      verifyToken: jest
-        .fn()
-        .mockResolvedValueOnce({ email: 'tester@example.com', sub: '3' }),
-      lookupAllowedUser: jest.fn().mockResolvedValueOnce({
-        email: 'tester@example.com',
-        chatId: '740312192',
-      }),
-    });
-
-    expect(result.status).toBe(STATUS.OK);
-  });
-
-  test('options.requireAdmin overrides env (true beats AGENT_REQUIRE_ADMIN=false)', async () => {
-    process.env.GOOGLE_CLIENT_ID = 'client-id';
-    process.env.AGENT_REQUIRE_ADMIN = 'false';
-
-    const result = await authenticateRequest(reqWithToken('good'), {
-      requireAdmin: true,
-      verifyToken: jest
-        .fn()
-        .mockResolvedValueOnce({ email: 'tester@example.com', sub: '3' }),
-      lookupAllowedUser: jest.fn().mockResolvedValueOnce({
-        email: 'tester@example.com',
-        chatId: '740312192',
-      }),
-    });
-
-    expect(result.status).toBe(STATUS.FORBIDDEN);
-    expect(result.reason).toBe('not_admin');
-  });
-
-  test('admin gate runs AFTER allowlist check — non-allowlisted admin still gets email_not_allowlisted', async () => {
-    // Guards the gate ordering: a chatId can't bypass the allowlist
-    // membership check just by happening to equal an admin chatId
-    // upstream of the lookup. (In practice this can't happen because
-    // the lookup is keyed on email, not chatId, but the ordering
-    // guarantee is worth pinning.)
-    const result = await authenticateRequest(reqWithToken('good'), {
-      clientId: 'client-id',
-      requireAdmin: true,
-      verifyToken: jest
-        .fn()
-        .mockResolvedValueOnce({ email: 'random@example.com', sub: '9' }),
-      lookupAllowedUser: jest.fn().mockResolvedValueOnce(null),
-    });
-
-    expect(result.status).toBe(STATUS.FORBIDDEN);
-    expect(result.reason).toBe('email_not_allowlisted');
-  });
-
-  test('admin gate does NOT run when status is BYPASSED (local dev parity)', async () => {
-    // If GOOGLE_CLIENT_ID is unset, we short-circuit to BYPASSED
-    // BEFORE the admin gate evaluates. This preserves the local-dev
-    // path even if a developer accidentally sets AGENT_REQUIRE_ADMIN
-    // locally.
-    delete process.env.GOOGLE_CLIENT_ID;
-    process.env.AGENT_REQUIRE_ADMIN = 'true';
-
-    const result = await authenticateRequest(reqWithToken('any'), {
-      lookupAllowedUser: jest.fn(),
-    });
-
-    expect(result).toEqual({ status: STATUS.BYPASSED });
-  });
+        chatId: 740312192,
+        sub: '3',
+        name: undefined,
+      });
+    },
+  );
 });

@@ -126,7 +126,7 @@ jobs:
               '| **Commit** | `' + shortSha + '` |',
               `| **Updated** | ${updated} |`,
               '',
-              '⚠️ **Sign-in required** — Google sign-in is enforced on the test slot. Only admin chatIds (KILZI / DORSE) can chat as themselves; other allowlisted users will get `reason=not_admin`. See AGENTS.md → `Test-slot admin-only gate` for details.',
+              '⚠️ **Sign-in required** — Google sign-in is enforced on the test slot. Everyone on the WebUserAllowlist can chat as themselves.',
               '',
               '⚠️ **Staging serializes across PRs** — only the latest pushed PR is live at this URL. Coordinate on the PR if you need exclusive access.',
             ].join('\n');
