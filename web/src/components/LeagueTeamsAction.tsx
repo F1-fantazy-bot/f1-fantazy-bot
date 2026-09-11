@@ -40,6 +40,7 @@ export function InteractiveLeagueTeams({
 }) {
   const { propose } = useWriteDecision();
   const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [followedTeamIds, setFollowedTeamIds] = useState<string[]>([]);
   const [confirmation, setConfirmation] =
     useState<WriteConfirmationRequired | null>(null);
   const [feedback, setFeedback] = useState<WriteResult | null>(null);
@@ -75,9 +76,16 @@ export function InteractiveLeagueTeams({
       };
 
   async function followTeam(team: LeagueTeam) {
-    if (!canSelect || selectedTeamId || !result?.leagueCode) return;
+    if (
+      !canSelect ||
+      selectedTeamId ||
+      !result?.leagueCode ||
+      team.isFollowed ||
+      followedTeamIds.includes(team.teamId)
+    ) return;
     setSelectedTeamId(team.teamId);
     setErrorMessage('');
+    setFeedback(null);
     try {
       const proposal = await propose('follow_team', {
         action: 'add',
@@ -91,9 +99,10 @@ export function InteractiveLeagueTeams({
       }
       if (isWriteResult(proposal)) {
         setFeedback(proposal);
-        if (proposal.status !== 'ok') {
-          setSelectedTeamId('');
+        if (proposal.status === 'ok') {
+          setFollowedTeamIds((ids) => [...ids, team.teamId]);
         }
+        setSelectedTeamId('');
 
         return;
       }
@@ -143,6 +152,8 @@ export function InteractiveLeagueTeams({
             }}
           >
             {teams.map((team) => {
+              const followedHere = followedTeamIds.includes(team.teamId);
+              const isFollowed = team.isFollowed || followedHere;
               const content = (
                 <>
                   <span
@@ -174,7 +185,7 @@ export function InteractiveLeagueTeams({
                       {labels.active}
                     </span>
                   ) : null}
-                  {team.isFollowed ? (
+                  {isFollowed ? (
                     <span
                       style={{
                         color: 'var(--app-success-text)',
@@ -182,7 +193,7 @@ export function InteractiveLeagueTeams({
                         fontWeight: 800,
                       }}
                     >
-                      {labels.alreadyFollowed}
+                      {followedHere ? labels.followed : labels.alreadyFollowed}
                     </span>
                   ) : null}
                 </>
@@ -211,17 +222,17 @@ export function InteractiveLeagueTeams({
                   role="listitem"
                   type="button"
                   onClick={() => followTeam(team)}
-                  disabled={Boolean(selectedTeamId) || team.isFollowed}
+                  disabled={Boolean(selectedTeamId) || isFollowed}
                   aria-label={`${team.teamName || team.teamId}: ${team.teamId}`}
                   style={{
                     ...style,
-                    cursor: team.isFollowed
+                    cursor: isFollowed
                       ? 'not-allowed'
                       : selectedTeamId
                         ? 'wait'
                         : 'pointer',
                     opacity:
-                      team.isFollowed ||
+                      isFollowed ||
                       (selectedTeamId && selectedTeamId !== team.teamId)
                         ? 0.55
                         : 1,
@@ -233,12 +244,6 @@ export function InteractiveLeagueTeams({
                   !feedback ? (
                     <span style={{ color: 'var(--app-primary)', fontSize: 12 }}>
                       {labels.submitting}
-                    </span>
-                  ) : null}
-                  {selectedTeamId === team.teamId &&
-                  feedback?.status === 'ok' ? (
-                    <span style={{ color: 'var(--app-success-text)', fontSize: 12 }}>
-                      {labels.followed}
                     </span>
                   ) : null}
                 </button>
@@ -272,9 +277,10 @@ export function InteractiveLeagueTeams({
             if (outcome === 'confirmed' && finalResult) {
               setFeedback(finalResult);
               setConfirmation(null);
-              if (finalResult.status !== 'ok') {
-                setSelectedTeamId('');
+              if (finalResult.status === 'ok') {
+                setFollowedTeamIds((ids) => [...ids, selectedTeamId]);
               }
+              setSelectedTeamId('');
             }
             if (outcome === 'cancelled' || outcome === 'error') {
               setSelectedTeamId('');

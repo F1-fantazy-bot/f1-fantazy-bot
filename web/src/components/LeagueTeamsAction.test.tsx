@@ -63,6 +63,7 @@ function renderTeams(selectionMode?: 'follow_team') {
                 teamName: 'Fast Friends',
                 position: 2,
               },
+              { teamId: 'Other_3', teamName: 'Other Team' },
               {
                 teamId: 'Tracked_2',
                 teamName: 'Tracked Team',
@@ -125,6 +126,49 @@ describe('InteractiveLeagueTeams', () => {
         '[role="dialog"][aria-label="Confirm change: follow_team"]',
       ),
     ).not.toBeNull();
+    rendered.cleanup();
+  });
+
+  test.each([false, true])('allows consecutive follows and remembers completed teams (direct proposal: %s)', async (directProposal) => {
+    const response = (body: object) => new Response(JSON.stringify(body), { status: 200 });
+    const fetchSpy = vi.spyOn(window, 'fetch');
+    for (const teamId of ['Owner_1', 'Other_3']) {
+      if (!directProposal) {
+        fetchSpy.mockResolvedValueOnce(response({
+          status: 'confirmation_required', tool: 'follow_team',
+          writeNonce: `nonce-${teamId}`, summary: `Follow ${teamId}.`, uiLang: 'en',
+        }));
+      }
+      fetchSpy.mockResolvedValueOnce(response({
+        status: 'ok', tool: 'follow_team', teamId,
+        summary: `Following ${teamId}.`, uiLang: 'en',
+      }));
+    }
+    const rendered = renderTeams('follow_team');
+    const buttons = () => Array.from(rendered.container.querySelectorAll<HTMLButtonElement>('button[role="listitem"]'));
+
+    for (const [index, teamId] of ['Owner_1', 'Other_3'].entries()) {
+      expect(buttons()[index].disabled).toBe(false);
+      await act(async () => { buttons()[index].click(); });
+      if (!directProposal) {
+        expect(buttons().every((button) => button.disabled)).toBe(true);
+        expect(rendered.container.textContent).not.toContain(`Following Owner_1.`);
+        await act(async () => {
+          Array.from(rendered.container.querySelectorAll('button'))
+            .find((button) => button.textContent === 'Yes, do it')?.click();
+        });
+        expect(fetchSpy).toHaveBeenLastCalledWith(
+          'https://agent.example.com/api/agent/write-decision',
+          expect.objectContaining({ body: JSON.stringify({ writeNonce: `nonce-${teamId}`, decision: 'approve_and_confirm' }) }),
+        );
+      }
+      expect(buttons()[index].disabled).toBe(true);
+      expect(buttons()[index].textContent).toContain('Followed');
+      expect(rendered.container.querySelector('[role="dialog"]')).toBeNull();
+    }
+    expect(buttons()[0].textContent).toContain('Followed');
+    expect(buttons().every((button) => button.disabled)).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledTimes(directProposal ? 2 : 4);
     rendered.cleanup();
   });
 
