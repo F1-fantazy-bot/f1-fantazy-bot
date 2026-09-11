@@ -29,7 +29,7 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
 - **Internationalization:** `src/i18n.js` and `src/translations.js` provide language support (English/Hebrew) used throughout handlers.
 - **AI Assist:** `src/prompts.js` defines system prompts. `/ask`-style natural language queries are handled by `src/commandsHandler/askHandler.js`, which leverages Azure OpenAI to map free-text requests into command sequences.
 - **Logic Cores:** `src/cores/` holds **pure** business-logic functions that take inputs and return structured JSON. They do not depend on `bot`, `t()`, or `sendMessage`. Each Telegram handler is being progressively refactored into `(pure core in src/cores/) + (thin Telegram adapter)`. The same core is consumed by the web-chat agent's tools — so a question like "best teams with VER but no ALO" runs through the same calculator as the `/best_teams` command. **Refactor rule:** existing handler tests must keep passing unchanged after the extraction; if they don't, fix the refactor, not the test. Cores extracted so far: `nextRacesCore`, `bestTeamsCore`, `userTeamsCore`, `followedTeamsCore`, `leaderboardCore`, `bestTeamScenariosCore`, `nextRaceInfoCore`, `raceWeatherCore`, `deadlineCore`, `currentTeamCore`, `liveScoreCore`, `leagueChangesCore`, `leagueGraphsCore`, `raceSummaryCore`, `announcementsCore`, `simulationStatusCore`, `dataStatusCore`. Cores that need side effects (e.g. weather fetch logging) accept optional `onFetch`/`onError` callbacks — the Telegram adapter wires them to bot-side helpers; the agent path omits them. Pure scoring helpers shared between a handler and its core live in `src/utils/` (e.g. `src/utils/liveScoreCalc.js` for `mapLockedTeamForScoring` / `calculateLiveScoreBreakdown` / `deriveLiveScoreOptions`) so the core never depends on the adapter.
-- **Agent (Web Chat):** `src/agent/`, `agentWebhook/`, and `web/` together implement a second user-facing surface. **Identity is per-request**, propagated through `AsyncLocalStorage` from the agent webhook into `getAgentChatId()`. The webhook verifies the caller's Google ID token, looks the email up in the `WebUserAllowlist` Azure Table to resolve a Telegram chatId, then runs the entire CopilotKit invocation inside that ALS scope. When `GOOGLE_CLIENT_ID` is unset (local dev only — both production AND test slots in Azure set it) the auth gate is bypassed and `AGENT_HARDCODED_CHAT_ID` is used instead. The test slot additionally enforces an **admin-only** filter via `AGENT_REQUIRE_ADMIN=true` — see [Web auth → Test-slot admin-only gate](#test-slot-admin-only-gate). See [Web auth](#web-auth) for the full pipeline and the three new Telegram admin commands (`/allow_web_user`, `/revoke_web_user`, `/list_web_users`) that manage the allowlist.
+- **Agent (Web Chat):** `src/agent/`, `agentWebhook/`, and `web/` together implement a second user-facing surface. **Identity is per-request**, propagated through `AsyncLocalStorage` from the agent webhook into `getAgentChatId()`. The webhook verifies the caller's Google ID token, looks the email up in the `WebUserAllowlist` Azure Table to resolve a Telegram chatId, then runs the entire CopilotKit invocation inside that ALS scope. When `GOOGLE_CLIENT_ID` is unset (local dev only — both production AND test slots in Azure set it) the auth gate is bypassed and `AGENT_HARDCODED_CHAT_ID` is used instead. Both production and test allow every authenticated WebUserAllowlist member with a valid chatId; admin privileges are required only for admin tools. See [Web auth](#web-auth) for the full pipeline and the three new Telegram admin commands (`/allow_web_user`, `/revoke_web_user`, `/list_web_users`) that manage the allowlist.
 
 ---
 
@@ -1390,7 +1390,6 @@ unbounded UserRegistry read to the login path.
 | `AZURE_OPEN_AI_MODEL` | Agent + Telegram `/ask` | Deployment name (used by `azure.chat(deployment)`). |
 | `AGENT_HARDCODED_CHAT_ID` | Agent | Fallback identity used when no per-request context is active (local dev + cache bootstrap). On Azure-deployed slots both prod + test set `GOOGLE_CLIENT_ID`, so the hardcoded path is unreachable from user traffic — it survives as a local-dev fallback only. The LLM never sees it. Defaults to `KILZI_CHAT_ID` in `scripts/dev-agent-server.js` if absent. |
 | `GOOGLE_CLIENT_ID` | Agent | OAuth 2.0 Web client ID. NOT a secret — safe in app settings. Set on BOTH Azure slots (production + test). When the agent webhook sees a valid bearer it enforces Google sign-in + allowlist lookup on every POST. When unset (local dev only), auth is bypassed and `AGENT_HARDCODED_CHAT_ID` is used instead. |
-| `AGENT_REQUIRE_ADMIN` | Agent | `"true"` on the test slot only — adds an admin-only filter after the allowlist check (admins = `KILZI_CHAT_ID` / `DORSE_CHAT_ID` from `src/constants.js`). `"false"` / unset on prod. See [Web auth → Test-slot admin-only gate](#test-slot-admin-only-gate). |
 | `VITE_GOOGLE_CLIENT_ID` | SWA build env | Same client ID, baked into the bundle by both the prod SWA workflow AND the PR/staging workflow. Unset at build time = chat renders without auth gate (local dev only). |
 | `LOG_ENV` | Agent + Telegram | Optional log label override used by `sendLogMessage` / `sendErrorMessage`. Agent infra sets it to `production` on the prod slot and `test` on the test slot while keeping `NODE_ENV=production` for runtime behavior. |
 | `TELEGRAM_BOT_TOKEN` | Agent (optional) | If set, the agent's notifier bot sends token-usage + tool-error logs to the same Telegram channels the main bot uses. On Azure this is wired by `infra/agent-func/apply-settings.sh` from KV secret `telegram-bot-token` on both slots. If unset, logs stay on stdout — local dev without Telegram still works. |
@@ -1506,7 +1505,6 @@ allowlist via the existing Pending Reply Manager:
 | Var                     | Where               | Notes                                                                                                                                       |
 | ----------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GOOGLE_CLIENT_ID`      | Agent Function App  | OAuth 2.0 Web client ID. NOT a secret — safe in app settings. Set on BOTH slots in Azure (production + test). Unset = bypass mode (local dev only). |
-| `AGENT_REQUIRE_ADMIN`   | Agent Function App  | `"true"` on the test slot (admin-only filter — see [Test-slot admin-only gate](#test-slot-admin-only-gate)). `"false"` / unset on production. |
 | `VITE_GOOGLE_CLIENT_ID` | SWA build env       | Same client ID, baked into the bundle at build time by both the prod workflow (`main_f1-fantazy-agent-web.yml`) AND the PR/staging workflow (`pr_test_f1-fantazy-agent-web.yml`). Unset at build time = chat renders without auth gate (local dev only). |
 
 **Google Cloud Console setup (one-time):** create an OAuth 2.0 Web
@@ -1518,38 +1516,18 @@ client. Authorized JavaScript origins must include:
   hostname `https://proud-sky-035c6b003.7.azurestaticapps.net`.
 
 Both SWAs use the SAME OAuth client (one client ID, one consent
-screen). See [Test-slot admin-only gate](#test-slot-admin-only-gate)
+screen). See [Test-slot access](#test-slot-access)
 for why we use one fixed `test.f1.kilzid.com` URL instead of
 per-PR ephemerals.
 
-#### Test-slot admin-only gate
+#### Test-slot access
 
-The test slot of the agent Function App is fully Google-gated AND
-additionally locked to admin chatIds (`KILZI_CHAT_ID`,
-`DORSE_CHAT_ID` — same set `isAdminMessage` uses). This blocks
-drive-by abuse and cost-exfiltration on the publicly-reachable
-preview URL.
-
-**How it works:**
-
-- `AGENT_REQUIRE_ADMIN=true` is set on the test slot (via
-  `infra/agent-func/apply-settings.sh`). On prod it's `"false"`.
-- `src/agent/auth.js` evaluates `process.env.AGENT_REQUIRE_ADMIN === 'true'`
-  AFTER the standard allowlist + valid-chatId checks succeed. Only
-  the literal string `"true"` enables the gate — defensive against
-  typos in app settings.
-- Non-admin allowlisted users on the test slot resolve to
-  `{ status: FORBIDDEN, reason: 'not_admin', email }` → `401` to the
-  client. The frontend's existing rejection-screen path renders this
-  the same way as `email_not_allowlisted`.
-- Admin definition lives in `src/constants.js`
-  (`KILZI_CHAT_ID = 454873194`, `DORSE_CHAT_ID = 673447790`). The
-  env var doesn't carry a chatId list — keeping one source of truth
-  for "admin" between the Telegram bot and the agent.
-- Gate ordering is intentional: the allowlist + chatId validity
-  checks run FIRST, so a non-allowlisted admin still gets the
-  generic `email_not_allowlisted` response (no info leak about admin
-  identity).
+Both production and test require Google sign-in and a WebUserAllowlist
+entry with a valid Telegram chatId. Allowlisted users can use the agent
+regardless of admin status. Admin tools retain their server-side admin checks.
+The retired `AGENT_REQUIRE_ADMIN` setting is ignored by authentication;
+`infra/agent-func/apply-settings.sh` sets it to `false` on both slots for
+compatibility with older deployments.
 
 **Why a dedicated `test.f1.kilzid.com` SWA instead of a `staging`
 environment on the prod SWA?** Google's OAuth 2.0 Web client requires
@@ -1569,8 +1547,7 @@ acceptable for a small dev team and is documented at the top of
 
 - The slot stays **Running** by default. Pre-auth it used to be
   kept Stopped as a security workaround (anyone with the URL could
-  drive the agent as the owner); with Google sign-in +
-  `AGENT_REQUIRE_ADMIN=true` in place, that workaround is no longer
+  drive the agent as the owner); with Google sign-in + allowlist checks in place, that workaround is no longer
   needed. The App Service Plan is Y1 Consumption — pay-per-execution
   — so an idle Running slot costs effectively $0, and PR validation
   becomes a single deploy → test loop with no manual `az functionapp
@@ -1589,8 +1566,8 @@ acceptable for a small dev team and is documented at the top of
 
 **Rollout sequence (executed 2026-05-22; documented for the record):**
 
-1. Backend code: add `AGENT_REQUIRE_ADMIN` env-var support to
-   `src/agent/auth.js` + tests in `src/agent/auth.test.js`. (PR #204)
+1. Backend code: originally added an admin-only test-slot gate (PR #204).
+   This gate has since been removed; all allowlisted users now have access.
 2. Frontend: no source changes needed — existing Google sign-in
    flow works because the OAuth client ID and the `WebUserAllowlist`
    Azure Table are shared with prod.
