@@ -1,4 +1,4 @@
-const { KILZI_CHAT_ID } = require('../constants');
+const { KILZI_CHAT_ID, LIMITLESS_CHIP, EXTRA_BOOST_CHIP, WILDCARD_CHIP } = require('../constants');
 
 const mockCalculateBestTeams = jest.fn();
 jest.mock('../bestTeamsCalculator', () => ({
@@ -169,5 +169,76 @@ describe('computeBestTeamScenarios', () => {
     });
     expect(result.status).toBe('ok');
     expect(result.teamId).toBe(TEAM_ID);
+  });
+});
+
+const savedChips = [undefined, 'WITHOUT_CHIP', LIMITLESS_CHIP, EXTRA_BOOST_CHIP, WILDCARD_CHIP];
+
+describe('scenario independence', () => {
+  beforeEach(() => {
+    clearCaches();
+    mockCalculateBestTeams.mockReset();
+    seedValidCache();
+  });
+
+  test.each(savedChips)('uses explicit scenario chips with saved selection %s', (savedChip) => {
+    mockCalculateBestTeams.mockImplementation((_, chip, ppm) => [{
+      projected_points: 50 + ppm + ({ [LIMITLESS_CHIP]: 125, [EXTRA_BOOST_CHIP]: 60, [WILDCARD_CHIP]: 35 }[chip] || 0),
+      expected_price_change: chip === LIMITLESS_CHIP ? 0 : 0.25,
+    }]);
+    const baseline = computeBestTeamScenarios({ chatId: KILZI_CHAT_ID });
+    mockCalculateBestTeams.mockClear();
+    selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: savedChip };
+    const savedState = JSON.stringify({ chips: selectedChipCache, teams: currentTeamCache });
+    const result = computeBestTeamScenarios({ chatId: KILZI_CHAT_ID });
+    expect(result.chip).toBe(savedChip || null);
+    expect(result.scenarios).toEqual(baseline.scenarios);
+    expect(mockCalculateBestTeams).toHaveBeenCalledTimes(16);
+    for (const { ppm, results } of result.scenarios) {
+      expect(mockCalculateBestTeams.mock.calls.filter(([, , value]) => value === ppm)
+        .map(([, chip]) => chip)).toEqual([null, LIMITLESS_CHIP, EXTRA_BOOST_CHIP, WILDCARD_CHIP]);
+      expect(results[0].chipKey).toBeNull();
+      expect(results.map((cell) => cell.recommendation)).toEqual([null, 'green', 'yellow', 'green']);
+    }
+    expect(JSON.stringify({ chips: selectedChipCache, teams: currentTeamCache })).toBe(savedState);
+  });
+
+  test('returns missing_cache when driver data is absent', () => {
+    delete driversCache[KILZI_CHAT_ID];
+    expect(computeBestTeamScenarios({ chatId: KILZI_CHAT_ID }).status).toBe('missing_cache');
+    expect(mockCalculateBestTeams).not.toHaveBeenCalled();
+  });
+
+  test('real calculator keeps chip-free scores and recommendations independent of preferences', () => {
+    const realCalculate = jest.requireActual('../bestTeamsCalculator').calculateBestTeams;
+    mockCalculateBestTeams.mockImplementation(realCalculate);
+    driversCache[KILZI_CHAT_ID] = Object.fromEntries(
+      ['VER', 'HAM', 'LEC', 'NOR', 'SAI', 'PER'].map((code, index) => [code, {
+        DR: code, price: 10, expectedPoints: 10 + index * 20, expectedPriceChange: index * 0.1,
+      }]),
+    );
+    constructorsCache[KILZI_CHAT_ID] = {
+      RED: { CN: 'RED', price: 10, expectedPoints: 20, expectedPriceChange: 0.2 },
+      MER: { CN: 'MER', price: 10, expectedPoints: 30, expectedPriceChange: 0.3 },
+    };
+    currentTeamCache[KILZI_CHAT_ID][TEAM_ID] = {
+      drivers: ['VER', 'HAM', 'LEC', 'NOR', 'SAI'], constructors: ['RED', 'MER'],
+      boost: 'SAI', freeTransfers: 0, costCapRemaining: 0,
+    };
+    const baseline = computeBestTeamScenarios({ chatId: KILZI_CHAT_ID });
+    for (const { results } of baseline.scenarios) {
+      expect(results[0].projectedPoints).toBeGreaterThan(0);
+      for (const cell of results.slice(1)) {
+        expect(cell.projectedPoints).toBeGreaterThan(results[0].projectedPoints);
+      }
+    }
+    for (const savedChip of savedChips) {
+      selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: savedChip };
+      const savedState = JSON.stringify({ chips: selectedChipCache, teams: currentTeamCache });
+      const result = computeBestTeamScenarios({ chatId: KILZI_CHAT_ID });
+      expect(result.scenarios).toEqual(baseline.scenarios);
+      expect(result.chip).toBe(savedChip || null);
+      expect(JSON.stringify({ chips: selectedChipCache, teams: currentTeamCache })).toBe(savedState);
+    }
   });
 });

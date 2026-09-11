@@ -63,19 +63,20 @@ describe('handleBestTeamScenariosMessage', () => {
     expect(calculateBestTeams).not.toHaveBeenCalled();
   });
 
-  it('should run all ppm x chip scenarios and render compact summary message', async () => {
+  it.each([undefined, 'WITHOUT_CHIP', LIMITLESS_CHIP, EXTRA_BOOST_CHIP, WILDCARD_CHIP])('renders independent scenarios with saved chip %s', async (savedChip) => {
     driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 }, NOR: { price: 25.1 } };
     constructorsCache[KILZI_CHAT_ID] = { MCL: { price: 25 }, FER: { price: 20 } };
     currentTeamCache[KILZI_CHAT_ID] = {
       [TEAM_ID]: { drivers: ['VER'], constructors: ['MCL'], freeTransfers: 2 },
     };
-    selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: 'WITHOUT_CHIP' };
+    selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: savedChip };
+    const savedState = JSON.stringify({ chips: selectedChipCache, teams: currentTeamCache });
     remainingRaceCountCache[sharedKey] = 10;
 
     calculateBestTeams.mockImplementation((_, chip, ppm) => {
       const baseline = 300 + ppm;
       const scoreByChip = {
-        WITHOUT_CHIP: baseline,
+        null: baseline,
         [LIMITLESS_CHIP]: baseline + 120,
         [EXTRA_BOOST_CHIP]: baseline + 50,
         [WILDCARD_CHIP]: baseline + 20,
@@ -96,15 +97,11 @@ describe('handleBestTeamScenariosMessage', () => {
     const ppmValues = [...new Set(calculateBestTeams.mock.calls.map(([, , ppm]) => ppm))];
     expect(ppmValues).toEqual([0, 1.3, 1.65, 2]);
 
-    const chipsForZeroPpm = calculateBestTeams.mock.calls
-      .filter(([, , ppm]) => ppm === 0)
-      .map(([, chip]) => chip);
-    expect(chipsForZeroPpm).toEqual([
-      'WITHOUT_CHIP',
-      LIMITLESS_CHIP,
-      EXTRA_BOOST_CHIP,
-      WILDCARD_CHIP,
-    ]);
+    for (const ppm of ppmValues) {
+      expect(calculateBestTeams.mock.calls.filter(([, , value]) => value === ppm)
+        .map(([, chip]) => chip)).toEqual([null, LIMITLESS_CHIP, EXTRA_BOOST_CHIP, WILDCARD_CHIP]);
+    }
+    expect(JSON.stringify({ chips: selectedChipCache, teams: currentTeamCache })).toBe(savedState);
 
     const [sentChatId, sentMessage, options] = botMock.sendMessage.mock.calls[0];
     expect(sentChatId).toBe(KILZI_CHAT_ID);
@@ -118,6 +115,10 @@ describe('handleBestTeamScenariosMessage', () => {
     expect(sentMessage).toContain('• *Limitless* — 420.00 pts | Δ 0.40 🟢');
     expect(sentMessage).toContain('• *Extra Boost* — 350.00 pts | Δ 0.80 🟡');
     expect(sentMessage).toContain('• *Wildcard* — 320.00 pts | Δ 0.80 🟡');
+
+    delete selectedChipCache[KILZI_CHAT_ID];
+    await handleBestTeamScenariosMessage(botMock, KILZI_CHAT_ID);
+    expect(botMock.sendMessage.mock.calls[1][1]).toBe(sentMessage);
   });
 
   it('should continue when remaining race count is unavailable', async () => {
@@ -139,28 +140,16 @@ describe('handleBestTeamScenariosMessage', () => {
     );
   });
 
-  it('should use selected chip for the first line of each ppm section', async () => {
-    driversCache[KILZI_CHAT_ID] = { VER: { price: 30.5 } };
-    constructorsCache[KILZI_CHAT_ID] = { RBR: { price: 20.0 } };
+  it('renders unavailable results without recommendation indicators', async () => {
+    driversCache[KILZI_CHAT_ID] = { VER: { price: 30 } };
+    constructorsCache[KILZI_CHAT_ID] = { RED: { price: 20 } };
     currentTeamCache[KILZI_CHAT_ID] = {
-      [TEAM_ID]: { drivers: ['VER'], constructors: ['RBR'], freeTransfers: 2 },
+      [TEAM_ID]: { drivers: ['VER'], constructors: ['RED'], freeTransfers: 2 },
     };
-    selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: LIMITLESS_CHIP };
-    remainingRaceCountCache[sharedKey] = 5;
-
-    calculateBestTeams.mockReturnValue([{ projected_points: 1, expected_price_change: 1 }]);
-
+    calculateBestTeams.mockReturnValue([]);
     await handleBestTeamScenariosMessage(botMock, KILZI_CHAT_ID);
-
-    const chipsForEachPpmFirstLine = calculateBestTeams.mock.calls
-      .filter((_, index) => index % 4 === 0)
-      .map(([, chip]) => chip);
-
-    expect(chipsForEachPpmFirstLine).toEqual([
-      LIMITLESS_CHIP,
-      LIMITLESS_CHIP,
-      LIMITLESS_CHIP,
-      LIMITLESS_CHIP,
-    ]);
+    const message = botMock.sendMessage.mock.calls[0][1];
+    expect(message.match(/Unavailable/g)).toHaveLength(16);
+    expect(message).not.toMatch(/🟢|🟡/);
   });
 });
