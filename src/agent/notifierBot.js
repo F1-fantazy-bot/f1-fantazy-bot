@@ -15,6 +15,10 @@
 // `console.log` first.
 
 const TelegramBot = require('node-telegram-bot-api');
+const { getAgentChatId } = require('./identity');
+const { getDisplayName } = require('../utils/utils');
+const { getRequestContext } = require('./requestContext');
+const { getFreshUserProfile } = require('../services/userProfileSyncService');
 
 // Prefix used by `sendLogMessage` / `sendErrorMessage` /
 // `sendMessageToAdmins` in `src/utils/utils.js` to tag the log line.
@@ -24,10 +28,46 @@ const AGENT_LOG_PREFIX = 'AGENT';
 
 let cachedBot = null;
 
+// A request may log before any cache-dependent tool runs. Read the durable
+// profile once per request, using the existing bounded/coalesced point lookup.
+const requestDisplayNames = new WeakMap();
+
+async function loadDisplayName(chatId) {
+  try {
+    const profile = await getFreshUserProfile(chatId);
+
+    return profile?.nickname || profile?.chatName || String(chatId);
+  } catch {
+    // Storage outages must not suppress logs.
+    return getDisplayName(chatId);
+  }
+}
+
+async function getLogContext() {
+  let chatId;
+  try {
+    chatId = getAgentChatId();
+  } catch {
+    // Startup/background logs can run without an agent identity.
+    return '';
+  }
+
+  const context = getRequestContext();
+  let displayName = context && requestDisplayNames.get(context);
+  if (!displayName) {
+    displayName = loadDisplayName(chatId);
+    if (context) {requestDisplayNames.set(context, displayName);}
+  }
+  const name = await displayName;
+
+  return name === String(chatId) ? `user: ${chatId}` : `user: ${name} (${chatId})`;
+}
+
 function makeNoopBot() {
   return {
     sendMessage: async () => undefined,
     _logPrefix: AGENT_LOG_PREFIX,
+    _getLogContext: getLogContext,
   };
 }
 
@@ -49,6 +89,7 @@ function getNotifierBot() {
   try {
     cachedBot = new TelegramBot(token, { polling: false });
     cachedBot._logPrefix = AGENT_LOG_PREFIX;
+    cachedBot._getLogContext = getLogContext;
   } catch (err) {
     console.error(
       'AGENT: Failed to construct notifier TelegramBot, falling back to noop:',

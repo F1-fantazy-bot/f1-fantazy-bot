@@ -33,7 +33,7 @@ function safeTotal(field) {
 }
 
 function formatLine({ modelId, step, prompt, completion, total, email }) {
-  const tail = email ? `, email: ${email}` : '';
+  const tail = email ? `\nemail: ${email}` : '';
 
   return `Agent step usage — model: ${modelId}, step: ${step}, prompt: ${prompt}, completion: ${completion}, total: ${total}${tail}`;
 }

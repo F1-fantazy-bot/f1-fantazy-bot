@@ -1588,9 +1588,16 @@ acceptable for a small dev team and is documented at the top of
    `test.f1.kilzid.com`, PR auto-comment posts the right URL.
 
 **Token observability:** the Phase 6.1 token-usage middleware reads
-`getRequestContext()?.email` and appends `, email: <user>` to every
-per-step log line, so on-call can correlate Telegram log spikes to a
-specific user.
+`getRequestContext()?.email` and appends a separate `email: <user>` line to every
+per-step log message, so on-call can correlate Telegram log spikes to a
+specific user. The shared agent notifier also supplies request-scoped log
+metadata to `sendLogMessage` / `sendErrorMessage`: `user: <displayName> (<chatId>)`
+appears in usage, audit, and both error-channel logs. It reads the durable user profile once per request through the bounded/coalesced
+`getFreshUserProfile` lookup, using nickname → chatName → chatId and falling back
+to cached `getDisplayName` if storage fails. Identity is resolved per log call
+for concurrent-request isolation. If only the ID is available, the line is
+`user: <chatId>`; if no identity is available, the line is omitted. Local dev
+uses `AGENT_HARDCODED_CHAT_ID`.
 
 #### Verification (whoami) — the gate is fail-closed
 
