@@ -1592,10 +1592,12 @@ acceptable for a small dev team and is documented at the top of
 per-step log message, so on-call can correlate Telegram log spikes to a
 specific user. The shared agent notifier also supplies request-scoped log
 metadata to `sendLogMessage` / `sendErrorMessage`: `user: <displayName> (<chatId>)`
-appears in usage, audit, and both error-channel logs. It uses the same cached
-`getDisplayName` fallback as Telegram (nickname → chatName → chatId), resolves
-identity on each log call for concurrent-request isolation, and omits the user
-line when no identity is available. Local dev uses `AGENT_HARDCODED_CHAT_ID`.
+appears in usage, audit, and both error-channel logs. It reads the durable user profile once per request through the bounded/coalesced
+`getFreshUserProfile` lookup, using nickname → chatName → chatId and falling back
+to cached `getDisplayName` if storage fails. Identity is resolved per log call
+for concurrent-request isolation. If only the ID is available, the line is
+`user: <chatId>`; if no identity is available, the line is omitted. Local dev
+uses `AGENT_HARDCODED_CHAT_ID`.
 
 #### Verification (whoami) — the gate is fail-closed
 
