@@ -64,7 +64,9 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 function base64UrlDecode(input: string): string {
   const padding = '='.repeat((4 - (input.length % 4)) % 4);
   const base64 = (input + padding).replace(/-/g, '+').replace(/_/g, '/');
-  return atob(base64);
+  // atob returns raw bytes; JWT JSON is UTF-8, including profile names.
+  const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+  return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 }
 
 export function decodeIdTokenClaims(token: string): IdTokenClaims | null {

@@ -1458,6 +1458,11 @@ CopilotKit → BuiltInAgent → tool execute()
 getAgentChatId() reads ALS context → the right user's data
 ```
 
+**Profile display:** `web/src/auth/AuthContext.tsx` decodes the JWT payload
+from base64url bytes to UTF-8 before parsing JSON, preserving Hebrew and other
+Unicode profile names on sign-in and session restoration. This display-only
+decoding does not replace backend token verification.
+
 **Backend bypass (local-dev only):** when `GOOGLE_CLIENT_ID` is unset
 on the Function App, `authenticateRequest` returns `BYPASSED` and the
 webhook falls through to the legacy hardcoded-chatId path. In Azure,
