@@ -26,6 +26,8 @@ export type ActionChoicesResult = {
   status: 'selection_required';
   lang?: string;
   choice:
+    | 'graph'
+    | 'recipient'
     | 'recommendation'
     | 'team'
     | 'league'
@@ -121,6 +123,8 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
   const lang = uiLanguageOf(result);
   const he = lang === 'he';
   const titles = {
+    graph: he ? 'בחר סוג גרף' : 'Choose a chart type',
+    recipient: he ? 'בחר נמען' : 'Choose a recipient',
     recommendation: he ? 'בחר המלצה' : 'Choose a recommendation',
     team: he ? 'בחר קבוצה' : 'Choose a team',
     league: he ? 'בחר ליגה' : 'Choose a league',

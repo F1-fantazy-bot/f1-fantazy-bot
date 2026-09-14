@@ -1938,3 +1938,18 @@ names/codes plus failed-image fallbacks. Ambiguous code-only identities never
 resolve portraits. Transfers are category groups, not inferred pairings; the final
 roster uses a native disclosure collapsed by default. Compact recommendation
 controls retain the row in their accessible label and use the shared run lock.
+
+### Compound web workflows (disabled by default)
+
+`src/agent/workflows/` adds the Azure Table workflow store, prepared-tool
+registry and sequential execution state machine. Enable only with
+`AGENT_WORKFLOWS_ENABLED=true`; keep `parallelToolCalls: false` and the existing
+CopilotKit version. `defineWriteTool` now exposes preparation separately from
+nonce staging so workflows reuse the same validation and commit adapters.
+The authenticated workflow endpoints bind approval to an owner and revision;
+model text and workflow IDs cannot approve execution. Each advance claims one
+step using ETag CAS inside the shared user mutation boundary. Never bypass the
+registered services or repeat a successful write when recovering a later read.
+`web/src/components/WorkflowCard.tsx` reloads durable status and renders ordered
+results through `workflowRenderers.tsx`. Full lifecycle, retention, recovery and
+test-slot rollout instructions: [Web workflows](docs/agent-workflows.md).

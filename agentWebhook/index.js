@@ -197,6 +197,17 @@ function isWhoamiPath(req) {
   }
 }
 
+function isWorkflowPath(req) {
+  return ['/api/agent/workflows', '/api/agent/workflow-decision'].includes(buildRequestUrl(req).pathname);
+}
+
+async function buildWorkflowResponse(req, chatId) {
+  const { applyWorkflowRequest } = require('../src/agent/workflows');
+  const result = await applyWorkflowRequest({ chatId, payload: parseRequestBody(req), list: buildRequestUrl(req).pathname === '/api/agent/workflows' });
+
+  return { status: result.status, headers: { ...buildResponseCorsHeaders(req), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }, body: JSON.stringify(result.body) };
+}
+
 function isWriteDecisionPath(req) {
   try {
     return buildRequestUrl(req).pathname === '/api/agent/write-decision';
@@ -291,6 +302,12 @@ module.exports = async function (context, req) {
     return;
   }
 
+  const workflow = isWorkflowPath(req);
+  if (workflow && (req.method || '').toUpperCase() !== (buildRequestUrl(req).pathname === '/api/agent/workflows' ? 'GET' : 'POST')) {
+    context.res = { status: 405, headers: buildResponseCorsHeaders(req), body: 'Method Not Allowed' };
+
+    return;
+  }
   const whoami = isWhoamiPath(req);
   const writeDecision = isWriteDecisionPath(req);
   const writeProposal = isWriteProposalPath(req);
@@ -358,8 +375,8 @@ module.exports = async function (context, req) {
       return;
     }
 
-    if (writeDecision || writeProposal) {
-      const buildWriteResponse = writeDecision
+    if (writeDecision || writeProposal || workflow) {
+      const buildWriteResponse = workflow ? buildWorkflowResponse : writeDecision
         ? buildWriteDecisionResponse
         : buildWriteProposalResponse;
       if (authResult.status === STATUS.OK) {

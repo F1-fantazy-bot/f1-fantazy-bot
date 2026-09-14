@@ -161,6 +161,7 @@ const broadcastMessageTool = defineAdminWriteTool({
 
     return {
       args: { message: text.message },
+      ...(audience.users ? { preview: { audience: audience.users.map((user) => ({ chatId: String(user.chatId), name: user.nickname || user.chatName || String(user.chatId) })) } } : {}),
       intentArgs: {
         message: text.message,
         expectedAudienceFingerprint: audience.audience.fingerprint,

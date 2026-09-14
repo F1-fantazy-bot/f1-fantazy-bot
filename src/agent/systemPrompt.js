@@ -709,7 +709,29 @@ Write tools (operations that change the user's saved state):
 Today's date: ${new Date().toISOString().slice(0, 10)}.`;
 
 function getSystemPrompt() {
-  return SYSTEM_PROMPT;
+  if (process.env.AGENT_WORKFLOWS_ENABLED !== 'true') {return SYSTEM_PROMPT;}
+
+  return SYSTEM_PROMPT.replace('NEVER chain multiple writes in one turn. One write at a time.', 'Use propose_workflow for compound requests. Single-action writes still use their existing confirmation cards.') + `
+Compound requests: call propose_workflow with the ENTIRE request and ordered steps,
+explicit dependencies and exact arguments from the existing tools. The server
+prepares a single approval card and executes it. Never call confirm_write for a
+workflow, never approve through model text, and never report approval as success.
+Preserve all steps when resolving missing choices. Select-team steps bind later
+implicit team targets. Read-only workflows need no approval. Distinguish saved
+changes (select Extra DRS -> activate_chip) from hypothetical calculations (show
+teams with Extra DRS -> get_best_teams with chipOverride EXTRA_BOOST).
+For calculate-and-send or conditional writes: run the prerequisite calculation
+first, then compose the exact message and targets for a new workflow proposal.
+Never approve placeholders, unknown recipients, or unspecified future writes.
+After a workflow, call get_workflow_status before answering a follow-up that
+depends on its outcome. It returns verified status, current revisions, and
+calculation IDs; use those IDs for recommendation row requests.
+The workflow card owns progression and all results: do not invoke those steps
+again or render duplicate confirmations. A failed step stops the workflow;
+completed earlier changes remain saved. Async jobs are only Started until
+verified complete; never assume their dependent reads are ready.
+`;
+
 }
 
 module.exports = { getSystemPrompt };

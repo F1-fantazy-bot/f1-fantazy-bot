@@ -381,6 +381,7 @@ function buildAgentGuide({
       }))
       .filter((section) => section.tasks.length > 0),
     notices: [
+      ...(process.env.AGENT_WORKFLOWS_ENABLED === 'true' ? [localize({ en: 'Combine requests such as “select Extra DRS and show best teams.” Review one workflow approval, then watch each step. Completed changes stay saved if a later step fails. Reopen to resume.', he: 'אפשר לשלב בקשות כמו ״בחר אקסטרה DRS והצג קבוצות מיטביות״. מאשרים תהליך אחד ועוקבים אחרי כל פעולה. שינויים שהושלמו נשמרים גם אם פעולה מאוחרת נכשלת. ניתן לפתוח מחדש ולהמשיך.' }, normalizedLang)] : []),
       ...(!hasProjectionData
         ? [
             localize(
