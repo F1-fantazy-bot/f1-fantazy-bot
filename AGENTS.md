@@ -1967,3 +1967,7 @@ so remounted cards stay disabled and announce progress during continuation.
 Workflow best-team tables expose a calculation-scoped result destination below
 the table. The shared best-team-changes renderer portals loading, errors and
 transfer details there; standalone chat calculations keep their inline results.
+
+With workflows enabled, all-tracked-team calculation requests discover canonical
+IDs using list_user_teams and create a read step per team, without switching the
+saved active team or asking the user to reduce the request to one team.

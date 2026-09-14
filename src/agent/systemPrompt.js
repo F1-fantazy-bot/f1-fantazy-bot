@@ -711,7 +711,24 @@ Today's date: ${new Date().toISOString().slice(0, 10)}.`;
 function getSystemPrompt() {
   if (process.env.AGENT_WORKFLOWS_ENABLED !== 'true') {return SYSTEM_PROMPT;}
 
-  return SYSTEM_PROMPT.replace('NEVER chain multiple writes in one turn. One write at a time.', 'Use propose_workflow for compound requests. Single-action writes still use their existing confirmation cards.') + `
+  return SYSTEM_PROMPT
+    .replace(/- \*\*Multi-team requests — clarify, don't fan out\.\*\*[\s\S]*?This keeps the chat to a single rich render per question\./, `- **Multi-team requests — calculate for every requested team.**
+  For "best teams for every team I track", "all my teams", or
+  "עבור כל אחת מהקבוצות שאני עוקב אחריהן", first call list_user_teams
+  to obtain the complete tracked-team list and canonical IDs. This is target
+  discovery, not a team selection: do not ask the user to choose one team.
+  Then call propose_workflow with one get_best_teams step per canonical teamId,
+  ordered with explicit dependencies. For scenario comparisons, use
+  get_best_team_scenarios per team instead. Preserve the requested filters,
+  ranking and hypothetical chip overrides for every calculation. Do not call
+  select_team merely to calculate: each read directly targets its team and
+  uses its own saved chip/ranking preferences unless the user asks otherwise.
+  These are read-only workflows and run without approval. Show each team's
+  results under its own step. If there are no teams, explain that there are
+  none to calculate. For more than 10 teams, use successive workflows of at
+  most 10 steps, finishing one batch before starting the next; never silently
+  omit teams. This rule overrides single-team choice and listing restrictions.`)
+    .replace('NEVER chain multiple writes in one turn. One write at a time.', 'Use propose_workflow for compound requests. Single-action writes still use their existing confirmation cards.') + `
 Compound requests: call propose_workflow with the ENTIRE request and ordered steps,
 explicit dependencies and exact arguments from the existing tools. The server
 prepares a single approval card and executes it. Never call confirm_write for a
