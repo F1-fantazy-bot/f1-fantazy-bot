@@ -6,13 +6,14 @@
 //      in-memory chat — no reload required.
 
 import { useAgent } from '@copilotkit/react-core/v2';
-import { clear } from '../lib/chatHistoryStore';
+import { clear, clearWorkflowHistory } from '../lib/chatHistoryStore';
 
 export function ClearHistoryButton() {
   const { agent } = useAgent({ agentId: 'default' });
 
   const onClick = (): void => {
     clear();
+    clearWorkflowHistory();
     agent?.setMessages([]);
   };
 

@@ -1,3 +1,4 @@
+import { workflowHistoryCutoff, HISTORY_CLEARED_EVENT } from '../lib/chatHistoryStore';
 import { isToolErrorResult, ToolErrorFallback } from './ToolErrorFallback';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useCopilotAction } from '@copilotkit/react-core';
@@ -19,6 +20,7 @@ import { safeParse } from './safeParse';
 export type Workflow = {
   id: string;
   revision: number;
+  createdAt?: number;
   state: string;
   enabled: boolean;
   request: string;
@@ -259,6 +261,16 @@ export function WorkflowWorkspace({
   idToken?: string;
   children: ReactNode;
 }) {
+  const [cutoff, setCutoff] = useState(workflowHistoryCutoff);
+  useEffect(() => {
+    const update = () => setCutoff(workflowHistoryCutoff());
+    window.addEventListener(HISTORY_CLEARED_EVENT, update);
+    window.addEventListener('storage', update);
+    return () => {
+      window.removeEventListener(HISTORY_CLEARED_EVENT, update);
+      window.removeEventListener('storage', update);
+    };
+  }, []);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [error, setError] = useState(false);
@@ -366,10 +378,11 @@ export function WorkflowWorkspace({
       refresh();
     }
   }
+  const visibleWorkflows = workflows.filter((flow) => !cutoff || (flow.createdAt || 0) > cutoff);
   return (
     <>
       {children}
-      {(workflows.length > 0 || error) && (
+      {(visibleWorkflows.length > 0 || error) && (
         <div
           style={{
             maxWidth: 1000,
@@ -385,7 +398,7 @@ export function WorkflowWorkspace({
                 : 'Progress could not be verified. Check status before resuming.'}
             </p>
           )}
-          {workflows.map((flow) => (
+          {visibleWorkflows.map((flow) => (
             <WorkflowCard
               key={flow.id}
               workflow={flow}

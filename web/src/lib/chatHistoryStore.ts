@@ -214,3 +214,19 @@ export function toAgUiMessages(stored: StoredMessage[]): Message[] {
     return { id: m.id, role: 'assistant', content: m.content };
   });
 }
+
+// Display-only cutoff; never changes server approval or workflow state.
+export const HISTORY_CLEARED_EVENT = 'f1-history-cleared';
+const clearedMemory = new Map<string, number>();
+export function workflowHistoryCutoff(): number {
+  const key = `${storageKey()}::workflow-cutoff`;
+  try { return Number(window.localStorage.getItem(key)) || clearedMemory.get(key) || 0; }
+  catch { return clearedMemory.get(key) || 0; }
+}
+export function clearWorkflowHistory(): void {
+  const key = `${storageKey()}::workflow-cutoff`;
+  const now = Date.now();
+  clearedMemory.set(key, now);
+  try { window.localStorage.setItem(key, String(now)); } catch { /* Memory fallback. */ }
+  window.dispatchEvent(new Event(HISTORY_CLEARED_EVENT));
+}

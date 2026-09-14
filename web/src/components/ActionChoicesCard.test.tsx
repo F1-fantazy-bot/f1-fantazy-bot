@@ -123,7 +123,9 @@ test('shared lock prevents two cards from starting overlapping runs', async () =
   });
   expect(runAgent).toHaveBeenCalledTimes(1);
   expect(isAgentRunActive(agent)).toBe(true);
-  expect(view.container.textContent).toContain('Loading choices');
+  expect([...view.container.querySelectorAll('button')].every((button) => button.disabled)).toBe(true);
+  expect(view.container.querySelectorAll('[role="status"]')).toHaveLength(2);
+  expect(view.container.textContent).toContain('Preparing the next steps');
   await act(async () => finish());
   expect(isAgentRunActive(agent)).toBe(false);
   view.cleanup();
@@ -217,4 +219,19 @@ test('invalid preset and chip choices preserve the requested team', () => {
     { teamId: 'T2' },
   );
   expect(chip?.options[0].args).toEqual({ teamId: 'T2', chip: 'LIMITLESS' });
+});
+
+test('compact recommendation rows share disabled state but only clicked row announces progress', async () => {
+  let finish!: () => void;
+  runAgent.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve; }));
+  const container = document.createElement('div');
+  const root = createRoot(container);
+  act(() => root.render(<><ActionChoicesCard compact result={result} /><ActionChoicesCard compact result={result} /></>));
+  await act(async () => container.querySelector('button')!.click());
+  expect([...container.querySelectorAll('button')].every((button) => button.disabled)).toBe(true);
+  expect(container.querySelectorAll('[role="status"]')).toHaveLength(1);
+  expect(container.querySelectorAll('section')[1].textContent).not.toContain('Preparing the next steps');
+  await act(async () => finish());
+  expect(container.querySelectorAll('[role="status"]')).toHaveLength(0);
+  act(() => root.unmount());
 });

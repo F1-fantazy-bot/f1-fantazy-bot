@@ -191,3 +191,30 @@ test('approval shows the complete message and exact broadcast recipients', () =>
   expect(container.textContent).toContain('Recipient A (17)');
   expect(container.textContent).toContain('Recipient B (18)');
 });
+
+test('clear history hides previous workflows immediately and after remount while showing new workflows', async () => {
+  const { clearWorkflowHistory, setHistoryScope } = await import('../lib/chatHistoryStore');
+  setHistoryScope('workflow-clear-test');
+  const old = { ...flow, createdAt: Date.now() - 10000 };
+  let records = [old];
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ workflows: records }) })));
+  const container = document.createElement('div');
+  document.body.append(container);
+  let root = createRoot(container);
+  const mount = async () => {
+    await act(async () => root.render(<WorkflowWorkspace runtimeUrl="http://localhost/api/agent/copilotkit"><span>Chat</span></WorkflowWorkspace>));
+  };
+  await mount();
+  expect(container.textContent).toContain(old.request);
+  act(() => clearWorkflowHistory());
+  expect(container.textContent).not.toContain(old.request);
+  act(() => root.unmount());
+  records = [old, { ...old, id: 'new', request: 'New request', createdAt: Date.now() + 1000 }];
+  root = createRoot(container);
+  await mount();
+  expect(container.textContent).not.toContain(old.request);
+  expect(container.textContent).toContain('New request');
+  act(() => root.unmount());
+  container.remove();
+  setHistoryScope(null);
+});

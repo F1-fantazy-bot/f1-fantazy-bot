@@ -1953,3 +1953,17 @@ registered services or repeat a successful write when recovering a later read.
 `web/src/components/WorkflowCard.tsx` reloads durable status and renders ordered
 results through `workflowRenderers.tsx`. Full lifecycle, retention, recovery and
 test-slot rollout instructions: [Web workflows](docs/agent-workflows.md).
+
+Workflow proposals may omit unresolved chip/team/preset arguments: retain the entire
+ordered request and let preparation return choices before approval. Standalone
+`get_action_choices` supports `get_best_teams` chip choices via `chipOverride`;
+subsequent target choices preserve that calculation-only override.
+
+Clear history stores an account-scoped, display-only workflow timestamp cutoff;
+workflow polling filters older cards after refresh without changing durable state
+or execution authorization. Choice cards subscribe to the shared agent run lock
+so remounted cards stay disabled and announce progress during continuation.
+
+Workflow best-team tables expose a calculation-scoped result destination below
+the table. The shared best-team-changes renderer portals loading, errors and
+transfer details there; standalone chat calculations keep their inline results.

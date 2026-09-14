@@ -716,6 +716,14 @@ Compound requests: call propose_workflow with the ENTIRE request and ordered ste
 explicit dependencies and exact arguments from the existing tools. The server
 prepares a single approval card and executes it. Never call confirm_write for a
 workflow, never approve through model text, and never report approval as success.
+For compound requests, these workflow rules take precedence over the standalone
+get_action_choices instructions above. Call propose_workflow even when a chip,
+team, or preset is missing: omit that missing argument and let the workflow
+return its choice cards. Do not split the request into a standalone choice call.
+Example: "Select a chip and show me the best teams" -> propose_workflow with
+steps [{id:"chip",tool:"activate_chip",args:{},dependsOn:[]},
+{id:"best",tool:"get_best_teams",args:{},dependsOn:["chip"]}].
+The server resolves the chip and team before approval while retaining both steps.
 Preserve all steps when resolving missing choices. Select-team steps bind later
 implicit team targets. Read-only workflows need no approval. Distinguish saved
 changes (select Extra DRS -> activate_chip) from hypothetical calculations (show

@@ -1,5 +1,5 @@
 import { RaceInfoCard } from './RaceInfoCard';
-import { BestTeamChangesCard } from './BestTeamChangesCard';
+import { BestTeamChangesCard, workflowChangesTarget } from './BestTeamChangesCard';
 import { InteractiveUserLeagues } from './UserLeaguesAction';
 import { InteractiveLeagueTeams } from './LeagueTeamsAction';
 import { type ComponentType } from 'react';
@@ -74,6 +74,10 @@ export function WorkflowResult({
   if (isToolErrorResult(result)) return <ToolErrorFallback result={result} />;
   if (isActionChoices(result)) return <ActionChoicesCard result={result} />;
   const render = workflowRenderers[tool as keyof typeof workflowRenderers];
+  if (tool === 'get_best_teams') {
+    const calculationId = (result as { calculationId?: string } | undefined)?.calculationId;
+    return <>{render(result)}{calculationId && <div id={workflowChangesTarget(calculationId)} aria-live="polite" />}</>;
+  }
   if (render) return render(result);
   if (isWriteResult(result)) return <WriteResultCard result={result} />;
   return (

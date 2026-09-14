@@ -377,3 +377,20 @@ test('post-write hydration failure preserves the successful write outcome', asyn
   expect(failure.steps[1].state).toBe('failed');
   expect(h.read.execute).not.toHaveBeenCalled();
 });
+
+test('missing chip retains the entire request and dependent calculation before approval', async () => {
+  const { service, write, read, input, store } = harness();
+  delete input.steps[0].args.chip;
+  write.prepare.mockResolvedValueOnce({
+    status: 'selection_required', choice: 'chip',
+    options: [{ label: 'Extra DRS', action: 'activate_chip', args: { teamId: 'X', chip: 'EXTRA_BOOST' } }],
+  });
+  const result = await service.propose(42, input);
+  expect(result).toMatchObject({
+    status: 'selection_required', pendingStepId: 'chip', pendingWorkflow: input,
+  });
+  expect(result.pendingWorkflow.steps).toHaveLength(2);
+  expect(store.save).not.toHaveBeenCalled();
+  expect(write.execute).not.toHaveBeenCalled();
+  expect(read.execute).not.toHaveBeenCalled();
+});
