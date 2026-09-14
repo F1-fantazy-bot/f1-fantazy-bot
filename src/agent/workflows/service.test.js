@@ -39,7 +39,6 @@ function harness(boundary) {
     },
   };
   let now = 0;
-  let enabled = true;
   const write = {
     write: true,
     prepare: jest.fn(async (_owner, args) => ({
@@ -71,7 +70,6 @@ function harness(boundary) {
     registry,
     clock: () => now,
     boundary,
-    featureEnabled: () => enabled,
     audit: jest.fn(),
   });
   const input = {
@@ -101,9 +99,6 @@ function harness(boundary) {
     store,
     advanceTime: () => {
       now += 300001;
-    },
-    disable: () => {
-      enabled = false;
     },
   };
 }
@@ -228,20 +223,6 @@ test('expiry creates a new remaining revision and invalidates old approval', asy
   expect(expired.state).toBe('awaiting_approval');
   expect(h.write.execute).not.toHaveBeenCalled();
 });
-test('flag blocks proposal and advancement but retains status and cancel', async () => {
-  const h = harness();
-  const f = await h.service.propose(42, h.input);
-  await h.service.decide(42, decision(f, 'approve'));
-  h.disable();
-  expect((await h.service.propose(42, h.input)).status).toBe('disabled');
-  expect((await h.service.decide(42, decision(f, 'advance'))).status).toBe(
-    'disabled',
-  );
-  expect(await h.service.status(42, f.id)).toBeTruthy();
-  expect((await h.service.decide(42, decision(f, 'cancel'))).state).toBe(
-    'cancelled',
-  );
-});
 test('a second workflow cannot interleave', async () => {
   const h = harness();
   const a = await h.service.propose(42, h.input);
@@ -345,7 +326,6 @@ test('a new worker recovers a persisted outcome after the workflow-state save is
     store: h.store,
     registry: h.registry,
     clock: () => 0,
-    featureEnabled: () => true,
     audit: jest.fn(),
   });
   const recovered = await worker.status(42, f.id);

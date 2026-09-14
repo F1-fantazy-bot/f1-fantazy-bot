@@ -461,8 +461,6 @@ The Telegram bot workflows (`main_f1-fantazy-bot-func.yml`, `pr_test_f1-fantazy-
 
 ### Compound web requests
 
-Experimental multi-tool workflows are available behind the disabled-by-default
-`AGENT_WORKFLOWS_ENABLED` server flag. They combine exact write previews into one
+Multi-tool workflows are available automatically when deployed. They combine exact write previews into one
 approval and show sequential progress and results. Read-only workflows need no
-approval. See [workflow operation and rollout](docs/agent-workflows.md) before
-enabling in a test environment; leave production disabled until validated.
+approval. See [workflow operation and rollout](docs/agent-workflows.md) for validation in the test environment.

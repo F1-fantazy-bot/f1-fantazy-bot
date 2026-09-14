@@ -1,10 +1,7 @@
 # Web workflows
 
-`AGENT_WORKFLOWS_ENABLED=true` enables compound requests through
-`propose_workflow`. It is deliberately **unset/disabled by default**. Restart
-agent workers after changing the flag so the cached model tool catalogue and
-prompt agree with the execution gate. Disabling it rejects new proposals and
-all advancement; authenticated status and cancellation stay available.
+Compound requests are always available through `propose_workflow` when this
+code is deployed. No environment flag is required.
 
 A proposal contains the full request, an optional conversation reference, and
 1–10 ordered steps. Every step includes `id`, `tool`, literal `args`, and
@@ -75,10 +72,9 @@ Single-action confirmation tools and Telegram commands remain available.
 Run `npm test -- --runInBand`, `npm --prefix web test`, `npm run lint`, and
 `npm --prefix web run build`. Workflow service, store, registry, API and component
 tests cover ownership, revisions, CAS, duplicate requests, cancellation, partial
-progress, expiry, disabled gating, target binding and hypothetical chips.
+progress, expiry, target binding and hypothetical chips.
 
-Keep production disabled. Before enabling there, validate with a dedicated test
-account in the Azure test slot: chip → calculation, cross-tab duplicate advance,
+Validate changes with a dedicated test account in the Azure test slot: chip → calculation, cross-tab duplicate advance,
 reload/resume, lost responses, Telegram state changes, admin revocation, and
 message delivery failures. Inspect `agent_workflow` events by workflow ID,
 revision and step ID. These events exclude arguments, approval credentials,

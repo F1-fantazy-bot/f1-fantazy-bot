@@ -1939,11 +1939,10 @@ resolve portraits. Transfers are category groups, not inferred pairings; the fin
 roster uses a native disclosure collapsed by default. Compact recommendation
 controls retain the row in their accessible label and use the shared run lock.
 
-### Compound web workflows (disabled by default)
+### Compound web workflows
 
 `src/agent/workflows/` adds the Azure Table workflow store, prepared-tool
-registry and sequential execution state machine. Enable only with
-`AGENT_WORKFLOWS_ENABLED=true`; keep `parallelToolCalls: false` and the existing
+registry and sequential execution state machine. Workflows are always available; keep `parallelToolCalls: false` and the existing
 CopilotKit version. `defineWriteTool` now exposes preparation separately from
 nonce staging so workflows reuse the same validation and commit adapters.
 The authenticated workflow endpoints bind approval to an owner and revision;
@@ -1968,6 +1967,6 @@ Workflow best-team tables expose a calculation-scoped result destination below
 the table. The shared best-team-changes renderer portals loading, errors and
 transfer details there; standalone chat calculations keep their inline results.
 
-With workflows enabled, all-tracked-team calculation requests discover canonical
+All-tracked-team calculation requests discover canonical
 IDs using list_user_teams and create a read step per team, without switching the
 saved active team or asking the user to reduce the request to one team.

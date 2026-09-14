@@ -224,19 +224,15 @@ function defineWriteTool({
 
 // Internal — exported for `confirm_write` to call.
 async function executeConfirmedWrite(input) {
-  if (process.env.AGENT_WORKFLOWS_ENABLED === 'true') {
-    const { runChipMutation } = require('../services/activateChipService');
+  const { runChipMutation } = require('../services/activateChipService');
 
-    return runChipMutation(input.chatId, () => executeConfirmedWriteInternal(input));
-  }
-
-  return executeConfirmedWriteInternal(input);
+  return runChipMutation(input.chatId, () => executeConfirmedWriteInternal(input));
 }
 
 async function executeConfirmedWriteInternal({ chatId, writeNonce }) {
   await ensureCacheReady();
   const { lang: initialUiLang } = await getFreshLanguagePreference(chatId);
-  if (process.env.AGENT_WORKFLOWS_ENABLED === 'true' && await require('./workflows').hasActiveWorkflow(chatId)) {return { status: 'forbidden', tool: 'confirm_write', uiLang: initialUiLang, summary: initialUiLang === 'he' ? 'יש להשלים או לבטל את התהליך הפעיל לפני שינוי נוסף.' : 'Finish or cancel the active workflow before applying another change.' };}
+  if (await require('./workflows').hasActiveWorkflow(chatId)) {return { status: 'forbidden', tool: 'confirm_write', uiLang: initialUiLang, summary: initialUiLang === 'he' ? 'יש להשלים או לבטל את התהליך הפעיל לפני שינוי נוסף.' : 'Finish or cancel the active workflow before applying another change.' };}
   const consumed = await consumeApprovedPendingWrite({
     chatId,
     writeNonce,

@@ -645,6 +645,6 @@ const tools = [
 ];
 
 const workflowTool = require('./workflows').initializeWorkflows(tools);
-if (require('./workflows').enabled()) { tools.push(workflowTool, require('./workflows').getWorkflowStatusTool()); }
+tools.push(workflowTool, require('./workflows').getWorkflowStatusTool());
 
 module.exports = { tools };

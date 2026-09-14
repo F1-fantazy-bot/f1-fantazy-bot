@@ -22,7 +22,6 @@ export type Workflow = {
   revision: number;
   createdAt?: number;
   state: string;
-  enabled: boolean;
   request: string;
   steps: Array<{
     id: string;
@@ -134,18 +133,11 @@ export function WorkflowCard({
           </li>
         ))}
       </ol>
-      {!workflow.enabled && !done && (
-        <p>
-          {he
-            ? 'תהליכים מושהים כרגע. עדיין ניתן לבטל.'
-            : 'Workflows are currently paused. Cancellation remains available.'}
-        </p>
-      )}
       {!done && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {workflow.state === 'awaiting_approval' && (
             <button
-              disabled={busy || !workflow.enabled}
+              disabled={busy}
               onClick={() => onDecision('approve')}
             >
               {he ? 'אישור והפעלה' : 'Approve and run'}
@@ -155,7 +147,6 @@ export function WorkflowCard({
             <button
               disabled={
                 busy ||
-                !workflow.enabled ||
                 workflow.steps.some((s) => s.write && s.state === 'failed')
               }
               onClick={() => onDecision('resume')}
@@ -362,8 +353,7 @@ export function WorkflowWorkspace({
       while (
         !cancel &&
         alive.current &&
-        current.state === 'ready' &&
-        current.enabled
+        current.state === 'ready'
       ) {
         current = await request(current, 'advance');
         if (alive.current) current = await request(current, 'status');

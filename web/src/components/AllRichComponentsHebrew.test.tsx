@@ -719,7 +719,7 @@ describe('all rich components honor Hebrew ui language', () => {
     },
   ];
 
-  cases.push({ name: 'workflow progress', element: <UiLanguageProvider initialLanguage="he"><WorkflowCard workflow={{ id: 'w', revision: 1, request: 'בחר צ׳יפ', enabled: true, state: 'awaiting_approval', steps: [{ id: 'chip', tool: 'activate_chip', summary: 'בחר צ׳יפ לקבוצה', state: 'waiting', write: true }] }} onDecision={() => {}} /></UiLanguageProvider>, expected: ['אישור והפעלה', 'ביטול', 'ממתין'] });
+  cases.push({ name: 'workflow progress', element: <UiLanguageProvider initialLanguage="he"><WorkflowCard workflow={{ id: 'w', revision: 1, request: 'בחר צ׳יפ', state: 'awaiting_approval', steps: [{ id: 'chip', tool: 'activate_chip', summary: 'בחר צ׳יפ לקבוצה', state: 'waiting', write: true }] }} onDecision={() => {}} /></UiLanguageProvider>, expected: ['אישור והפעלה', 'ביטול', 'ממתין'] });
 
   for (const item of cases) {
     test(item.name, () => {

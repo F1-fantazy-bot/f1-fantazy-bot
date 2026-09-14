@@ -11,14 +11,10 @@ const { executeConfirmedWrite, registerWriteTool, resetWriteToolRegistryForTests
 const { hasActiveWorkflow } = require('./workflows');
 const { runChipMutation } = require('../services/activateChipService');
 const { consumeApprovedPendingWrite } = require('../services/pendingWritesStore');
-const previousFlag = process.env.AGENT_WORKFLOWS_ENABLED;
 afterEach(() => {
-  if (previousFlag === undefined) {delete process.env.AGENT_WORKFLOWS_ENABLED;}
-  else {process.env.AGENT_WORKFLOWS_ENABLED = previousFlag;}
   jest.clearAllMocks(); resetWriteToolRegistryForTests();
 });
 test('single-action confirmation checks workflow exclusion inside the shared boundary before consuming approval', async () => {
-  process.env.AGENT_WORKFLOWS_ENABLED = 'true';
   let inside = false;
   runChipMutation.mockImplementation(async (_owner, operation) => { inside = true; try { return await operation(); } finally { inside = false; } });
   hasActiveWorkflow.mockImplementation(async () => { expect(inside).toBe(true);
@@ -29,7 +25,6 @@ test('single-action confirmation checks workflow exclusion inside the shared bou
   expect(result.status).toBe('forbidden'); expect(consumeApprovedPendingWrite).not.toHaveBeenCalled(); expect(commit).not.toHaveBeenCalled();
 });
 test('single-action confirmations still execute when no workflow holds the user lease', async () => {
-  process.env.AGENT_WORKFLOWS_ENABLED = 'true';
   runChipMutation.mockImplementation((_owner, operation) => operation()); hasActiveWorkflow.mockResolvedValue(false);
   const commit = jest.fn(async () => ({ status: 'ok' })); registerWriteTool('change', { commit });
   expect((await executeConfirmedWrite({ chatId: 42, writeNonce: 'approved' })).status).toBe('ok');

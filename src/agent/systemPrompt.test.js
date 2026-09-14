@@ -365,19 +365,9 @@ test('routes explicit bug reports through the confirmed report_bug tool', () => 
   );
 });
 
-test('workflow mode replaces the legacy single-team restriction for all-team calculations', () => {
-  const previous = process.env.AGENT_WORKFLOWS_ENABLED;
-  try {
-    process.env.AGENT_WORKFLOWS_ENABLED = 'true';
-    const prompt = getSystemPrompt();
-    expect(prompt).not.toContain("Multi-team requests — clarify, don't fan out");
-    expect(prompt).toContain('one get_best_teams step per canonical teamId');
-    expect(prompt).toContain('do not ask the user to choose one team');
-    expect(prompt).toContain('Do not call\n  select_team merely to calculate');
-    process.env.AGENT_WORKFLOWS_ENABLED = 'false';
-    expect(getSystemPrompt()).toContain("Multi-team requests — clarify, don't fan out");
-  } finally {
-    if (previous === undefined) { delete process.env.AGENT_WORKFLOWS_ENABLED; }
-    else { process.env.AGENT_WORKFLOWS_ENABLED = previous; }
-  }
+test('all-team workflows are always present in the system prompt', () => {
+  const prompt = getSystemPrompt();
+  expect(prompt).not.toContain("Multi-team requests — clarify, don't fan out");
+  expect(prompt).toContain('one get_best_teams step per canonical teamId');
+  expect(prompt).toContain('do not ask the user to choose one team');
 });

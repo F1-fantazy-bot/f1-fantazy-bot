@@ -9,8 +9,7 @@ function Preview() {
   const [workflow, setWorkflow] = useState<Workflow>({
     id: 'fixture',
     revision: 1,
-    enabled: true,
-    state: 'awaiting_approval',
+      state: 'awaiting_approval',
     request: he
       ? 'בחר אקסטרה DRS והצג קבוצות מיטביות'
       : 'Select Extra DRS and show best teams',

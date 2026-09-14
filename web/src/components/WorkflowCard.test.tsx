@@ -21,7 +21,6 @@ vi.mock('./workflowRenderers', () => ({
 const flow: Workflow = {
   id: 'id',
   revision: 1,
-  enabled: true,
   request: 'Select Extra DRS and show best teams',
   state: 'awaiting_approval',
   steps: [
@@ -73,11 +72,11 @@ test('one combined approval and exact ordered steps', () => {
     'Review the actions',
   );
 });
-test('Hebrew direction, labels and cancellation remain available when disabled', () => {
-  const { container, onDecision } = render({ ...flow, enabled: false }, 'he');
+test('Hebrew direction, labels, approval and cancellation remain available', () => {
+  const { container, onDecision } = render(flow, 'he');
   expect(container.querySelector('section')?.dir).toBe('rtl');
   const buttons = [...container.querySelectorAll('button')];
-  expect(buttons[0].disabled).toBe(true);
+  expect(buttons[0].disabled).toBe(false);
   act(() => buttons.find((b) => b.textContent === 'ביטול')!.click());
   expect(onDecision).toHaveBeenCalledWith('cancel');
 });

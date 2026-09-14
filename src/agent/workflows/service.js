@@ -1,7 +1,6 @@
 const { randomUUID } = require('crypto');
 const APPROVAL_MS = 5 * 60 * 1000;
 const RETENTION_MS = 24 * 60 * 60 * 1000;
-const enabled = () => process.env.AGENT_WORKFLOWS_ENABLED === 'true';
 const finished = (step) =>
   ['completed', 'already_satisfied'].includes(step.state);
 const terminal = (flow) => ['completed', 'cancelled'].includes(flow.state);
@@ -10,7 +9,6 @@ function createWorkflowService({
   store,
   registry,
   clock = Date.now,
-  featureEnabled = enabled,
   boundary = async (_owner, fn) => fn(),
   audit = (event) => console.info('agent_workflow', JSON.stringify(event)),
 }) {
@@ -29,7 +27,7 @@ function createWorkflowService({
         step,
     );
 
-    return { ...safe, enabled: featureEnabled() };
+    return safe;
   };
   function log(flow, event, step) {
     const entry = {
@@ -161,9 +159,6 @@ function createWorkflowService({
     return { steps };
   }
   async function propose(owner, input) {
-    if (!featureEnabled()) {
-      return { status: 'disabled' };
-    }
     const previous = input.workflowId
       ? await get(owner, input.workflowId)
       : null;
@@ -280,9 +275,6 @@ function createWorkflowService({
 
       return publicFlow(flow);
     }
-    if (!featureEnabled()) {
-      return { status: 'disabled', workflow: publicFlow(flow) };
-    }
     if (terminal(flow)) {
       return publicFlow(flow);
     }
@@ -365,8 +357,7 @@ function createWorkflowService({
         input.stepId !== flow.steps.find((s) => !finished(s))?.id ||
         clock() >= flow.approvalExpiresAt ||
         flow.state !== 'ready' ||
-        flow.cancelRequested ||
-        !featureEnabled()
+        flow.cancelRequested
       ) {
         return publicFlow(flow);
       }
@@ -531,4 +522,4 @@ function createWorkflowService({
         .sort((a, b) => a.createdAt - b.createdAt),
   };
 }
-module.exports = { createWorkflowService, enabled, APPROVAL_MS, RETENTION_MS };
+module.exports = { createWorkflowService, APPROVAL_MS, RETENTION_MS };

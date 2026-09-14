@@ -1,7 +1,7 @@
 const { defineTool } = require('@copilotkit/runtime/v2');
 const z = require('zod');
 const { createStore } = require('./store');
-const { createWorkflowService, enabled } = require('./service');
+const { createWorkflowService } = require('./service');
 const { createRegistry } = require('./registry');
 const { runChipMutation } = require('../../services/activateChipService');
 const { getAgentChatId } = require('../identity');
@@ -116,6 +116,5 @@ module.exports = {
   initializeWorkflows,
   getWorkflowStatusTool,
   applyWorkflowRequest,
-  enabled,
   hasActiveWorkflow: async (owner) => (service ? service.busy(owner) : false),
 };

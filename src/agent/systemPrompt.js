@@ -709,7 +709,6 @@ Write tools (operations that change the user's saved state):
 Today's date: ${new Date().toISOString().slice(0, 10)}.`;
 
 function getSystemPrompt() {
-  if (process.env.AGENT_WORKFLOWS_ENABLED !== 'true') {return SYSTEM_PROMPT;}
 
   return SYSTEM_PROMPT
     .replace(/- \*\*Multi-team requests — clarify, don't fan out\.\*\*[\s\S]*?This keeps the chat to a single rich render per question\./, `- **Multi-team requests — calculate for every requested team.**
