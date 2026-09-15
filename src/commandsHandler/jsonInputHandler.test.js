@@ -1,3 +1,8 @@
+const activeExpiry = {
+  selectedAt: new Date(Date.now() - 86400000).toISOString(),
+  expiresAt: new Date(Date.now() + 5 * 86400000).toISOString(),
+};
+
 const {
   KILZI_CHAT_ID,
   EXTRA_BOOST_CHIP,
@@ -81,6 +86,7 @@ describe('handleJsonMessage', () => {
           freeTransfers: 2,
           costCapRemaining: 3.5,
           chip: EXTRA_BOOST_CHIP,
+          chipExpiry: activeExpiry,
           bestTeamBudgetChangePointsPerMillion: 1.65,
         },
         T2: {
@@ -145,6 +151,7 @@ describe('handleJsonMessage', () => {
         },
       },
       selectedChipByTeam: { T1: EXTRA_BOOST_CHIP },
+      selectedChipExpiryByTeam: { T1: activeExpiry },
     });
 
     expect(azureStorageService.deleteAllUserTeams).toHaveBeenCalledWith(
@@ -192,6 +199,7 @@ describe('handleJsonMessage', () => {
         },
       }),
       selectedChipByTeam: JSON.stringify({ T1: EXTRA_BOOST_CHIP }),
+      selectedChipExpiryByTeam: JSON.stringify({ T1: activeExpiry }),
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -283,6 +291,7 @@ describe('handleJsonMessage', () => {
       bestTeamBudgetChangePointsPerMillion: { T1: 2 },
       selectedBestTeamByTeam: {},
       selectedChipByTeam: {},
+      selectedChipExpiryByTeam: {},
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -349,6 +358,7 @@ describe('handleJsonMessage', () => {
       bestTeamBudgetChangePointsPerMillion: {},
       selectedBestTeamByTeam: {},
       selectedChipByTeam: {},
+      selectedChipExpiryByTeam: {},
     });
     expect(azureStorageService.deleteAllUserTeams).toHaveBeenCalledWith(
       botMock,
@@ -366,6 +376,7 @@ describe('handleJsonMessage', () => {
       bestTeamBudgetChangePointsPerMillion: JSON.stringify({}),
       selectedBestTeamByTeam: null,
       selectedChipByTeam: null,
+      selectedChipExpiryByTeam: null,
     });
     expect(botMock.sendMessage).toHaveBeenCalledWith(
       KILZI_CHAT_ID,
@@ -383,6 +394,7 @@ describe('handleJsonMessage', () => {
     userCache[String(KILZI_CHAT_ID)] = {
       selectedTeam: 'T1',
       selectedChipByTeam: { T1: EXTRA_BOOST_CHIP },
+      selectedChipExpiryByTeam: { T1: activeExpiry },
     };
     selectedChipCache[KILZI_CHAT_ID] = { T1: EXTRA_BOOST_CHIP };
     updateUserAttributesAtomically.mockRejectedValueOnce(
@@ -516,4 +528,33 @@ describe('handleJsonMessage', () => {
       'Invalid cache snapshot. Paste the JSON output of /print_cache.',
     );
   });
+});
+
+test.each(['undated', 'expired', 'active'])('import/export keeps the lifetime of %s selections', async (state) => {
+  const chatId = 98;
+  const bot = { sendMessage: jest.fn().mockResolvedValue() };
+  const expiry = state === 'active' ? activeExpiry : {
+    selectedAt: '2020-01-01T00:00:00.000Z', expiresAt: '2020-01-02T00:00:00.000Z',
+  };
+  const snapshot = {
+    SelectedTeam: 'T1', Teams: { T1: {
+      drivers: ['VER'], constructors: ['MCL'], boost: 'VER', freeTransfers: 2,
+      costCapRemaining: 10, bestTeamBudgetChangePointsPerMillion: 0,
+      chip: 'EXTRA_BOOST', ...(state === 'undated' ? {} : { chipExpiry: expiry }),
+      selectedBestTeam: { drivers: ['VER'], constructors: ['MCL'], boostDriver: 'VER' },
+    } },
+  };
+  try {
+    await handleJsonMessage(bot, chatId, snapshot);
+    const cache = require('../cache');
+    expect(cache.getActiveChip(chatId, 'T1')).toBe(state === 'active' ? 'EXTRA_BOOST' : undefined);
+    expect(cache.getSelectedBestTeam(chatId, 'T1')).toEqual(state === 'active' ? snapshot.Teams.T1.selectedBestTeam : null);
+    const exported = JSON.parse(cache.getPrintableCache(chatId).match(/\{[\s\S]*\}/)[0]);
+    expect(exported.Teams.T1.chipExpiry).toEqual(state === 'active' ? expiry : undefined);
+    await handleJsonMessage(bot, chatId, exported);
+    expect(userCache[chatId].selectedChipExpiryByTeam).toEqual(state === 'active' ? { T1: expiry } : {});
+    expect(currentTeamCache[chatId].T1).not.toHaveProperty('chipExpiry');
+  } finally {
+    for (const cache of [userCache, currentTeamCache, selectedChipCache, bestTeamsCache]) {delete cache[chatId];}
+  }
 });

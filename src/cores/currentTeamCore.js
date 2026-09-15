@@ -15,7 +15,7 @@
 const { calculateTeamInfo, calculateBudgetAdjustedPoints } = require('../utils');
 const {
   currentTeamCache,
-  selectedChipCache,
+  getActiveChip,
   sharedKey,
   remainingRaceCountCache,
   nextRaceInfoCache,
@@ -127,7 +127,7 @@ async function getCurrentTeam({ chatId, teamId, teamName } = {}) {
     status: 'ok',
     teamId: resolvedTeamId,
     teamName: currentTeam.teamName || null,
-    chip: selectedChipCache[chatId]?.[resolvedTeamId] || null,
+    chip: getActiveChip(chatId, resolvedTeamId) || null,
     drivers: currentTeam.drivers,
     constructors: currentTeam.constructors,
     boostDriver: currentTeam.boostDriver || null,

@@ -1,6 +1,7 @@
 const { validateJsonData } = require('../utils');
 const {
   bestTeamsCache,
+  getChipExpiry,
   currentTeamCache,
   resolveSelectedTeam,
   getDriversForChat,
@@ -111,6 +112,8 @@ async function handleBestTeamsMessage(bot, chatId) {
   bestTeamsCache[chatId][teamId] = {
     currentTeam,
     bestTeams,
+    chip: result.chip || null,
+    chipExpiresAt: result.chip ? getChipExpiry(chatId, teamId)?.expiresAt : null,
     ...(result.calculationData
       ? { calculationData: result.calculationData }
       : {}),

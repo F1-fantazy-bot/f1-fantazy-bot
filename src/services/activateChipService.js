@@ -1,9 +1,18 @@
 // Shared effectful per-team chip preference service.
 
+const {
+  normalizeChipExpiryByTeam,
+  resolveActiveChips,
+  serializeChipExpiryByTeam,
+} = require('../utils/chipExpiry');
+const { createChipExpiry } = require('./chipExpiryScheduleService');
 const { AsyncLocalStorage } = require('async_hooks');
 const { t } = require('../i18n');
 const {
   bestTeamsCache,
+  nextRaceInfoCache,
+  sharedKey,
+  getActiveChips,
   selectedChipCache,
   userCache,
   normalizeSelectedChipByTeam,
@@ -124,11 +133,17 @@ function invalidateChipRefresh(chatId) {
   advanceGeneration(chatId);
 }
 
-function setCachedChipPreferences(chatId, chips, changedTeamId) {
+function setCachedChipPreferences(
+  chatId,
+  chips,
+  changedTeamId,
+  metadata = userCache[String(chatId)]?.selectedChipExpiryByTeam,
+) {
   const key = String(chatId);
   const previous = normalizeSelectedChipByTeam(
     userCache[key]?.selectedChipByTeam,
   );
+  const previousMetadata = normalizeChipExpiryByTeam(userCache[key]?.selectedChipExpiryByTeam);
   const next = normalizeSelectedChipByTeam(chips);
   invalidateChipRefresh(chatId);
 
@@ -136,6 +151,7 @@ function setCachedChipPreferences(chatId, chips, changedTeamId) {
     userCache[key] = {};
   }
   userCache[key].selectedChipByTeam = next;
+  userCache[key].selectedChipExpiryByTeam = normalizeChipExpiryByTeam(metadata);
   if (Object.keys(next).length > 0) {
     selectedChipCache[chatId] = { ...next };
   } else {
@@ -147,8 +163,12 @@ function setCachedChipPreferences(chatId, chips, changedTeamId) {
     ...Object.keys(next),
     ...(changedTeamId ? [changedTeamId] : []),
   ]);
+  const active = getActiveChips(chatId);
   for (const teamId of teamIds) {
     if (
+      JSON.stringify(previousMetadata[teamId]) !==
+        JSON.stringify(userCache[key].selectedChipExpiryByTeam[teamId]) ||
+      (next[teamId] && !active[teamId]) ||
       teamId === changedTeamId ||
       effectiveChip(previous, teamId) !== effectiveChip(next, teamId)
     ) {
@@ -173,9 +193,7 @@ async function refreshChipPreferences(
     if (!user || generationFor(chatId) !== generation) {
       return {
         fresh: false,
-        chips: normalizeSelectedChipByTeam(
-          userCache[key]?.selectedChipByTeam,
-        ),
+        chips: getActiveChips(chatId),
       };
     }
 
@@ -188,10 +206,12 @@ async function refreshChipPreferences(
     const previous = normalizeSelectedChipByTeam(
       userCache[key]?.selectedChipByTeam,
     );
+    const previousMetadata = normalizeChipExpiryByTeam(userCache[key]?.selectedChipExpiryByTeam);
     if (!userCache[key]) {
       userCache[key] = {};
     }
     userCache[key].selectedChipByTeam = persisted;
+    userCache[key].selectedChipExpiryByTeam = normalizeChipExpiryByTeam(user.selectedChipExpiryByTeam);
     if (Object.keys(persisted).length > 0) {
       selectedChipCache[chatId] = { ...persisted };
     } else {
@@ -202,8 +222,12 @@ async function refreshChipPreferences(
       ...Object.keys(previous),
       ...Object.keys(persisted),
     ]);
+    const active = getActiveChips(chatId);
     for (const teamId of teamIds) {
       if (
+        JSON.stringify(previousMetadata[teamId]) !==
+          JSON.stringify(userCache[key].selectedChipExpiryByTeam[teamId]) ||
+        (persisted[teamId] && !active[teamId]) ||
         effectiveChip(previous, teamId) !==
         effectiveChip(persisted, teamId)
       ) {
@@ -211,7 +235,15 @@ async function refreshChipPreferences(
       }
     }
 
-    return { fresh: true, chips: persisted };
+    if (Object.keys(persisted).some((teamId) => !active[teamId])) {
+      try {
+        await cleanupExpiredChipPreferences(chatId);
+      } catch (error) {
+        console.error('Error cleaning up expired chip preferences:', error);
+      }
+    }
+
+    return { fresh: true, chips: getActiveChips(chatId) };
   })();
 
   inFlightChipRefreshes.set(key, refresh);
@@ -238,9 +270,7 @@ async function getFreshChipPreference(chatId, teamId) {
     return {
       fresh: false,
       chip: effectiveChip(
-        normalizeSelectedChipByTeam(
-          userCache[String(chatId)]?.selectedChipByTeam,
-        ),
+        getActiveChips(chatId),
         teamId,
       ),
     };
@@ -255,9 +285,7 @@ async function refreshChipPreferencesSafely(chatId) {
 
     return {
       fresh: false,
-      chips: normalizeSelectedChipByTeam(
-        userCache[String(chatId)]?.selectedChipByTeam,
-      ),
+      chips: getActiveChips(chatId),
     };
   }
 }
@@ -302,7 +330,12 @@ async function activateChipPreferenceInternal({
     };
   }
 
+  // Resolve outside the CAS retry callback; a durable no-op retains its expiry.
+  const proposedExpiry = chip === WITHOUT_CHIP ? null : await createChipExpiry({
+    cachedNextRaceInfo: nextRaceInfoCache[sharedKey],
+  });
   let chips;
+  let metadata;
   let selectedBestTeamByTeam;
   let changed = false;
   const hadCachedBestTeams = Boolean(
@@ -314,20 +347,27 @@ async function activateChipPreferenceInternal({
     selectedBestTeamByTeam = normalizeSelectedBestTeamByTeam(
       currentUser.selectedBestTeamByTeam,
     );
-    changed = effectiveChip(chips, resolvedTeam.teamId) !== chip;
+    metadata = normalizeChipExpiryByTeam(currentUser.selectedChipExpiryByTeam);
+    const active = resolveActiveChips(chips, metadata);
+    changed = effectiveChip(active, resolvedTeam.teamId) !== chip;
+    // A manual reset also removes an expired/legacy durable entry.
+    changed ||= chip === WITHOUT_CHIP && Boolean(chips[resolvedTeam.teamId]);
     if (!changed) {
       return null;
     }
 
     if (chip === WITHOUT_CHIP) {
       delete chips[resolvedTeam.teamId];
+      delete metadata[resolvedTeam.teamId];
     } else {
       chips[resolvedTeam.teamId] = chip;
+      metadata[resolvedTeam.teamId] = proposedExpiry;
     }
     delete selectedBestTeamByTeam[resolvedTeam.teamId];
 
     return {
       selectedChipByTeam: serializeSelectedChipByTeam(chips),
+      selectedChipExpiryByTeam: serializeChipExpiryByTeam(metadata),
       selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
         selectedBestTeamByTeam,
       ),
@@ -355,6 +395,7 @@ async function activateChipPreferenceInternal({
     chatId,
     chips,
     changed ? resolvedTeam.teamId : null,
+    metadata,
   );
   if (changed) {
     if (!userCache[String(chatId)]) {
@@ -393,25 +434,29 @@ async function clearTeamDerivedPreferencesInternal({
   attributes = {},
 }) {
   let chips;
+  let metadata;
   let selectedBestTeamByTeam;
   await updateUserAttributesAtomically(chatId, (currentUser) => {
     chips = normalizeSelectedChipByTeam(currentUser.selectedChipByTeam);
     selectedBestTeamByTeam = normalizeSelectedBestTeamByTeam(
       currentUser.selectedBestTeamByTeam,
     );
+    metadata = normalizeChipExpiryByTeam(currentUser.selectedChipExpiryByTeam);
+    delete metadata[teamId];
     delete chips[teamId];
     delete selectedBestTeamByTeam[teamId];
 
     return {
       ...attributes,
       selectedChipByTeam: serializeSelectedChipByTeam(chips),
+      selectedChipExpiryByTeam: serializeChipExpiryByTeam(metadata),
       selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
         selectedBestTeamByTeam,
       ),
     };
   });
 
-  setCachedChipPreferences(chatId, chips, teamId);
+  setCachedChipPreferences(chatId, chips, teamId, metadata);
   if (!userCache[String(chatId)]) {
     userCache[String(chatId)] = {};
   }
@@ -429,14 +474,54 @@ async function clearAllTeamDerivedPreferencesInternal({
   await updateUserAttributesAtomically(chatId, () => ({
     ...attributes,
     selectedChipByTeam: null,
+    selectedChipExpiryByTeam: null,
     selectedBestTeamByTeam: null,
   }));
-  setCachedChipPreferences(chatId, {}, null);
+  setCachedChipPreferences(chatId, {}, null, {});
   if (!userCache[String(chatId)]) {
     userCache[String(chatId)] = {};
   }
   userCache[String(chatId)].selectedBestTeamByTeam = {};
   invalidateBestTeamRankingRefresh(chatId);
+}
+
+// Re-read under the user lease and ETag CAS: an observed expired selection
+// may already have been replaced by another process by the time cleanup runs.
+async function cleanupExpiredChipPreferences(chatId) {
+  return runChipMutation(chatId, async () => {
+    let chips;
+    let metadata;
+    let selectedBest;
+    let removed;
+    await updateUserAttributesAtomically(chatId, (user) => {
+      const saved = normalizeSelectedChipByTeam(user.selectedChipByTeam);
+      metadata = normalizeChipExpiryByTeam(user.selectedChipExpiryByTeam);
+      chips = resolveActiveChips(saved, metadata);
+      removed = Object.keys(saved).filter((teamId) => !chips[teamId]);
+      selectedBest = normalizeSelectedBestTeamByTeam(user.selectedBestTeamByTeam);
+      for (const teamId of removed) {
+        delete selectedBest[teamId];
+      }
+      metadata = Object.fromEntries(
+        Object.entries(metadata).filter(([teamId]) => chips[teamId]),
+      );
+      if (!removed.length) {
+        return null;
+      }
+
+      return {
+        selectedChipByTeam: serializeSelectedChipByTeam(chips),
+        selectedChipExpiryByTeam: serializeChipExpiryByTeam(metadata),
+        selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(selectedBest),
+      };
+    });
+    setCachedChipPreferences(chatId, chips, null, metadata);
+    userCache[String(chatId)].selectedBestTeamByTeam = selectedBest;
+    for (const teamId of removed) {
+      invalidateTeamBestTeams(chatId, teamId);
+    }
+    invalidateBestTeamRankingRefresh(chatId);
+  });
 }
 
 async function activateChipPreference(args) {
@@ -465,6 +550,7 @@ function resetChipSyncForTests() {
 
 module.exports = {
   CHIP_OPTIONS,
+  cleanupExpiredChipPreferences,
   runChipMutation,
   getChipOption,
   availableChips,
