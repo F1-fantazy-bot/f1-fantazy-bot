@@ -64,7 +64,7 @@ test('personalizes established users around optimization and live score', () => 
     'live_score',
     'race_schedule',
   ]);
-  expect(result.notices).toEqual([]);
+  expect(result.notices).toEqual([expect.stringContaining('מאשרים תהליך אחד')]);
   expect(
     result.sections
       .flatMap((section) => section.tasks)

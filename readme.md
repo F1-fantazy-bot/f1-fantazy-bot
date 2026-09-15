@@ -458,3 +458,9 @@ The agent is a SEPARATE Function App (`f1-fantazy-agent-func`) and a Static Web 
 | PR closed (with `web/**` changes)                          | `pr_test_f1-fantazy-agent-web.yml` (close job) | Tears down the PR preview environment                        |
 
 The Telegram bot workflows (`main_f1-fantazy-bot-func.yml`, `pr_test_f1-fantazy-bot-func.yml`) remain unchanged and continue to deploy to `f1-fantazy-bot-func` independently.
+
+### Compound web requests
+
+Multi-tool workflows are available automatically when deployed. They combine exact write previews into one
+approval and show sequential progress and results. Read-only workflows need no
+approval. See [workflow operation and rollout](docs/agent-workflows.md) for validation in the test environment.

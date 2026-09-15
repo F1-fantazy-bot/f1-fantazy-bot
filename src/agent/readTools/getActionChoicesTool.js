@@ -40,6 +40,7 @@ const contextSchema = z
     teamName: z.string().optional(),
     presetId: z.string().optional(),
     chip: z.string().optional(),
+    chipOverride: z.enum(['EXTRA_BOOST', 'LIMITLESS', 'WILDCARD', 'WITHOUT_CHIP']).optional(),
     rankBy: z.enum(['points', 'budget_adjusted']).optional(),
     mustIncludeDrivers: z.array(z.string()).optional(),
     mustExcludeDrivers: z.array(z.string()).optional(),
@@ -134,10 +135,12 @@ async function getActionChoices(input) {
       label: `${preset.label} (${preset.value})`,
       args: { presetId: preset.id },
     }));
-  } else if (choice === 'chip' && action === 'activate_chip') {
+  } else if (choice === 'chip' && ['activate_chip', 'get_best_teams'].includes(action)) {
     options = availableChips(chatId).map((chip) => ({
       label: chip.label,
-      args: { chip: chip.chip },
+      args: action === 'get_best_teams'
+        ? { chipOverride: chip.chip }
+        : { chip: chip.chip },
     }));
   } else if (choice === 'language' && action === 'set_language') {
     options = [

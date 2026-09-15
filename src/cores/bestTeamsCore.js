@@ -154,6 +154,7 @@ async function computeBestTeams({
   rankBy = null,
   resultCount,
   includeCalculationData = false,
+  chipOverride,
   loadCalculationContext,
   mustIncludeDrivers,
   mustExcludeDrivers,
@@ -206,7 +207,7 @@ async function computeBestTeams({
     return { status: 'unknown_filter', teamId, filters };
   }
 
-  const chip = context ? context.chip : selectedChipCache[chatId]?.[teamId];
+  const chip = chipOverride !== undefined ? (chipOverride === 'WITHOUT_CHIP' ? null : chipOverride) : context ? context.chip : selectedChipCache[chatId]?.[teamId];
   const prepared = prepareBestTeamsData({
     drivers,
     constructors,

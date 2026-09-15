@@ -55,7 +55,7 @@ const WRITE_RESULT_STATUSES = Object.freeze({
 
 const WRITE_TOOL_REGISTRY = new Map();
 
-function registerWriteTool(name, { commit, propose }) {
+function registerWriteTool(name, { commit, propose, prepare, describe }) {
   if (typeof commit !== 'function') {
     throw new Error(
       `registerWriteTool("${name}"): commit must be a function`,
@@ -66,7 +66,7 @@ function registerWriteTool(name, { commit, propose }) {
       `registerWriteTool("${name}"): propose must be a function`,
     );
   }
-  WRITE_TOOL_REGISTRY.set(name, { commit, propose });
+  WRITE_TOOL_REGISTRY.set(name, { commit, propose, prepare, describe });
 }
 
 function getWriteToolCommitFor(name) {
@@ -148,7 +148,7 @@ function defineWriteTool({
     throw new Error(`defineWriteTool("${name}"): commit required`);
   }
 
-  const propose = async ({ chatId, rawArgs }) => {
+  const prepare = async ({ chatId, rawArgs }) => {
     await ensureCacheReady();
 
     // Always re-validate via the Zod schema so the staged intent
@@ -158,6 +158,7 @@ function defineWriteTool({
     let parsedArgs = parameters.parse(rawArgs ?? {});
     let validatedSummary = null;
     let intentArgs = null;
+    let preview = null;
 
     if (typeof validate === 'function') {
       const validation = await validate({ chatId, args: parsedArgs });
@@ -166,6 +167,7 @@ function defineWriteTool({
       }
       if (validation && typeof validation === 'object' && validation.args) {
         parsedArgs = parameters.parse(validation.args);
+        if (validation.preview && typeof validation.preview === 'object') {preview = validation.preview;}
         if (typeof validation.summary === 'string') {
           validatedSummary = validation.summary;
         }
@@ -181,6 +183,14 @@ function defineWriteTool({
 
     const summary =
       validatedSummary || buildSummary({ chatId, args: parsedArgs });
+
+    return { args: parsedArgs, intentArgs: intentArgs || parsedArgs, summary, ...(preview ? { preview } : {}) };
+  };
+
+  const propose = async ({ chatId, rawArgs }) => {
+    const prepared = await prepare({ chatId, rawArgs });
+    if (prepared.status) {return prepared;}
+    const { args: parsedArgs, intentArgs, summary } = prepared;
     const writeNonce = await stagePendingWrite({
       chatId,
       tool: name,
@@ -198,7 +208,7 @@ function defineWriteTool({
     };
   };
 
-  registerWriteTool(name, { commit, propose });
+  registerWriteTool(name, { commit, propose, prepare, describe: buildSummary });
 
   const tool = defineTool({
     name,
@@ -213,9 +223,16 @@ function defineWriteTool({
 }
 
 // Internal — exported for `confirm_write` to call.
-async function executeConfirmedWrite({ chatId, writeNonce }) {
+async function executeConfirmedWrite(input) {
+  const { runChipMutation } = require('../services/activateChipService');
+
+  return runChipMutation(input.chatId, () => executeConfirmedWriteInternal(input));
+}
+
+async function executeConfirmedWriteInternal({ chatId, writeNonce }) {
   await ensureCacheReady();
   const { lang: initialUiLang } = await getFreshLanguagePreference(chatId);
+  if (await require('./workflows').hasActiveWorkflow(chatId)) {return { status: 'forbidden', tool: 'confirm_write', uiLang: initialUiLang, summary: initialUiLang === 'he' ? 'יש להשלים או לבטל את התהליך הפעיל לפני שינוי נוסף.' : 'Finish or cancel the active workflow before applying another change.' };}
   const consumed = await consumeApprovedPendingWrite({
     chatId,
     writeNonce,
@@ -275,6 +292,7 @@ async function executeConfirmedWrite({ chatId, writeNonce }) {
 
 module.exports = {
   defineWriteTool,
+  getWorkflowWriteAdapter: (name) => WRITE_TOOL_REGISTRY.get(name),
   executeConfirmedWrite,
   getWriteToolCommitFor,
   getWriteToolProposalFor,

@@ -709,7 +709,53 @@ Write tools (operations that change the user's saved state):
 Today's date: ${new Date().toISOString().slice(0, 10)}.`;
 
 function getSystemPrompt() {
-  return SYSTEM_PROMPT;
+
+  return SYSTEM_PROMPT
+    .replace(/- \*\*Multi-team requests — clarify, don't fan out\.\*\*[\s\S]*?This keeps the chat to a single rich render per question\./, `- **Multi-team requests — calculate for every requested team.**
+  For "best teams for every team I track", "all my teams", or
+  "עבור כל אחת מהקבוצות שאני עוקב אחריהן", first call list_user_teams
+  to obtain the complete tracked-team list and canonical IDs. This is target
+  discovery, not a team selection: do not ask the user to choose one team.
+  Then call propose_workflow with one get_best_teams step per canonical teamId,
+  ordered with explicit dependencies. For scenario comparisons, use
+  get_best_team_scenarios per team instead. Preserve the requested filters,
+  ranking and hypothetical chip overrides for every calculation. Do not call
+  select_team merely to calculate: each read directly targets its team and
+  uses its own saved chip/ranking preferences unless the user asks otherwise.
+  These are read-only workflows and run without approval. Show each team's
+  results under its own step. If there are no teams, explain that there are
+  none to calculate. For more than 10 teams, use successive workflows of at
+  most 10 steps, finishing one batch before starting the next; never silently
+  omit teams. This rule overrides single-team choice and listing restrictions.`)
+    .replace('NEVER chain multiple writes in one turn. One write at a time.', 'Use propose_workflow for compound requests. Single-action writes still use their existing confirmation cards.') + `
+Compound requests: call propose_workflow with the ENTIRE request and ordered steps,
+explicit dependencies and exact arguments from the existing tools. The server
+prepares a single approval card and executes it. Never call confirm_write for a
+workflow, never approve through model text, and never report approval as success.
+For compound requests, these workflow rules take precedence over the standalone
+get_action_choices instructions above. Call propose_workflow even when a chip,
+team, or preset is missing: omit that missing argument and let the workflow
+return its choice cards. Do not split the request into a standalone choice call.
+Example: "Select a chip and show me the best teams" -> propose_workflow with
+steps [{id:"chip",tool:"activate_chip",args:{},dependsOn:[]},
+{id:"best",tool:"get_best_teams",args:{},dependsOn:["chip"]}].
+The server resolves the chip and team before approval while retaining both steps.
+Preserve all steps when resolving missing choices. Select-team steps bind later
+implicit team targets. Read-only workflows need no approval. Distinguish saved
+changes (select Extra DRS -> activate_chip) from hypothetical calculations (show
+teams with Extra DRS -> get_best_teams with chipOverride EXTRA_BOOST).
+For calculate-and-send or conditional writes: run the prerequisite calculation
+first, then compose the exact message and targets for a new workflow proposal.
+Never approve placeholders, unknown recipients, or unspecified future writes.
+After a workflow, call get_workflow_status before answering a follow-up that
+depends on its outcome. It returns verified status, current revisions, and
+calculation IDs; use those IDs for recommendation row requests.
+The workflow card owns progression and all results: do not invoke those steps
+again or render duplicate confirmations. A failed step stops the workflow;
+completed earlier changes remain saved. Async jobs are only Started until
+verified complete; never assume their dependent reads are ready.
+`;
+
 }
 
 module.exports = { getSystemPrompt };

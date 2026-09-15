@@ -1,3 +1,5 @@
+import { createPortal } from 'react-dom';
+import { type ReactNode } from 'react';
 import { TransferPlayerTile, MetricNumber, type TransferPlayer as Player } from './TransferPlayerTile';
 import './BestTeamChangesCard.css';
 import { useCopilotAction } from '@copilotkit/react-core';
@@ -69,11 +71,20 @@ export function BestTeamChangesCard({ result }: { result?: Result }) {
     </details>
   </article>;
 }
+export function workflowChangesTarget(calculationId: string) {
+  return `workflow-changes-${calculationId}`;
+}
+export function LocatedBestTeamChanges({ calculationId, children }: { calculationId?: string; children: ReactNode }) {
+  const target = calculationId ? document.getElementById(workflowChangesTarget(calculationId)) : null;
+  return target ? createPortal(children, target) : <>{children}</>;
+}
 export function useBestTeamChangesAction() {
-  useCopilotAction({ name: 'get_best_team_changes', parameters: [], available: 'frontend', render: ({ status, result }) => {
-    if (status === 'inProgress' || status === 'executing') return <ToolLoading kind="bestTeamChanges" />;
+  useCopilotAction({ name: 'get_best_team_changes', parameters: [], available: 'frontend', render: ({ status, result, args }) => {
     const parsed = safeParse(result);
-    if (isToolErrorResult(parsed)) return <ToolErrorFallback result={parsed} />;
-    return <BestTeamChangesCard result={parsed as Result | undefined} />;
+    const content = status === 'inProgress' || status === 'executing'
+      ? <ToolLoading kind="bestTeamChanges" />
+      : isToolErrorResult(parsed) ? <ToolErrorFallback result={parsed} />
+        : <BestTeamChangesCard result={parsed as Result | undefined} />;
+    return <LocatedBestTeamChanges calculationId={args?.calculationId || (parsed as Result | undefined)?.calculationId}>{content}</LocatedBestTeamChanges>;
   } });
 }

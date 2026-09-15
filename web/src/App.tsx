@@ -1,3 +1,4 @@
+import { WorkflowWorkspace } from './components/WorkflowCard';
 import { CopilotKit } from '@copilotkit/react-core';
 import { CopilotChat } from '@copilotkit/react-ui';
 import '@copilotkit/react-ui/styles.css';
@@ -103,7 +104,7 @@ function AgentActions() {
   useWriteAction({
     name: 'reset_user_data',
     description:
-      'Permanently reset the signed-in user\'s saved F1 Fantasy team data after confirmation.',
+      "Permanently reset the signed-in user's saved F1 Fantasy team data after confirmation.",
     loadingKind: 'resetUserData',
   });
   useWriteAction({
@@ -131,8 +132,7 @@ function AgentActions() {
   });
   useWriteAction({
     name: 'broadcast_message',
-    description:
-      'Send a confirmed text broadcast to all registered bot users.',
+    description: 'Send a confirmed text broadcast to all registered bot users.',
     loadingKind: 'adminMessaging',
   });
   useWriteAction({
@@ -198,8 +198,7 @@ function AgentActions() {
   });
   useWriteAction({
     name: 'confirm_write',
-    description:
-      'Commit a previously proposed write action by its writeNonce.',
+    description: 'Commit a previously proposed write action by its writeNonce.',
     loadingLabel: 'Applying change…',
   });
   return null;
@@ -257,40 +256,43 @@ function VerifiedAgentChat({
   }
 
   return (
-    <WriteDecisionProvider
-      runtimeUrl={RUNTIME_URL}
-      idToken={session.idToken}
-    >
+    <WriteDecisionProvider runtimeUrl={RUNTIME_URL} idToken={session.idToken}>
       <CopilotKit
         runtimeUrl={RUNTIME_URL}
         headers={() => ({ Authorization: `Bearer ${session.idToken}` })}
       >
-        <HistoryRestorer />
-        <RtlChatSupport />
-        <AgentActions />
-        <div className="app-titlebar">
-          <div>
-            <h1 className="app-header">F1 Fantasy Agent</h1>
-            <p className="app-subheader">
-              Ask about upcoming races or your best teams. The Telegram bot is
-              unaffected.
-            </p>
+        <WorkflowWorkspace
+          key={session.claims.sub}
+          runtimeUrl={RUNTIME_URL}
+          idToken={session.idToken}
+        >
+          <HistoryRestorer />
+          <RtlChatSupport />
+          <AgentActions />
+          <div className="app-titlebar">
+            <div>
+              <h1 className="app-header">F1 Fantasy Agent</h1>
+              <p className="app-subheader">
+                Ask about upcoming races or your best teams. The Telegram bot is
+                unaffected.
+              </p>
+            </div>
+            <div className="app-actions">
+              <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+              <SignedInBadge />
+              <ClearHistoryButton />
+            </div>
           </div>
-          <div className="app-actions">
-            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-            <SignedInBadge />
-            <ClearHistoryButton />
+          <div className="chat-wrapper">
+            <CopilotChat
+              instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
+              labels={{
+                title: 'F1 Fantasy Agent',
+                initial: 'Hi! Ask what I can do to get a personalized guide.',
+              }}
+            />
           </div>
-        </div>
-        <div className="chat-wrapper">
-          <CopilotChat
-            instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
-            labels={{
-              title: 'F1 Fantasy Agent',
-              initial: 'Hi! Ask what I can do to get a personalized guide.',
-            }}
-          />
-        </div>
+        </WorkflowWorkspace>
       </CopilotKit>
     </WriteDecisionProvider>
   );
@@ -370,31 +372,33 @@ export function UnauthedAgent({
     <UiLanguageProvider initialLanguage={languageState.lang}>
       <WriteDecisionProvider runtimeUrl={RUNTIME_URL}>
         <CopilotKit runtimeUrl={RUNTIME_URL}>
-          <HistoryRestorer />
-          <RtlChatSupport />
-          <AgentActions />
-          <div className="app-titlebar">
-            <div>
-              <h1 className="app-header">F1 Fantasy Agent</h1>
-              <p className="app-subheader">
-                Ask about upcoming races or your best teams. The Telegram bot
-                is unaffected.
-              </p>
+          <WorkflowWorkspace runtimeUrl={RUNTIME_URL}>
+            <HistoryRestorer />
+            <RtlChatSupport />
+            <AgentActions />
+            <div className="app-titlebar">
+              <div>
+                <h1 className="app-header">F1 Fantasy Agent</h1>
+                <p className="app-subheader">
+                  Ask about upcoming races or your best teams. The Telegram bot
+                  is unaffected.
+                </p>
+              </div>
+              <div className="app-actions">
+                <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+                <ClearHistoryButton />
+              </div>
             </div>
-            <div className="app-actions">
-              <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-              <ClearHistoryButton />
+            <div className="chat-wrapper">
+              <CopilotChat
+                instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
+                labels={{
+                  title: 'F1 Fantasy Agent',
+                  initial: 'Hi! Ask what I can do to get a personalized guide.',
+                }}
+              />
             </div>
-          </div>
-          <div className="chat-wrapper">
-            <CopilotChat
-              instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
-              labels={{
-                title: 'F1 Fantasy Agent',
-                initial: 'Hi! Ask what I can do to get a personalized guide.',
-              }}
-            />
-          </div>
+          </WorkflowWorkspace>
         </CopilotKit>
       </WriteDecisionProvider>
     </UiLanguageProvider>

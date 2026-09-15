@@ -238,7 +238,7 @@ const COMMAND_CAPABILITIES = Object.freeze([
   ),
 ]);
 
-const AGENT_NATIVE_SUPPORTING_TOOLS = Object.freeze(['confirm_write', 'get_action_choices']);
+const AGENT_NATIVE_SUPPORTING_TOOLS = Object.freeze(['confirm_write', 'get_action_choices', 'propose_workflow', 'get_workflow_status']);
 
 function getCapabilityByCommand(command) {
   return (

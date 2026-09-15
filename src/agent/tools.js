@@ -170,6 +170,7 @@ const tools = [
     description:
       'Compute the top scoring F1 Fantasy teams the user could field next race. Supports must-include / must-exclude filters on drivers and constructors so you can answer questions like "best teams with Verstappen but no Alonso". Pass driver/constructor codes (e.g. VER, ALO, MCL, FER) — full names like "Verstappen" or "McLaren" are also accepted but codes are safer. Identify the user\'s team by `teamId` (preferred, obtained from list_user_teams) or `teamName` (exact match). Successful results include an opaque calculationId and numbered bestTeams rows. Use get_best_team_changes with that calculationId and row for numeric replies or transfer details. On status "unknown_filter" the result includes a `filters` field listing which inputs failed to resolve — tell the user which names you could not map.',
     parameters: z.object({
+      chipOverride: z.enum(['EXTRA_BOOST', 'LIMITLESS', 'WILDCARD', 'WITHOUT_CHIP']).optional().describe('Hypothetical chip for this calculation only; does not change the saved chip.'),
       teamId: z
         .string()
         .optional()
@@ -224,6 +225,7 @@ const tools = [
         rankBy: args.rankBy ?? null,
         resultCount: 10,
         includeCalculationData: true,
+        chipOverride: args.chipOverride,
         loadCalculationContext: bestTeamSnapshots.loadCalculationContext,
         mustIncludeDrivers: args.mustIncludeDrivers,
         mustExcludeDrivers: args.mustExcludeDrivers,
@@ -641,5 +643,8 @@ const tools = [
     }),
   }),
 ];
+
+const workflowTool = require('./workflows').initializeWorkflows(tools);
+tools.push(workflowTool, require('./workflows').getWorkflowStatusTool());
 
 module.exports = { tools };

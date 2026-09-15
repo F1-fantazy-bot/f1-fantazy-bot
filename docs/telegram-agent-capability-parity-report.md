@@ -72,7 +72,7 @@ The CI contract verifies all 50 `COMMAND_*` constants are represented once, each
 
 ## Agent-native supporting tools
 
-Supporting tools: `confirm_write`, `get_action_choices`. The confirmation dispatcher commits approved staged writes; action choices provide authenticated clickable clarification. Neither is a standalone Telegram command, but CI accounts for both alongside all manifest mappings.
+Supporting tools: `confirm_write`, `get_action_choices`, `propose_workflow`, `get_workflow_status`. The confirmation dispatcher commits approved staged writes; action choices provide authenticated clickable clarification. Workflow tools prepare ordered requests and retrieve durable results. These supporting tools are not standalone Telegram commands; CI accounts for them alongside all manifest mappings.
 
 ## Final smoke matrix
 

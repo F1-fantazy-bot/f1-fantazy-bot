@@ -364,3 +364,10 @@ test('routes explicit bug reports through the confirmed report_bug tool', () => 
     'Never claim it was sent before',
   );
 });
+
+test('all-team workflows are always present in the system prompt', () => {
+  const prompt = getSystemPrompt();
+  expect(prompt).not.toContain("Multi-team requests — clarify, don't fan out");
+  expect(prompt).toContain('one get_best_teams step per canonical teamId');
+  expect(prompt).toContain('do not ask the user to choose one team');
+});

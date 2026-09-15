@@ -313,3 +313,26 @@ test('unexpected discovery errors are wrapped without raw provider details', asy
   expect(result.status).toBe('tool_error');
   expect(JSON.stringify(result)).not.toContain('sig=');
 });
+
+test('best-team chip choices use a calculation override and preserve it through team selection', async () => {
+  availableChips.mockReturnValue([
+    { chip: 'EXTRA_BOOST', label: 'Extra DRS' },
+    { chip: 'WITHOUT_CHIP', label: 'No chip' },
+  ]);
+  const result = await getActionChoices({
+    action: 'get_best_teams', choice: 'chip',
+    context: { mustIncludeDrivers: ['VER'] },
+  });
+  expect(result.status).toBe('selection_required');
+  expect(result.options[0]).toEqual({
+    label: 'Extra DRS', action: 'get_best_teams',
+    args: { mustIncludeDrivers: ['VER'], chipOverride: 'EXTRA_BOOST' },
+  });
+  const teams = await getActionChoices({
+    action: 'get_best_teams', choice: 'team', context: result.options[0].args,
+  });
+  expect(teams.options[0].args).toMatchObject({
+    teamId: 'OWNED_2', chipOverride: 'EXTRA_BOOST', mustIncludeDrivers: ['VER'],
+  });
+  expect(teams.options[0].args).not.toHaveProperty('chip');
+});

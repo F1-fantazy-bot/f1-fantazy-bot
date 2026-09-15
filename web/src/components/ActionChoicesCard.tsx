@@ -6,7 +6,7 @@ import {
   useCopilotKit,
 } from '@copilotkit/react-core/v2';
 import {
-  isAgentRunActive,
+  useAgentRunActive,
   releaseAgentRun,
   tryAcquireAgentRun,
 } from './agentRunLock';
@@ -26,6 +26,8 @@ export type ActionChoicesResult = {
   status: 'selection_required';
   lang?: string;
   choice:
+    | 'graph'
+    | 'recipient'
     | 'recommendation'
     | 'team'
     | 'league'
@@ -115,12 +117,16 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
     updates: [UseAgentUpdate.OnRunStatusChanged],
   });
   const { copilotkit } = useCopilotKit();
+  const runActive = useAgentRunActive(agent);
+  const busy = runActive || agent.isRunning;
   const [pending, setPending] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
   const heading = useId();
   const lang = uiLanguageOf(result);
   const he = lang === 'he';
   const titles = {
+    graph: he ? 'בחר סוג גרף' : 'Choose a chart type',
+    recipient: he ? 'בחר נמען' : 'Choose a recipient',
     recommendation: he ? 'בחר המלצה' : 'Choose a recommendation',
     team: he ? 'בחר קבוצה' : 'Choose a team',
     league: he ? 'בחר ליגה' : 'Choose a league',
@@ -175,6 +181,7 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
   return (
     <section
       dir={directionFor(lang)}
+      aria-busy={busy || pending !== null}
       aria-labelledby={compact ? undefined : heading}
       style={{
         border: compact ? 'none' : '1px solid var(--app-border)',
@@ -207,7 +214,7 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
             type="button"
             aria-label={option.accessibleLabel}
             disabled={
-              pending !== null || agent.isRunning || isAgentRunActive(agent)
+              pending !== null || busy
             }
             onClick={() => void select(option, index)}
             style={{
@@ -220,7 +227,8 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
               borderRadius: 8,
               background: 'var(--app-surface-alt, var(--app-surface))',
               color: 'inherit',
-              cursor: 'pointer',
+              cursor: busy || pending !== null ? 'wait' : 'pointer',
+              opacity: busy || pending !== null ? 0.6 : 1,
             }}
           >
             <strong>
@@ -234,7 +242,11 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
           </button>
         ))}
       </div>
-      {pending !== null && <ToolLoading kind="choices" />}
+      {(pending !== null || (!compact && busy)) && (
+        <p role="status" aria-live="polite">
+          {he ? 'מכין את המשך הבקשה… נא להמתין.' : 'Preparing the next steps… Please wait.'}
+        </p>
+      )}
       {failed && (
         <p role="alert">
           {he

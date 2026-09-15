@@ -1,3 +1,4 @@
+jest.mock('../src/agent/workflows', () => ({ applyWorkflowRequest: jest.fn() }));
 // Integration-shaped test for agentWebhook/index.js. We mock the heavy
 // dependencies (CopilotKit runtime + allowlist storage) so the test runs
 // in milliseconds, but exercise the real auth → context wiring.
@@ -517,5 +518,38 @@ describe('agentWebhook → /write-decision', () => {
     expect(ctx.res.headers.Allow).toBe('POST, OPTIONS');
     expect(authenticateRequest).not.toHaveBeenCalled();
     expect(applyWriteDecision).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('workflow endpoints', () => {
+  const { applyWorkflowRequest } = require('../src/agent/workflows');
+  test('authenticates workflow decisions and ignores model-supplied identity', async () => {
+    authenticateRequest.mockResolvedValue({ status: STATUS.OK, chatId: 42, email: 'owner@example.com' });
+    applyWorkflowRequest.mockImplementation(async (input) => {
+      expect(input.chatId).toBe(42);
+      expect(getRequestContext().chatId).toBe(42);
+
+      return { status: 200, body: { state: 'ready' } };
+    });
+    const context = { log: jest.fn() };
+    await webhook(context, makeReq({ url: '/api/agent/workflow-decision', body: { id: 'flow', revision: 1, decision: 'approve', chatId: 99 } }));
+    expect(context.res.status).toBe(200);
+    expect(context.res.headers['Cache-Control']).toBe('no-store');
+  });
+  test('unauthorized requests never reach workflow storage or execution', async () => {
+    applyWorkflowRequest.mockClear();
+    authenticateRequest.mockResolvedValue({ status: STATUS.UNAUTHORIZED });
+    const context = { log: jest.fn() };
+    await webhook(context, makeReq({ url: '/api/agent/workflow-decision', body: { decision: 'approve' } }));
+    expect(context.res.status).toBe(401);
+    expect(applyWorkflowRequest).not.toHaveBeenCalled();
+  });
+  test('workflow status is GET-only and decisions are POST-only', async () => {
+    const context = { log: jest.fn() };
+    await webhook(context, makeReq({ url: '/api/agent/workflows' }));
+    expect(context.res.status).toBe(405);
+    await webhook(context, makeReq({ url: '/api/agent/workflow-decision', method: 'GET' }));
+    expect(context.res.status).toBe(405);
   });
 });
