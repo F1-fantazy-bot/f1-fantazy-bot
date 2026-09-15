@@ -1,3 +1,4 @@
+const { resolveActiveChips } = require('../utils/chipExpiry');
 const { randomUUID, createHash } = require('crypto');
 const { TableClient } = require('@azure/data-tables');
 const { BlobServiceClient } = require('@azure/storage-blob');
@@ -23,7 +24,7 @@ function inputs(chatId, teamId) {
     drivers: cache.getDriversForChat(chatId), constructors: cache.getConstructorsForChat(chatId),
     currentTeam: cache.currentTeamCache[chatId]?.[teamId], driverEntries: cache.pricesCache.driverEntries,
     nextRaceInfo: cache.nextRaceInfoCache[cache.sharedKey],
-    chip: cache.selectedChipCache[chatId]?.[teamId] || null,
+    chip: cache.getActiveChip(chatId, teamId) || null,
     ppm: cache.getBestTeamBudgetChangePointsPerMillion(chatId, teamId),
     remainingRaceCount: cache.remainingRaceCountCache[cache.sharedKey],
   };
@@ -56,13 +57,13 @@ async function loadCalculationContext(chatId, teamId) {
     constructors: priced.constructors,
     driverEntries: prices.drivers,
     ppm: cache.normalizeBestTeamBudgetChangePointsPerMillion(user?.bestTeamBudgetChangePointsPerMillion)[teamId] || 0,
-    chip: cache.normalizeSelectedChipByTeam(user?.selectedChipByTeam)[teamId] || null,
+    chip: resolveActiveChips(cache.normalizeSelectedChipByTeam(user?.selectedChipByTeam), user?.selectedChipExpiryByTeam)[teamId] || null,
   };
 
   // ETags guard the read above, but are not calculation inputs. Startup league
   // refreshes can rewrite identical blobs between calculation and selection.
   return { ...context, fingerprint: hash({ context, reset: user?.userResetEpoch,
-    ranking: user?.bestTeamBudgetChangePointsPerMillion, chips: user?.selectedChipByTeam }) };
+    ranking: user?.bestTeamBudgetChangePointsPerMillion, chips: user?.selectedChipByTeam, chipExpiry: user?.selectedChipExpiryByTeam }) };
 }
 async function dependencies(chatId, teamId) {
   return (await loadCalculationContext(chatId, teamId)).fingerprint;

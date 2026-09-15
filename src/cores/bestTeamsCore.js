@@ -8,7 +8,7 @@
 const { calculateBestTeams } = require('../bestTeamsCalculator');
 const {
   currentTeamCache,
-  selectedChipCache,
+  getActiveChip,
   sharedKey,
   remainingRaceCountCache,
   nextRaceInfoCache,
@@ -207,7 +207,9 @@ async function computeBestTeams({
     return { status: 'unknown_filter', teamId, filters };
   }
 
-  const chip = chipOverride !== undefined ? (chipOverride === 'WITHOUT_CHIP' ? null : chipOverride) : context ? context.chip : selectedChipCache[chatId]?.[teamId];
+  const chip = chipOverride !== undefined
+    ? (chipOverride === 'WITHOUT_CHIP' ? null : chipOverride)
+    : context ? context.chip : getActiveChip(chatId, teamId);
   const prepared = prepareBestTeamsData({
     drivers,
     constructors,

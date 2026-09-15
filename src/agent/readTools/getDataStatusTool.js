@@ -4,7 +4,7 @@ const {
   driversCache,
   constructorsCache,
   currentTeamCache,
-  selectedChipCache,
+  getActiveChips,
   simulationInfoCache,
   nextRaceInfoCache,
   pricesCache,
@@ -60,7 +60,7 @@ const getDataStatusTool = defineTool({
         nextRaceInfo,
         teams: currentTeamCache[chatId],
         selectedTeamId: getSelectedTeam(chatId),
-        chipsByTeam: selectedChipCache[chatId],
+        chipsByTeam: getActiveChips(chatId),
         ppmByTeam,
         projectionSource: hasPersonalProjectionData
           ? 'personal_or_mixed'
