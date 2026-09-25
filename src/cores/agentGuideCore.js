@@ -1,7 +1,9 @@
 const { MENU_CATEGORIES } = require('../constants');
+const { AGENT_COMMANDS } = require('./agentCommandCatalog');
 
 const GUIDE_TOPICS = Object.freeze([
   'getting_started',
+  'commands',
   'teams',
   'leagues',
   'races',
@@ -330,6 +332,38 @@ function buildAgentGuide({
   const primaryLeagueName =
     leagueNames[0] ||
     localize({ en: 'my league', he: 'הליגה שלי' }, normalizedLang);
+  if (normalizedTopic === 'commands') {
+    const commands = AGENT_COMMANDS
+      .filter((command) => isAdmin || command.topic !== 'admin')
+      .map((command) => ({
+        id: command.id,
+        topic: command.topic,
+        icon: command.icon,
+        title: localize(command.title, normalizedLang),
+        description: localize(command.description, normalizedLang),
+        example: localize(command.example, normalizedLang),
+      }));
+
+    return {
+      status: 'ok',
+      topic: normalizedTopic,
+      lang: normalizedLang,
+      title: localize({ en: 'Agent actions', he: 'פעולות האייג׳נט' }, normalizedLang),
+      intro: localize({
+        en: 'Choose an action. The agent will ask for missing details and request approval before changing anything.',
+        he: 'בחר פעולה. האייג׳נט יבקש פרטים חסרים ואישור לפני ביצוע שינוי.',
+      }, normalizedLang),
+      profile,
+      recommendations: [],
+      sections: ['teams', 'leagues', 'races', 'settings', 'admin']
+        .map((sectionTopic) => ({
+          topic: sectionTopic,
+          tasks: commands.filter((command) => command.topic === sectionTopic),
+        }))
+        .filter((section) => section.tasks.length > 0),
+      notices: [],
+    };
+  }
   const availableTasks = Object.entries(TASKS)
     .filter(([, task]) => isAdmin || task.topic !== 'admin')
     .filter(([id]) => taskIsAvailable(id, profile))

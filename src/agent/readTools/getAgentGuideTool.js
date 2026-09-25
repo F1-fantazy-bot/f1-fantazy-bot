@@ -34,13 +34,23 @@ function hasEntries(value) {
 const getAgentGuideTool = defineTool({
   name: 'get_agent_guide',
   description:
-    'Show a personalized guide to what the F1 Fantasy agent can do. Use for help, getting-started, usage, capability, or "what can you do" questions. Optional topic: getting_started, teams, leagues, races, settings, or admin.',
+    'Show a personalized guide to what the F1 Fantasy agent can do. Use topic="commands" when the user asks for all actions or commands they can run through this agent; this returns clickable cards for each available action, filtered by admin access. For general help and onboarding use getting_started, teams, leagues, races, settings, or admin.',
   parameters: z.object({
     topic: z.enum(GUIDE_TOPICS).optional(),
   }),
   execute: wrapToolExecute('get_agent_guide', async (args) => {
-    await ensureCacheReady();
     const chatId = getAgentChatId();
+    if (args.topic === 'commands') {
+      const { lang } = await getFreshLanguagePreference(chatId);
+
+      return buildAgentGuide({
+        lang,
+        topic: 'commands',
+        isAdmin: isAdminChatId(chatId),
+      });
+    }
+
+    await ensureCacheReady();
     const [{ lang }, leagues] = await Promise.all([
       getFreshLanguagePreference(chatId),
       listUserLeagues(chatId),

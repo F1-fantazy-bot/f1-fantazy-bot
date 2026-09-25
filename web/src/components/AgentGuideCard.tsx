@@ -58,25 +58,29 @@ const topicLabels: Record<string, { en: string; he: string }> = {
 
 function TaskCard({
   task,
+  request,
   recommended = false,
   exampleLabel,
   onSelect,
   disabled = false,
   selected = false,
+  showToolName = false,
 }: {
   task: GuideTask;
+  request: string;
   recommended?: boolean;
   exampleLabel: string;
   onSelect: (task: GuideTask) => void;
   disabled?: boolean;
   selected?: boolean;
+  showToolName?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={() => onSelect(task)}
       aria-disabled={disabled}
-      aria-label={`${task.title}: ${task.example}`}
+      aria-label={`${task.title}: ${request}`}
       style={{
         width: '100%',
         color: 'inherit',
@@ -126,6 +130,19 @@ function TaskCard({
         </span>
         <strong style={{ fontSize: 14 }}>{task.title}</strong>
       </div>
+      {showToolName ? (
+        <code
+          dir="ltr"
+          style={{
+            display: 'inline-block',
+            color: 'var(--app-subtle)',
+            fontSize: 11,
+            marginBottom: 7,
+          }}
+        >
+          {task.id}
+        </code>
+      ) : null}
       <div
         style={{
           color: 'var(--app-muted)',
@@ -155,7 +172,7 @@ function TaskCard({
         >
           {exampleLabel}
         </span>
-        <div style={{ marginTop: 3 }}>&ldquo;{task.example}&rdquo;</div>
+        <div style={{ marginTop: 3 }}>&ldquo;{request}&rdquo;</div>
       </div>
     </button>
   );
@@ -187,6 +204,7 @@ export function AgentGuideCard({
         ready: 'מוכן',
         missing: 'חסר',
         example: 'נסה לשאול',
+        action: 'בקשה שתישלח',
         running: 'שולח את הבקשה…',
         error: 'לא ניתן לשלוח את הבקשה. נסה שוב.',
       }
@@ -201,6 +219,7 @@ export function AgentGuideCard({
         ready: 'Ready',
         missing: 'Missing',
         example: 'Try asking',
+        action: 'Request to send',
         running: 'Sending request…',
         error: 'Unable to send the request. Please try again.',
       };
@@ -231,6 +250,14 @@ export function AgentGuideCard({
     Boolean(agent?.isRunning) ||
     isAgentRunActive(agent);
 
+  function requestFor(task: GuideTask) {
+    if (result?.topic !== 'commands') return task.example;
+
+    return isHebrew
+      ? `הפעל את פעולת האייג׳נט ${task.id}: ${task.example}`
+      : `Run the ${task.id} agent action: ${task.example}`;
+  }
+
   async function runExample(task: GuideTask) {
     if (
       selectedTaskId ||
@@ -256,7 +283,7 @@ export function AgentGuideCard({
       agent.addMessage({
         id: messageId,
         role: 'user',
-        content: task.example,
+        content: requestFor(task),
       });
       await copilotkit.runAgent({ agent });
       if (runFailed) {
@@ -390,6 +417,7 @@ export function AgentGuideCard({
               <TaskCard
                 key={task.id}
                 task={task}
+                request={requestFor(task)}
                 recommended
                 exampleLabel={labels.example}
                 onSelect={runExample}
@@ -424,10 +452,12 @@ export function AgentGuideCard({
               <TaskCard
                 key={task.id}
                 task={task}
-                exampleLabel={labels.example}
+                request={requestFor(task)}
+                exampleLabel={result?.topic === 'commands' ? labels.action : labels.example}
                 onSelect={runExample}
                 disabled={busy}
                 selected={selectedTaskId === task.id}
+                showToolName={result?.topic === 'commands'}
               />
             ))}
           </div>
@@ -483,7 +513,7 @@ export function useAgentGuideAction() {
   useCopilotAction({
     name: 'get_agent_guide',
     description:
-      'Show personalized help, onboarding, example prompts, and capability guidance.',
+      'Show personalized help, onboarding, and clickable cards for all actions the agent can run.',
     parameters: [],
     available: 'frontend',
     render: ({ status, result }) => {
