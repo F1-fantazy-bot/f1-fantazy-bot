@@ -99,7 +99,6 @@ describe('AgentGuideCard', () => {
       lang: 'he',
       title: 'פעולות האייג׳נט',
       intro: 'בחר פעולה',
-      profile: {},
       recommendations: [],
       sections: [{
         topic: 'races',
@@ -108,22 +107,23 @@ describe('AgentGuideCard', () => {
           topic: 'races',
           icon: '🗓️',
           title: 'מרוצים קרובים',
-          description: 'פעולה של האייג׳נט',
           example: 'הצג את המרוצים הקרובים',
         }],
       }],
       notices: [],
     });
 
-    expect(rendered.container.textContent).toContain('get_next_races');
-    expect(rendered.container.textContent).toContain('בקשה שתישלח');
+    expect(rendered.container.textContent).toContain('הצג את המרוצים הקרובים');
+    expect(rendered.container.textContent).not.toContain('get_next_races');
+    expect(rendered.container.textContent).not.toContain('שליחת בקשה להפעלת הפעולה');
+    expect(rendered.container.querySelector('[role="group"]')).toBeNull();
     await act(async () => {
       rendered.container.querySelector<HTMLButtonElement>(
         'button[aria-label^="מרוצים קרובים:"]',
       )?.click();
     });
     expect(addMessage).toHaveBeenCalledWith(expect.objectContaining({
-      role: 'user', content: 'הפעל את פעולת האייג׳נט get_next_races: הצג את המרוצים הקרובים',
+      role: 'user', content: 'הצג את המרוצים הקרובים',
     }));
     expect(runAgent).toHaveBeenCalledWith({ agent });
     rendered.cleanup();

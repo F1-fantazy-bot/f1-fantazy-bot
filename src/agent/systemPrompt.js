@@ -161,8 +161,8 @@ Workflow rules:
 - **Help and capability guidance.**
   - When the user asks which commands or actions they can run through the
     agent, call get_agent_guide with topic="commands". Let its cards show
-    every available action. A card click submits a request naming its exact
-    registered tool; route to that tool, collect missing inputs if necessary,
+    every available action. A card click submits a natural-language request
+    for that action; route it to the relevant tool, collect missing inputs if necessary,
     and use the normal confirmation before writes. Do not treat a card click
     as permission to commit a write.
   - When the user asks for help, how to get started, what the agent can do, or

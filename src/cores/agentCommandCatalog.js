@@ -70,10 +70,6 @@ const AGENT_COMMANDS = Object.freeze(entries.map(
       topic,
       icon,
       title: { en: enTitle, he: heTitle },
-      description: {
-        en: 'Ask the agent to run this action',
-        he: 'שליחת בקשה להפעלת הפעולה דרך האייג׳נט',
-      },
       example: { en: enExample, he: heExample },
     }),
 ));

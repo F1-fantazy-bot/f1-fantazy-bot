@@ -32,6 +32,7 @@ test('routes requests for runnable agent commands to clickable action cards', ()
   const prompt = getSystemPrompt();
 
   expect(prompt).toContain('call get_agent_guide with topic="commands"');
+  expect(prompt).toContain('A card click submits a natural-language request');
   expect(prompt).toContain('Do not treat a card click\n    as permission to commit a write');
 });
 

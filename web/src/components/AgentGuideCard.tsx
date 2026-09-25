@@ -20,7 +20,7 @@ type GuideTask = {
   topic: string;
   icon: string;
   title: string;
-  description: string;
+  description?: string;
   example: string;
 };
 
@@ -64,7 +64,7 @@ function TaskCard({
   onSelect,
   disabled = false,
   selected = false,
-  showToolName = false,
+  commandsView = false,
 }: {
   task: GuideTask;
   request: string;
@@ -73,7 +73,7 @@ function TaskCard({
   onSelect: (task: GuideTask) => void;
   disabled?: boolean;
   selected?: boolean;
-  showToolName?: boolean;
+  commandsView?: boolean;
 }) {
   return (
     <button
@@ -97,7 +97,7 @@ function TaskCard({
           ? 'var(--app-highlight-surface)'
           : 'var(--app-surface-muted)',
         padding: '13px 14px 12px',
-        minHeight: 135,
+        minHeight: commandsView ? 88 : 135,
         opacity: disabled && !selected ? 0.55 : 1,
         boxShadow: selected
           ? 'inset 0 0 0 2px var(--app-primary)'
@@ -130,49 +130,42 @@ function TaskCard({
         </span>
         <strong style={{ fontSize: 14 }}>{task.title}</strong>
       </div>
-      {showToolName ? (
-        <code
-          dir="ltr"
+      {task.description ? (
+        <div
           style={{
-            display: 'inline-block',
-            color: 'var(--app-subtle)',
-            fontSize: 11,
-            marginBottom: 7,
+            color: 'var(--app-muted)',
+            fontSize: 12,
+            lineHeight: 1.45,
+            marginBottom: 10,
           }}
         >
-          {task.id}
-        </code>
+          {task.description}
+        </div>
       ) : null}
       <div
         style={{
-          color: 'var(--app-muted)',
-          fontSize: 12,
+          borderTop: commandsView ? undefined : '1px dashed var(--app-control-border)',
+          paddingTop: commandsView ? 0 : 8,
+          color: commandsView ? 'var(--app-muted)' : 'var(--app-control-text)',
+          fontSize: commandsView ? 12 : 11,
           lineHeight: 1.45,
-          marginBottom: 10,
         }}
       >
-        {task.description}
-      </div>
-      <div
-        style={{
-          borderTop: '1px dashed var(--app-control-border)',
-          paddingTop: 8,
-          color: 'var(--app-control-text)',
-          fontSize: 11,
-          lineHeight: 1.4,
-        }}
-      >
-        <span
-          style={{
-            color: 'var(--app-subtle)',
-            fontWeight: 800,
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-          }}
-        >
-          {exampleLabel}
-        </span>
-        <div style={{ marginTop: 3 }}>&ldquo;{request}&rdquo;</div>
+        {commandsView ? request : (
+          <>
+            <span
+              style={{
+                color: 'var(--app-subtle)',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+              }}
+            >
+              {exampleLabel}
+            </span>
+            <div style={{ marginTop: 3 }}>&ldquo;{request}&rdquo;</div>
+          </>
+        )}
       </div>
     </button>
   );
@@ -204,7 +197,6 @@ export function AgentGuideCard({
         ready: 'מוכן',
         missing: 'חסר',
         example: 'נסה לשאול',
-        action: 'בקשה שתישלח',
         running: 'שולח את הבקשה…',
         error: 'לא ניתן לשלוח את הבקשה. נסה שוב.',
       }
@@ -219,7 +211,6 @@ export function AgentGuideCard({
         ready: 'Ready',
         missing: 'Missing',
         example: 'Try asking',
-        action: 'Request to send',
         running: 'Sending request…',
         error: 'Unable to send the request. Please try again.',
       };
@@ -250,14 +241,6 @@ export function AgentGuideCard({
     Boolean(agent?.isRunning) ||
     isAgentRunActive(agent);
 
-  function requestFor(task: GuideTask) {
-    if (result?.topic !== 'commands') return task.example;
-
-    return isHebrew
-      ? `הפעל את פעולת האייג׳נט ${task.id}: ${task.example}`
-      : `Run the ${task.id} agent action: ${task.example}`;
-  }
-
   async function runExample(task: GuideTask) {
     if (
       selectedTaskId ||
@@ -283,7 +266,7 @@ export function AgentGuideCard({
       agent.addMessage({
         id: messageId,
         role: 'user',
-        content: requestFor(task),
+        content: task.example,
       });
       await copilotkit.runAgent({ agent });
       if (runFailed) {
@@ -355,51 +338,53 @@ export function AgentGuideCard({
         </p>
       </header>
 
-      <div
-        role="group"
-        aria-label={labels.profile}
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
-          gap: 7,
-          marginBottom: 16,
-        }}
-      >
-        {[
-          [labels.teams, profile.teamCount ?? 0],
-          [labels.tracked, profile.followedTeamCount ?? 0],
-          [labels.leagues, profile.leagueCount ?? 0],
-          [
-            labels.projections,
-            profile.hasProjectionData ? labels.ready : labels.missing,
-          ],
-        ].map(([label, value]) => (
-          <div
-            key={label}
-            style={{
-              border: '1px solid var(--app-control-border)',
-              borderRadius: 8,
-              background: 'var(--app-control-bg)',
-              padding: '8px 9px',
-            }}
-          >
+      {result?.topic !== 'commands' ? (
+        <div
+          role="group"
+          aria-label={labels.profile}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+            gap: 7,
+            marginBottom: 16,
+          }}
+        >
+          {[
+            [labels.teams, profile.teamCount ?? 0],
+            [labels.tracked, profile.followedTeamCount ?? 0],
+            [labels.leagues, profile.leagueCount ?? 0],
+            [
+              labels.projections,
+              profile.hasProjectionData ? labels.ready : labels.missing,
+            ],
+          ].map(([label, value]) => (
             <div
+              key={label}
               style={{
-                color: 'var(--app-subtle)',
-                fontSize: 9,
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
+                border: '1px solid var(--app-control-border)',
+                borderRadius: 8,
+                background: 'var(--app-control-bg)',
+                padding: '8px 9px',
               }}
             >
-              {label}
+              <div
+                style={{
+                  color: 'var(--app-subtle)',
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {label}
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 900, marginTop: 2 }}>
+                {value}
+              </div>
             </div>
-            <div style={{ fontSize: 16, fontWeight: 900, marginTop: 2 }}>
-              {value}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : null}
 
       {recommendations.length > 0 ? (
         <section style={{ marginBottom: 17 }}>
@@ -417,7 +402,7 @@ export function AgentGuideCard({
               <TaskCard
                 key={task.id}
                 task={task}
-                request={requestFor(task)}
+                request={task.example}
                 recommended
                 exampleLabel={labels.example}
                 onSelect={runExample}
@@ -452,12 +437,12 @@ export function AgentGuideCard({
               <TaskCard
                 key={task.id}
                 task={task}
-                request={requestFor(task)}
-                exampleLabel={result?.topic === 'commands' ? labels.action : labels.example}
+                request={task.example}
+                exampleLabel={labels.example}
                 onSelect={runExample}
                 disabled={busy}
                 selected={selectedTaskId === task.id}
-                showToolName={result?.topic === 'commands'}
+                commandsView={result?.topic === 'commands'}
               />
             ))}
           </div>

@@ -340,7 +340,6 @@ function buildAgentGuide({
         topic: command.topic,
         icon: command.icon,
         title: localize(command.title, normalizedLang),
-        description: localize(command.description, normalizedLang),
         example: localize(command.example, normalizedLang),
       }));
 
@@ -353,7 +352,6 @@ function buildAgentGuide({
         en: 'Choose an action. The agent will ask for missing details and request approval before changing anything.',
         he: 'בחר פעולה. האייג׳נט יבקש פרטים חסרים ואישור לפני ביצוע שינוי.',
       }, normalizedLang),
-      profile,
       recommendations: [],
       sections: ['teams', 'leagues', 'races', 'settings', 'admin']
         .map((sectionTopic) => ({

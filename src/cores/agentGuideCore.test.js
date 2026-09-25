@@ -17,12 +17,14 @@ test('the command view lists every runnable agent tool, including actions needin
   const cards = result.sections.flatMap((section) => section.tasks);
 
   expect(result.topic).toBe('commands');
+  expect(result).not.toHaveProperty('profile');
   expect(cards).toHaveLength(AGENT_COMMANDS.filter((item) => item.topic !== 'admin').length);
   expect(cards.map((card) => card.id)).toContain('get_best_teams');
   expect(cards.map((card) => card.id)).toContain('follow_league');
   expect(cards.map((card) => card.id)).toContain('reset_user_data');
   expect(cards.map((card) => card.id)).not.toContain('get_admin_version');
   expect(cards.find((card) => card.id === 'get_best_teams').example).toContain('חשב');
+  expect(cards.every((card) => !('description' in card))).toBe(true);
   expect(JSON.stringify(result)).not.toContain('/best_teams');
 });
 
