@@ -14,6 +14,7 @@ const {
   buildAgentGuide,
   GUIDE_TOPICS,
 } = require('../../cores/agentGuideCore');
+const { COMMAND_GROUPS } = require('../../cores/agentCommandCatalog');
 const { listUserTeams } = require('../../cores/userTeamsCore');
 const { listUserLeagues } = require('../../leagueRegistryService');
 const {
@@ -34,18 +35,20 @@ function hasEntries(value) {
 const getAgentGuideTool = defineTool({
   name: 'get_agent_guide',
   description:
-    'Show a personalized guide to what the F1 Fantasy agent can do. Use topic="commands" when the user asks for all actions or commands they can run through this agent; this returns clickable cards for each available action, filtered by admin access. For general help and onboarding use getting_started, teams, leagues, races, settings, or admin.',
+    'Show a personalized guide to what the F1 Fantasy agent can do. For all agent commands use topic="commands". For a specific category of agent commands use topic="commands" with commandGroup="teams" (team strategy), "leagues", "races" (race weekend), "settings" (settings and support), or "admin". For example, "show me admin commands" means topic="commands", commandGroup="admin"; do not use topic="admin" for that request. Admin actions are access-controlled. For general help and onboarding use getting_started, teams, leagues, races, settings, or admin without commandGroup.',
   parameters: z.object({
     topic: z.enum(GUIDE_TOPICS).optional(),
+    commandGroup: z.enum(COMMAND_GROUPS).optional(),
   }),
   execute: wrapToolExecute('get_agent_guide', async (args) => {
     const chatId = getAgentChatId();
-    if (args.topic === 'commands') {
+    if (args.topic === 'commands' || args.commandGroup) {
       const { lang } = await getFreshLanguagePreference(chatId);
 
       return buildAgentGuide({
         lang,
         topic: 'commands',
+        commandGroup: args.commandGroup,
         isAdmin: isAdminChatId(chatId),
       });
     }

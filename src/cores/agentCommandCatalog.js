@@ -2,6 +2,8 @@
 // orchestration tools (approval, choice resolution, workflow proposal) are
 // deliberately absent. A card sends its prompt to the agent, so argument
 // selection and the existing write confirmation remain in force.
+const COMMAND_GROUPS = Object.freeze(['teams', 'leagues', 'races', 'settings', 'admin']);
+
 const entries = [
   // Teams and optimization
   ['list_user_teams', 'teams', '📋', 'My teams', 'הקבוצות שלי', 'List my saved teams', 'הצג את הקבוצות השמורות שלי'],
@@ -74,4 +76,4 @@ const AGENT_COMMANDS = Object.freeze(entries.map(
     }),
 ));
 
-module.exports = { AGENT_COMMANDS };
+module.exports = { AGENT_COMMANDS, COMMAND_GROUPS };
