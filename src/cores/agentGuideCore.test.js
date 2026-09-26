@@ -3,6 +3,73 @@ const {
   getTelegramHelpCategories,
   getTelegramUsageFlow,
 } = require('./agentGuideCore');
+const { AGENT_COMMANDS, COMMAND_GROUPS } = require('./agentCommandCatalog');
+
+test('the command view lists every runnable agent tool, including actions needing setup', () => {
+  const result = buildAgentGuide({
+    topic: 'commands',
+    lang: 'he',
+    isAdmin: false,
+    teamCount: 0,
+    leagueCount: 0,
+    hasProjectionData: false,
+  });
+  const cards = result.sections.flatMap((section) => section.tasks);
+
+  expect(result.topic).toBe('commands');
+  expect(result).not.toHaveProperty('profile');
+  expect(cards).toHaveLength(AGENT_COMMANDS.filter((item) => item.topic !== 'admin').length);
+  expect(cards.map((card) => card.id)).toContain('get_best_teams');
+  expect(cards.map((card) => card.id)).toContain('follow_league');
+  expect(cards.map((card) => card.id)).toContain('reset_user_data');
+  expect(cards.map((card) => card.id)).not.toContain('get_admin_version');
+  expect(cards.find((card) => card.id === 'get_best_teams').example).toContain('חשב');
+  expect(cards.every((card) => !('description' in card))).toBe(true);
+  expect(JSON.stringify(result)).not.toContain('/best_teams');
+});
+
+test('admin command view adds administrator actions without duplicates', () => {
+  const result = buildAgentGuide({ topic: 'commands', isAdmin: true });
+  const cards = result.sections.flatMap((section) => section.tasks);
+
+  expect(cards.map((card) => card.id)).toEqual(AGENT_COMMANDS.map((item) => item.id));
+  expect(new Set(cards.map((card) => card.id)).size).toBe(cards.length);
+  expect(result.sections.at(-1).topic).toBe('admin');
+});
+
+test.each(COMMAND_GROUPS)('shows only the %s command group', (commandGroup) => {
+  const result = buildAgentGuide({
+    topic: 'commands',
+    commandGroup,
+    lang: 'he',
+    isAdmin: true,
+  });
+  const cards = result.sections.flatMap((section) => section.tasks);
+
+  expect(result.commandGroup).toBe(commandGroup);
+  expect(result.sections.map((section) => section.topic)).toEqual([commandGroup]);
+  expect(cards.map((card) => card.id)).toEqual(
+    AGENT_COMMANDS.filter((command) => command.topic === commandGroup)
+      .map((command) => command.id),
+  );
+  expect(result.title).not.toBe('פעולות האייג׳נט');
+});
+
+test('does not show admin command cards to a non-admin', () => {
+  const result = buildAgentGuide({
+    topic: 'commands',
+    commandGroup: 'admin',
+    isAdmin: false,
+    lang: 'he',
+  });
+
+  expect(result).toMatchObject({
+    status: 'forbidden',
+    topic: 'commands',
+    commandGroup: 'admin',
+  });
+  expect(result).not.toHaveProperty('sections');
+});
 
 test('keeps admin Telegram help categories hidden from regular users', () => {
   expect(

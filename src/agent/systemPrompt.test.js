@@ -28,6 +28,17 @@ test('routes help and onboarding to the agent-native guide', () => {
   );
 });
 
+test('routes requests for runnable agent commands to clickable action cards', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain('call get_agent_guide with topic="commands"');
+  expect(prompt).toMatch(/A card\s+click submits a natural-language request/);
+  expect(prompt).toContain('Do not treat a card click\n    as permission to commit a write');
+  expect(prompt).toContain('commandGroup: "teams" for team strategy');
+  expect(prompt).toContain('commandGroup: "admin"');
+  expect(prompt).toContain('not topic="admin"');
+});
+
 test('routes administrative reads through centrally guarded no-argument tools', () => {
   const prompt = getSystemPrompt();
 
