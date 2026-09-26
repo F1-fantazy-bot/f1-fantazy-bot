@@ -1,3 +1,8 @@
+const activeExpiry = {
+  selectedAt: new Date(Date.now() - 86400000).toISOString(),
+  expiresAt: new Date(Date.now() + 5 * 86400000).toISOString(),
+};
+
 const { KILZI_CHAT_ID } = require('../constants');
 const {
   currentTeamCache,
@@ -75,6 +80,7 @@ describe('listUserTeams', () => {
       T1: { drivers: [], constructors: [] },
     };
     selectedChipCache[KILZI_CHAT_ID] = { T1: 'EXTRA_BOOST' };
+    userCache[String(KILZI_CHAT_ID)] = { selectedChipExpiryByTeam: { T1: activeExpiry } };
     const [team] = listUserTeams({ chatId: KILZI_CHAT_ID });
     expect(team.chip).toBe('EXTRA_BOOST');
   });

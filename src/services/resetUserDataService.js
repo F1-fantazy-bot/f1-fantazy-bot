@@ -160,6 +160,7 @@ function createResetUserDataService({
           bestTeamBudgetChangePointsPerMillion: null,
           selectedBestTeamByTeam: null,
           selectedChipByTeam: null,
+          selectedChipExpiryByTeam: null,
         }));
         let nextEpoch;
         await updateAttributes(chatId, (currentUser) => {

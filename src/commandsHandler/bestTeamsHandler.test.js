@@ -1,3 +1,8 @@
+const activeExpiry = {
+  selectedAt: new Date(Date.now() - 86400000).toISOString(),
+  expiresAt: new Date(Date.now() + 5 * 86400000).toISOString(),
+};
+
 const { KILZI_CHAT_ID } = require('../constants');
 
 const mockValidateJsonData = jest.fn().mockReturnValue(true);
@@ -140,10 +145,11 @@ describe('handleBestTeamsMessage', () => {
     driversCache[KILZI_CHAT_ID] = mockDrivers;
     constructorsCache[KILZI_CHAT_ID] = mockConstructors;
     currentTeamCache[KILZI_CHAT_ID] = { [TEAM_ID]: mockCurrentTeam };
-    selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: 'LIMITLESS_CHIP' };
+    selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: 'LIMITLESS' };
     remainingRaceCountCache[sharedKey] = 22;
     userCache[String(KILZI_CHAT_ID)] = {
       bestTeamBudgetChangePointsPerMillion: { [TEAM_ID]: 1.65 },
+      selectedChipExpiryByTeam: { [TEAM_ID]: activeExpiry },
     };
 
     const mockBestTeams = [
@@ -183,7 +189,7 @@ describe('handleBestTeamsMessage', () => {
         Constructors: mockConstructors,
         CurrentTeam: mockCurrentTeam,
       },
-      'LIMITLESS_CHIP',
+      'LIMITLESS',
       1.65,
       22,
     );
@@ -191,6 +197,8 @@ describe('handleBestTeamsMessage', () => {
     expect(bestTeamsCache[KILZI_CHAT_ID][TEAM_ID]).toEqual({
       currentTeam: mockCurrentTeam,
       bestTeams: mockBestTeams,
+      chip: 'LIMITLESS',
+      chipExpiresAt: activeExpiry.expiresAt,
     });
 
     const expectedMessage =

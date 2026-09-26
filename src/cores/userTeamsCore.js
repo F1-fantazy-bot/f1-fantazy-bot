@@ -4,7 +4,7 @@
 
 const {
   currentTeamCache,
-  selectedChipCache,
+  getActiveChip,
   isLeagueTeamId,
   getSelectedTeam,
   getUserTeamIds,
@@ -16,7 +16,7 @@ function listUserTeams({ chatId }) {
 
   return teamIds.map((teamId) => {
     const team = currentTeamCache[chatId]?.[teamId] || {};
-    const chip = selectedChipCache[chatId]?.[teamId] || null;
+    const chip = getActiveChip(chatId, teamId) || null;
 
     return {
       teamId,

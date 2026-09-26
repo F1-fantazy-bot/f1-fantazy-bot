@@ -135,3 +135,26 @@ test('source changes during the read still reject inconsistent inputs', async ()
   });
   await expect(service.loadCalculationContext(42, 'T1')).rejects.toThrow('Inputs changed during calculation');
 });
+
+test('chip expiry invalidates a durable recommendation without any storage change', async () => {
+  const now = Date.now();
+  const registry = require('../userRegistryService');
+  registry.getUserById.mockResolvedValue({
+    selectedChipByTeam: JSON.stringify({ T1: 'LIMITLESS' }),
+    selectedChipExpiryByTeam: JSON.stringify({ T1: {
+      selectedAt: new Date(now - 1000).toISOString(),
+      expiresAt: new Date(now + 60000).toISOString(),
+    } }),
+  });
+  result.chip = 'LIMITLESS';
+  const id = await save();
+  expect((await service.loadCalculationContext(42, 'T1')).chip).toBe('LIMITLESS');
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(now + 60000);
+  try {
+    expect((await service.loadCalculationContext(42, 'T1')).chip).toBeNull();
+    expect((await service.getChanges(42, id, 1)).status).toBe('outdated_result');
+  } finally {
+    clock.mockRestore();
+    registry.getUserById.mockResolvedValue({ userResetEpoch: 0 });
+  }
+});
