@@ -156,15 +156,23 @@ const tools = [
   defineTool({
     name: 'list_user_teams',
     description:
-      'List the F1 Fantasy teams the user is tracking. Returns an array of teams with `teamId` (canonical identifier — pass this to other tools), `teamName` (the authenticated user\'s friendly saved label), `isSelected`, `chip`, current drivers, current constructors, and roster metadata. Use it when the user asks to see or choose from their teams. Do not call it solely to resolve a named active-team switch: `select_team` accepts and validates an exact teamName directly. If the latest conversation context already contains this result and the user then picks a team, pass that teamId directly to `select_team`.',
-    parameters: z.object({}),
-    execute: wrapToolExecute('list_user_teams', async () => {
+      'List the F1 Fantasy teams the user is tracking. Returns an array of teams with `teamId` (canonical identifier — pass this to other tools), `teamName` (the authenticated user\'s friendly saved label), `isSelected`, `chip`, current drivers, current constructors, and roster metadata. Use it when the user asks to see or choose from their teams. For internal multi-team workflow target discovery, pass mode="workflow_discovery"; the frontend will keep that lookup silent while the agent builds the workflow. Do not call it solely to resolve a named active-team switch: `select_team` accepts and validates an exact teamName directly. If the latest conversation context already contains this result and the user then picks a team, pass that teamId directly to `select_team`.',
+    parameters: z.object({
+      mode: z
+        .enum(['workflow_discovery'])
+        .optional()
+        .describe(
+          'Use workflow_discovery only when resolving all tracked team IDs for a compound multi-team workflow. Omit it for a user-visible team list.',
+        ),
+    }),
+    execute: wrapToolExecute('list_user_teams', async ({ mode } = {}) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
       await refreshChipPreferencesSafely(chatId);
 
       return await withUiLanguage(chatId, {
         teams: listUserTeams({ chatId }),
+        ...(mode ? { mode } : {}),
       });
     }),
   }),
