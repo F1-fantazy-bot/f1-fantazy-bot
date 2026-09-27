@@ -376,9 +376,11 @@ test('routes explicit bug reports through the confirmed report_bug tool', () => 
   );
 });
 
-test('all-team workflows are always present in the system prompt', () => {
+test('all-team workflows use silent discovery and fan out to every team', () => {
   const prompt = getSystemPrompt();
   expect(prompt).not.toContain("Multi-team requests — clarify, don't fan out");
+  expect(prompt).toContain('list_user_teams({ mode: "workflow_discovery" })');
   expect(prompt).toContain('one get_best_teams step per canonical teamId');
   expect(prompt).toContain('do not ask the user to choose one team');
+  expect(prompt).toContain('do not present\n  the team-switch picker before the workflow card');
 });

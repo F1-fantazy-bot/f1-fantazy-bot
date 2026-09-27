@@ -1,6 +1,6 @@
 import { workflowHistoryCutoff, HISTORY_CLEARED_EVENT } from '../lib/chatHistoryStore';
 import { isToolErrorResult, ToolErrorFallback } from './ToolErrorFallback';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useCopilotAction } from '@copilotkit/react-core';
 import { useAgent } from '@copilotkit/react-core/v2';
 import {
@@ -167,26 +167,41 @@ export function WorkflowCard({
     </section>
   );
 }
-function WorkflowArrival({
+export function WorkflowArrival({
   result,
+  workflow,
+  busy = false,
   refresh,
   autoRun,
+  onDecision,
+  onInlineWorkflow,
 }: {
   result: unknown;
+  workflow?: Workflow;
+  busy?: boolean;
   refresh: () => void;
   autoRun: (flow: Workflow) => boolean;
+  onDecision: (flow: Workflow, decision: string) => void;
+  onInlineWorkflow: (id: string, visible: boolean) => void;
 }) {
+  const initialFlow = result as Workflow | undefined;
+  const flow =
+    workflow?.id && workflow.id === initialFlow?.id ? workflow : initialFlow;
   useEffect(() => {
-    const flow = result as Workflow | undefined;
     if (!flow?.id || flow.state !== 'ready') return;
     const timer = window.setInterval(() => {
       if (autoRun(flow)) window.clearInterval(timer);
     }, 250);
     return () => window.clearInterval(timer);
-  }, [result, autoRun]);
+  }, [flow, autoRun]);
   useEffect(() => {
     refresh();
   }, [result, refresh]);
+  useEffect(() => {
+    if (!flow?.id) return;
+    onInlineWorkflow(flow.id, true);
+    return () => onInlineWorkflow(flow.id, false);
+  }, [flow?.id, onInlineWorkflow]);
   if (isToolErrorResult(result)) return <ToolErrorFallback result={result} />;
   if (isActionChoices(result)) {
     const pending = result as typeof result & {
@@ -240,6 +255,15 @@ function WorkflowArrival({
     }));
     return <ActionChoicesCard result={choices} />;
   }
+  if (flow?.id && Array.isArray(flow.steps)) {
+    return (
+      <WorkflowCard
+        workflow={flow}
+        busy={busy}
+        onDecision={(decision) => onDecision(flow, decision)}
+      />
+    );
+  }
   const failure = result as { summary?: string; status?: string } | undefined;
   return failure?.summary ? <p role="alert">{failure.summary}</p> : null;
 }
@@ -263,6 +287,9 @@ export function WorkflowWorkspace({
     };
   }, []);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [inlineWorkflowIds, setInlineWorkflowIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [active, setActive] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const alive = useRef(true);
@@ -306,17 +333,42 @@ export function WorkflowWorkspace({
     void decide(flow, 'resume');
     return true;
   };
+  const markInlineWorkflow = useCallback((id: string, visible: boolean) => {
+    setInlineWorkflowIds((previous) => {
+      const alreadyVisible = previous.has(id);
+      if (visible === alreadyVisible) return previous;
+      const next = new Set(previous);
+      if (visible) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
   useCopilotAction({
     name: 'propose_workflow',
     parameters: [],
     available: 'frontend',
-    render: ({ result }) => (
-      <WorkflowArrival
-        result={typeof result === 'string' ? safeParse(result) : result}
-        refresh={refresh}
-        autoRun={autoRun}
-      />
-    ),
+    render: ({ result }) => {
+      const parsed =
+        typeof result === 'string' ? safeParse(result) : result;
+      const initial = parsed as Workflow | undefined;
+      const live = initial?.id
+        ? workflows.find((item) => item.id === initial.id)
+        : undefined;
+
+      return (
+        <WorkflowArrival
+          result={parsed}
+          workflow={live}
+          busy={active !== null || agent.isRunning || isAgentRunActive(agent)}
+          refresh={refresh}
+          autoRun={autoRun}
+          onDecision={(flow, decision) => {
+            void decide(flow, decision);
+          }}
+          onInlineWorkflow={markInlineWorkflow}
+        />
+      );
+    },
   });
   async function decide(flow: Workflow, decision: string) {
     const cancel = decision === 'cancel';
@@ -344,7 +396,9 @@ export function WorkflowWorkspace({
       if (!next.id) throw new Error();
       if (alive.current)
         setWorkflows((previous) =>
-          previous.map((item) => (item.id === next.id ? next : item)),
+          previous.some((item) => item.id === next.id)
+            ? previous.map((item) => (item.id === next.id ? next : item))
+            : [...previous, next],
         );
       return next;
     };
@@ -368,7 +422,11 @@ export function WorkflowWorkspace({
       refresh();
     }
   }
-  const visibleWorkflows = workflows.filter((flow) => !cutoff || (flow.createdAt || 0) > cutoff);
+  const visibleWorkflows = workflows.filter(
+    (flow) =>
+      !inlineWorkflowIds.has(flow.id) &&
+      (!cutoff || (flow.createdAt || 0) > cutoff),
+  );
   return (
     <>
       {children}
