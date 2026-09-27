@@ -100,18 +100,23 @@ export function useUserTeamsAction() {
     parameters: [],
     available: 'frontend',
     render: ({ status, result, args }) => {
-      const discovery =
+      const requestedDiscovery =
         (args as { mode?: string } | undefined)?.mode ===
         'workflow_discovery';
       if (status === 'inProgress' || status === 'executing') {
-        return discovery ? null : <ToolLoading kind="userTeams" />;
+        return requestedDiscovery ? null : <ToolLoading kind="userTeams" />;
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
       if (isToolErrorResult(parsed)) {
         return <ToolErrorFallback result={parsed} />;
       }
-      if (discovery) return null;
       const typedResult = parsed as ListUserTeamsResult | undefined;
+      if (
+        requestedDiscovery ||
+        typedResult?.mode === 'workflow_discovery'
+      ) {
+        return null;
+      }
 
       return <InteractiveUserTeamsList result={typedResult} />;
     },
