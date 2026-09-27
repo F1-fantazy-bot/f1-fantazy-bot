@@ -7,6 +7,7 @@ const { getSelectedTeam } = require('../cache');
 const {
   sanitizeTeamName,
   buildLeagueTeamId,
+  buildLeagueTeamCallbackKey,
 } = require('../utils/teamId');
 const {
   mapLockedTeamForScoring,
@@ -272,7 +273,13 @@ async function sendTeamPicker(bot, chatId, leagueCode, msg) {
       callback_data: callbackData(
         LIVE_SCORE_ACTIONS.TEAM,
         leagueCode,
-        sanitizeTeamName(team.teamName || team.userName || 'team'),
+        team.accountId
+          ? buildLeagueTeamCallbackKey(
+            team.userName,
+            team.teamNo,
+            team.accountId,
+          )
+          : sanitizeTeamName(team.teamName || team.userName || 'team'),
       ),
     },
   ]);
@@ -287,7 +294,7 @@ async function sendTeamPicker(bot, chatId, leagueCode, msg) {
   );
 }
 
-async function sendLiveScoreForTeam(bot, chatId, leagueCode, slug) {
+async function sendLiveScoreForTeam(bot, chatId, leagueCode, selector) {
   let snapshot;
   let liveScoreData;
   try {
@@ -318,14 +325,25 @@ async function sendLiveScoreForTeam(bot, chatId, leagueCode, slug) {
     return;
   }
 
-  const match = snapshot.teams.find(
-    (team) => sanitizeTeamName(team.teamName || team.userName || 'team') === slug,
-  );
+  const match = snapshot.teams.find((team) => {
+    const accountSelector = team.accountId
+      ? buildLeagueTeamCallbackKey(
+        team.userName,
+        team.teamNo,
+        team.accountId,
+      )
+      : null;
+    const legacySlug = sanitizeTeamName(
+      team.teamName || team.userName || 'team',
+    );
+
+    return accountSelector === selector || legacySlug === selector;
+  });
   if (!match) {
     await bot.sendMessage(
       chatId,
       t('Team {TEAM} not found in the latest locked snapshot.', chatId, {
-        TEAM: slug,
+        TEAM: selector,
       }),
     );
 
@@ -479,8 +497,8 @@ async function handleLiveScoreCallback(bot, query) {
     if (action === LIVE_SCORE_ACTIONS.LEAGUE) {
       await sendTeamPicker(bot, chatId, leagueCode, query.message);
     } else if (action === LIVE_SCORE_ACTIONS.TEAM) {
-      const slug = parts.slice(3).join(':');
-      await sendLiveScoreForTeam(bot, chatId, leagueCode, slug);
+      const selector = parts.slice(3).join(':');
+      await sendLiveScoreForTeam(bot, chatId, leagueCode, selector);
     } else if (action === LIVE_SCORE_ACTIONS.ALL) {
       await sendLiveScoreForAllTeams(bot, chatId, leagueCode);
     }
