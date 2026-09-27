@@ -39,6 +39,7 @@ function clearUserScopedCaches(chatId, epoch) {
   userCache[key].bestTeamBudgetChangePointsPerMillion = {};
   userCache[key].selectedBestTeamByTeam = {};
   userCache[key].selectedChipByTeam = {};
+  userCache[key].selectedChipExpiryByTeam = {};
 
   // These helpers invalidate their generation-aware preference refreshes.
   // They are loaded lazily because profile refresh calls this module.

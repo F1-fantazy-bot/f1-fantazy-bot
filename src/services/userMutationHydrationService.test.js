@@ -1,3 +1,8 @@
+const activeExpiry = {
+  selectedAt: new Date(Date.now() - 86400000).toISOString(),
+  expiresAt: new Date(Date.now() + 5 * 86400000).toISOString(),
+};
+
 jest.mock('../azureStorageService', () => ({
   listUserTeamData: jest.fn(),
 }));
@@ -26,6 +31,7 @@ beforeEach(() => {
     selectedTeam: 'removed',
     bestTeamBudgetChangePointsPerMillion: '{"T1":1.3,"removed":2}',
     selectedBestTeamByTeam: '{"removed":{"drivers":["VER"]}}',
+    selectedChipExpiryByTeam: { T1: activeExpiry },
     selectedChipByTeam: '{"T1":"EXTRA_BOOST","removed":"LIMITLESS"}',
   });
   bestTeamsCache[42] = { T1: { bestTeams: [] } };
@@ -48,6 +54,7 @@ test('hydrates authoritative teams and filters orphaned per-team state', async (
   expect(userCache['42']).toMatchObject({
     bestTeamBudgetChangePointsPerMillion: { T1: 1.3 },
     selectedBestTeamByTeam: {},
+    selectedChipExpiryByTeam: { T1: activeExpiry },
     selectedChipByTeam: { T1: 'EXTRA_BOOST' },
   });
   expect(userCache['42'].selectedTeam).toBeUndefined();
@@ -58,12 +65,14 @@ test('preserves best-team cache when authoritative dependencies are unchanged', 
   currentTeamCache[42] = { T1: { drivers: ['VER'] } };
   userCache['42'] = {
     bestTeamBudgetChangePointsPerMillion: { T1: 1.3 },
+    selectedChipExpiryByTeam: { T1: activeExpiry },
     selectedChipByTeam: { T1: 'EXTRA_BOOST' },
   };
   bestTeamsCache[42] = { T1: { bestTeams: ['cached'] } };
   getUserById.mockResolvedValue({
     selectedTeam: 'T1',
     bestTeamBudgetChangePointsPerMillion: '{"T1":1.3}',
+    selectedChipExpiryByTeam: { T1: activeExpiry },
     selectedChipByTeam: '{"T1":"EXTRA_BOOST"}',
   });
 

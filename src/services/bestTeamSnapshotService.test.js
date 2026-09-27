@@ -39,12 +39,6 @@ test('exact rows survive multiple calculations and active-team switches', async 
   expect(await service.getChanges(42, first, 2)).toMatchObject({ status: 'ok', row: 2, projectedPoints: 60, teamName: 'First' });
   expect((await service.getChanges(42, first, 1)).projectedPoints).toBe(30);
 });
-test('all 20 displayed recommendations remain selectable and keep the count on recalculation', async () => {
-  result.bestTeams = Array.from({ length: 20 }, (_, index) => ({ ...result.bestTeams[0], row: index + 1 }));
-  const id = await service.saveCalculation(42, result, { resultCount: 20 }, await service.dependencies(42, 'T1'));
-  expect(await service.getChanges(42, id, 20)).toMatchObject({ status: 'ok', row: 20, request: { teamId: 'T1', resultCount: 20 } });
-  expect(mockStore.submitTransaction.mock.calls.at(-1)[0]).toHaveLength(21);
-});
 test('another service instance reads the durable snapshot', async () => {
   const id = await save();
   await jest.isolateModulesAsync(async () => {
@@ -140,4 +134,35 @@ test('source changes during the read still reject inconsistent inputs', async ()
     return data;
   });
   await expect(service.loadCalculationContext(42, 'T1')).rejects.toThrow('Inputs changed during calculation');
+});
+
+test('chip expiry invalidates a durable recommendation without any storage change', async () => {
+  const now = Date.now();
+  const registry = require('../userRegistryService');
+  registry.getUserById.mockResolvedValue({
+    selectedChipByTeam: JSON.stringify({ T1: 'LIMITLESS' }),
+    selectedChipExpiryByTeam: JSON.stringify({ T1: {
+      selectedAt: new Date(now - 1000).toISOString(),
+      expiresAt: new Date(now + 60000).toISOString(),
+    } }),
+  });
+  result.chip = 'LIMITLESS';
+  const id = await save();
+  expect((await service.loadCalculationContext(42, 'T1')).chip).toBe('LIMITLESS');
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(now + 60000);
+  try {
+    expect((await service.loadCalculationContext(42, 'T1')).chip).toBeNull();
+    expect((await service.getChanges(42, id, 1)).status).toBe('outdated_result');
+  } finally {
+    clock.mockRestore();
+    registry.getUserById.mockResolvedValue({ userResetEpoch: 0 });
+  }
+});
+
+
+test('all 20 displayed recommendations remain selectable and keep the count on recalculation', async () => {
+  result.bestTeams = Array.from({ length: 20 }, (_, index) => ({ ...result.bestTeams[0], row: index + 1 }));
+  const id = await service.saveCalculation(42, result, { resultCount: 20 }, await service.dependencies(42, 'T1'));
+  expect(await service.getChanges(42, id, 20)).toMatchObject({ status: 'ok', row: 20, request: { teamId: 'T1', resultCount: 20 } });
+  expect(mockStore.submitTransaction.mock.calls.at(-1)[0]).toHaveLength(21);
 });

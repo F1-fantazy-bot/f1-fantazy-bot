@@ -1,3 +1,4 @@
+const { normalizeChipExpiryByTeam, serializeChipExpiryByTeam, resolveActiveChips } = require('../utils/chipExpiry');
 const azureStorageService = require('../azureStorageService');
 const {
   EXTRA_BOOST_CHIP,
@@ -74,6 +75,7 @@ async function persistImportedSnapshot(bot, chatId, snapshot) {
         selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
           snapshot.selectedBestTeamByTeam,
         ),
+        selectedChipExpiryByTeam: serializeChipExpiryByTeam(snapshot.chipExpiry),
         selectedChipByTeam: serializeSelectedChipByTeam(
           snapshot.selectedChips,
         ),
@@ -108,7 +110,7 @@ async function persistImportedSnapshot(bot, chatId, snapshot) {
     setCachedSelectedTeam(chatId, snapshot.selectedTeam, {
       preserveNull: true,
     });
-    setCachedChipPreferences(chatId, snapshot.selectedChips, null);
+    setCachedChipPreferences(chatId, snapshot.selectedChips, null, snapshot.chipExpiry);
   });
 }
 
@@ -153,6 +155,7 @@ function normalizeCacheSnapshot(jsonData) {
   const teamsMap = {};
   const bestTeamBudgetChangePointsPerMillion = {};
   const selectedChips = {};
+  const chipExpiry = {};
   const selectedBestTeamByTeam = {};
 
   for (const [teamId, teamSnapshot] of Object.entries(jsonData.Teams)) {
@@ -162,6 +165,7 @@ function normalizeCacheSnapshot(jsonData) {
 
     const {
       chip,
+      chipExpiry: expiry,
       selectedBestTeam,
       bestTeamBudgetChangePointsPerMillion: currentBestTeamBudgetChangePointsPerMillion,
       ...teamDataWithoutMetadata
@@ -174,10 +178,14 @@ function normalizeCacheSnapshot(jsonData) {
     }
 
     if (chip !== undefined) {
-      selectedChips[teamId] = chip;
+      const validExpiry = normalizeChipExpiryByTeam({ [teamId]: expiry });
+      if (resolveActiveChips({ [teamId]: chip }, validExpiry)[teamId]) {
+        selectedChips[teamId] = chip;
+        chipExpiry[teamId] = validExpiry[teamId];
+      }
     }
 
-    if (selectedBestTeam !== undefined) {
+    if (selectedBestTeam !== undefined && (chip === undefined || selectedChips[teamId])) {
       selectedBestTeamByTeam[teamId] = selectedBestTeam;
     }
   }
@@ -196,6 +204,7 @@ function normalizeCacheSnapshot(jsonData) {
     constructorsMap:
       Object.keys(constructorsMap).length > 0 ? constructorsMap : null,
     teamsMap: Object.keys(teamsMap).length > 0 ? teamsMap : null,
+    chipExpiry,
     selectedChips:
       Object.keys(selectedChips).length > 0 ? selectedChips : null,
     bestTeamBudgetChangePointsPerMillion:

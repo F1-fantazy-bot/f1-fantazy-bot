@@ -1,7 +1,8 @@
 const { calculateChangesToTeam } = require('../bestTeamsCalculator');
 const {
   bestTeamsCache,
-  selectedChipCache,
+  getActiveChip,
+  getChipExpiry,
   sharedKey,
   resolveSelectedTeam,
   getBestTeamBudgetChangePointsPerMillion,
@@ -35,10 +36,12 @@ async function handleNumberMessageInternal(
   const teamRowRequested = parseInt(textTrimmed, 10);
   const teamBestTeamsCache = transactionSnapshot.bestTeams;
   const chipAtCalculation = transactionSnapshot.chip;
-  const currentChip = selectedChipCache[chatId]?.[teamId];
+  const currentChip = getActiveChip(chatId, teamId);
   const dependenciesMatch =
     teamId === transactionSnapshot.teamId &&
-    chipAtCalculation === currentChip &&
+    (chipAtCalculation || null) === (currentChip || null) &&
+    (!Object.hasOwn(teamBestTeamsCache || {}, 'chipExpiresAt') ||
+      teamBestTeamsCache.chipExpiresAt === (currentChip ? getChipExpiry(chatId, teamId)?.expiresAt : null)) &&
     transactionSnapshot.ranking ===
       getBestTeamBudgetChangePointsPerMillion(chatId, teamId) &&
     transactionSnapshot.teamData ===
@@ -86,7 +89,7 @@ async function handleNumberMessageInternal(
       const changesToTeam = calculateChangesToTeam(
         cachedJsonData,
         selectedTeam,
-        selectedChipCache[chatId]?.[teamId],
+        getActiveChip(chatId, teamId),
         getBestTeamBudgetChangePointsPerMillion(chatId, teamId),
         remainingRaceCountCache[sharedKey],
       );
@@ -94,7 +97,7 @@ async function handleNumberMessageInternal(
       let changesToTeamMessage = getRequiredChangesMessage(
         teamRowRequested,
         changesToTeam,
-        selectedChipCache[chatId]?.[teamId],
+        getActiveChip(chatId, teamId),
         chatId,
       );
       changesToTeamMessage += getSelectedTeamInfo(
@@ -158,7 +161,7 @@ async function handleNumberMessage(bot, chatId, textTrimmed) {
   const transactionSnapshot = {
     teamId,
     bestTeams: teamId ? bestTeamsCache[chatId]?.[teamId] : null,
-    chip: teamId ? selectedChipCache[chatId]?.[teamId] : undefined,
+    chip: teamId ? (bestTeamsCache[chatId]?.[teamId]?.chip ?? getActiveChip(chatId, teamId)) : undefined,
     ranking: teamId
       ? getBestTeamBudgetChangePointsPerMillion(chatId, teamId)
       : null,

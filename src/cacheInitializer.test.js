@@ -249,6 +249,7 @@ describe('cacheInitializer', () => {
           },
         },
         selectedChipByTeam: { T1: 'EXTRA_BOOST' },
+        selectedChipExpiryByTeam: {},
       },
       456: {
         chatName: 'Bob',
@@ -257,6 +258,7 @@ describe('cacheInitializer', () => {
         bestTeamBudgetChangePointsPerMillion: {},
         selectedBestTeamByTeam: {},
         selectedChipByTeam: {},
+        selectedChipExpiryByTeam: {},
       },
     });
     expect(selectedChipCache).toEqual({

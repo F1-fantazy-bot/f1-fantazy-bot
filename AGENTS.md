@@ -486,6 +486,32 @@ Chip preferences are stored durably in `userCache[chatId].selectedChipByTeam`;
 `selectedChipCache` is its normalized runtime projection. Never mutate and
 persist the whole map from process-local state—use `activateChipService`.
 
+### Chip selection expiry
+
+Saved chips apply to one race weekend. `selectedChipByTeam` keeps the chip
+strings; `selectedChipExpiryByTeam` is a JSON map keyed by team ID with
+`selectedAt`, `expiresAt` (UTC ISO timestamps), and optional `raceId`.
+The shared activation service sets expiry to the scheduled Grand Prix start
+plus 12 hours, using the current-season schedule (including an ongoing race),
+then valid cached race timing, then a five-day lifetime when timing is unavailable.
+Reselecting an active chip is a no-op and never renews its expiry.
+
+All chip consumers must use `getActiveChip` / `getActiveChips`, or the pure
+`resolveActiveChips` helper for durable calculation contexts. Never read the raw
+`selectedChipCache` as an effective selection: expired, invalid, and legacy
+undated entries mean no chip. These checks run on every read and survive storage
+outages and warm processes. Profile refresh opportunistically removes expired
+entries and dependent selected-best-team state under the user mutation lease
+and ETag CAS, rechecking fresh state to preserve concurrent activations.
+
+Snapshots and `/print_cache` exports preserve expiry metadata as `chipExpiry`
+next to each team's chip. Import and rollback never extend expiry. Undated or
+expired imported chips and their dependent recommendations are discarded.
+Cached Telegram recommendations retain their calculation chip/expiry; durable
+web recommendation fingerprints include chip expiry and effective chip state,
+so recommendations become outdated when the chip expires. Historical scoring
+and previously rendered messages are unchanged. No timer deployment is needed.
+
 ### Best-Team Ranking
 
 `/set_best_team_ranking` lets the user choose how much expected budget change should influence `/best_teams` ordering. The calculator ranks teams using projected points plus a hidden budget-change bonus:

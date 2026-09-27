@@ -1,3 +1,4 @@
+const { normalizeChipExpiryByTeam } = require('./utils/chipExpiry');
 const {
   currentTeamCache,
   sharedKey,
@@ -91,6 +92,10 @@ async function initializeCaches(bot) {
       Object.entries(
         normalizeSelectedChipByTeam(userData.selectedChipByTeam),
       ).filter(([teamId]) => ownedTeamIds.has(teamId)),
+    );
+    userData.selectedChipExpiryByTeam = Object.fromEntries(
+      Object.entries(normalizeChipExpiryByTeam(userData.selectedChipExpiryByTeam))
+        .filter(([teamId]) => ownedTeamIds.has(teamId)),
     );
     if (Object.keys(userData.selectedChipByTeam).length > 0) {
       selectedChipCache[key] = userData.selectedChipByTeam;

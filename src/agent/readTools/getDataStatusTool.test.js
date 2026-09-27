@@ -6,6 +6,7 @@ jest.mock('../../cache', () => ({
   constructorsCache: {},
   currentTeamCache: {},
   selectedChipCache: {},
+  getActiveChips: jest.fn(() => ({ T1: 'LIMITLESS' })),
   simulationInfoCache: {},
   nextRaceInfoCache: {},
   pricesCache: { metadata: null },

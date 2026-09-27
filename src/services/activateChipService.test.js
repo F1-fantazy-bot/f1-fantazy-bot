@@ -1,3 +1,9 @@
+jest.mock('./chipExpiryScheduleService', () => ({ createChipExpiry: jest.fn() }));
+const activeExpiry = {
+  selectedAt: new Date(Date.now() - 86400000).toISOString(),
+  expiresAt: new Date(Date.now() + 5 * 86400000).toISOString(),
+};
+
 jest.mock('../userRegistryService', () => ({
   updateUserAttributesAtomically: jest.fn(),
   getUserById: jest.fn(),
@@ -37,6 +43,7 @@ const CHAT_ID = 42;
 
 beforeEach(() => {
   jest.clearAllMocks();
+  require('./chipExpiryScheduleService').createChipExpiry.mockResolvedValue(activeExpiry);
   resetChipSyncForTests();
   resetUserProfileSyncForTests();
   currentTeamCache[CHAT_ID] = {
@@ -44,6 +51,7 @@ beforeEach(() => {
     T2: { teamName: 'Kilzid 2' },
   };
   userCache[String(CHAT_ID)] = {
+    selectedChipExpiryByTeam: { T1: activeExpiry, T2: activeExpiry },
     selectedChipByTeam: {},
     selectedBestTeamByTeam: {
       T1: {
@@ -63,6 +71,7 @@ beforeEach(() => {
   updateUserAttributesAtomically.mockImplementation(
     async (_chatId, transform) => {
       const current = {
+        selectedChipExpiryByTeam: userCache[String(CHAT_ID)].selectedChipExpiryByTeam,
         selectedChipByTeam: JSON.stringify(
           userCache[String(CHAT_ID)].selectedChipByTeam,
         ),
@@ -172,6 +181,7 @@ test('rejects unknown teams and chip values without persistence', async () => {
 test('hydrates chip changes from another Function process', async () => {
   getUserById.mockResolvedValue({
     selectedChipByTeam: JSON.stringify({ T1: LIMITLESS_CHIP }),
+    selectedChipExpiryByTeam: JSON.stringify({ T1: activeExpiry }),
   });
 
   await expect(
@@ -196,6 +206,7 @@ test('stale profile cannot overwrite a newer local chip write', async () => {
   setCachedChipPreferences(CHAT_ID, { T1: EXTRA_BOOST_CHIP }, 'T1');
   resolveLookup({
     selectedChipByTeam: JSON.stringify({ T1: LIMITLESS_CHIP }),
+    selectedChipExpiryByTeam: JSON.stringify({ T1: activeExpiry }),
   });
 
   await expect(stale).resolves.toMatchObject({ fresh: false });
@@ -317,4 +328,71 @@ test('clears chip and selected-best state together for a removed team', async ()
     T2: LIMITLESS_CHIP,
   });
   expect(userCache[String(CHAT_ID)].selectedBestTeamByTeam.T1).toBeUndefined();
+});
+
+describe('expiry lifecycle', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  test('stores an expiry, keeps it on a no-op, and renews only after expiration', async () => {
+    const { createChipExpiry } = require('./chipExpiryScheduleService');
+    await activateChipPreference({ chatId: CHAT_ID, teamId: 'T1', chip: EXTRA_BOOST_CHIP });
+    expect(userCache[CHAT_ID].selectedChipExpiryByTeam.T1).toEqual(activeExpiry);
+    const later = {
+      selectedAt: activeExpiry.expiresAt,
+      expiresAt: new Date(Date.parse(activeExpiry.expiresAt) + 86400000).toISOString(),
+    };
+    createChipExpiry.mockResolvedValue(later);
+    expect((await activateChipPreference({ chatId: CHAT_ID, teamId: 'T1', chip: EXTRA_BOOST_CHIP })).changed).toBe(false);
+    expect(userCache[CHAT_ID].selectedChipExpiryByTeam.T1).toEqual(activeExpiry);
+    jest.spyOn(Date, 'now').mockReturnValue(Date.parse(activeExpiry.expiresAt));
+    expect((await activateChipPreference({ chatId: CHAT_ID, teamId: 'T1', chip: EXTRA_BOOST_CHIP })).changed).toBe(true);
+    expect(userCache[CHAT_ID].selectedChipExpiryByTeam.T1).toEqual(later);
+  });
+
+  test('storage failures cannot make an expired cached chip active', async () => {
+    setCachedChipPreferences(CHAT_ID, { T1: EXTRA_BOOST_CHIP }, null, { T1: activeExpiry });
+    jest.spyOn(Date, 'now').mockReturnValue(Date.parse(activeExpiry.expiresAt));
+    getUserById.mockRejectedValue(new Error('offline'));
+    expect(await getFreshChipPreference(CHAT_ID, 'T1')).toEqual({ fresh: false, chip: WITHOUT_CHIP });
+    expect(require('../cache').getActiveChip(CHAT_ID, 'T1')).toBeUndefined();
+  });
+
+  test('refresh cleans legacy state and its dependent recommendation', async () => {
+    userCache[CHAT_ID].selectedChipByTeam = { T1: EXTRA_BOOST_CHIP };
+    userCache[CHAT_ID].selectedChipExpiryByTeam = {};
+    getUserById.mockResolvedValue({ ...userCache[CHAT_ID] });
+    expect(await getFreshChipPreference(CHAT_ID, 'T1')).toEqual({ fresh: true, chip: WITHOUT_CHIP });
+    expect(userCache[CHAT_ID].selectedChipByTeam).toEqual({});
+    expect(userCache[CHAT_ID].selectedBestTeamByTeam.T1).toBeUndefined();
+    expect(bestTeamsCache[CHAT_ID].T1).toBeUndefined();
+  });
+
+  test('cleanup rechecks authoritative state and preserves a concurrent new selection', async () => {
+    const { cleanupExpiredChipPreferences } = require('./activateChipService');
+    setCachedChipPreferences(CHAT_ID, { T1: EXTRA_BOOST_CHIP }, null, {});
+    updateUserAttributesAtomically.mockImplementation(async (_, transform) => {
+      const user = {
+        selectedChipByTeam: JSON.stringify({ T1: LIMITLESS_CHIP }),
+        selectedChipExpiryByTeam: JSON.stringify({ T1: activeExpiry }),
+        selectedBestTeamByTeam: JSON.stringify(userCache[CHAT_ID].selectedBestTeamByTeam),
+      };
+      expect(transform(user)).toBeNull();
+
+      return { updated: false, user };
+    });
+    await cleanupExpiredChipPreferences(CHAT_ID);
+    expect(require('../cache').getActiveChip(CHAT_ID, 'T1')).toBe(LIMITLESS_CHIP);
+    expect(userCache[CHAT_ID].selectedBestTeamByTeam.T1).toBeDefined();
+  });
+
+  test('cleanup removes only expired team preferences and manual reset removes metadata', async () => {
+    const { cleanupExpiredChipPreferences } = require('./activateChipService');
+    userCache[CHAT_ID].selectedChipByTeam = { T1: EXTRA_BOOST_CHIP, T2: LIMITLESS_CHIP };
+    userCache[CHAT_ID].selectedChipExpiryByTeam = { T2: activeExpiry };
+    await cleanupExpiredChipPreferences(CHAT_ID);
+    expect(userCache[CHAT_ID].selectedChipByTeam).toEqual({ T2: LIMITLESS_CHIP });
+    expect(userCache[CHAT_ID].selectedChipExpiryByTeam).toEqual({ T2: activeExpiry });
+    await activateChipPreference({ chatId: CHAT_ID, teamId: 'T2', chip: WITHOUT_CHIP });
+    expect(userCache[CHAT_ID].selectedChipExpiryByTeam).toEqual({});
+  });
 });
