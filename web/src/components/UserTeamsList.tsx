@@ -16,6 +16,7 @@ export type UserTeam = {
 
 export type ListUserTeamsResult = {
   lang?: string;
+  mode?: 'workflow_discovery';
   teams?: UserTeam[];
 };
 
