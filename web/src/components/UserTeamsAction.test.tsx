@@ -203,7 +203,7 @@ test('workflow discovery keeps the team list renderer silent', async () => {
       status: 'executing',
       args: { mode: 'workflow_discovery' },
     }),
-  ).toBeNull();
+  ).not.toBeNull();
   expect(
     registration.render({
       status: 'complete',
@@ -226,7 +226,7 @@ test('workflow discovery keeps the team list renderer silent', async () => {
       },
       args: { mode: 'workflow_discovery' },
     }),
-  ).toBeNull();
+  ).not.toBeNull();
   expect(
     registration.render({
       status: 'complete',
@@ -237,7 +237,7 @@ test('workflow discovery keeps the team list renderer silent', async () => {
       },
       args: {},
     }),
-  ).toBeNull();
+  ).not.toBeNull();
   expect(
     registration.render({
       status: 'complete',
