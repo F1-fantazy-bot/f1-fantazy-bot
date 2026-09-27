@@ -31,6 +31,7 @@ const {
   followLeagueTeam,
   removeFollowedTeam,
   buildLeagueTeamId,
+  buildLeagueTeamCallbackKey,
 } = require('../utils/leagueTeamHelpers');
 const {
   TEAMS_TRACKER_CALLBACK_TYPE,
@@ -62,7 +63,7 @@ async function touchSession(chatId, session) {
 
 /**
  * Build the currently-followed state as an array of `{leagueCode, teamId}`.
- * The league teamId (`{sanitize(userName)}_{teamNo}`) is league-agnostic,
+ * The league teamId (`{sanitize(userName)}_{teamNo}_{accountId}`) is league-agnostic,
  * so a single followed team may map to MULTIPLE entries — one per followed
  * league where the same F1 Fantasy team appears. Seeding each match
  * enables per-league visual sync in the toggle UI.
@@ -90,7 +91,7 @@ async function seedFollowedSelection(chatId) {
     if (!data || !Array.isArray(data.teams)) {continue;}
 
     for (const team of data.teams) {
-      const candidateTeamId = buildLeagueTeamId(team.userName, team.teamNo);
+      const candidateTeamId = buildLeagueTeamId(team.userName, team.teamNo, team.accountId);
       if (candidateTeamId && followed.has(candidateTeamId)) {
         seeded.push({
           leagueCode: league.leagueCode,
@@ -146,6 +147,35 @@ function countSelected(session) {
  * fantasy teamId appears. Used to expand a single toggle action into all
  * cross-league appearances (visual sync).
  */
+async function resolveTeamIdFromCallbackKey(leagueCode, callbackKey) {
+  if (!callbackKey) {
+    return null;
+  }
+
+  let data;
+  try {
+    data = await loadLeagueTeamsData(leagueCode);
+  } catch (_err) {
+    return null;
+  }
+  if (!data || !Array.isArray(data.teams)) {
+    return null;
+  }
+
+  const match = data.teams.find(
+    (team) =>
+      buildLeagueTeamCallbackKey(
+        team.userName,
+        team.teamNo,
+        team.accountId,
+      ) === callbackKey,
+  );
+
+  return match
+    ? buildLeagueTeamId(match.userName, match.teamNo, match.accountId)
+    : null;
+}
+
 async function findFantasyTeamLeagues(chatId, fantasyTeamId) {
   if (!fantasyTeamId) {return [];}
   const leagues = await listUserLeagues(chatId);
@@ -162,7 +192,7 @@ async function findFantasyTeamLeagues(chatId, fantasyTeamId) {
 
     const appears = data.teams.some(
       (team) =>
-        buildLeagueTeamId(team.userName, team.teamNo) === fantasyTeamId,
+        buildLeagueTeamId(team.userName, team.teamNo, team.accountId) === fantasyTeamId,
     );
     if (appears) {
       out.push(league.leagueCode);
@@ -214,10 +244,18 @@ async function buildTeamsKeyboard(chatId, session, leagueCode, multiLeague) {
 
   const rows = teams
     .map((team) => {
-      const teamId = buildLeagueTeamId(team.userName, team.teamNo);
+      const teamId = buildLeagueTeamId(team.userName, team.teamNo, team.accountId);
       if (!teamId) {
         // Row missing userName/teamNo — can't be followed reliably. Hide
         // it rather than render an un-toggleable button.
+        return null;
+      }
+      const callbackKey = buildLeagueTeamCallbackKey(
+        team.userName,
+        team.teamNo,
+        team.accountId,
+      );
+      if (!callbackKey) {
         return null;
       }
       const checked = isSelected(session, teamId);
@@ -229,7 +267,7 @@ async function buildTeamsKeyboard(chatId, session, leagueCode, multiLeague) {
           callback_data: cb(
             TEAMS_TRACKER_ACTIONS.TOGGLE,
             leagueCode,
-            teamId,
+            callbackKey,
           ),
         },
       ];
@@ -457,7 +495,7 @@ async function applySaveInternal(bot, chatId, session) {
     }
     const match = roster.teams.find(
       (team) =>
-        buildLeagueTeamId(team.userName, team.teamNo) === sel.teamId,
+        buildLeagueTeamId(team.userName, team.teamNo, team.accountId) === sel.teamId,
     );
     if (!match) {
       droppedStale += 1;
@@ -622,10 +660,15 @@ async function handleTeamsTrackerCallback(bot, query) {
     }
 
     if (action === TEAMS_TRACKER_ACTIONS.TOGGLE) {
-      const [leagueCode, teamId] = payload;
+      const [leagueCode, callbackKey] = payload;
+      const teamId = await resolveTeamIdFromCallbackKey(
+        leagueCode,
+        callbackKey,
+      );
       if (!teamId) {
-        // Defensive: callbacks from a pre-fix session may carry a numeric
-        // position string instead of a teamId. Treat as expired.
+        // Callback selectors are resolved against the current roster so long
+        // canonical ids never exceed Telegram's 64-byte callback_data limit.
+        // Old/stale callbacks that cannot be resolved are treated as expired.
         await respondExpired(bot, query);
 
         return;
