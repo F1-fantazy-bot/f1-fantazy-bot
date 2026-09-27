@@ -492,7 +492,7 @@ describe('cacheInitializer', () => {
 
     it('migrates an unambiguous legacy league team to username_teamNo_accountId', async () => {
       const oldId = 'Tom-Kregenbild_1';
-      const newId = 'Tom-Kregenbild_1_aaaaaaaaaaaa';
+      const newId = 'Tom-Kregenbild_1_aaaaaaaaaaaaaaaa';
       currentTeamCache[111] = {
         [oldId]: { drivers: ['STALE'], teamName: 'Tom Team' },
       };
@@ -512,7 +512,7 @@ describe('cacheInitializer', () => {
           {
             teamName: 'Tom Team',
             userName: 'Tom Kregenbild',
-            accountId: 'aaaaaaaaaaaa',
+            accountId: 'aaaaaaaaaaaaaaaa',
             teamNo: 1,
             position: 1,
             budget: 100,
@@ -530,7 +530,7 @@ describe('cacheInitializer', () => {
         expect.objectContaining({
           teamName: 'Tom Team',
           userName: 'Tom Kregenbild',
-          accountId: 'aaaaaaaaaaaa',
+          accountId: 'aaaaaaaaaaaaaaaa',
           teamNo: 1,
         }),
       );
@@ -548,7 +548,7 @@ describe('cacheInitializer', () => {
         mockBot,
         '111',
         newId,
-        expect.objectContaining({ accountId: 'aaaaaaaaaaaa' }),
+        expect.objectContaining({ accountId: 'aaaaaaaaaaaaaaaa' }),
         { silent: true },
       );
       expect(deleteUserTeam).toHaveBeenCalledWith(
@@ -584,7 +584,7 @@ describe('cacheInitializer', () => {
           {
             teamName: 'NoNoItsSoNotRightMikeyNO',
             userName: 'Tom Kregenbild',
-            accountId: 'aaaaaaaaaaaa',
+            accountId: 'aaaaaaaaaaaaaaaa',
             teamNo: 1,
             budget: 100,
             drivers: [],
@@ -593,7 +593,7 @@ describe('cacheInitializer', () => {
           {
             teamName: 'Agentic Racing Co.',
             userName: 'Tom Kregenbild',
-            accountId: 'bbbbbbbbbbbb',
+            accountId: 'bbbbbbbbbbbbbbbb',
             teamNo: 1,
             budget: 100,
             drivers: [],
