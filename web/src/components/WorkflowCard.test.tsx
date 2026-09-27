@@ -11,7 +11,12 @@ vi.mock('./ActionChoicesCard', () => ({
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, expect, test, vi } from 'vitest';
-import { WorkflowCard, WorkflowWorkspace, type Workflow } from './WorkflowCard';
+import {
+  WorkflowArrival,
+  WorkflowCard,
+  WorkflowWorkspace,
+  type Workflow,
+} from './WorkflowCard';
 import { UiLanguageProvider } from './uiLanguage';
 vi.mock('./workflowRenderers', () => ({
   WorkflowResult: ({ result }: { result: { summary?: string } }) => (
@@ -216,4 +221,56 @@ test('clear history hides previous workflows immediately and after remount while
   act(() => root.unmount());
   container.remove();
   setHistoryScope(null);
+});
+
+
+test('workflow arrival renders the live workflow inline and tracks its visibility', async () => {
+  const inline = {
+    ...flow,
+    state: 'completed',
+    steps: [
+      {
+        ...flow.steps[0],
+        state: 'completed',
+        result: { summary: 'Chip saved inline' },
+      },
+      {
+        ...flow.steps[1],
+        state: 'completed',
+        result: { summary: 'Calculated inline' },
+      },
+    ],
+  };
+  const markInline = vi.fn();
+  const refresh = vi.fn();
+  const onDecision = vi.fn();
+  const autoRun = vi.fn(() => true);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  roots.push(root);
+
+  await act(async () => {
+    root.render(
+      <UiLanguageProvider initialLanguage="en">
+        <WorkflowArrival
+          result={flow}
+          workflow={inline}
+          refresh={refresh}
+          autoRun={autoRun}
+          onDecision={onDecision}
+          onInlineWorkflow={markInline}
+        />
+      </UiLanguageProvider>,
+    );
+  });
+
+  expect(container.textContent).toContain(flow.request);
+  expect(container.textContent).toContain('Chip saved inline');
+  expect(container.textContent).toContain('Calculated inline');
+  expect(markInline).toHaveBeenCalledWith(flow.id, true);
+  expect(refresh).toHaveBeenCalled();
+
+  await act(async () => root.unmount());
+  expect(markInline).toHaveBeenCalledWith(flow.id, false);
 });
