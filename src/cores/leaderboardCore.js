@@ -75,7 +75,7 @@ async function getLeaderboard({ chatId, leagueCode }) {
       typeof team.totalScore === 'number' && Number.isFinite(team.totalScore)
         ? team.totalScore
         : null;
-    const teamId = buildLeagueTeamId(team.userName, team.teamNo) || null;
+    const teamId = buildLeagueTeamId(team.userName, team.teamNo, team.accountId) || null;
     const gapToLeader =
       totalScore !== null && leaderScore !== null
         ? totalScore - leaderScore
