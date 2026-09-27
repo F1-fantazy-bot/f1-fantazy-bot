@@ -99,14 +99,18 @@ export function useUserTeamsAction() {
       'List the teams the user is tracking. Returns teamId + teamName + roster summary.',
     parameters: [],
     available: 'frontend',
-    render: ({ status, result }) => {
+    render: ({ status, result, args }) => {
+      const discovery =
+        (args as { mode?: string } | undefined)?.mode ===
+        'workflow_discovery';
       if (status === 'inProgress' || status === 'executing') {
-        return <ToolLoading kind="userTeams" />;
+        return discovery ? null : <ToolLoading kind="userTeams" />;
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
       if (isToolErrorResult(parsed)) {
         return <ToolErrorFallback result={parsed} />;
       }
+      if (discovery) return null;
       const typedResult = parsed as ListUserTeamsResult | undefined;
 
       return <InteractiveUserTeamsList result={typedResult} />;
