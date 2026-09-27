@@ -117,10 +117,10 @@ async function initializeCaches(bot) {
   );
 
   // Refresh any league-sourced teams from the latest league teams-data blob so
-  // rosters/budgets/transfers stay in sync between restarts. This pass ALSO
-  // performs the one-time migration from the old league-scoped teamId
-  // (`{leagueCode}_{sanitizedTeamName}`) to the new global fantasy teamId
-  // (`{sanitize(userName)}_{teamNo}`) — see refreshLeagueSourcedTeams below.
+  // rosters/budgets/transfers stay in sync between restarts. This pass also
+  // migrates the legacy `{sanitize(userName)}_{teamNo}` identity to the
+  // account-aware `{sanitize(userName)}_{teamNo}_{accountId}` identity when
+  // the mapping is unique. Ambiguous legacy ids are removed for reselection.
   await refreshLeagueSourcedTeams(bot);
 }
 
@@ -134,13 +134,14 @@ async function loadSimulationData(bot) {
 }
 
 /**
- * For any cached team in league format (`{sanitize(userName)}_{teamNo}`),
- * re-fetch the team's latest entry from one of the user's followed
- * `teams-data.json` blobs and replace the cached data + persisted blob
- * with the latest roster/budget/transfers.
+ * Refresh league-sourced cached teams from followed `teams-data.json` blobs.
+ * Account-aware ids are refreshed in place. Legacy
+ * `{sanitize(userName)}_{teamNo}` ids are migrated only when they resolve to
+ * exactly one `accountId`; ambiguous ids are deleted so no account is chosen
+ * silently and the user can reselect the intended team.
  *
- * Best-effort: errors for individual leagues or teams are logged but do
- * not abort cache initialization.
+ * Best-effort: errors for individual leagues or teams are logged but do not
+ * abort cache initialization.
  */
 async function refreshLeagueSourcedTeams(bot) {
   const leagueTeamsByCode = {};
