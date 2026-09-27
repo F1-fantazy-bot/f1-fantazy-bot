@@ -4,7 +4,7 @@
 const { buildLeagueTeamId } = require('../utils/teamId');
 
 function teamIdentity(team) {
-  const teamId = buildLeagueTeamId(team?.userName, team?.teamNo);
+  const teamId = buildLeagueTeamId(team?.userName, team?.teamNo, team?.accountId);
 
   // Older snapshots did not always include teamNo. Preserve their previous
   // single-team matching behavior without weakening current composite ids.
