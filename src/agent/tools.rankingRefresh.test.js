@@ -185,3 +185,23 @@ test.each([0, -1, 2.5, 21])('get_best_teams rejects invalid count %s without cal
   expect(ensureCacheReady).not.toHaveBeenCalled();
   expect(computeBestTeams).not.toHaveBeenCalled();
 });
+
+
+test('list_user_teams preserves workflow discovery mode in the result', async () => {
+  listUserTeams.mockReturnValue([
+    {
+      teamId: 'T1',
+      teamName: 'Team 1',
+      isSelected: true,
+    },
+  ]);
+  const tool = tools.find((candidate) => candidate.name === 'list_user_teams');
+
+  await expect(
+    tool.execute({ mode: 'workflow_discovery' }),
+  ).resolves.toMatchObject({
+    mode: 'workflow_discovery',
+    teams: [{ teamId: 'T1', teamName: 'Team 1' }],
+    lang: 'en',
+  });
+});
