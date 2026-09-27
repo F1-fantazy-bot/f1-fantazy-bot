@@ -14,26 +14,57 @@ function sanitizeIdSegment(value) {
   return trimmed.slice(0, 40);
 }
 
+const ACCOUNT_ID_SEGMENT_MAX_LENGTH = 16;
+
+function hasTeamIdentityParts(userName, teamNo) {
+  return (
+    typeof userName === 'string' &&
+    userName.length > 0 &&
+    teamNo !== null &&
+    teamNo !== undefined &&
+    teamNo !== ''
+  );
+}
+
 /**
- * Build the canonical league-team id from the F1 Fantasy account login and
- * team number (1/2/3). This id is **league-agnostic** — the same F1 Fantasy
- * team gets the same id in every league it appears in. Persisted into
- * `currentTeamCache`, `bestTeamsCache`, `selectedChipCache`,
- * `userCache[chatId].selectedTeam`, and the per-team blob path.
- *
- * @param {string|null|undefined} userName
- * @param {number|string|null|undefined} teamNo
- * @returns {string|null} null when either field is missing (caller must skip).
+ * Previous league-team id used before account-aware identity shipped.
+ * Kept only for migration/backwards compatibility with blobs that have not
+ * yet been refreshed by f1-fantasy-api-data.
  */
-function buildLeagueTeamId(userName, teamNo) {
-  if (typeof userName !== 'string' || userName.length === 0) {
-    return null;
-  }
-  if (teamNo === null || teamNo === undefined || teamNo === '') {
+function buildLegacyLeagueTeamId(userName, teamNo) {
+  if (!hasTeamIdentityParts(userName, teamNo)) {
     return null;
   }
 
   return `${sanitizeIdSegment(userName)}_${teamNo}`;
+}
+
+/**
+ * Build the canonical league-team id:
+ *   {sanitize(userName)}_{teamNo}_{accountId}
+ *
+ * accountId is the opaque account identifier written by f1-fantasy-api-data.
+ * Different F1 accounts may legitimately share the same display userName and
+ * team number, so accountId is required for collision-free identity.
+ *
+ * During the scraper rollout, old blobs may not carry accountId yet. In that
+ * transition case we deliberately return the old two-part id so existing
+ * teams continue working until a fresh blob enables migration.
+ */
+function buildLeagueTeamId(userName, teamNo, accountId) {
+  const legacyId = buildLegacyLeagueTeamId(userName, teamNo);
+  if (!legacyId) {
+    return null;
+  }
+
+  if (typeof accountId !== 'string' || accountId.trim().length === 0) {
+    return legacyId;
+  }
+
+  const accountSegment = sanitizeIdSegment(accountId)
+    .slice(0, ACCOUNT_ID_SEGMENT_MAX_LENGTH);
+
+  return `${legacyId}_${accountSegment}`;
 }
 
 // Back-compat alias — some call sites still use the old function name to
@@ -42,8 +73,9 @@ function buildLeagueTeamId(userName, teamNo) {
 const sanitizeTeamName = sanitizeIdSegment;
 
 module.exports = {
+  ACCOUNT_ID_SEGMENT_MAX_LENGTH,
   sanitizeIdSegment,
   sanitizeTeamName,
+  buildLegacyLeagueTeamId,
   buildLeagueTeamId,
 };
-
