@@ -7,15 +7,15 @@ const {
 describe('league team ids', () => {
   test('builds username_teamNo_accountId for account-aware data', () => {
     expect(
-      buildLeagueTeamId('Tom Kregenbild', 1, '7f3a91c24b10'),
-    ).toBe('Tom-Kregenbild_1_7f3a91c24b10');
+      buildLeagueTeamId('Tom Kregenbild', 1, '7f3a91c24b10e5d2'),
+    ).toBe('Tom-Kregenbild_1_7f3a91c24b10e5d2');
   });
 
   test('different accounts with the same username and team number stay distinct', () => {
     expect(
-      buildLeagueTeamId('Tom Kregenbild', 1, 'aaaaaaaaaaaa'),
+      buildLeagueTeamId('Tom Kregenbild', 1, 'aaaaaaaaaaaaaaaa'),
     ).not.toBe(
-      buildLeagueTeamId('Tom Kregenbild', 1, 'bbbbbbbbbbbb'),
+      buildLeagueTeamId('Tom Kregenbild', 1, 'bbbbbbbbbbbbbbbb'),
     );
   });
 
