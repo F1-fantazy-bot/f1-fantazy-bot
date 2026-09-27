@@ -45,6 +45,7 @@ describe('mapLeagueTeamToBotTeam', () => {
     return {
       teamName: 'Kilzid',
       userName: 'Doron Kilzi',
+      accountId: 'aaaaaaaaaaaa',
       teamNo: 1,
       position: 4,
       budget: 109.2,
@@ -77,6 +78,7 @@ describe('mapLeagueTeamToBotTeam', () => {
       costCapRemaining: 2.4,
       teamName: 'Kilzid',
       userName: 'Doron Kilzi',
+      accountId: 'aaaaaaaaaaaa',
       teamNo: 1,
     });
   });
@@ -264,10 +266,12 @@ describe('mapLeagueTeamToBotTeam', () => {
     const team = fixture();
     delete team.teamName;
     delete team.userName;
+    delete team.accountId;
     delete team.teamNo;
     const result = mapLeagueTeamToBotTeam(team);
     expect(result).not.toHaveProperty('teamName');
     expect(result).not.toHaveProperty('userName');
+    expect(result).not.toHaveProperty('accountId');
     expect(result).not.toHaveProperty('teamNo');
   });
 });
