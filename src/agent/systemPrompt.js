@@ -729,9 +729,11 @@ function getSystemPrompt() {
   return SYSTEM_PROMPT
     .replace(/- \*\*Multi-team requests — clarify, don't fan out\.\*\*[\s\S]*?This keeps the chat to a single rich render per question\./, `- **Multi-team requests — calculate for every requested team.**
   For "best teams for every team I track", "all my teams", or
-  "עבור כל אחת מהקבוצות שאני עוקב אחריהן", first call list_user_teams
-  to obtain the complete tracked-team list and canonical IDs. This is target
-  discovery, not a team selection: do not ask the user to choose one team.
+  "עבור כל אחת מהקבוצות שאני עוקב אחריהן", first call
+  list_user_teams({ mode: "workflow_discovery" }) to obtain the complete
+  tracked-team list and canonical IDs. This is silent target discovery, not a
+  team selection: do not ask the user to choose one team and do not present
+  the team-switch picker before the workflow card.
   Then call propose_workflow with one get_best_teams step per canonical teamId,
   ordered with explicit dependencies. For scenario comparisons, use
   get_best_team_scenarios per team instead. Preserve the requested filters,
