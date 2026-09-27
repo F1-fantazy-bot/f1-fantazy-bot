@@ -47,7 +47,7 @@ function teamChoice(league, team) {
   return {
     leagueCode: league.leagueCode,
     leagueName: league.leagueName || league.leagueCode,
-    teamId: buildLeagueTeamId(team.userName, team.teamNo),
+    teamId: buildLeagueTeamId(team.userName, team.teamNo, team.accountId),
     teamName: team.teamName || team.userName,
     leagueTeam: team,
   };
