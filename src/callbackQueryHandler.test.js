@@ -333,6 +333,23 @@ describe('handleCallbackQuery', () => {
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q6');
   });
 
+  it('keeps legacy best-team ranking buttons working', async () => {
+    const query = {
+      id: 'q6-legacy',
+      data: 'BEST_TEAM_WEIGHTS:T1:pure_points',
+      message: { chat: { id: 123 }, message_id: 456 },
+    };
+
+    await handleCallbackQuery(bot, query);
+
+    expect(setBestTeamRankingPreference).toHaveBeenCalledWith({
+      chatId: 123,
+      teamId: 'T1',
+      presetId: 'pure_points',
+    });
+    expect(bot.answerCallbackQuery).toHaveBeenCalledWith('q6-legacy');
+  });
+
   it('shows an alert for a stale best-team ranking callback', async () => {
     setBestTeamRankingPreference.mockResolvedValue({
       status: 'invalid_input',
