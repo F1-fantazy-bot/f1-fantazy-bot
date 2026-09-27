@@ -100,6 +100,7 @@ function mapLeagueTeamToBotTeam(leagueTeam) {
     // cached teams may not have these populated until the next refresh.
     ...(leagueTeam.teamName ? { teamName: leagueTeam.teamName } : {}),
     ...(leagueTeam.userName ? { userName: leagueTeam.userName } : {}),
+    ...(leagueTeam.accountId ? { accountId: leagueTeam.accountId } : {}),
     ...(leagueTeam.teamNo !== undefined && leagueTeam.teamNo !== null
       ? { teamNo: leagueTeam.teamNo }
       : {}),
