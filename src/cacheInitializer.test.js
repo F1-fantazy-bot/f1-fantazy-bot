@@ -22,7 +22,7 @@ const {
 } = require('./azureStorageService');
 const {
   listAllUsers,
-  updateUserAttributes,
+  updateUserAttributesAtomically,
 } = require('./userRegistryService');
 const { listUserLeagues } = require('./leagueRegistryService');
 const {
@@ -54,7 +54,7 @@ jest.mock('./azureStorageService', () => ({
 
 jest.mock('./userRegistryService', () => ({
   listAllUsers: jest.fn(),
-  updateUserAttributes: jest.fn(),
+  updateUserAttributesAtomically: jest.fn(),
 }));
 
 jest.mock('./leagueRegistryService', () => ({
@@ -395,7 +395,17 @@ describe('cacheInitializer', () => {
       getLeagueTeamsData.mockReset();
       saveUserTeam.mockReset().mockResolvedValue(undefined);
       deleteUserTeam.mockReset().mockResolvedValue(undefined);
-      updateUserAttributes.mockReset().mockResolvedValue(undefined);
+      updateUserAttributesAtomically
+        .mockReset()
+        .mockImplementation(async (chatId, transform) => {
+          const currentUser = { ...(userCache[String(chatId)] || {}) };
+          const attributes = await transform(currentUser);
+
+          return {
+            updated: true,
+            user: { ...currentUser, ...(attributes || {}) },
+          };
+        });
       listUserLeagues.mockReset().mockResolvedValue([]);
       Object.keys(userCache).forEach((k) => delete userCache[k]);
       Object.keys(selectedChipCache).forEach(
@@ -547,11 +557,9 @@ describe('cacheInitializer', () => {
         oldId,
         { silent: true },
       );
-      expect(updateUserAttributes).toHaveBeenCalledWith(
+      expect(updateUserAttributesAtomically).toHaveBeenCalledWith(
         '111',
-        expect.objectContaining({
-          selectedTeam: newId,
-        }),
+        expect.any(Function),
       );
     });
 
@@ -610,13 +618,9 @@ describe('cacheInitializer', () => {
         oldId,
         { silent: true },
       );
-      expect(updateUserAttributes).toHaveBeenCalledWith(
+      expect(updateUserAttributesAtomically).toHaveBeenCalledWith(
         '111',
-        expect.objectContaining({
-          selectedTeam: null,
-          bestTeamBudgetChangePointsPerMillion: null,
-          selectedChipByTeam: null,
-        }),
+        expect.any(Function),
       );
       expect(saveUserTeam).not.toHaveBeenCalled();
     });
