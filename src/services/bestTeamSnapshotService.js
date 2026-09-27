@@ -7,6 +7,7 @@ const { getUserById } = require('../userRegistryService');
 const storage = require('../azureStorageService');
 const { applyPrices } = require('../priceData');
 const { buildBestTeamChanges } = require('../cores/bestTeamChangesCore');
+const { AGENT_BEST_TEAMS_MAX_RESULT_COUNT } = require('../constants');
 const TTL = 24 * 60 * 60 * 1000;
 const hash = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 let client;
@@ -80,7 +81,7 @@ async function saveCalculation(chatId, result, request, fingerprint) {
   if (!result.calculationData || !fingerprint) {
     throw new Error('Calculation inputs unavailable');
   }
-  const rows = result.bestTeams.slice(0, 10).map((target) => ({ row: target.row,
+  const rows = result.bestTeams.slice(0, AGENT_BEST_TEAMS_MAX_RESULT_COUNT).map((target) => ({ row: target.row,
     details: buildBestTeamChanges({ calculationData: result.calculationData, target,
       chip: result.chip, ppm: result.budgetChangePointsPerMillion, remainingRaceCount: result.remainingRaceCount || 0 }) }));
   const metadata = { teamId: result.teamId, teamName: result.teamName, request: { ...request, teamId: result.teamId, teamName: undefined },

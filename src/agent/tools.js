@@ -14,6 +14,10 @@ const bestTeamSnapshots = require('../services/bestTeamSnapshotService');
 
 const { defineTool } = require('@copilotkit/runtime/v2');
 const z = require('zod');
+const {
+  AGENT_BEST_TEAMS_DEFAULT_RESULT_COUNT,
+  AGENT_BEST_TEAMS_MAX_RESULT_COUNT,
+} = require('../constants');
 const { getNextRaces } = require('../cores/nextRacesCore');
 const { computeBestTeams } = require('../cores/bestTeamsCore');
 const {
@@ -152,15 +156,23 @@ const tools = [
   defineTool({
     name: 'list_user_teams',
     description:
-      'List the F1 Fantasy teams the user is tracking. Returns an array of teams with `teamId` (canonical identifier — pass this to other tools), `teamName` (the authenticated user\'s friendly saved label), `isSelected`, `chip`, current drivers, current constructors, and roster metadata. Use it when the user asks to see or choose from their teams. Do not call it solely to resolve a named active-team switch: `select_team` accepts and validates an exact teamName directly. If the latest conversation context already contains this result and the user then picks a team, pass that teamId directly to `select_team`.',
-    parameters: z.object({}),
-    execute: wrapToolExecute('list_user_teams', async () => {
+      'List the F1 Fantasy teams the user is tracking. Returns an array of teams with `teamId` (canonical identifier — pass this to other tools), `teamName` (the authenticated user\'s friendly saved label), `isSelected`, `chip`, current drivers, current constructors, and roster metadata. Use it when the user asks to see or choose from their teams. For internal multi-team workflow target discovery, pass mode="workflow_discovery"; the frontend will keep that lookup silent while the agent builds the workflow. Do not call it solely to resolve a named active-team switch: `select_team` accepts and validates an exact teamName directly. If the latest conversation context already contains this result and the user then picks a team, pass that teamId directly to `select_team`.',
+    parameters: z.object({
+      mode: z
+        .enum(['workflow_discovery'])
+        .optional()
+        .describe(
+          'Use workflow_discovery only when resolving all tracked team IDs for a compound multi-team workflow. Omit it for a user-visible team list.',
+        ),
+    }),
+    execute: wrapToolExecute('list_user_teams', async ({ mode } = {}) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
       await refreshChipPreferencesSafely(chatId);
 
       return await withUiLanguage(chatId, {
         teams: listUserTeams({ chatId }),
+        ...(mode ? { mode } : {}),
       });
     }),
   }),
@@ -168,8 +180,9 @@ const tools = [
   defineTool({
     name: 'get_best_teams',
     description:
-      'Compute the top scoring F1 Fantasy teams the user could field next race. Supports must-include / must-exclude filters on drivers and constructors so you can answer questions like "best teams with Verstappen but no Alonso". Pass driver/constructor codes (e.g. VER, ALO, MCL, FER) — full names like "Verstappen" or "McLaren" are also accepted but codes are safer. Identify the user\'s team by `teamId` (preferred, obtained from list_user_teams) or `teamName` (exact match). Successful results include an opaque calculationId and numbered bestTeams rows. Use get_best_team_changes with that calculationId and row for numeric replies or transfer details. On status "unknown_filter" the result includes a `filters` field listing which inputs failed to resolve — tell the user which names you could not map.',
+      'Compute the top scoring F1 Fantasy teams the user could field next race. When the user requests a number of teams, pass it as resultCount (1–20); omit it for the default 10. Supports must-include / must-exclude filters on drivers and constructors so you can answer questions like "best teams with Verstappen but no Alonso". Pass driver/constructor codes (e.g. VER, ALO, MCL, FER) — full names like "Verstappen" or "McLaren" are also accepted but codes are safer. Identify the user\'s team by `teamId` (preferred, obtained from list_user_teams) or `teamName` (exact match). Successful results include an opaque calculationId and numbered bestTeams rows. Use get_best_team_changes with that calculationId and row for numeric replies or transfer details. On status "invalid_result_count", tell the user the supported range; on status "unknown_filter" tell the user which names you could not map.',
     parameters: z.object({
+      resultCount: z.number().optional().describe('Number of best teams explicitly requested by the user. Must be a whole number from 1 to 20; omit if unspecified (default 10).'),
       chipOverride: z.enum(['EXTRA_BOOST', 'LIMITLESS', 'WILDCARD', 'WITHOUT_CHIP']).optional().describe('Hypothetical chip for this calculation only; does not change the saved chip.'),
       teamId: z
         .string()
@@ -209,6 +222,16 @@ const tools = [
         .describe('Constructor codes the team MUST NOT contain.'),
     }),
     execute: wrapSelectableExecute('get_best_teams', async (args) => {
+      const resultCount = args.resultCount ?? AGENT_BEST_TEAMS_DEFAULT_RESULT_COUNT;
+
+      if (!Number.isInteger(resultCount) || resultCount < 1 || resultCount > AGENT_BEST_TEAMS_MAX_RESULT_COUNT) {
+        const chatId = getAgentChatId();
+
+        return { status: 'invalid_result_count', requestedResultCount: args.resultCount,
+          maximum: AGENT_BEST_TEAMS_MAX_RESULT_COUNT,
+          lang: (await getFreshLanguagePreference(chatId)).lang };
+      }
+
       await ensureCacheReady();
       const chatId = getAgentChatId();
       const [language] = await Promise.all([
@@ -216,14 +239,12 @@ const tools = [
         refreshBestTeamRankingPreferencesSafely(chatId),
         refreshChipPreferencesSafely(chatId),
       ]);
-      // Web component renders up to 10 teams at a time — anything beyond
-      // that bloats the streamed tool payload and the LLM context.
       const result = await computeBestTeams({
         chatId,
         teamId: args.teamId,
         teamName: args.teamName,
         rankBy: args.rankBy ?? null,
-        resultCount: 10,
+        resultCount,
         includeCalculationData: true,
         chipOverride: args.chipOverride,
         loadCalculationContext: bestTeamSnapshots.loadCalculationContext,

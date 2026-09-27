@@ -3,7 +3,7 @@ const { getSystemPrompt } = require('./systemPrompt');
 test('requires clickable choices for every finite clarification and preserves pending actions', () => {
   const prompt = getSystemPrompt();
   expect(prompt).toContain('NEVER ask a multiple-choice question only in prose');
-  expect(prompt).toContain('Preserve filters, rankBy, chip, presetId, and league');
+  expect(prompt).toContain('Preserve filters, rankBy, resultCount, chip, presetId, and league');
   expect(prompt).toContain('Choosing a team for a read must NOT switch');
   expect(prompt).toContain('"תוצאות לייב" → call **get_live_score_for_team**');
   expect(prompt).toContain('action="set_language", choice="language"');
@@ -26,6 +26,17 @@ test('routes help and onboarding to the agent-native guide', () => {
   expect(prompt).toContain(
     'The tool itself hides admin guidance from non-admins',
   );
+});
+
+test('routes requests for runnable agent commands to clickable action cards', () => {
+  const prompt = getSystemPrompt();
+
+  expect(prompt).toContain('call get_agent_guide with topic="commands"');
+  expect(prompt).toMatch(/A card\s+click submits a natural-language request/);
+  expect(prompt).toContain('Do not treat a card click\n    as permission to commit a write');
+  expect(prompt).toContain('commandGroup: "teams" for team strategy');
+  expect(prompt).toContain('commandGroup: "admin"');
+  expect(prompt).toContain('not topic="admin"');
 });
 
 test('routes administrative reads through centrally guarded no-argument tools', () => {
@@ -365,9 +376,11 @@ test('routes explicit bug reports through the confirmed report_bug tool', () => 
   );
 });
 
-test('all-team workflows are always present in the system prompt', () => {
+test('all-team workflows use silent discovery and fan out to every team', () => {
   const prompt = getSystemPrompt();
   expect(prompt).not.toContain("Multi-team requests — clarify, don't fan out");
+  expect(prompt).toContain('list_user_teams({ mode: "workflow_discovery" })');
   expect(prompt).toContain('one get_best_teams step per canonical teamId');
   expect(prompt).toContain('do not ask the user to choose one team');
+  expect(prompt).toContain('do not present\n  the team-switch picker before the workflow card');
 });

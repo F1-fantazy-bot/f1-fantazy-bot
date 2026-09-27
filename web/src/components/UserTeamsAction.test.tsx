@@ -3,6 +3,11 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const propose = vi.fn();
+const registerAction = vi.fn();
+
+vi.mock('@copilotkit/react-core', () => ({
+  useCopilotAction: (spec: unknown) => registerAction(spec),
+}));
 
 vi.mock('./WriteDecisionContext', () => ({
   useWriteDecision: () => ({ propose }),
@@ -59,13 +64,22 @@ vi.mock('./WriteResultCard', () => ({
   ),
 }));
 
-import { InteractiveUserTeamsList } from './UserTeamsAction';
+import {
+  InteractiveUserTeamsList,
+  useUserTeamsAction,
+} from './UserTeamsAction';
+
+function UserTeamsActionRegistration() {
+  useUserTeamsAction();
+  return null;
+}
 
 let container: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
 
 beforeEach(() => {
   propose.mockReset();
+  registerAction.mockReset();
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -169,4 +183,66 @@ describe('InteractiveUserTeamsList', () => {
       container.querySelector('[data-testid="confirmation-card"]'),
     ).toBeNull();
   });
+});
+
+
+test('workflow discovery keeps the team list renderer silent', async () => {
+  await act(async () => {
+    root.render(<UserTeamsActionRegistration />);
+  });
+  const registration = registerAction.mock.calls[0]?.[0] as {
+    render: (input: {
+      status: string;
+      result?: unknown;
+      args?: Record<string, unknown>;
+    }) => unknown;
+  };
+
+  expect(
+    registration.render({
+      status: 'executing',
+      args: { mode: 'workflow_discovery' },
+    }),
+  ).not.toBeNull();
+  expect(
+    registration.render({
+      status: 'complete',
+      result: {
+        lang: 'en',
+        teams: [
+          {
+            teamId: 'Doron-Kilzi_2',
+            teamName: 'Kilzid 2',
+            isLeague: true,
+            isSelected: false,
+            chip: null,
+            drivers: ['VER'],
+            constructors: ['MCL'],
+            boost: 'VER',
+            freeTransfers: 2,
+            costCapRemaining: 1.2,
+          },
+        ],
+      },
+      args: { mode: 'workflow_discovery' },
+    }),
+  ).not.toBeNull();
+  expect(
+    registration.render({
+      status: 'complete',
+      result: {
+        lang: 'en',
+        mode: 'workflow_discovery',
+        teams: [],
+      },
+      args: {},
+    }),
+  ).not.toBeNull();
+  expect(
+    registration.render({
+      status: 'complete',
+      result: { lang: 'en', teams: [] },
+      args: {},
+    }),
+  ).not.toBeNull();
 });

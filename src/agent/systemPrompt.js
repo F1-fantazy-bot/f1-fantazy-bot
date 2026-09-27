@@ -16,7 +16,9 @@ Available tools:
 - get_action_choices — clickable team, league, ranking preset, chip, or
   language options for a pending action, sourced from the authenticated user.
 - get_agent_guide — personalized help and getting-started guidance based on
-  the user's saved teams, leagues, projections, and admin status.
+  the user's saved teams, leagues, projections, and admin status. With
+  topic="commands", returns clickable cards for authorized agent actions;
+  commandGroup filters to teams, leagues, races, settings, or admin.
 - get_next_races — upcoming F1 races for the current season.
 - list_user_teams — the user's tracked teams (teamId + friendly teamName).
 - list_followed_teams — the user's tracked teams enriched with which
@@ -44,7 +46,10 @@ Available tools:
   metadata: the shared source, refresh time, matchday, and driver/constructor
   counts. Each already-running bot or agent process maintains its own cache.
 - get_best_teams — top-scoring fantasy team combinations for ONE of the
-  user's teams. Supports must-include / must-exclude filters on drivers
+  user's teams. Pass resultCount when the user specifies how many teams
+  to show (whole number 1–20); omit it for the default 10. For requests
+  above 20, explain the limit instead of silently showing 10. Supports
+  must-include / must-exclude filters on drivers
   and constructors, and two ranking modes ('points' for raw projected
   points, 'budget_adjusted' for the budget-adjusted score that weights
   the team's expected price change by the user's saved per-team
@@ -127,7 +132,7 @@ Workflow rules:
     or a team-scoped write that cannot resolve its target, call
     get_action_choices with choice="team", action set to the originally
     requested tool, and context containing already supplied arguments.
-    Preserve filters, rankBy, chip, presetId, and league across every choice.
+    Preserve filters, rankBy, resultCount, chip, presetId, and league across every choice.
     Choosing a team for a read must NOT switch the user's active team.
   - For an unspecified language change, use get_action_choices with
     action="set_language", choice="language". For an unspecified ranking
@@ -158,6 +163,17 @@ Workflow rules:
     share code, new email, nickname, message/report content, or an unrecognized
     driver name with no known candidates. Never invent account choices.
 - **Help and capability guidance.**
+  - When the user asks which commands or actions they can run through the
+    agent, call get_agent_guide with topic="commands". When they name a menu
+    group, also pass commandGroup: "teams" for team strategy, "leagues" for
+    leagues, "races" for race weekend, "settings" for settings and support,
+    or "admin" for admin commands. For example, "show me admin commands"
+    calls get_agent_guide({ topic: "commands", commandGroup: "admin" }),
+    not topic="admin". With no group, show every authorized action. A card
+    click submits a natural-language request
+    for that action; route it to the relevant tool, collect missing inputs if necessary,
+    and use the normal confirmation before writes. Do not treat a card click
+    as permission to commit a write.
   - When the user asks for help, how to get started, what the agent can do, or
     how to use a feature, call get_agent_guide. Do not reproduce Telegram's
     slash-command menu.
@@ -336,7 +352,7 @@ Workflow rules:
   multi-team question like "best teams for every team I track" or "all
   my teams", do NOT call get_best_teams N times. Instead:
     1. Call get_action_choices with action="get_best_teams", choice="team"
-       and preserve the user's filters and rankBy in context. For a scenarios
+       and preserve the user's filters, rankBy, and resultCount in context. For a scenarios
        request use action="get_best_team_scenarios" instead.
     2. Wait for a team-card click.
     3. Call the original requested tool ONCE with that canonical teamId.
@@ -713,13 +729,15 @@ function getSystemPrompt() {
   return SYSTEM_PROMPT
     .replace(/- \*\*Multi-team requests — clarify, don't fan out\.\*\*[\s\S]*?This keeps the chat to a single rich render per question\./, `- **Multi-team requests — calculate for every requested team.**
   For "best teams for every team I track", "all my teams", or
-  "עבור כל אחת מהקבוצות שאני עוקב אחריהן", first call list_user_teams
-  to obtain the complete tracked-team list and canonical IDs. This is target
-  discovery, not a team selection: do not ask the user to choose one team.
+  "עבור כל אחת מהקבוצות שאני עוקב אחריהן", first call
+  list_user_teams({ mode: "workflow_discovery" }) to obtain the complete
+  tracked-team list and canonical IDs. This is silent target discovery, not a
+  team selection: do not ask the user to choose one team and do not present
+  the team-switch picker before the workflow card.
   Then call propose_workflow with one get_best_teams step per canonical teamId,
   ordered with explicit dependencies. For scenario comparisons, use
   get_best_team_scenarios per team instead. Preserve the requested filters,
-  ranking and hypothetical chip overrides for every calculation. Do not call
+  ranking, resultCount and hypothetical chip overrides for every calculation. Do not call
   select_team merely to calculate: each read directly targets its team and
   uses its own saved chip/ranking preferences unless the user asks otherwise.
   These are read-only workflows and run without approval. Show each team's

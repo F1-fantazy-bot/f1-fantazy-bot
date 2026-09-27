@@ -16,6 +16,7 @@ jest.mock('../../cache', () => ({
 jest.mock('../../cores/agentGuideCore', () => ({
   GUIDE_TOPICS: [
     'getting_started',
+    'commands',
     'teams',
     'leagues',
     'races',
@@ -84,6 +85,44 @@ beforeEach(() => {
       isSelected: false,
     },
   ]);
+});
+
+test('accepts the agent commands topic from the client', async () => {
+  expect(getAgentGuideTool.parameters.parse({ topic: 'commands' })).toEqual({ topic: 'commands' });
+  await getAgentGuideTool.execute({ topic: 'commands' });
+  expect(buildAgentGuide).toHaveBeenCalledWith(
+    expect.objectContaining({ topic: 'commands', isAdmin: false }),
+  );
+  expect(ensureCacheReady).not.toHaveBeenCalled();
+  expect(listUserLeagues).not.toHaveBeenCalled();
+});
+
+test('passes a requested command group without loading account caches', async () => {
+  isAdminChatId.mockReturnValue(true);
+  expect(getAgentGuideTool.parameters.parse({
+    topic: 'commands',
+    commandGroup: 'admin',
+  })).toEqual({ topic: 'commands', commandGroup: 'admin' });
+
+  await getAgentGuideTool.execute({ topic: 'commands', commandGroup: 'admin' });
+
+  expect(buildAgentGuide).toHaveBeenCalledWith({
+    lang: 'he',
+    topic: 'commands',
+    commandGroup: 'admin',
+    isAdmin: true,
+  });
+  expect(ensureCacheReady).not.toHaveBeenCalled();
+  expect(listUserLeagues).not.toHaveBeenCalled();
+});
+
+test('treats commandGroup alone as a command catalogue request', async () => {
+  await getAgentGuideTool.execute({ commandGroup: 'leagues' });
+
+  expect(buildAgentGuide).toHaveBeenCalledWith(expect.objectContaining({
+    topic: 'commands',
+    commandGroup: 'leagues',
+  }));
 });
 
 test('recognizes non-empty projection maps', () => {

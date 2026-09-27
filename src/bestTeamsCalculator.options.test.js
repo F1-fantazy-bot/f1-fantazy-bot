@@ -103,11 +103,16 @@ describe('calculateBestTeams options', () => {
     }
   });
 
-  it('resultCount caps the returned list', () => {
-    const result = calculateBestTeams(mockJsonData, undefined, 0, 0, {
+  it('returns exactly the requested number when enough teams qualify', () => {
+    const topThree = calculateBestTeams(mockJsonData, undefined, 0, 0, {
       resultCount: 3,
     });
-    expect(result.length).toBeLessThanOrEqual(3);
+    const topTwenty = calculateBestTeams(mockJsonData, undefined, 0, 0, {
+      resultCount: 20,
+    });
+    expect(topThree).toHaveLength(3);
+    expect(topTwenty).toHaveLength(18);
+    expect(topThree).toEqual(topTwenty.slice(0, 3));
   });
 
   it('empty options object preserves legacy behaviour', () => {

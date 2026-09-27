@@ -158,3 +158,11 @@ test('chip expiry invalidates a durable recommendation without any storage chang
     registry.getUserById.mockResolvedValue({ userResetEpoch: 0 });
   }
 });
+
+
+test('all 20 displayed recommendations remain selectable and keep the count on recalculation', async () => {
+  result.bestTeams = Array.from({ length: 20 }, (_, index) => ({ ...result.bestTeams[0], row: index + 1 }));
+  const id = await service.saveCalculation(42, result, { resultCount: 20 }, await service.dependencies(42, 'T1'));
+  expect(await service.getChanges(42, id, 20)).toMatchObject({ status: 'ok', row: 20, request: { teamId: 'T1', resultCount: 20 } });
+  expect(mockStore.submitTransaction.mock.calls.at(-1)[0]).toHaveLength(21);
+});

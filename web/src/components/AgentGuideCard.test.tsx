@@ -92,6 +92,43 @@ function renderGuide(result: AgentGuideResult) {
 }
 
 describe('AgentGuideCard', () => {
+  test('clicking a command card sends its localized request through the agent', async () => {
+    const rendered = renderGuide({
+      status: 'ok',
+      topic: 'commands',
+      lang: 'he',
+      title: 'פעולות האייג׳נט',
+      intro: 'בחר פעולה',
+      recommendations: [],
+      sections: [{
+        topic: 'races',
+        tasks: [{
+          id: 'get_next_races',
+          topic: 'races',
+          icon: '🗓️',
+          title: 'מרוצים קרובים',
+          example: 'הצג את המרוצים הקרובים',
+        }],
+      }],
+      notices: [],
+    });
+
+    expect(rendered.container.textContent).toContain('הצג את המרוצים הקרובים');
+    expect(rendered.container.textContent).not.toContain('get_next_races');
+    expect(rendered.container.textContent).not.toContain('שליחת בקשה להפעלת הפעולה');
+    expect(rendered.container.querySelector('[role="group"]')).toBeNull();
+    await act(async () => {
+      rendered.container.querySelector<HTMLButtonElement>(
+        'button[aria-label^="מרוצים קרובים:"]',
+      )?.click();
+    });
+    expect(addMessage).toHaveBeenCalledWith(expect.objectContaining({
+      role: 'user', content: 'הצג את המרוצים הקרובים',
+    }));
+    expect(runAgent).toHaveBeenCalledWith({ agent });
+    rendered.cleanup();
+  });
+
   test('renders personalized status and recommendations', () => {
     const rendered = renderGuide({
       status: 'ok',
