@@ -211,7 +211,7 @@ function formatAllTeamsLeaderboard({
 
   const lines = rows.map((row, idx) => {
     const rank = String(idx + 1).padStart(rankWidth, ' ');
-    const teamId = buildLeagueTeamId(row.userName, row.teamNo);
+    const teamId = buildLeagueTeamId(row.userName, row.teamNo, row.accountId);
     const isSelected = !!teamId && teamId === selectedTeamId;
     const penaltyMarker = row.transferPenalty > 0 ? ' †' : '';
     const text = ` ${rank}. ${escapeHtml(row.teamName || row.userName || '—')} — ${row.totalPoints.toFixed(2)} ${t('pts', chatId)} | Δ ${formatSignedDelta(row.totalPriceChange.toFixed(2))}${penaltyMarker}`;
