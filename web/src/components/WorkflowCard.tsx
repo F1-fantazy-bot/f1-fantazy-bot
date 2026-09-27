@@ -182,7 +182,7 @@ export function WorkflowArrival({
   refresh: () => void;
   autoRun: (flow: Workflow) => boolean;
   onDecision: (flow: Workflow, decision: string) => void;
-  onInlineWorkflow: (id: string) => void;
+  onInlineWorkflow: (id: string, visible: boolean) => void;
 }) {
   const initialFlow = result as Workflow | undefined;
   const flow =
@@ -198,7 +198,9 @@ export function WorkflowArrival({
     refresh();
   }, [result, refresh]);
   useEffect(() => {
-    if (flow?.id) onInlineWorkflow(flow.id);
+    if (!flow?.id) return;
+    onInlineWorkflow(flow.id, true);
+    return () => onInlineWorkflow(flow.id, false);
   }, [flow?.id, onInlineWorkflow]);
   if (isToolErrorResult(result)) return <ToolErrorFallback result={result} />;
   if (isActionChoices(result)) {
@@ -331,11 +333,13 @@ export function WorkflowWorkspace({
     void decide(flow, 'resume');
     return true;
   };
-  const markInlineWorkflow = useCallback((id: string) => {
+  const markInlineWorkflow = useCallback((id: string, visible: boolean) => {
     setInlineWorkflowIds((previous) => {
-      if (previous.has(id)) return previous;
+      const alreadyVisible = previous.has(id);
+      if (visible === alreadyVisible) return previous;
       const next = new Set(previous);
-      next.add(id);
+      if (visible) next.add(id);
+      else next.delete(id);
       return next;
     });
   }, []);
@@ -392,7 +396,9 @@ export function WorkflowWorkspace({
       if (!next.id) throw new Error();
       if (alive.current)
         setWorkflows((previous) =>
-          previous.map((item) => (item.id === next.id ? next : item)),
+          previous.some((item) => item.id === next.id)
+            ? previous.map((item) => (item.id === next.id ? next : item))
+            : [...previous, next],
         );
       return next;
     };
