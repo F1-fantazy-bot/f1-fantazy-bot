@@ -144,7 +144,7 @@ function buildKeyTeamDifferences(teams) {
     );
   }
   const bottom = raceOrder.at(-1);
-  if (bottom && bottom.teamName !== winner.teamName) {
+  if (bottom && raceOrder.length > 1) {
     comparisons.push(buildTeamDifference(winner, bottom, 'top_vs_bottom'));
   }
 
