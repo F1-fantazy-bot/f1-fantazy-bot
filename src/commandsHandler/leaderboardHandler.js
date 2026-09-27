@@ -49,7 +49,7 @@ function formatLeaderboard(leagueData, chatId) {
     const gapSuffix =
       idx === 0 ? '' : ` (${escapeHtml(score - leaderScore)})`;
     const line = ` ${pos}. ${name} — ${escapeHtml(score)}${gapSuffix}`;
-    const teamId = buildLeagueTeamId(team.userName, team.teamNo);
+    const teamId = buildLeagueTeamId(team.userName, team.teamNo, team.accountId);
 
     return teamId && teamId === selectedTeamId ? `<b>${line}</b>` : line;
   });
