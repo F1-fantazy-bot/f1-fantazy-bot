@@ -137,10 +137,11 @@ async function loadSimulationData(bot) {
  * `{sanitize(userName)}_{teamNo}_{accountId}` id.
  *
  * A legacy id is migrated automatically only when it maps to exactly one
- * account-aware team across the user's followed leagues. If multiple accounts
- * share the same legacy id, the old tracked entry is removed and its derived
- * preferences are cleared so the user must explicitly re-select the intended
- * team instead of the bot guessing.
+ * account-aware team across the user's followed leagues. New-format IDs also
+ * migrate by stable accountId+teamNo if the display username changes. If
+ * multiple accounts share the same legacy id, the old tracked entry is removed
+ * and its derived preferences are cleared so the user must explicitly
+ * re-select the intended team instead of the bot guessing.
  *
  * Best-effort: missing league data is left untouched and retried next startup.
  */
@@ -290,6 +291,7 @@ async function refreshLeagueSourcedTeams(bot) {
     const followedLeagueCodes = await loadFollowedLeagueCodes(chatId);
     const canonicalById = new Map();
     const legacyCandidates = new Map();
+    const accountIdentityCandidates = new Map();
 
     for (const leagueCode of followedLeagueCodes) {
       const data = await loadLeagueTeams(leagueCode);
@@ -312,6 +314,20 @@ async function refreshLeagueSourcedTeams(bot) {
         }
 
         canonicalById.set(canonicalId, team);
+        if (
+          team.accountId &&
+          team.teamNo !== null &&
+          team.teamNo !== undefined &&
+          team.teamNo !== ''
+        ) {
+          const stableAccountKey = `${team.accountId}:${team.teamNo}`;
+          if (!accountIdentityCandidates.has(stableAccountKey)) {
+            accountIdentityCandidates.set(stableAccountKey, new Map());
+          }
+          accountIdentityCandidates
+            .get(stableAccountKey)
+            .set(canonicalId, team);
+        }
         if (legacyId && legacyId !== canonicalId) {
           if (!legacyCandidates.has(legacyId)) {
             legacyCandidates.set(legacyId, new Map());
@@ -340,7 +356,29 @@ async function refreshLeagueSourcedTeams(bot) {
           continue;
         }
 
-        const candidates = legacyCandidates.get(oldTeamId);
+        const cachedTeam = currentTeamCache[chatId][oldTeamId];
+        let candidates = legacyCandidates.get(oldTeamId);
+        if (
+          (!candidates || candidates.size === 0) &&
+          cachedTeam?.accountId &&
+          cachedTeam?.teamNo !== null &&
+          cachedTeam?.teamNo !== undefined &&
+          cachedTeam?.teamNo !== ''
+        ) {
+          const stableAccountKey =
+            `${cachedTeam.accountId}:${cachedTeam.teamNo}`;
+          const accountMatches =
+            accountIdentityCandidates.get(stableAccountKey);
+          if (accountMatches?.size === 1) {
+            candidates = accountMatches;
+          } else if (accountMatches?.size > 1) {
+            // Same stable account identity is present under multiple display
+            // usernames across followed league blobs. Wait for those blobs
+            // to converge rather than choosing which visible username wins.
+            missing += 1;
+            continue;
+          }
+        }
         if (!candidates || candidates.size === 0) {
           missing += 1;
           continue;
