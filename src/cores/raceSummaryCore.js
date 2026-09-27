@@ -17,18 +17,7 @@ function findRaceName(seasonData, raceNumber) {
   );
 }
 
-function rosterKey(team) {
-  if (team?.accountId) {
-    const teamId = buildLeagueTeamId(
-      team?.userName,
-      team?.teamNo,
-      team?.accountId,
-    );
-    if (teamId) {
-      return `account:${teamId}`;
-    }
-  }
-
+function legacyRosterKey(team) {
   // Legacy snapshots did not carry accountId. Include teamName in the
   // fallback so two unrelated accounts that share userName + teamNo do not
   // overwrite each other in the roster map.
@@ -38,6 +27,27 @@ function rosterKey(team) {
     team?.teamNo || 1,
     team?.teamName || '',
   ].join(':');
+}
+
+function rosterKeys(team) {
+  const keys = [];
+  if (team?.accountId) {
+    const teamId = buildLeagueTeamId(
+      team?.userName,
+      team?.teamNo,
+      team?.accountId,
+    );
+    if (teamId) {
+      keys.push(`account:${teamId}`);
+    }
+  }
+
+  // Always index the legacy name-aware alias as well. This makes rollout
+  // order safe when standings have accountId but the latest locked snapshot
+  // was produced before account IDs shipped (or vice versa).
+  keys.push(legacyRosterKey(team));
+
+  return keys;
 }
 
 function memberName(member) {
@@ -80,7 +90,8 @@ function buildTeamDifference(subject, comparison, label) {
     membersMatch &&
     subject.boostDriver === comparison.boostDriver &&
     subject.extraBoostDriver === comparison.extraBoostDriver &&
-    subject.transferPenalty === comparison.transferPenalty;
+    subject.transferPenalty === comparison.transferPenalty &&
+    subject.noNegativeActive === comparison.noNegativeActive;
 
   return {
     label,
@@ -95,6 +106,7 @@ function buildTeamDifference(subject, comparison, label) {
       boostDriver: subject.boostDriver,
       extraBoostDriver: subject.extraBoostDriver,
       transferPenalty: subject.transferPenalty,
+      noNegativeActive: subject.noNegativeActive,
     },
     comparison: {
       teamName: comparison.teamName,
@@ -105,6 +117,7 @@ function buildTeamDifference(subject, comparison, label) {
       boostDriver: comparison.boostDriver,
       extraBoostDriver: comparison.extraBoostDriver,
       transferPenalty: comparison.transferPenalty,
+      noNegativeActive: comparison.noNegativeActive,
     },
     scoreGap: subject.latestRaceScore - comparison.latestRaceScore,
   };
@@ -171,13 +184,18 @@ function buildRaceSummaryData(leagueData, lockedTeamsData, raceName = null) {
   );
   const lockedMatchesRace =
     Number(lockedTeamsData?.matchdayId) === latestMatchdayNumber;
-  const lockedByTeam = new Map(
-    filterExcludedGraphTeams(
-      lockedMatchesRace ? lockedTeamsData?.teams : [],
-    ).map((team) => [rosterKey(team), team]),
-  );
+  const lockedByTeam = new Map();
+  for (const team of filterExcludedGraphTeams(
+    lockedMatchesRace ? lockedTeamsData?.teams : [],
+  )) {
+    for (const key of rosterKeys(team)) {
+      lockedByTeam.set(key, team);
+    }
+  }
   const summaryTeams = teams.map((team) => {
-    const lockedTeam = lockedByTeam.get(rosterKey(team));
+    const lockedTeam = rosterKeys(team)
+      .map((key) => lockedByTeam.get(key))
+      .find(Boolean);
     const lockedTeamForScoring = lockedTeam
       ? {
           ...lockedTeam,
