@@ -116,11 +116,9 @@ async function initializeCaches(bot) {
     `Loaded ${users.length} users into cache from storage`
   );
 
-  // Refresh any league-sourced teams from the latest league teams-data blob so
-  // rosters/budgets/transfers stay in sync between restarts. This pass ALSO
-  // performs the one-time migration from the old league-scoped teamId
-  // (`{leagueCode}_{sanitizedTeamName}`) to the new global fantasy teamId
-  // (`{sanitize(userName)}_{teamNo}`) — see refreshLeagueSourcedTeams below.
+  // Refresh league-sourced teams from the latest teams-data blobs and migrate
+  // the previous username+teamNo identity to the account-aware
+  // username+teamNo+accountId identity. Ambiguous legacy ids are never guessed.
   await refreshLeagueSourcedTeams(bot);
 }
 
