@@ -115,7 +115,7 @@ function teamSeries({
   values,
   includeChips,
 }) {
-  const teamId = buildLeagueTeamId(team?.userName, team?.teamNo);
+  const teamId = buildLeagueTeamId(team?.userName, team?.teamNo, team?.accountId);
   const chips = includeChips ? chipByMatchday(team) : new Map();
 
   return {
