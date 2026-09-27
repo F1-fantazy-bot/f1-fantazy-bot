@@ -72,6 +72,12 @@ jest.mock('./services/selectTeamService', () => ({
   setCachedSelectedTeam: jest.fn(),
 }));
 jest.mock('./services/setBestTeamRankingService', () => ({
+  BEST_TEAM_RANKING_PRESETS: [
+    { id: 'pure_points' },
+    { id: 'points_lean' },
+    { id: 'points_plus_budget' },
+    { id: 'balanced_budget_value' },
+  ],
   setBestTeamRankingPreference: jest.fn(),
 }));
 jest.mock('./services/activateChipService', () => ({
@@ -309,7 +315,7 @@ describe('handleCallbackQuery', () => {
   it('should handle best-team ranking callback', async () => {
     const query = {
       id: 'q6',
-      data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T1:pure_points`,
+      data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T1:0`,
       message: { chat: { id: 123 }, message_id: 456 },
     };
 
@@ -334,7 +340,7 @@ describe('handleCallbackQuery', () => {
 
     const query = {
       id: 'q-stale-ranking',
-      data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T1:removed-preset`,
+      data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T1:99`,
       message: { chat: { id: 123 }, message_id: 456 },
     };
 
@@ -359,7 +365,7 @@ describe('handleCallbackQuery', () => {
     });
     const query = {
       id: 'q-ranking-no-op',
-      data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T1:pure_points`,
+      data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T1:0`,
       message: { chat: { id: 123 }, message_id: 456 },
     };
 
