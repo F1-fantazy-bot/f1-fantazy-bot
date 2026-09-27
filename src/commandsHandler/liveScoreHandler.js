@@ -383,6 +383,7 @@ async function sendLiveScoreForAllTeams(bot, chatId, leagueCode) {
     return {
       teamName: team.teamName,
       userName: team.userName,
+      accountId: team.accountId,
       teamNo: team.teamNo,
       position: team.position,
       totalPoints,
