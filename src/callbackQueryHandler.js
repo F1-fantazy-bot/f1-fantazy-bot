@@ -41,6 +41,7 @@ const {
   setCachedSelectedTeam,
 } = require('./services/selectTeamService');
 const {
+  BEST_TEAM_RANKING_PRESETS,
   setBestTeamRankingPreference,
 } = require('./services/setBestTeamRankingService');
 const {
@@ -230,7 +231,10 @@ async function handleBestTeamRankingCallback(bot, query) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
   const teamId = query.data.split(':')[1];
-  const presetId = query.data.split(':')[2];
+  const presetIndex = Number(query.data.split(':')[2]);
+  const presetId = Number.isInteger(presetIndex)
+    ? BEST_TEAM_RANKING_PRESETS[presetIndex]?.id
+    : null;
 
   const result = await setBestTeamRankingPreference({
     chatId,
