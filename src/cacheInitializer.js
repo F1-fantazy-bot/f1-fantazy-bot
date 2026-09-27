@@ -1,5 +1,6 @@
 const {
   currentTeamCache,
+  bestTeamsCache,
   sharedKey,
   nextRaceInfoCache,
   userCache,
@@ -7,7 +8,9 @@ const {
   remainingRaceCountCache,
   normalizeBestTeamBudgetChangePointsPerMillion,
   normalizeSelectedChipByTeam,
+  serializeSelectedChipByTeam,
   normalizeSelectedBestTeamByTeam,
+  serializeSelectedBestTeamByTeam,
 } = require('./cache');
 const {
   sendLogMessage,
@@ -18,11 +21,18 @@ const {
   getNextRaceInfoData,
   getLeagueTeamsData,
   saveUserTeam,
+  deleteUserTeam,
 } = require('./azureStorageService');
-const { listAllUsers } = require('./userRegistryService');
+const {
+  listAllUsers,
+  updateUserAttributes,
+} = require('./userRegistryService');
 const { fetchRemainingRaceCount } = require('./raceScheduleService');
 const { listUserLeagues } = require('./leagueRegistryService');
-const { buildLeagueTeamId } = require('./utils/teamId');
+const {
+  buildLegacyLeagueTeamId,
+  buildLeagueTeamId,
+} = require('./utils/teamId');
 const { mapLeagueTeamToBotTeam } = require('./utils/leagueTeamHelpers');
 const { refreshSimulationData } = require('./services/simulationRefreshService');
 
@@ -138,6 +148,8 @@ async function refreshLeagueSourcedTeams(bot) {
   let refreshed = 0;
   let missing = 0;
   let failed = 0;
+  let migrated = 0;
+  let ambiguous = 0;
 
   async function loadLeagueTeams(leagueCode) {
     if (!(leagueCode in leagueTeamsByCode)) {
@@ -157,7 +169,7 @@ async function refreshLeagueSourcedTeams(bot) {
       try {
         const leagues = await listUserLeagues(chatId);
         userLeagueCodesByChatId[chatId] = (leagues || []).map(
-          (l) => l.leagueCode,
+          (league) => league.leagueCode,
         );
       } catch (err) {
         console.error(`Failed to list user leagues for ${chatId}:`, err);
@@ -168,66 +180,235 @@ async function refreshLeagueSourcedTeams(bot) {
     return userLeagueCodesByChatId[chatId];
   }
 
+  function moveMapKey(map, oldTeamId, newTeamId) {
+    if (!map || typeof map !== 'object' || !(oldTeamId in map)) {
+      return map;
+    }
+    if (newTeamId && !(newTeamId in map)) {
+      map[newTeamId] = map[oldTeamId];
+    }
+    delete map[oldTeamId];
+
+    return map;
+  }
+
+  function rewriteUserTeamId(chatId, oldTeamId, newTeamId) {
+    const key = String(chatId);
+    const user = userCache[key];
+    if (!user) {
+      return;
+    }
+
+    if (user.selectedTeam === oldTeamId) {
+      user.selectedTeam = newTeamId || null;
+    }
+
+    const ranking = normalizeBestTeamBudgetChangePointsPerMillion(
+      user.bestTeamBudgetChangePointsPerMillion,
+    );
+    moveMapKey(ranking, oldTeamId, newTeamId);
+    user.bestTeamBudgetChangePointsPerMillion = ranking;
+
+    const selectedBest = normalizeSelectedBestTeamByTeam(
+      user.selectedBestTeamByTeam,
+    );
+    moveMapKey(selectedBest, oldTeamId, newTeamId);
+    user.selectedBestTeamByTeam = selectedBest;
+
+    const selectedChips = normalizeSelectedChipByTeam(
+      user.selectedChipByTeam,
+    );
+    moveMapKey(selectedChips, oldTeamId, newTeamId);
+    user.selectedChipByTeam = selectedChips;
+    if (Object.keys(selectedChips).length > 0) {
+      selectedChipCache[key] = selectedChips;
+    } else {
+      delete selectedChipCache[key];
+    }
+
+    moveMapKey(bestTeamsCache[key], oldTeamId, newTeamId);
+  }
+
+  async function persistMigratedUser(chatId) {
+    const key = String(chatId);
+    const user = userCache[key];
+    if (!user) {
+      return;
+    }
+
+    const ranking = normalizeBestTeamBudgetChangePointsPerMillion(
+      user.bestTeamBudgetChangePointsPerMillion,
+    );
+
+    await updateUserAttributes(chatId, {
+      selectedTeam: user.selectedTeam || null,
+      bestTeamBudgetChangePointsPerMillion:
+        Object.keys(ranking).length > 0 ? JSON.stringify(ranking) : null,
+      selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
+        user.selectedBestTeamByTeam,
+      ),
+      selectedChipByTeam: serializeSelectedChipByTeam(
+        user.selectedChipByTeam,
+      ),
+    });
+  }
+
   for (const [chatId, teamsById] of Object.entries(currentTeamCache)) {
-    if (!teamsById || typeof teamsById !== 'object') {continue;}
+    if (!teamsById || typeof teamsById !== 'object') {
+      continue;
+    }
 
     const followedLeagueCodes = await loadFollowedLeagueCodes(chatId);
     const teamIds = Object.keys(teamsById);
+    let userIdentityChanged = false;
 
-    for (const teamId of teamIds) {
-      // Screenshot teams (`T1`/`T2`/`T3`) have no `_` — skip.
-      if (!teamId.includes('_')) {continue;}
+    for (const oldTeamId of teamIds) {
+      // Screenshot teams (T1/T2/T3) have no underscore.
+      if (!oldTeamId.includes('_')) {
+        continue;
+      }
 
       try {
-        let foundMatch = null;
+        const exactMatches = new Map();
+        const legacyCandidates = new Map();
+
         for (const leagueCode of followedLeagueCodes) {
           const data = await loadLeagueTeams(leagueCode);
-          if (!data || !Array.isArray(data.teams)) {continue;}
+          if (!data || !Array.isArray(data.teams)) {
+            continue;
+          }
 
-          const match = data.teams.find(
-            (team) =>
-              buildLeagueTeamId(team.userName, team.teamNo) === teamId,
-          );
-          if (match) {
-            foundMatch = match;
-            break;
+          for (const team of data.teams) {
+            const canonicalId = buildLeagueTeamId(
+              team.userName,
+              team.teamNo,
+              team.accountId,
+            );
+            if (!canonicalId) {
+              continue;
+            }
+
+            if (canonicalId === oldTeamId && !exactMatches.has(canonicalId)) {
+              exactMatches.set(canonicalId, team);
+            }
+
+            const legacyId = buildLegacyLeagueTeamId(
+              team.userName,
+              team.teamNo,
+            );
+            if (
+              legacyId === oldTeamId &&
+              canonicalId !== oldTeamId &&
+              !legacyCandidates.has(canonicalId)
+            ) {
+              legacyCandidates.set(canonicalId, team);
+            }
           }
         }
 
-        if (!foundMatch) {
-          missing += 1;
+        if (exactMatches.size > 0) {
+          const foundMatch = exactMatches.values().next().value;
+          const refreshedTeam = mapLeagueTeamToBotTeam(foundMatch);
+          currentTeamCache[chatId][oldTeamId] = refreshedTeam;
+
+          try {
+            await saveUserTeam(bot, chatId, oldTeamId, refreshedTeam, {
+              silent: true,
+            });
+          } catch (saveErr) {
+            console.error(
+              `Failed to persist refreshed league team ${oldTeamId} for ${chatId}:`,
+              saveErr,
+            );
+          }
+
+          refreshed += 1;
           continue;
         }
 
-        const refreshedTeam = mapLeagueTeamToBotTeam(foundMatch);
-        currentTeamCache[chatId][teamId] = refreshedTeam;
+        if (legacyCandidates.size === 1) {
+          const [newTeamId, foundMatch] = legacyCandidates.entries().next().value;
+          const refreshedTeam = mapLeagueTeamToBotTeam(foundMatch);
 
-        try {
-          await saveUserTeam(bot, chatId, teamId, refreshedTeam, {
+          // Persist the new canonical blob before deleting the old one.
+          await saveUserTeam(bot, chatId, newTeamId, refreshedTeam, {
             silent: true,
           });
-        } catch (saveErr) {
-          console.error(
-            `Failed to persist refreshed league team ${teamId} for ${chatId}:`,
-            saveErr,
-          );
+
+          if (!(newTeamId in currentTeamCache[chatId])) {
+            currentTeamCache[chatId][newTeamId] = refreshedTeam;
+          }
+          delete currentTeamCache[chatId][oldTeamId];
+          rewriteUserTeamId(chatId, oldTeamId, newTeamId);
+          userIdentityChanged = true;
+
+          try {
+            await deleteUserTeam(bot, chatId, oldTeamId, { silent: true });
+          } catch (deleteErr) {
+            console.error(
+              `Failed to delete migrated team ${oldTeamId} for ${chatId}:`,
+              deleteErr,
+            );
+          }
+
+          migrated += 1;
+          continue;
         }
 
-        refreshed += 1;
+        if (legacyCandidates.size > 1) {
+          // The old {userName}_{teamNo} id maps to multiple real F1 accounts.
+          // Never guess which account was intended: drop the ambiguous legacy
+          // entry and require the user to select the desired team again.
+          delete currentTeamCache[chatId][oldTeamId];
+          rewriteUserTeamId(chatId, oldTeamId, null);
+          userIdentityChanged = true;
+
+          try {
+            await deleteUserTeam(bot, chatId, oldTeamId, { silent: true });
+          } catch (deleteErr) {
+            console.error(
+              `Failed to delete ambiguous legacy team ${oldTeamId} for ${chatId}:`,
+              deleteErr,
+            );
+          }
+
+          ambiguous += 1;
+          continue;
+        }
+
+        missing += 1;
       } catch (err) {
         failed += 1;
         console.error(
-          `Failed to refresh league-sourced team ${teamId} for ${chatId}:`,
+          `Failed to refresh league-sourced team ${oldTeamId} for ${chatId}:`,
+          err,
+        );
+      }
+    }
+
+    if (userIdentityChanged) {
+      try {
+        await persistMigratedUser(chatId);
+      } catch (err) {
+        failed += 1;
+        console.error(
+          `Failed to persist account-aware team migration for ${chatId}:`,
           err,
         );
       }
     }
   }
 
-  if (refreshed > 0 || missing > 0 || failed > 0) {
+  if (
+    refreshed > 0 ||
+    missing > 0 ||
+    failed > 0 ||
+    migrated > 0 ||
+    ambiguous > 0
+  ) {
     await sendLogMessage(
       bot,
-      `League-sourced teams refresh: ${refreshed} refreshed, ${missing} missing in league, ${failed} failed`,
+      `League-sourced teams refresh: ${refreshed} refreshed, ${missing} missing in league, ${failed} failed, ${migrated} migrated to account-aware ids, ${ambiguous} ambiguous legacy ids removed for reselection`,
     );
   }
 }
