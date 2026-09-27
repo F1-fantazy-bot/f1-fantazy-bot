@@ -103,6 +103,7 @@ exports.handleCallbackQuery = async function (bot, query) {
     case TEAM_ASSIGN_CALLBACK_TYPE:
       return await handleTeamAssignCallback(bot, query);
     case BEST_TEAM_WEIGHTS_CALLBACK_TYPE:
+    case 'BEST_TEAM_WEIGHTS':
       return await handleBestTeamRankingCallback(bot, query);
     case DEADLINE_CALLBACK_TYPE:
       return await handleDeadlineRefreshCallback(bot, query);
@@ -230,11 +231,17 @@ async function handleLanguageCallback(bot, query) {
 async function handleBestTeamRankingCallback(bot, query) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
-  const teamId = query.data.split(':')[1];
-  const presetIndex = Number(query.data.split(':')[2]);
-  const presetId = Number.isInteger(presetIndex)
-    ? BEST_TEAM_RANKING_PRESETS[presetIndex]?.id
-    : null;
+  const parts = query.data.split(':');
+  const callbackType = parts[0];
+  const teamId = parts[1];
+  const rawPreset = parts[2];
+  const presetIndex = Number(rawPreset);
+  const presetId =
+    callbackType === 'BEST_TEAM_WEIGHTS'
+      ? rawPreset
+      : Number.isInteger(presetIndex)
+        ? BEST_TEAM_RANKING_PRESETS[presetIndex]?.id
+        : null;
 
   const result = await setBestTeamRankingPreference({
     chatId,
