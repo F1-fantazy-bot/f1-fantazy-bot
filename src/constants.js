@@ -29,7 +29,8 @@ exports.MENU_CALLBACK_TYPE = 'MENU';
 exports.LANG_CALLBACK_TYPE = 'LANG';
 exports.TEAM_CALLBACK_TYPE = 'TEAM';
 exports.TEAM_ASSIGN_CALLBACK_TYPE = 'TEAM_ASSIGN';
-// Compact because account-aware teamIds are longer and Telegram caps callback_data at 64 bytes.\nexports.BEST_TEAM_WEIGHTS_CALLBACK_TYPE = 'BW';
+// Compact because account-aware teamIds are longer and Telegram caps callback_data at 64 bytes.
+exports.BEST_TEAM_WEIGHTS_CALLBACK_TYPE = 'BW';
 exports.DEADLINE_CALLBACK_TYPE = 'DEADLINE';
 exports.LEAGUE_CALLBACK_TYPE = 'LEAGUE';
 exports.LEAGUE_UNFOLLOW_CALLBACK_TYPE = 'LEAGUE_UNFOLLOW';
