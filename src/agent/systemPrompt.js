@@ -46,7 +46,10 @@ Available tools:
   metadata: the shared source, refresh time, matchday, and driver/constructor
   counts. Each already-running bot or agent process maintains its own cache.
 - get_best_teams — top-scoring fantasy team combinations for ONE of the
-  user's teams. Supports must-include / must-exclude filters on drivers
+  user's teams. Pass resultCount when the user specifies how many teams
+  to show (whole number 1–20); omit it for the default 10. For requests
+  above 20, explain the limit instead of silently showing 10. Supports
+  must-include / must-exclude filters on drivers
   and constructors, and two ranking modes ('points' for raw projected
   points, 'budget_adjusted' for the budget-adjusted score that weights
   the team's expected price change by the user's saved per-team
@@ -129,7 +132,7 @@ Workflow rules:
     or a team-scoped write that cannot resolve its target, call
     get_action_choices with choice="team", action set to the originally
     requested tool, and context containing already supplied arguments.
-    Preserve filters, rankBy, chip, presetId, and league across every choice.
+    Preserve filters, rankBy, resultCount, chip, presetId, and league across every choice.
     Choosing a team for a read must NOT switch the user's active team.
   - For an unspecified language change, use get_action_choices with
     action="set_language", choice="language". For an unspecified ranking
@@ -349,7 +352,7 @@ Workflow rules:
   multi-team question like "best teams for every team I track" or "all
   my teams", do NOT call get_best_teams N times. Instead:
     1. Call get_action_choices with action="get_best_teams", choice="team"
-       and preserve the user's filters and rankBy in context. For a scenarios
+       and preserve the user's filters, rankBy, and resultCount in context. For a scenarios
        request use action="get_best_team_scenarios" instead.
     2. Wait for a team-card click.
     3. Call the original requested tool ONCE with that canonical teamId.
@@ -732,7 +735,7 @@ function getSystemPrompt() {
   Then call propose_workflow with one get_best_teams step per canonical teamId,
   ordered with explicit dependencies. For scenario comparisons, use
   get_best_team_scenarios per team instead. Preserve the requested filters,
-  ranking and hypothetical chip overrides for every calculation. Do not call
+  ranking, resultCount and hypothetical chip overrides for every calculation. Do not call
   select_team merely to calculate: each read directly targets its team and
   uses its own saved chip/ranking preferences unless the user asks otherwise.
   These are read-only workflows and run without approval. Show each team's

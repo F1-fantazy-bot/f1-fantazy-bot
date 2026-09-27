@@ -42,6 +42,7 @@ const contextSchema = z
     chip: z.string().optional(),
     chipOverride: z.enum(['EXTRA_BOOST', 'LIMITLESS', 'WILDCARD', 'WITHOUT_CHIP']).optional(),
     rankBy: z.enum(['points', 'budget_adjusted']).optional(),
+    resultCount: z.number().optional(),
     mustIncludeDrivers: z.array(z.string()).optional(),
     mustExcludeDrivers: z.array(z.string()).optional(),
     mustIncludeConstructors: z.array(z.string()).optional(),

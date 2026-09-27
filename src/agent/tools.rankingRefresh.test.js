@@ -69,6 +69,7 @@ const {
   getLiveScoreForTeam,
 } = require('../cores/liveScoreCore');
 const { tools } = require('./tools');
+const { ensureCacheReady } = require('./cacheBootstrap');
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -163,4 +164,24 @@ test('transfer-detail selection derives identity from the authenticated request'
   expect(await tool.execute({ calculationId: 'opaque', row: 2, chatId: 99 })).toEqual({ status: 'invalid_selection', rows: [1, 2], lang: 'en' });
   expect(read).toHaveBeenCalledWith(42, 'opaque', 2);
   read.mockRestore();
+});
+
+test.each([
+  [{ resultCount: 3 }, 3],
+  [{}, 10],
+  [{ resultCount: 20 }, 20],
+])('get_best_teams passes the requested count %p to the calculator', async (args, count) => {
+  computeBestTeams.mockResolvedValue({ status: 'no_teams' });
+  const tool = tools.find((candidate) => candidate.name === 'get_best_teams');
+  await tool.execute(args);
+  expect(computeBestTeams).toHaveBeenCalledWith(expect.objectContaining({ resultCount: count }));
+});
+
+test.each([0, -1, 2.5, 21])('get_best_teams rejects invalid count %s without calculating', async (resultCount) => {
+  const tool = tools.find((candidate) => candidate.name === 'get_best_teams');
+  expect(await tool.execute({ resultCount })).toMatchObject({
+    status: 'invalid_result_count', requestedResultCount: resultCount, maximum: 20, lang: 'en',
+  });
+  expect(ensureCacheReady).not.toHaveBeenCalled();
+  expect(computeBestTeams).not.toHaveBeenCalled();
 });

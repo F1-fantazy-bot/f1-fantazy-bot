@@ -74,6 +74,9 @@ exports.MAX_FOLLOWED_LEAGUE_TEAMS = 6;
 
 exports.MAX_TELEGRAM_MESSAGE_LENGTH = 4096;
 exports.BEST_TEAMS_RESULT_COUNT = 15;
+// Keep agent result payloads and durable recommendation snapshots bounded.
+exports.AGENT_BEST_TEAMS_DEFAULT_RESULT_COUNT = 10;
+exports.AGENT_BEST_TEAMS_MAX_RESULT_COUNT = 20;
 // Points deducted per transfer beyond the user's free-transfer budget.
 // Same rule the live F1 Fantasy app applies, waived when Wildcard or
 // Limitless is active for that matchday. Used by both
