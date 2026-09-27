@@ -192,7 +192,7 @@ Use this exact plain-text structure:
 Analysis rules:
 - Treat roster differences as correlation, not verified individual driver points.
 - Explain meaningful driver or constructor differences between teams, but never claim that one specific pick caused a score gap unless the data explicitly proves it.
-- keyTeamDifferences includes sameMembers, sameScoringSetup, Boost assignments, Extra Boost assignments, and calculated transfer penalties. Use those fields when they differ.
+- keyTeamDifferences includes sameMembers, sameScoringSetup, Boost assignments, Extra Boost assignments, No Negative state, and calculated transfer penalties. Use those fields when they differ.
 - sameMembers means the seven driver/constructor selections match; it does NOT mean the scoring setup is identical. Only describe two teams as having an identical setup when sameScoringSetup is true.
 - A non-null transferPenalty is an explicit calculated fact and may be stated directly, but do not claim it explains the entire score gap unless the arithmetic proves that.
 - When individual-point data is unavailable, simply describe the roster/scoring-setup differences and final score gap; do not add generic disclaimers about what those differences do or do not prove.
