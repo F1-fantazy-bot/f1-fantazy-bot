@@ -201,9 +201,10 @@ exports.getUserTeamIds = function (chatId) {
 };
 
 /**
- * A league-loaded teamId has the shape `{leagueCode}_{sanitizedTeamName}`
- * (always contains `_`), while screenshot teamIds are the short labels
- * `T1`, `T2`, `T3` (no `_`).
+ * A league-loaded teamId has the canonical shape
+ * `{sanitize(userName)}_{teamNo}_{accountId}` (legacy blobs may temporarily
+ * use `{sanitize(userName)}_{teamNo}`). Screenshot teamIds are the short
+ * labels `T1`, `T2`, `T3` and contain no underscore.
  */
 exports.isLeagueTeamId = function (teamId) {
   return typeof teamId === 'string' && teamId.includes('_');
