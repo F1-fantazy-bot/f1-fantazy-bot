@@ -107,6 +107,156 @@ describe('raceSummaryCore', () => {
     },
   );
 
+  test('keeps separate locked rosters for different accounts with the same username and team number', () => {
+    const standings = [
+      team('NoNoItsSoNotRightMikeyNO', { matchday_1: 120 }, {
+        userName: 'Tom Kregenbild',
+        accountId: 'aaaaaaaaaaaa',
+        teamNo: 1,
+      }),
+      team('Agentic Racing Co.', { matchday_1: 90 }, {
+        userName: 'Tom Kregenbild',
+        accountId: 'bbbbbbbbbbbb',
+        teamNo: 1,
+      }),
+    ];
+    const data = buildRaceSummaryData(
+      { leagueName: 'Friends', teams: standings },
+      {
+        matchdayId: 1,
+        teams: [
+          {
+            teamName: 'NoNoItsSoNotRightMikeyNO',
+            userName: 'Tom Kregenbild',
+            accountId: 'aaaaaaaaaaaa',
+            teamNo: 1,
+            drivers: [{ name: 'First Account Driver' }],
+            constructors: [{ name: 'First Constructor' }],
+          },
+          {
+            teamName: 'Agentic Racing Co.',
+            userName: 'Tom Kregenbild',
+            accountId: 'bbbbbbbbbbbb',
+            teamNo: 1,
+            drivers: [{ name: 'Second Account Driver' }],
+            constructors: [{ name: 'Second Constructor' }],
+          },
+        ],
+      },
+    );
+
+    expect(
+      data.teams.find((entry) => entry.teamName === 'NoNoItsSoNotRightMikeyNO')
+        .drivers,
+    ).toEqual([{ name: 'First Account Driver' }]);
+    expect(
+      data.teams.find((entry) => entry.teamName === 'Agentic Racing Co.')
+        .drivers,
+    ).toEqual([{ name: 'Second Account Driver' }]);
+  });
+
+  test('legacy snapshots also disambiguate same-name accounts by fantasy team name', () => {
+    const standings = [
+      team('Tom Team A', { matchday_1: 120 }, {
+        userName: 'Tom',
+        teamNo: 1,
+      }),
+      team('Tom Team B', { matchday_1: 90 }, {
+        userName: 'Tom',
+        teamNo: 1,
+      }),
+    ];
+    const data = buildRaceSummaryData(
+      { teams: standings },
+      {
+        matchdayId: 1,
+        teams: [
+          {
+            teamName: 'Tom Team A',
+            userName: 'Tom',
+            teamNo: 1,
+            drivers: [{ name: 'A Driver' }],
+          },
+          {
+            teamName: 'Tom Team B',
+            userName: 'Tom',
+            teamNo: 1,
+            drivers: [{ name: 'B Driver' }],
+          },
+        ],
+      },
+    );
+
+    expect(data.teams[0].drivers).toEqual([{ name: 'A Driver' }]);
+    expect(data.teams[1].drivers).toEqual([{ name: 'B Driver' }]);
+  });
+
+  test('comparison facts include Boost assignments and transfer penalties', () => {
+    const data = buildRaceSummaryData(
+      {
+        teams: [
+          team('Winner', { matchday_1: 120 }, {
+            userName: 'A',
+            accountId: 'aaaaaaaaaaaa',
+            teamNo: 1,
+          }),
+          team('Second', { matchday_1: 110 }, {
+            userName: 'B',
+            accountId: 'bbbbbbbbbbbb',
+            teamNo: 1,
+          }),
+        ],
+      },
+      {
+        matchdayId: 1,
+        teams: [
+          {
+            teamName: 'Winner',
+            userName: 'A',
+            accountId: 'aaaaaaaaaaaa',
+            teamNo: 1,
+            matchdayId: 1,
+            transfersRemaining: -2,
+            drivers: [
+              { name: 'Driver A', isCaptain: true },
+              { name: 'Driver B' },
+            ],
+            constructors: [{ name: 'Constructor X' }],
+            chipsUsed: [],
+          },
+          {
+            teamName: 'Second',
+            userName: 'B',
+            accountId: 'bbbbbbbbbbbb',
+            teamNo: 1,
+            matchdayId: 1,
+            transfersRemaining: 0,
+            drivers: [
+              { name: 'Driver A' },
+              { name: 'Driver B', isCaptain: true },
+            ],
+            constructors: [{ name: 'Constructor X' }],
+            chipsUsed: [],
+          },
+        ],
+      },
+    );
+
+    const comparison = data.keyTeamDifferences[0];
+    expect(comparison).toMatchObject({
+      sameMembers: true,
+      sameScoringSetup: false,
+      subject: {
+        boostDriver: 'Driver A',
+        transferPenalty: 20,
+      },
+      comparison: {
+        boostDriver: 'Driver B',
+        transferPenalty: 0,
+      },
+    });
+  });
+
   test('handles no completed race data', () => {
     expect(buildRaceSummaryData({ teams: [team('Empty', {})] })).toMatchObject({
       latestMatchday: null,
