@@ -1,14 +1,65 @@
 // Pure league-change comparison shared by Telegram and the web agent.
 // The core returns raw structured values; each surface owns localization,
 // escaping, and presentation.
-const { buildLeagueTeamId } = require('../utils/teamId');
+const {
+  buildLegacyLeagueTeamId,
+  buildLeagueTeamId,
+} = require('../utils/teamId');
 
-function teamIdentity(team) {
-  const teamId = buildLeagueTeamId(team?.userName, team?.teamNo, team?.accountId);
+function teamIdentityAliases(team) {
+  const aliases = [];
+  const accountAwareId = team?.accountId
+    ? buildLeagueTeamId(team?.userName, team?.teamNo, team.accountId)
+    : null;
 
-  // Older snapshots did not always include teamNo. Preserve their previous
-  // single-team matching behavior without weakening current composite ids.
-  return teamId || (team?.userName ? `legacy:${team.userName}` : null);
+  if (accountAwareId) {
+    aliases.push(`account:${accountAwareId}`);
+  }
+
+  const legacyId = buildLegacyLeagueTeamId(team?.userName, team?.teamNo);
+  if (legacyId) {
+    // Prefer the fantasy-team-name alias before the broad legacy id. During
+    // rollout two different F1 accounts can share userName + teamNo, so the
+    // broad alias is only usable when it is unique in the snapshot index.
+    if (team?.teamName) {
+      aliases.push(`legacy-name:${legacyId}:${team.teamName}`);
+    }
+    aliases.push(`legacy:${legacyId}`);
+  } else if (team?.userName) {
+    // Very old snapshots did not always include teamNo.
+    aliases.push(`legacy-user:${team.userName}`);
+  }
+
+  return aliases;
+}
+
+function buildPlanningTeamIndex(teams) {
+  const index = new Map();
+
+  for (const team of Array.isArray(teams) ? teams : []) {
+    for (const alias of teamIdentityAliases(team)) {
+      if (!index.has(alias)) {
+        index.set(alias, team);
+      } else if (index.get(alias) !== team) {
+        // Ambiguous aliases are deliberately unusable. This prevents a
+        // legacy Tom_1 key from guessing between two different accounts.
+        index.set(alias, null);
+      }
+    }
+  }
+
+  return index;
+}
+
+function findPlanningTeam(team, index) {
+  for (const alias of teamIdentityAliases(team)) {
+    const match = index.get(alias);
+    if (match) {
+      return match;
+    }
+  }
+
+  return null;
 }
 
 function pickCaptainName(team, key) {
@@ -145,20 +196,14 @@ function compareLeagueChanges({ latest, planning } = {}) {
     };
   }
 
-  const planningByTeam = new Map();
-  for (const team of Array.isArray(planning.teams) ? planning.teams : []) {
-    const identity = teamIdentity(team);
-    if (identity) {
-      planningByTeam.set(identity, team);
-    }
-  }
+  const planningByTeam = buildPlanningTeamIndex(planning.teams);
 
   const teams = [...(Array.isArray(latest.teams) ? latest.teams : [])]
     .sort(
       (left, right) =>
         (left?.position || Infinity) - (right?.position || Infinity),
     )
-    .map((team) => normalizeTeam(team, planningByTeam.get(teamIdentity(team))));
+    .map((team) => normalizeTeam(team, findPlanningTeam(team, planningByTeam)));
 
   return {
     status: 'ok',
