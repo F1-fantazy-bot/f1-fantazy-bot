@@ -318,7 +318,7 @@ describe('handleTeamsTrackerCallback', () => {
           position: 1,
           teamName: 'Tom Team',
           userName: 'Tom Kregenbild',
-          accountId: 'aaaaaaaaaaaa',
+          accountId: 'aaaaaaaaaaaaaaaa',
           teamNo: 1,
         },
       ],
@@ -327,24 +327,24 @@ describe('handleTeamsTrackerCallback', () => {
     const bot = makeBot();
     await handleTeamsTrackerCallback(
       bot,
-      queryFixture('TT:T:L1:A1_aaaaaaaaaaaa'),
+      queryFixture('TT:T:L1:A1_aaaaaaaaaaaaaaaa'),
     );
 
     const saved = azureStorageService.saveTeamsTrackerSession.mock.calls[0][1];
     expect(saved.selected).toEqual([
       {
         leagueCode: 'L1',
-        teamId: 'Tom-Kregenbild_1_aaaaaaaaaaaa',
+        teamId: 'Tom-Kregenbild_1_aaaaaaaaaaaaaaaa',
       },
     ]);
     expect(saved.addOrder).toEqual([
-      'Tom-Kregenbild_1_aaaaaaaaaaaa',
+      'Tom-Kregenbild_1_aaaaaaaaaaaaaaaa',
     ]);
 
     const rendered = bot.editMessageText.mock.calls.at(-1)[1]
       .reply_markup.inline_keyboard;
     const toggleCallback = rendered[0][0].callback_data;
-    expect(toggleCallback).toBe('TT:T:L1:A1_aaaaaaaaaaaa');
+    expect(toggleCallback).toBe('TT:T:L1:A1_aaaaaaaaaaaaaaaa');
     expect(Buffer.byteLength(toggleCallback, 'utf8')).toBeLessThanOrEqual(64);
   });
 
