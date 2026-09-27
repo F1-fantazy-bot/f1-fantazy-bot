@@ -284,6 +284,29 @@ describe('raceSummaryCore', () => {
     });
   });
 
+
+  test('still builds top-vs-bottom when distinct teams share the same fantasy team name', () => {
+    const differences = buildKeyTeamDifferences([
+      {
+        teamName: 'Same Name',
+        latestRaceScore: 100,
+        drivers: ['A'],
+        constructors: ['X'],
+      },
+      {
+        teamName: 'Same Name',
+        latestRaceScore: 10,
+        drivers: ['B'],
+        constructors: ['Y'],
+      },
+    ]);
+
+    expect(differences.map(({ label }) => label)).toEqual([
+      'winner_vs_2nd',
+      'top_vs_bottom',
+    ]);
+  });
+
   test('handles no completed race data', () => {
     expect(buildRaceSummaryData({ teams: [team('Empty', {})] })).toMatchObject({
       latestMatchday: null,
