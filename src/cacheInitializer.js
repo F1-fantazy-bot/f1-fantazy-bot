@@ -25,7 +25,7 @@ const {
 } = require('./azureStorageService');
 const {
   listAllUsers,
-  updateUserAttributes,
+  updateUserAttributesAtomically,
 } = require('./userRegistryService');
 const { fetchRemainingRaceCount } = require('./raceScheduleService');
 const { listUserLeagues } = require('./leagueRegistryService');
@@ -203,40 +203,54 @@ async function refreshLeagueSourcedTeams(bot) {
     newTeamId,
   ) {
     const userKey = String(chatId);
-    const user = userCache[userKey];
-    if (!user) {
+    if (!userCache[userKey]) {
       return;
     }
 
-    const ranking = movePreferenceKey(
-      normalizeBestTeamBudgetChangePointsPerMillion(
-        user.bestTeamBudgetChangePointsPerMillion,
-      ),
-      oldTeamId,
-      newTeamId,
-    );
-    const selectedBest = movePreferenceKey(
-      normalizeSelectedBestTeamByTeam(user.selectedBestTeamByTeam),
-      oldTeamId,
-      newTeamId,
-    );
-    const chips = movePreferenceKey(
-      normalizeSelectedChipByTeam(user.selectedChipByTeam),
-      oldTeamId,
-      newTeamId,
-    );
-    const selectedTeam =
-      user.selectedTeam === oldTeamId ? newTeamId || null : user.selectedTeam;
+    let ranking = {};
+    let selectedBest = {};
+    let chips = {};
+    let selectedTeam = null;
 
-    await updateUserAttributes(chatId, {
-      selectedTeam: selectedTeam || null,
-      bestTeamBudgetChangePointsPerMillion:
-        Object.keys(ranking).length > 0 ? JSON.stringify(ranking) : null,
-      selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(selectedBest),
-      selectedChipByTeam: serializeSelectedChipByTeam(chips),
+    await updateUserAttributesAtomically(chatId, (currentUser) => {
+      ranking = movePreferenceKey(
+        normalizeBestTeamBudgetChangePointsPerMillion(
+          currentUser.bestTeamBudgetChangePointsPerMillion,
+        ),
+        oldTeamId,
+        newTeamId,
+      );
+      selectedBest = movePreferenceKey(
+        normalizeSelectedBestTeamByTeam(
+          currentUser.selectedBestTeamByTeam,
+        ),
+        oldTeamId,
+        newTeamId,
+      );
+      chips = movePreferenceKey(
+        normalizeSelectedChipByTeam(currentUser.selectedChipByTeam),
+        oldTeamId,
+        newTeamId,
+      );
+      selectedTeam =
+        currentUser.selectedTeam === oldTeamId
+          ? newTeamId || null
+          : currentUser.selectedTeam || null;
+
+      return {
+        selectedTeam: selectedTeam || null,
+        bestTeamBudgetChangePointsPerMillion:
+          Object.keys(ranking).length > 0
+            ? JSON.stringify(ranking)
+            : null,
+        selectedBestTeamByTeam:
+          serializeSelectedBestTeamByTeam(selectedBest),
+        selectedChipByTeam: serializeSelectedChipByTeam(chips),
+      };
     });
 
-    user.selectedTeam = selectedTeam || null;
+    const user = userCache[userKey];
+    user.selectedTeam = selectedTeam;
     user.bestTeamBudgetChangePointsPerMillion = ranking;
     user.selectedBestTeamByTeam = selectedBest;
     user.selectedChipByTeam = chips;
