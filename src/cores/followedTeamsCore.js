@@ -77,7 +77,7 @@ async function listFollowedTeams({ chatId }) {
   for (const [leagueCode, data] of Object.entries(leagueDataByCode)) {
     const leagueName = leagueNameByCode[leagueCode] || leagueCode;
     for (const row of data.teams) {
-      const teamId = buildLeagueTeamId(row.userName, row.teamNo);
+      const teamId = buildLeagueTeamId(row.userName, row.teamNo, row.accountId);
       if (!teamId || !trackedTeamIds.has(teamId)) {
         continue;
       }
