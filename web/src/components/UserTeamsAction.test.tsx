@@ -69,6 +69,11 @@ import {
   useUserTeamsAction,
 } from './UserTeamsAction';
 
+function UserTeamsActionRegistration() {
+  useUserTeamsAction();
+  return null;
+}
+
 let container: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
 
@@ -181,8 +186,10 @@ describe('InteractiveUserTeamsList', () => {
 });
 
 
-test('workflow discovery keeps the team list renderer silent', () => {
-  useUserTeamsAction();
+test('workflow discovery keeps the team list renderer silent', async () => {
+  await act(async () => {
+    root.render(<UserTeamsActionRegistration />);
+  });
   const registration = registerAction.mock.calls[0]?.[0] as {
     render: (input: {
       status: string;
