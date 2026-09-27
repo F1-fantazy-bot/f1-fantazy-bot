@@ -2,6 +2,8 @@
 // agent. This module owns facts only; model calls, localization, telemetry,
 // storage, and presentation remain in their adapters/services.
 const { filterExcludedGraphTeams } = require('../utils/leagueGraphFilter');
+const { buildLeagueTeamId } = require('../utils/teamId');
+const { deriveLiveScoreOptions } = require('../utils/liveScoreCalc');
 
 function findRaceName(seasonData, raceNumber) {
   const races = seasonData?.MRData?.RaceTable?.Races;
@@ -16,7 +18,14 @@ function findRaceName(seasonData, raceNumber) {
 }
 
 function rosterKey(team) {
-  return `${team?.userName || team?.teamName || ''}:${team?.teamNo || 1}`;
+  return (
+    buildLeagueTeamId(
+      team?.userName,
+      team?.teamNo,
+      team?.accountId,
+    ) ||
+    `${team?.teamName || team?.userName || ''}:${team?.teamNo || 1}`
+  );
 }
 
 function memberName(member) {
@@ -27,6 +36,13 @@ function rosterNames(team, field) {
   return (Array.isArray(team?.[field]) ? team[field] : [])
     .map(memberName)
     .filter(Boolean);
+}
+
+function flaggedMemberName(team, flag) {
+  const drivers = Array.isArray(team?.drivers) ? team.drivers : [];
+  const match = drivers.find((driver) => driver?.[flag]);
+
+  return match?.name || null;
 }
 
 function buildTeamDifference(subject, comparison, label) {
@@ -44,6 +60,9 @@ function buildTeamDifference(subject, comparison, label) {
       raceScore: subject.latestRaceScore,
       uniqueDrivers: uniqueMembers('drivers', subject, comparison),
       uniqueConstructors: uniqueMembers('constructors', subject, comparison),
+      boostDriver: subject.boostDriver || null,
+      extraBoostDriver: subject.extraBoostDriver || null,
+      transferPenalty: Number(subject.transferPenalty) || 0,
     },
     comparison: {
       teamName: comparison.teamName,
@@ -51,6 +70,9 @@ function buildTeamDifference(subject, comparison, label) {
       raceScore: comparison.latestRaceScore,
       uniqueDrivers: uniqueMembers('drivers', comparison, subject),
       uniqueConstructors: uniqueMembers('constructors', comparison, subject),
+      boostDriver: comparison.boostDriver || null,
+      extraBoostDriver: comparison.extraBoostDriver || null,
+      transferPenalty: Number(comparison.transferPenalty) || 0,
     },
     scoreGap: subject.latestRaceScore - comparison.latestRaceScore,
   };
@@ -124,6 +146,12 @@ function buildRaceSummaryData(leagueData, lockedTeamsData, raceName = null) {
   );
   const summaryTeams = teams.map((team) => {
     const lockedTeam = lockedByTeam.get(rosterKey(team));
+    const drivers = lockedTeam?.drivers || team.drivers || [];
+    const constructors = lockedTeam?.constructors || team.constructors || [];
+    const chipsUsed = lockedTeam?.chipsUsed || team.chipsUsed || [];
+    const { transferPenalty } = lockedTeam
+      ? deriveLiveScoreOptions(lockedTeam)
+      : { transferPenalty: 0 };
 
     return {
       teamName: team.teamName || team.userName,
@@ -138,9 +166,13 @@ function buildRaceSummaryData(leagueData, lockedTeamsData, raceName = null) {
           ? ranksByRound.at(-2).get(team) - ranksByRound.at(-1).get(team)
           : 0,
       raceScores: team.raceScores || {},
-      drivers: lockedTeam?.drivers || team.drivers || [],
-      constructors: lockedTeam?.constructors || team.constructors || [],
-      chipsUsed: lockedTeam?.chipsUsed || team.chipsUsed || [],
+      drivers,
+      constructors,
+      chipsUsed,
+      boostDriver: flaggedMemberName({ drivers }, 'isCaptain'),
+      extraBoostDriver: flaggedMemberName({ drivers }, 'isMegaCaptain'),
+      transferPenalty,
+      transfersRemaining: lockedTeam?.transfersRemaining ?? null,
     };
   });
 
