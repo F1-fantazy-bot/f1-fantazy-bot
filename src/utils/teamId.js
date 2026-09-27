@@ -15,17 +15,10 @@ function sanitizeIdSegment(value) {
 }
 
 /**
- * Build the canonical league-team id from the F1 Fantasy account login and
- * team number (1/2/3). This id is **league-agnostic** — the same F1 Fantasy
- * team gets the same id in every league it appears in. Persisted into
- * `currentTeamCache`, `bestTeamsCache`, `selectedChipCache`,
- * `userCache[chatId].selectedTeam`, and the per-team blob path.
- *
- * @param {string|null|undefined} userName
- * @param {number|string|null|undefined} teamNo
- * @returns {string|null} null when either field is missing (caller must skip).
+ * Legacy league-team id used before account-aware identity was introduced.
+ * Kept only for backwards-compatible reads and startup migration.
  */
-function buildLeagueTeamId(userName, teamNo) {
+function buildLegacyLeagueTeamId(userName, teamNo) {
   if (typeof userName !== 'string' || userName.length === 0) {
     return null;
   }
@@ -36,6 +29,44 @@ function buildLeagueTeamId(userName, teamNo) {
   return `${sanitizeIdSegment(userName)}_${teamNo}`;
 }
 
+/**
+ * Build the canonical league-team id.
+ *
+ * New data uses {sanitize(userName)}_{teamNo}_{accountId}. accountId is the
+ * stable opaque account discriminator emitted by f1-fantasy-api-data from the
+ * F1 Fantasy user_guid. Older blobs may not contain accountId yet; in that
+ * case return the legacy id so they remain readable until the next scrape.
+ */
+function buildLeagueTeamId(userName, teamNo, accountId) {
+  const legacyId = buildLegacyLeagueTeamId(userName, teamNo);
+  if (!legacyId) {
+    return null;
+  }
+
+  if (accountId === null || accountId === undefined || accountId === '') {
+    return legacyId;
+  }
+
+  return `${legacyId}_${sanitizeIdSegment(accountId)}`;
+}
+
+/**
+ * Compact stable selector for Telegram callback_data. Canonical team ids can
+ * be too long once accountId is appended, so callbacks use accountId+teamNo
+ * and resolve back to the canonical id from the fresh league roster.
+ */
+function buildLeagueTeamCallbackKey(userName, teamNo, accountId) {
+  if (accountId !== null && accountId !== undefined && accountId !== '') {
+    if (teamNo === null || teamNo === undefined || teamNo === '') {
+      return null;
+    }
+
+    return `${teamNo}_${sanitizeIdSegment(accountId)}`;
+  }
+
+  return buildLegacyLeagueTeamId(userName, teamNo);
+}
+
 // Back-compat alias — some call sites still use the old function name to
 // sanitize team names for display/callback-payload purposes (not id
 // construction). Safe to keep.
@@ -44,6 +75,7 @@ const sanitizeTeamName = sanitizeIdSegment;
 module.exports = {
   sanitizeIdSegment,
   sanitizeTeamName,
+  buildLegacyLeagueTeamId,
   buildLeagueTeamId,
+  buildLeagueTeamCallbackKey,
 };
-
