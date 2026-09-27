@@ -307,6 +307,47 @@ describe('handleTeamsTrackerCallback', () => {
     expect(azureStorageService.saveTeamsTrackerSession).not.toHaveBeenCalled();
   });
 
+  it('uses a compact callback token but stores the full account-aware teamId', async () => {
+    azureStorageService.getTeamsTrackerSession = jest
+      .fn()
+      .mockResolvedValue(sessionFixture());
+    azureStorageService.getLeagueTeamsData.mockResolvedValue({
+      leagueCode: 'L1',
+      teams: [
+        {
+          position: 1,
+          teamName: 'Tom Team',
+          userName: 'Tom Kregenbild',
+          accountId: 'aaaaaaaaaaaa',
+          teamNo: 1,
+        },
+      ],
+    });
+
+    const bot = makeBot();
+    await handleTeamsTrackerCallback(
+      bot,
+      queryFixture('TT:T:L1:A1_aaaaaaaaaaaa'),
+    );
+
+    const saved = azureStorageService.saveTeamsTrackerSession.mock.calls[0][1];
+    expect(saved.selected).toEqual([
+      {
+        leagueCode: 'L1',
+        teamId: 'Tom-Kregenbild_1_aaaaaaaaaaaa',
+      },
+    ]);
+    expect(saved.addOrder).toEqual([
+      'Tom-Kregenbild_1_aaaaaaaaaaaa',
+    ]);
+
+    const rendered = bot.editMessageText.mock.calls.at(-1)[1]
+      .reply_markup.inline_keyboard;
+    const toggleCallback = rendered[0][0].callback_data;
+    expect(toggleCallback).toBe('TT:T:L1:A1_aaaaaaaaaaaa');
+    expect(Buffer.byteLength(toggleCallback, 'utf8')).toBeLessThanOrEqual(64);
+  });
+
   it('toggles ON below the cap and persists session', async () => {
     azureStorageService.getTeamsTrackerSession = jest
       .fn()
