@@ -2,6 +2,8 @@
 // agent. This module owns facts only; model calls, localization, telemetry,
 // storage, and presentation remain in their adapters/services.
 const { filterExcludedGraphTeams } = require('../utils/leagueGraphFilter');
+const { buildLeagueTeamId } = require('../utils/teamId');
+const { deriveLiveScoreOptions } = require('../utils/liveScoreCalc');
 
 function findRaceName(seasonData, raceNumber) {
   const races = seasonData?.MRData?.RaceTable?.Races;
@@ -16,7 +18,26 @@ function findRaceName(seasonData, raceNumber) {
 }
 
 function rosterKey(team) {
-  return `${team?.userName || team?.teamName || ''}:${team?.teamNo || 1}`;
+  if (team?.accountId) {
+    const teamId = buildLeagueTeamId(
+      team?.userName,
+      team?.teamNo,
+      team?.accountId,
+    );
+    if (teamId) {
+      return `account:${teamId}`;
+    }
+  }
+
+  // Legacy snapshots did not carry accountId. Include teamName in the
+  // fallback so two unrelated accounts that share userName + teamNo do not
+  // overwrite each other in the roster map.
+  return [
+    'legacy',
+    team?.userName || '',
+    team?.teamNo || 1,
+    team?.teamName || '',
+  ].join(':');
 }
 
 function memberName(member) {
@@ -29,21 +50,51 @@ function rosterNames(team, field) {
     .filter(Boolean);
 }
 
+function flaggedDriverName(team, flag) {
+  const driver = (Array.isArray(team?.drivers) ? team.drivers : [])
+    .find((candidate) => candidate?.[flag]);
+
+  return memberName(driver) || null;
+}
+
+function sameMembers(first, second, field) {
+  const a = [...rosterNames(first, field)].sort();
+  const b = [...rosterNames(second, field)].sort();
+
+  return (
+    a.length === b.length &&
+    a.every((name, index) => name === b[index])
+  );
+}
+
 function buildTeamDifference(subject, comparison, label) {
   const uniqueMembers = (field, first, second) => {
     const secondNames = new Set(rosterNames(second, field));
 
     return rosterNames(first, field).filter((name) => !secondNames.has(name));
   };
+  const membersMatch =
+    sameMembers(subject, comparison, 'drivers') &&
+    sameMembers(subject, comparison, 'constructors');
+  const scoringSetupMatch =
+    membersMatch &&
+    subject.boostDriver === comparison.boostDriver &&
+    subject.extraBoostDriver === comparison.extraBoostDriver &&
+    subject.transferPenalty === comparison.transferPenalty;
 
   return {
     label,
+    sameMembers: membersMatch,
+    sameScoringSetup: scoringSetupMatch,
     subject: {
       teamName: subject.teamName,
       racePlace: subject.racePlace,
       raceScore: subject.latestRaceScore,
       uniqueDrivers: uniqueMembers('drivers', subject, comparison),
       uniqueConstructors: uniqueMembers('constructors', subject, comparison),
+      boostDriver: subject.boostDriver,
+      extraBoostDriver: subject.extraBoostDriver,
+      transferPenalty: subject.transferPenalty,
     },
     comparison: {
       teamName: comparison.teamName,
@@ -51,6 +102,9 @@ function buildTeamDifference(subject, comparison, label) {
       raceScore: comparison.latestRaceScore,
       uniqueDrivers: uniqueMembers('drivers', comparison, subject),
       uniqueConstructors: uniqueMembers('constructors', comparison, subject),
+      boostDriver: comparison.boostDriver,
+      extraBoostDriver: comparison.extraBoostDriver,
+      transferPenalty: comparison.transferPenalty,
     },
     scoreGap: subject.latestRaceScore - comparison.latestRaceScore,
   };
@@ -124,10 +178,25 @@ function buildRaceSummaryData(leagueData, lockedTeamsData, raceName = null) {
   );
   const summaryTeams = teams.map((team) => {
     const lockedTeam = lockedByTeam.get(rosterKey(team));
+    const lockedTeamForScoring = lockedTeam
+      ? {
+          ...lockedTeam,
+          matchdayId:
+            lockedTeam.matchdayId ?? lockedTeamsData?.matchdayId ?? null,
+        }
+      : null;
+    const liveOptions = lockedTeamForScoring
+      ? deriveLiveScoreOptions(lockedTeamForScoring)
+      : null;
+    const drivers = lockedTeam?.drivers || team.drivers || [];
+    const constructors =
+      lockedTeam?.constructors || team.constructors || [];
 
     return {
       teamName: team.teamName || team.userName,
       userName: team.userName,
+      accountId: team.accountId || lockedTeam?.accountId || null,
+      teamNo: team.teamNo ?? lockedTeam?.teamNo ?? null,
       currentPosition: team.position,
       totalScore: team.totalScore,
       latestRaceScore: latestMatchday
@@ -138,8 +207,12 @@ function buildRaceSummaryData(leagueData, lockedTeamsData, raceName = null) {
           ? ranksByRound.at(-2).get(team) - ranksByRound.at(-1).get(team)
           : 0,
       raceScores: team.raceScores || {},
-      drivers: lockedTeam?.drivers || team.drivers || [],
-      constructors: lockedTeam?.constructors || team.constructors || [],
+      drivers,
+      constructors,
+      boostDriver: flaggedDriverName({ drivers }, 'isCaptain'),
+      extraBoostDriver: flaggedDriverName({ drivers }, 'isMegaCaptain'),
+      transferPenalty: liveOptions?.transferPenalty ?? null,
+      noNegativeActive: liveOptions?.noNegativeActive ?? null,
       chipsUsed: lockedTeam?.chipsUsed || team.chipsUsed || [],
     };
   });
