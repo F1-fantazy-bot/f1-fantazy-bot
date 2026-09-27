@@ -104,7 +104,7 @@ export function useUserTeamsAction() {
         (args as { mode?: string } | undefined)?.mode ===
         'workflow_discovery';
       if (status === 'inProgress' || status === 'executing') {
-        return requestedDiscovery ? null : <ToolLoading kind="userTeams" />;
+        return requestedDiscovery ? <></> : <ToolLoading kind="userTeams" />;
       }
       const parsed = typeof result === 'string' ? safeParse(result) : result;
       if (isToolErrorResult(parsed)) {
@@ -115,7 +115,7 @@ export function useUserTeamsAction() {
         requestedDiscovery ||
         typedResult?.mode === 'workflow_discovery'
       ) {
-        return null;
+        return <></>;
       }
 
       return <InteractiveUserTeamsList result={typedResult} />;
