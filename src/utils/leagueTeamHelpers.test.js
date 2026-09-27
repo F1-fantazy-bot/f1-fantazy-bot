@@ -45,7 +45,7 @@ describe('mapLeagueTeamToBotTeam', () => {
     return {
       teamName: 'Kilzid',
       userName: 'Doron Kilzi',
-      accountId: 'aaaaaaaaaaaa',
+      accountId: 'aaaaaaaaaaaaaaaa',
       teamNo: 1,
       position: 4,
       budget: 109.2,
@@ -78,7 +78,7 @@ describe('mapLeagueTeamToBotTeam', () => {
       costCapRemaining: 2.4,
       teamName: 'Kilzid',
       userName: 'Doron Kilzi',
-      accountId: 'aaaaaaaaaaaa',
+      accountId: 'aaaaaaaaaaaaaaaa',
       teamNo: 1,
     });
   });
