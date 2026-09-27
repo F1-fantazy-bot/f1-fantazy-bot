@@ -328,6 +328,7 @@ function createFollowTeamService(ports) {
                   const id = buildLeagueTeamId(
                     team.userName,
                     team.teamNo,
+                    team.accountId,
                   );
 
                   return `${team.teamName || team.userName} (${id})`;
