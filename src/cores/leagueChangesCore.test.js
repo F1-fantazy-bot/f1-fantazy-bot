@@ -145,6 +145,71 @@ describe('leagueChangesCore', () => {
     ]);
   });
 
+
+  test('matches mixed account-aware and legacy snapshots without inventing a new team', () => {
+    const planningTeam = team({
+      teamName: 'Tom Team',
+      userName: 'Tom Kregenbild',
+      teamNo: 1,
+      accountId: 'aaaaaaaaaaaaaaaa',
+      position: 5,
+    });
+    const lockedTeam = team({
+      teamName: 'Tom Team',
+      userName: 'Tom Kregenbild',
+      teamNo: 1,
+      accountId: undefined,
+      position: 2,
+    });
+
+    const result = compareLeagueChanges({
+      latest: snapshot({ teams: [lockedTeam] }),
+      planning: snapshot({ teams: [planningTeam] }),
+    });
+
+    expect(result.teams).toEqual([
+      expect.objectContaining({
+        teamName: 'Tom Team',
+        isNew: false,
+        hasChanges: false,
+      }),
+    ]);
+  });
+
+  test('does not guess across ambiguous legacy userName plus teamNo identities', () => {
+    const planningA = team({
+      teamName: 'NoNoItsSoNotRightMikeyNO',
+      userName: 'Tom Kregenbild',
+      teamNo: 1,
+      accountId: 'aaaaaaaaaaaaaaaa',
+      drivers: [{ name: 'Norris', isCaptain: true }],
+    });
+    const planningB = team({
+      teamName: 'Agentic Racing Co.',
+      userName: 'Tom Kregenbild',
+      teamNo: 1,
+      accountId: 'bbbbbbbbbbbbbbbb',
+      drivers: [{ name: 'Russell', isCaptain: true }],
+    });
+    const legacyLocked = team({
+      teamName: 'Unknown renamed Tom team',
+      userName: 'Tom Kregenbild',
+      teamNo: 1,
+      accountId: undefined,
+      position: 1,
+    });
+
+    const result = compareLeagueChanges({
+      latest: snapshot({ teams: [legacyLocked] }),
+      planning: snapshot({ teams: [planningA, planningB] }),
+    });
+
+    expect(result.teams[0]).toMatchObject({
+      teamName: 'Unknown renamed Tom team',
+      isNew: true,
+    });
+  });
+
   test('marks locked-only teams as new without inventing transfer details', () => {
     const result = compareLeagueChanges({
       latest: snapshot({ teams: [team()] }),
