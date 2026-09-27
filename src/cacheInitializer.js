@@ -25,7 +25,7 @@ const {
 } = require('./azureStorageService');
 const {
   listAllUsers,
-  updateUserAttributes,
+  updateUserAttributesAtomically,
 } = require('./userRegistryService');
 const { fetchRemainingRaceCount } = require('./raceScheduleService');
 const { listUserLeagues } = require('./leagueRegistryService');
@@ -144,7 +144,7 @@ async function loadSimulationData(bot) {
  * Best-effort: errors for individual leagues or teams are logged but do not
  * abort cache initialization.
  */
-async function refreshLeagueSourcedTeams(bot) {
+async function refreshLeagueSourcedTeams(bot, onlyChatId = null) {
   const leagueTeamsByCode = {};
   const userLeagueCodesByChatId = {};
   let refreshed = 0;
@@ -194,68 +194,48 @@ async function refreshLeagueSourcedTeams(bot) {
     return map;
   }
 
-  function rewriteUserTeamId(chatId, oldTeamId, newTeamId) {
+  async function persistMigratedUser(chatId, oldTeamId, newTeamId) {
     const key = String(chatId);
-    const user = userCache[key];
-    if (!user) {
-      return;
-    }
+    const result = await updateUserAttributesAtomically(chatId, (current) => {
+      const changes = {};
+      if (current.selectedTeam === oldTeamId) {
+        changes.selectedTeam = newTeamId || null;
+      }
+      for (const [field, normalize, serialize] of [
+        ['bestTeamBudgetChangePointsPerMillion', normalizeBestTeamBudgetChangePointsPerMillion, (value) => JSON.stringify(value)],
+        ['selectedBestTeamByTeam', normalizeSelectedBestTeamByTeam, serializeSelectedBestTeamByTeam],
+        ['selectedChipByTeam', normalizeSelectedChipByTeam, serializeSelectedChipByTeam],
+      ]) {
+        const value = normalize(current[field]);
+        if (!Object.prototype.hasOwnProperty.call(value, oldTeamId)) {
+          continue;
+        }
+        moveMapKey(value, oldTeamId, newTeamId);
+        changes[field] = Object.keys(value).length ? serialize(value) : null;
+      }
 
-    if (user.selectedTeam === oldTeamId) {
-      user.selectedTeam = newTeamId || null;
-    }
-
-    const ranking = normalizeBestTeamBudgetChangePointsPerMillion(
-      user.bestTeamBudgetChangePointsPerMillion,
-    );
-    moveMapKey(ranking, oldTeamId, newTeamId);
-    user.bestTeamBudgetChangePointsPerMillion = ranking;
-
-    const selectedBest = normalizeSelectedBestTeamByTeam(
-      user.selectedBestTeamByTeam,
-    );
-    moveMapKey(selectedBest, oldTeamId, newTeamId);
-    user.selectedBestTeamByTeam = selectedBest;
-
-    const selectedChips = normalizeSelectedChipByTeam(
-      user.selectedChipByTeam,
-    );
-    moveMapKey(selectedChips, oldTeamId, newTeamId);
-    user.selectedChipByTeam = selectedChips;
-    if (Object.keys(selectedChips).length > 0) {
-      selectedChipCache[key] = selectedChips;
-    } else {
-      delete selectedChipCache[key];
-    }
-
-    moveMapKey(bestTeamsCache[key], oldTeamId, newTeamId);
-  }
-
-  async function persistMigratedUser(chatId) {
-    const key = String(chatId);
-    const user = userCache[key];
-    if (!user) {
-      return;
-    }
-
-    const ranking = normalizeBestTeamBudgetChangePointsPerMillion(
-      user.bestTeamBudgetChangePointsPerMillion,
-    );
-
-    await updateUserAttributes(chatId, {
-      selectedTeam: user.selectedTeam || null,
-      bestTeamBudgetChangePointsPerMillion:
-        Object.keys(ranking).length > 0 ? JSON.stringify(ranking) : null,
-      selectedBestTeamByTeam: serializeSelectedBestTeamByTeam(
-        user.selectedBestTeamByTeam,
-      ),
-      selectedChipByTeam: serializeSelectedChipByTeam(
-        user.selectedChipByTeam,
-      ),
+      return Object.keys(changes).length ? changes : null;
     });
+
+    if (result.user && userCache[key]) {
+      userCache[key].selectedTeam = result.user.selectedTeam || null;
+      userCache[key].bestTeamBudgetChangePointsPerMillion =
+        normalizeBestTeamBudgetChangePointsPerMillion(result.user.bestTeamBudgetChangePointsPerMillion);
+      userCache[key].selectedBestTeamByTeam =
+        normalizeSelectedBestTeamByTeam(result.user.selectedBestTeamByTeam);
+      userCache[key].selectedChipByTeam = normalizeSelectedChipByTeam(result.user.selectedChipByTeam);
+      if (Object.keys(userCache[key].selectedChipByTeam).length) {
+        selectedChipCache[key] = userCache[key].selectedChipByTeam;
+      } else {
+        delete selectedChipCache[key];
+      }
+    }
   }
 
   for (const [chatId, teamsById] of Object.entries(currentTeamCache)) {
+    if (onlyChatId !== null && chatId !== String(onlyChatId)) {
+      continue;
+    }
     if (!teamsById || typeof teamsById !== 'object') {
       continue;
     }
@@ -345,11 +325,13 @@ async function refreshLeagueSourcedTeams(bot) {
           if (!(newTeamId in currentTeamCache[chatId])) {
             currentTeamCache[chatId][newTeamId] = refreshedTeam;
           }
-          delete currentTeamCache[chatId][oldTeamId];
-          rewriteUserTeamId(chatId, oldTeamId, newTeamId);
           // Durable preferences must point at the new blob before the old
           // blob is removed. A crash between these steps is retryable.
-          await persistMigratedUser(chatId);
+          await persistMigratedUser(chatId, oldTeamId, newTeamId);
+          delete currentTeamCache[chatId][oldTeamId];
+          // The registry maps have already been updated from the latest
+          // ETag-protected row. Only update process-local best-team results.
+          moveMapKey(bestTeamsCache[String(chatId)], oldTeamId, newTeamId);
 
           try {
             await deleteUserTeam(bot, chatId, oldTeamId, { silent: true });
@@ -368,9 +350,9 @@ async function refreshLeagueSourcedTeams(bot) {
           // The old {userName}_{teamNo} id maps to multiple real F1 accounts.
           // Never guess which account was intended: drop the ambiguous legacy
           // entry and require the user to select the desired team again.
+          await persistMigratedUser(chatId, oldTeamId, null);
           delete currentTeamCache[chatId][oldTeamId];
-          rewriteUserTeamId(chatId, oldTeamId, null);
-          await persistMigratedUser(chatId);
+          moveMapKey(bestTeamsCache[String(chatId)], oldTeamId, null);
 
           try {
             await deleteUserTeam(bot, chatId, oldTeamId, { silent: true });

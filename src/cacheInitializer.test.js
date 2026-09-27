@@ -22,7 +22,7 @@ const {
 } = require('./azureStorageService');
 const {
   listAllUsers,
-  updateUserAttributes,
+  updateUserAttributesAtomically,
 } = require('./userRegistryService');
 const { listUserLeagues } = require('./leagueRegistryService');
 const {
@@ -54,7 +54,7 @@ jest.mock('./azureStorageService', () => ({
 
 jest.mock('./userRegistryService', () => ({
   listAllUsers: jest.fn(),
-  updateUserAttributes: jest.fn(),
+  updateUserAttributesAtomically: jest.fn(),
 }));
 
 jest.mock('./leagueRegistryService', () => ({
@@ -395,7 +395,17 @@ describe('cacheInitializer', () => {
       getLeagueTeamsData.mockReset();
       saveUserTeam.mockReset().mockResolvedValue(undefined);
       deleteUserTeam.mockReset().mockResolvedValue(undefined);
-      updateUserAttributes.mockReset().mockResolvedValue(undefined);
+      updateUserAttributesAtomically.mockReset().mockImplementation(async (chatId, transform) => {
+        const current = { ...userCache[String(chatId)] };
+        const changes = await transform(current);
+        if (!changes) {return { updated: false, user: current };}
+        const user = { ...current, ...changes };
+        for (const [field, value] of Object.entries(changes)) {
+          if (value === null) {delete user[field];}
+        }
+
+        return { updated: true, user };
+      });
       listUserLeagues.mockReset().mockResolvedValue([]);
       Object.keys(userCache).forEach((k) => delete userCache[k]);
     });
@@ -535,12 +545,7 @@ describe('cacheInitializer', () => {
         'Tom-Kregenbild_1',
         { silent: true },
       );
-      expect(updateUserAttributes).toHaveBeenCalledWith(
-        '111',
-        expect.objectContaining({
-          selectedTeam: 'Tom-Kregenbild_1_a84f1234abcd',
-        }),
-      );
+      expect(updateUserAttributesAtomically).toHaveBeenCalledWith('111', expect.any(Function));
     });
 
     it('drops an ambiguous legacy id instead of guessing between accounts', async () => {
@@ -585,10 +590,7 @@ describe('cacheInitializer', () => {
         'Tom-Kregenbild_1',
         { silent: true },
       );
-      expect(updateUserAttributes).toHaveBeenCalledWith(
-        '111',
-        expect.objectContaining({ selectedTeam: null }),
-      );
+      expect(updateUserAttributesAtomically).toHaveBeenCalledWith('111', expect.any(Function));
     });
 
     it('rekeys the same account after a username change and is idempotent', async () => {
@@ -637,11 +639,45 @@ describe('cacheInitializer', () => {
         teamNo: 1, accountId: 'aaaaaaaaaaaa',
         drivers: [], constructors: [],
       }] });
-      updateUserAttributes.mockRejectedValueOnce(new Error('storage unavailable'));
+      updateUserAttributesAtomically.mockRejectedValueOnce(new Error('storage unavailable'));
       await refreshLeagueSourcedTeams(mockBot);
       expect(saveUserTeam).toHaveBeenCalledWith(mockBot, '111',
         'Tom-Kregenbild_1_aaaaaaaaaaaa', expect.any(Object), { silent: true });
       expect(deleteUserTeam).not.toHaveBeenCalled();
+      expect(currentTeamCache[111]['Tom-Kregenbild_1']).toEqual({ drivers: ['OLD'] });
+    });
+
+    it('moves only the old preference key from the latest durable user row', async () => {
+      currentTeamCache[111] = { 'Tom-Kregenbild_1': { drivers: ['OLD'] } };
+      userCache['111'] = {
+        selectedTeam: 'Tom-Kregenbild_1',
+        selectedChipByTeam: { 'Tom-Kregenbild_1': 'OLD' },
+      };
+      listUserLeagues.mockResolvedValue([{ leagueCode: 'ABC' }]);
+      getLeagueTeamsData.mockResolvedValue({ teams: [{
+        teamName: 'Kilzid', userName: 'Tom Kregenbild', teamNo: 1,
+        accountId: 'a84f12c98d31', drivers: [], constructors: [],
+      }] });
+
+      const currentFromStorage = {
+        selectedTeam: 'Tom-Kregenbild_1',
+        selectedChipByTeam: JSON.stringify({
+          'Tom-Kregenbild_1': 'EXTRA_BOOST',
+          'Other-Owner_2_eeeeeeeeeeee': 'WILDCARD',
+        }),
+      };
+      updateUserAttributesAtomically.mockImplementationOnce(async (_chatId, transform) => {
+        const changes = await transform(currentFromStorage);
+
+        return { updated: true, user: { ...currentFromStorage, ...changes } };
+      });
+
+      await refreshLeagueSourcedTeams(mockBot);
+
+      expect(userCache['111'].selectedChipByTeam).toEqual({
+        'Tom-Kregenbild_1_a84f12c98d31': 'EXTRA_BOOST',
+        'Other-Owner_2_eeeeeeeeeeee': 'WILDCARD',
+      });
     });
 
     it('is a no-op for users with only T1/T2/T3 style ids', async () => {
