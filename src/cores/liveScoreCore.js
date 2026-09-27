@@ -79,7 +79,7 @@ function pickLockedTeam({ snapshot, teamId, teamName }) {
   // Try teamId match first.
   if (teamId) {
     const match = teams.find(
-      (t) => buildLeagueTeamId(t.userName, t.teamNo) === teamId,
+      (t) => buildLeagueTeamId(t.userName, t.teamNo, t.accountId) === teamId,
     );
     if (match) {
       return { status: 'ok', team: match };
@@ -171,7 +171,7 @@ async function getLiveScoreForTeam({
         userName: t.userName,
         teamNo: t.teamNo,
         position: t.position,
-        teamId: buildLeagueTeamId(t.userName, t.teamNo),
+        teamId: buildLeagueTeamId(t.userName, t.teamNo, t.accountId),
       })),
     };
   }
@@ -233,7 +233,7 @@ async function getLiveScoreLeaderboard({
     const options = deriveLiveScoreOptions(team);
     const { totalPoints, totalPriceChange, transferPenalty } =
       calculateLiveScoreBreakdown(realTeam, liveScoreData, options);
-    const teamId = buildLeagueTeamId(team.userName, team.teamNo);
+    const teamId = buildLeagueTeamId(team.userName, team.teamNo, team.accountId);
 
     return {
       teamId,
@@ -294,7 +294,7 @@ async function listLeagueTeams({ chatId, leagueCode, leagueName } = {}) {
   const teams = [...snapshot.teams]
     .sort((a, b) => (a.position || Infinity) - (b.position || Infinity))
     .map((t) => {
-      const teamId = buildLeagueTeamId(t.userName, t.teamNo);
+      const teamId = buildLeagueTeamId(t.userName, t.teamNo, t.accountId);
 
       return {
         teamId,
