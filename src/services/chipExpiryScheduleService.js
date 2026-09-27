@@ -4,7 +4,9 @@ const { RACE_GRACE_MS, FALLBACK_TTL_MS } = require('../utils/chipExpiry');
 function scheduledCandidate(race) {
   const start = race?.sessions?.race
     ? Date.parse(race.sessions.race)
-    : buildDate(race?.date, race?.time)?.getTime();
+    : race?.time
+      ? buildDate(race?.date, race.time)?.getTime()
+      : NaN;
 
   return Number.isFinite(start) ? {
     start,

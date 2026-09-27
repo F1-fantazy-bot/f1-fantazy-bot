@@ -35,6 +35,20 @@ test('uses valid cached race time when the schedule fails', async () => {
   expect(result.expiresAt).toBe(new Date(start + RACE_GRACE_MS).toISOString());
 });
 
+test('ignores schedule entries without an explicit race time and uses cached timing', async () => {
+  fetchCurrentSeasonRaces.mockResolvedValue({ MRData: { RaceTable: { Races: [
+    { season: '2026', round: '17', date: '2026-09-20' },
+  ] } } });
+  const result = await createChipExpiry({
+    now: start - 3 * 86400000,
+    cachedNextRaceInfo: {
+      raceName: 'Test GP',
+      sessions: { race: new Date(start).toISOString() },
+    },
+  });
+  expect(result.expiresAt).toBe(new Date(start + RACE_GRACE_MS).toISOString());
+});
+
 test.each([undefined, { sessions: { race: 'invalid' } }, { sessions: { race: '2025-01-01T00:00:00Z' } }])(
   'falls back to exactly five days with unusable cached timing: %j', async (cachedNextRaceInfo) => {
     fetchCurrentSeasonRaces.mockRejectedValue(new Error('offline'));
