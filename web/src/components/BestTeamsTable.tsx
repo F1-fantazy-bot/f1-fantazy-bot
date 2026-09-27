@@ -48,7 +48,8 @@ type GetBestTeamsErrorResult = {
     | 'missing_remaining_race_count'
     | 'unknown_filter'
     | 'projection_mismatch'
-    | 'missing_weekend_format';
+    | 'missing_weekend_format'
+    | 'invalid_result_count';
   teamId?: string;
   teamIds?: string[];
   teamName?: string;
@@ -110,6 +111,7 @@ const copy = {
         'Projection data does not match the active player list. Try again after the next data refresh.',
       missing_weekend_format:
         'The next-race weekend format is unavailable. Try again after race data refreshes.',
+      invalid_result_count: 'Choose a whole number of teams from 1 to 20.',
     },
   },
   he: {
@@ -152,6 +154,7 @@ const copy = {
         'נתוני התחזית אינם תואמים לרשימת המשתתפים הפעילים. נסה שוב לאחר עדכון הנתונים.',
       missing_weekend_format:
         'פורמט סוף השבוע של המרוץ הבא אינו זמין. נסה שוב לאחר עדכון נתוני המרוץ.',
+      invalid_result_count: 'אפשר לבקש מספר שלם של קבוצות בין 1 ל-20.',
     },
   },
 } as const;

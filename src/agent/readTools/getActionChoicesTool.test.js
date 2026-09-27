@@ -104,6 +104,7 @@ test.each(['get_best_teams', 'get_best_team_scenarios', 'get_current_team'])(
     )({
       teamName: 'bad',
       rankBy: 'budget_adjusted',
+      resultCount: 5,
       mustIncludeDrivers: ['VER'],
     });
     expect(result.options[0]).toMatchObject({
@@ -111,6 +112,7 @@ test.each(['get_best_teams', 'get_best_team_scenarios', 'get_current_team'])(
       args: {
         teamId: 'OWNED_2',
         rankBy: 'budget_adjusted',
+        resultCount: 5,
         mustIncludeDrivers: ['VER'],
       },
     });
