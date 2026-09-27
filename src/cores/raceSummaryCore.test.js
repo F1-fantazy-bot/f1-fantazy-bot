@@ -107,6 +107,123 @@ describe('raceSummaryCore', () => {
     },
   );
 
+  test('keeps same-name same-teamNo accounts on distinct locked rosters', () => {
+    const leagueData = {
+      leagueName: 'Friends',
+      teams: [
+        team('NoNoItsSoNotRightMikeyNO', { matchday_1: 10, matchday_2: 198 }, {
+          userName: 'Tom Kregenbild',
+          teamNo: 1,
+          accountId: 'accountaaa111',
+        }),
+        team('Agentic Racing Co.', { matchday_1: 10, matchday_2: 147 }, {
+          userName: 'Tom Kregenbild',
+          teamNo: 1,
+          accountId: 'accountbbb222',
+        }),
+      ],
+    };
+    const locked = {
+      matchdayId: 2,
+      teams: [
+        {
+          teamName: 'NoNoItsSoNotRightMikeyNO',
+          userName: 'Tom Kregenbild',
+          teamNo: 1,
+          accountId: 'accountaaa111',
+          matchdayId: 2,
+          drivers: [
+            { name: 'Norris', isCaptain: true },
+            { name: 'Leclerc' },
+          ],
+          constructors: [{ name: 'McLaren' }],
+          transfersRemaining: 0,
+          chipsUsed: [],
+        },
+        {
+          teamName: 'Agentic Racing Co.',
+          userName: 'Tom Kregenbild',
+          teamNo: 1,
+          accountId: 'accountbbb222',
+          matchdayId: 2,
+          drivers: [
+            { name: 'Verstappen' },
+            { name: 'Russell', isCaptain: true },
+          ],
+          constructors: [{ name: 'Mercedes' }],
+          transfersRemaining: -2,
+          chipsUsed: [],
+        },
+      ],
+    };
+
+    const data = buildRaceSummaryData(leagueData, locked);
+    const first = data.teams.find(
+      ({ teamName }) => teamName === 'NoNoItsSoNotRightMikeyNO',
+    );
+    const second = data.teams.find(
+      ({ teamName }) => teamName === 'Agentic Racing Co.',
+    );
+
+    expect(first).toMatchObject({
+      drivers: [
+        { name: 'Norris', isCaptain: true },
+        { name: 'Leclerc' },
+      ],
+      constructors: [{ name: 'McLaren' }],
+      boostDriver: 'Norris',
+      transferPenalty: 0,
+    });
+    expect(second).toMatchObject({
+      drivers: [
+        { name: 'Verstappen' },
+        { name: 'Russell', isCaptain: true },
+      ],
+      constructors: [{ name: 'Mercedes' }],
+      boostDriver: 'Russell',
+      transferPenalty: 20,
+    });
+  });
+
+  test('includes boost and penalty differences even when roster members match', () => {
+    const differences = buildKeyTeamDifferences([
+      {
+        teamName: 'Winner',
+        latestRaceScore: 200,
+        drivers: ['A', 'B'],
+        constructors: ['X'],
+        boostDriver: 'A',
+        extraBoostDriver: null,
+        transferPenalty: 0,
+      },
+      {
+        teamName: 'Second',
+        latestRaceScore: 149,
+        drivers: ['A', 'B'],
+        constructors: ['X'],
+        boostDriver: 'B',
+        extraBoostDriver: null,
+        transferPenalty: 10,
+      },
+    ]);
+
+    expect(differences[0]).toMatchObject({
+      subject: {
+        uniqueDrivers: [],
+        uniqueConstructors: [],
+        boostDriver: 'A',
+        transferPenalty: 0,
+      },
+      comparison: {
+        uniqueDrivers: [],
+        uniqueConstructors: [],
+        boostDriver: 'B',
+        transferPenalty: 10,
+      },
+      scoreGap: 51,
+    });
+  });
+
   test('handles no completed race data', () => {
     expect(buildRaceSummaryData({ teams: [team('Empty', {})] })).toMatchObject({
       latestMatchday: null,
