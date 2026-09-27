@@ -563,6 +563,62 @@ describe('cacheInitializer', () => {
       );
     });
 
+    it('migrates an account-aware id when the display username changes', async () => {
+      const oldId = 'Old-Tom_1_aaaaaaaaaaaaaaaa';
+      const newId = 'New-Tom_1_aaaaaaaaaaaaaaaa';
+      currentTeamCache[111] = {
+        [oldId]: {
+          teamName: 'Tom Team',
+          userName: 'Old Tom',
+          accountId: 'aaaaaaaaaaaaaaaa',
+          teamNo: 1,
+          drivers: ['STALE'],
+        },
+      };
+      userCache['111'] = {
+        selectedTeam: oldId,
+        bestTeamBudgetChangePointsPerMillion: {},
+        selectedBestTeamByTeam: {},
+        selectedChipByTeam: {},
+      };
+      listUserLeagues.mockResolvedValue([
+        { leagueCode: 'ABC', leagueName: 'League ABC' },
+      ]);
+      getLeagueTeamsData.mockResolvedValue({
+        leagueCode: 'ABC',
+        teams: [
+          {
+            teamName: 'Tom Team',
+            userName: 'New Tom',
+            accountId: 'aaaaaaaaaaaaaaaa',
+            teamNo: 1,
+            position: 1,
+            budget: 100,
+            transfersRemaining: 2,
+            drivers: [{ name: 'M. Verstappen', price: 30, isCaptain: true }],
+            constructors: [{ name: 'Ferrari', price: 20 }],
+          },
+        ],
+      });
+
+      await refreshLeagueSourcedTeams(mockBot);
+
+      expect(currentTeamCache[111][oldId]).toBeUndefined();
+      expect(currentTeamCache[111][newId]).toEqual(
+        expect.objectContaining({
+          userName: 'New Tom',
+          accountId: 'aaaaaaaaaaaaaaaa',
+        }),
+      );
+      expect(userCache['111'].selectedTeam).toBe(newId);
+      expect(deleteUserTeam).toHaveBeenCalledWith(
+        mockBot,
+        '111',
+        oldId,
+        { silent: true },
+      );
+    });
+
     it('removes an ambiguous legacy id instead of guessing between accounts', async () => {
       const oldId = 'Tom-Kregenbild_1';
       currentTeamCache[111] = {
