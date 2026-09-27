@@ -155,6 +155,33 @@ describe('raceSummaryCore', () => {
     ).toEqual([{ name: 'Second Account Driver' }]);
   });
 
+  test('matches a new standings identity to a pre-accountId locked snapshot during rollout', () => {
+    const planning = team('Tom Team', { matchday_1: 50 }, {
+      userName: 'Tom Kregenbild',
+      accountId: 'aaaaaaaaaaaaaaaa',
+      teamNo: 1,
+    });
+    const data = buildRaceSummaryData(
+      { teams: [planning] },
+      {
+        matchdayId: 1,
+        teams: [
+          {
+            teamName: 'Tom Team',
+            userName: 'Tom Kregenbild',
+            teamNo: 1,
+            drivers: [{ name: 'Legacy Locked Driver' }],
+            constructors: [{ name: 'Legacy Constructor' }],
+          },
+        ],
+      },
+    );
+
+    expect(data.teams[0].drivers).toEqual([
+      { name: 'Legacy Locked Driver' },
+    ]);
+  });
+
   test('legacy snapshots also disambiguate same-name accounts by fantasy team name', () => {
     const standings = [
       team('Tom Team A', { matchday_1: 120 }, {
