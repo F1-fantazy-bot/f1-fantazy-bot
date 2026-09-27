@@ -117,6 +117,47 @@ test('resolves only exact canonical IDs or exact case-insensitive names', async 
   ).resolves.toMatchObject({ status: 'invalid_input' });
 });
 
+test('keeps different accounts distinct when username and teamNo are identical', async () => {
+  const { service } = createHarness({
+    teams: [
+      leagueTeam({
+        teamName: 'Tom Team A',
+        userName: 'Tom Kregenbild',
+        teamNo: 1,
+        accountId: 'aaaaaaaaaaaaaaaa',
+      }),
+      leagueTeam({
+        teamName: 'Tom Team B',
+        userName: 'Tom Kregenbild',
+        teamNo: 1,
+        accountId: 'bbbbbbbbbbbbbbbb',
+      }),
+    ],
+  });
+
+  await expect(
+    service.inspect({
+      chatId: CHAT_ID,
+      action: ACTION.ADD,
+      leagueCode: 'ABC123',
+      teamId: 'Tom-Kregenbild_1_bbbbbbbbbbbbbbbb',
+    }),
+  ).resolves.toMatchObject({
+    status: 'ok',
+    teamId: 'Tom-Kregenbild_1_bbbbbbbbbbbbbbbb',
+    teamName: 'Tom Team B',
+  });
+
+  const available = await service.listAvailableTeams({
+    chatId: CHAT_ID,
+    leagueCode: 'ABC123',
+  });
+  expect(available.teams.map((team) => team.teamId)).toEqual([
+    'Tom-Kregenbild_1_aaaaaaaaaaaaaaaa',
+    'Tom-Kregenbild_1_bbbbbbbbbbbbbbbb',
+  ]);
+});
+
 test('returns actionable invalid results for unfollowed leagues and ambiguous names', async () => {
   const unfollowed = createHarness();
   await expect(
