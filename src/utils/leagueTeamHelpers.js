@@ -4,6 +4,7 @@ const {
   sanitizeIdSegment,
   sanitizeTeamName,
   buildLeagueTeamId,
+  buildLeagueTeamCallbackKey,
 } = require('./teamId');
 const {
   currentTeamCache,
@@ -229,4 +230,5 @@ module.exports = {
   sanitizeIdSegment,
   sanitizeTeamName,
   buildLeagueTeamId,
+  buildLeagueTeamCallbackKey,
 };
