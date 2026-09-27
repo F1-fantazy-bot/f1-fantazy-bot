@@ -13,7 +13,7 @@ function leagueTeam(overrides = {}) {
   return {
     teamName: 'Fast Friends',
     userName: 'Owner',
-    teamNo: 1,
+    teamNo: 1, accountId: 'aaaaaaaaaaaa',
     drivers: [],
     constructors: [],
     ...overrides,
@@ -92,11 +92,11 @@ test('resolves only exact canonical IDs or exact case-insensitive names', async 
       chatId: CHAT_ID,
       action: ACTION.ADD,
       leagueCode: 'abc123',
-      teamId: 'Owner_1',
+      teamId: 'Owner_1_aaaaaaaaaaaa',
     }),
   ).resolves.toMatchObject({
     status: 'ok',
-    teamId: 'Owner_1',
+    teamId: 'Owner_1_aaaaaaaaaaaa',
     teamName: 'Fast Friends',
   });
   await expect(
@@ -106,7 +106,7 @@ test('resolves only exact canonical IDs or exact case-insensitive names', async 
       leagueCode: 'ABC123',
       teamName: 'fast friends',
     }),
-  ).resolves.toMatchObject({ status: 'ok', teamId: 'Owner_1' });
+  ).resolves.toMatchObject({ status: 'ok', teamId: 'Owner_1_aaaaaaaaaaaa' });
   await expect(
     service.inspect({
       chatId: CHAT_ID,
@@ -146,12 +146,12 @@ test('returns actionable invalid results for unfollowed leagues and ambiguous na
   expect(result).toMatchObject({
     status: 'invalid_input',
     availableTeams: [
-      { teamId: 'Owner_1', leagueCode: 'ABC123' },
-      { teamId: 'Other_2', leagueCode: 'ABC123' },
+      { teamId: 'Owner_1_aaaaaaaaaaaa', leagueCode: 'ABC123' },
+      { teamId: 'Other_2_aaaaaaaaaaaa', leagueCode: 'ABC123' },
     ],
   });
-  expect(result.summary).toContain('Owner_1');
-  expect(result.summary).toContain('Other_2');
+  expect(result.summary).toContain('Owner_1_aaaaaaaaaaaa');
+  expect(result.summary).toContain('Other_2_aaaaaaaaaaaa');
 });
 
 test('enforces the followed-team cap inside the service', async () => {
@@ -169,7 +169,7 @@ test('enforces the followed-team cap inside the service', async () => {
     chatId: CHAT_ID,
     action: ACTION.ADD,
     leagueCode: 'ABC123',
-    teamId: 'Owner_1',
+    teamId: 'Owner_1_aaaaaaaaaaaa',
   });
 
   expect(result).toMatchObject({
@@ -191,7 +191,7 @@ test('requires an explicit nonempty followed league when adding', async () => {
     chatId: CHAT_ID,
     action: ACTION.ADD,
     leagueCode: '   ',
-    teamId: 'Owner_1',
+    teamId: 'Owner_1_aaaaaaaaaaaa',
   });
 
   expect(result).toMatchObject({
@@ -204,9 +204,9 @@ test('requires an explicit nonempty followed league when adding', async () => {
 
 test('lists current league teams and marks already followed teams', async () => {
   currentTeamCache[CHAT_ID] = {
-    Other_2: { teamName: 'Already Followed' },
+    Other_2_aaaaaaaaaaaa: { teamName: 'Already Followed' },
   };
-  userCache[String(CHAT_ID)] = { selectedTeam: 'Other_2' };
+  userCache[String(CHAT_ID)] = { selectedTeam: 'Other_2_aaaaaaaaaaaa' };
   const { service, loadLeagueTeamsData } = createHarness({
     storedTeams: currentTeamCache[CHAT_ID],
     teams: [
@@ -214,7 +214,7 @@ test('lists current league teams and marks already followed teams', async () => 
       leagueTeam({
         teamName: 'Already Followed',
         userName: 'Other',
-        teamNo: 2,
+        teamNo: 2, accountId: 'aaaaaaaaaaaa',
         position: 2,
       }),
     ],
@@ -231,12 +231,12 @@ test('lists current league teams and marks already followed teams', async () => 
     leagueCode: 'ABC123',
     teams: [
       expect.objectContaining({
-        teamId: 'Owner_1',
+        teamId: 'Owner_1_aaaaaaaaaaaa',
         isFollowed: false,
         isSelected: false,
       }),
       expect.objectContaining({
-        teamId: 'Other_2',
+        teamId: 'Other_2_aaaaaaaaaaaa',
         isFollowed: true,
         isSelected: true,
       }),
@@ -278,7 +278,7 @@ test('warns about and wipes screenshot teams before adding a league team', async
     chatId: CHAT_ID,
     action: ACTION.ADD,
     leagueCode: 'ABC123',
-    teamId: 'Owner_1',
+    teamId: 'Owner_1_aaaaaaaaaaaa',
   });
   const summary = service.buildSummary(CHAT_ID, {
     ...inspected,
@@ -291,32 +291,32 @@ test('warns about and wipes screenshot teams before adding a league team', async
     chatId: CHAT_ID,
     action: ACTION.ADD,
     leagueCode: 'ABC123',
-    teamId: 'Owner_1',
+    teamId: 'Owner_1_aaaaaaaaaaaa',
   });
   expect(sourceSwitcher).toHaveBeenCalledWith(CHAT_ID);
   expect(storage.saveUserTeam).toHaveBeenCalledWith(
     CHAT_ID,
-    'Owner_1',
+    'Owner_1_aaaaaaaaaaaa',
     expect.objectContaining({ teamName: 'Fast Friends' }),
   );
   expect(clearTeamDerivedPreferences).toHaveBeenCalledWith({
     chatId: CHAT_ID,
-    teamId: 'Owner_1',
-    attributes: { selectedTeam: 'Owner_1' },
+    teamId: 'Owner_1_aaaaaaaaaaaa',
+    attributes: { selectedTeam: 'Owner_1_aaaaaaaaaaaa' },
   });
-  expect(userCache[String(CHAT_ID)].selectedTeam).toBe('Owner_1');
+  expect(userCache[String(CHAT_ID)].selectedTeam).toBe('Owner_1_aaaaaaaaaaaa');
   expect(result).toMatchObject({
     status: 'ok',
     clearedScreenshotTeamIds: ['T1', 'T2'],
-    selectedTeamId: 'Owner_1',
+    selectedTeamId: 'Owner_1_aaaaaaaaaaaa',
   });
 });
 
 test('preserves the selected team when adding without a source switch', async () => {
   currentTeamCache[CHAT_ID] = {
-    Existing_1: { teamName: 'Existing' },
+    Existing_1_bbbbbbbbbbbb: { teamName: 'Existing' },
   };
-  userCache[String(CHAT_ID)] = { selectedTeam: 'Existing_1' };
+  userCache[String(CHAT_ID)] = { selectedTeam: 'Existing_1_bbbbbbbbbbbb' };
   const {
     service,
     clearTeamDerivedPreferences,
@@ -328,14 +328,14 @@ test('preserves the selected team when adding without a source switch', async ()
     chatId: CHAT_ID,
     action: ACTION.ADD,
     leagueCode: 'ABC123',
-    teamId: 'Owner_1',
+    teamId: 'Owner_1_aaaaaaaaaaaa',
   });
 
   expect(clearTeamDerivedPreferences).toHaveBeenCalledWith({
     chatId: CHAT_ID,
-    teamId: 'Owner_1',
+    teamId: 'Owner_1_aaaaaaaaaaaa',
   });
-  expect(userCache[String(CHAT_ID)].selectedTeam).toBe('Existing_1');
+  expect(userCache[String(CHAT_ID)].selectedTeam).toBe('Existing_1_bbbbbbbbbbbb');
   expect(result.selectedTeamId).toBeUndefined();
 });
 
@@ -348,7 +348,7 @@ test('refuses a newly destructive source switch after proposal', async () => {
     chatId: CHAT_ID,
     action: ACTION.ADD,
     leagueCode: 'ABC123',
-    teamId: 'Owner_1',
+    teamId: 'Owner_1_aaaaaaaaaaaa',
     expectedScreenshotTeamIds: [],
   });
 
@@ -363,10 +363,10 @@ test('refuses a newly destructive source switch after proposal', async () => {
 
 test('removes a followed team and updates selected-team fallback', async () => {
   currentTeamCache[CHAT_ID] = {
-    Owner_1: { teamName: 'Fast Friends' },
-    Other_2: { teamName: 'Other' },
+    Owner_1_aaaaaaaaaaaa: { teamName: 'Fast Friends' },
+    Other_2_aaaaaaaaaaaa: { teamName: 'Other' },
   };
-  userCache[String(CHAT_ID)] = { selectedTeam: 'Owner_1' };
+  userCache[String(CHAT_ID)] = { selectedTeam: 'Owner_1_aaaaaaaaaaaa' };
   const { service, storage, clearTeamDerivedPreferences } = createHarness({
     storedTeams: currentTeamCache[CHAT_ID],
   });
@@ -375,22 +375,22 @@ test('removes a followed team and updates selected-team fallback', async () => {
     chatId: CHAT_ID,
     action: ACTION.REMOVE,
     leagueCode: 'ABC123',
-    teamId: 'Owner_1',
+    teamId: 'Owner_1_aaaaaaaaaaaa',
   });
 
   expect(storage.deleteUserTeam).toHaveBeenCalledWith(
     CHAT_ID,
-    'Owner_1',
+    'Owner_1_aaaaaaaaaaaa',
   );
   expect(clearTeamDerivedPreferences).toHaveBeenCalledWith({
     chatId: CHAT_ID,
-    teamId: 'Owner_1',
-    attributes: { selectedTeam: 'Other_2' },
+    teamId: 'Owner_1_aaaaaaaaaaaa',
+    attributes: { selectedTeam: 'Other_2_aaaaaaaaaaaa' },
   });
   expect(result).toMatchObject({
     status: 'ok',
     removed: true,
-    fallbackSelectedTeam: 'Other_2',
+    fallbackSelectedTeam: 'Other_2_aaaaaaaaaaaa',
   });
 });
 
@@ -402,7 +402,7 @@ test('authorizes exact-ID removal from stored teams without loading a stale rost
   } = createHarness({
     teams: [],
     storedTeams: {
-      Owner_1: { teamName: 'Fast Friends' },
+      Owner_1_aaaaaaaaaaaa: { teamName: 'Fast Friends' },
     },
   });
 
@@ -410,7 +410,7 @@ test('authorizes exact-ID removal from stored teams without loading a stale rost
     chatId: CHAT_ID,
     action: ACTION.REMOVE,
     leagueCode: 'ABC123',
-    teamId: 'Owner_1',
+    teamId: 'Owner_1_aaaaaaaaaaaa',
   });
 
   expect(result).toMatchObject({
@@ -422,7 +422,7 @@ test('authorizes exact-ID removal from stored teams without loading a stale rost
   expect(loadLeagueTeamsData).not.toHaveBeenCalled();
   expect(storage.deleteUserTeam).toHaveBeenCalledWith(
     CHAT_ID,
-    'Owner_1',
+    'Owner_1_aaaaaaaaaaaa',
   );
 });
 
@@ -435,38 +435,38 @@ test('preserves Telegram exact-ID removal when no leagues remain followed', asyn
     leagues: [],
     teams: [],
     storedTeams: {
-      Owner_1: { teamName: 'Fast Friends' },
+      Owner_1_aaaaaaaaaaaa: { teamName: 'Fast Friends' },
     },
   });
 
   const inspected = await service.inspect({
     chatId: CHAT_ID,
     action: ACTION.REMOVE,
-    teamId: 'Owner_1',
+    teamId: 'Owner_1_aaaaaaaaaaaa',
   });
   expect(
     service.buildSummary(CHAT_ID, {
       ...inspected,
       action: ACTION.REMOVE,
     }),
-  ).toBe('Stop following tracked team "Fast Friends" (Owner_1).');
+  ).toBe('Stop following tracked team "Fast Friends" (Owner_1_aaaaaaaaaaaa).');
 
   const result = await service.mutate({
     chatId: CHAT_ID,
     action: ACTION.REMOVE,
-    teamId: 'Owner_1',
+    teamId: 'Owner_1_aaaaaaaaaaaa',
   });
 
   expect(result).toMatchObject({
     status: 'ok',
     removed: true,
-    teamId: 'Owner_1',
+    teamId: 'Owner_1_aaaaaaaaaaaa',
   });
   expect(result.leagueCode).toBeUndefined();
   expect(loadLeagueTeamsData).not.toHaveBeenCalled();
   expect(storage.deleteUserTeam).toHaveBeenCalledWith(
     CHAT_ID,
-    'Owner_1',
+    'Owner_1_aaaaaaaaaaaa',
   );
 });
 
@@ -477,7 +477,7 @@ test('validates a supplied removal league separately from stored-team ownership'
     loadLeagueTeamsData,
   } = createHarness({
     storedTeams: {
-      Owner_1: { teamName: 'Fast Friends' },
+      Owner_1_aaaaaaaaaaaa: { teamName: 'Fast Friends' },
     },
   });
 
@@ -485,7 +485,7 @@ test('validates a supplied removal league separately from stored-team ownership'
     chatId: CHAT_ID,
     action: ACTION.REMOVE,
     leagueCode: 'NOTMINE',
-    teamId: 'Owner_1',
+    teamId: 'Owner_1_aaaaaaaaaaaa',
   });
 
   expect(result).toMatchObject({
@@ -507,7 +507,7 @@ test('does not authorize exact-ID removal from roster membership alone', async (
     chatId: CHAT_ID,
     action: ACTION.REMOVE,
     leagueCode: 'ABC123',
-    teamId: 'Owner_1',
+    teamId: 'Owner_1_aaaaaaaaaaaa',
   });
 
   expect(result).toMatchObject({
@@ -528,7 +528,7 @@ test('restores the authoritative snapshot when persistence fails', async () => {
       chatId: CHAT_ID,
       action: ACTION.ADD,
       leagueCode: 'ABC123',
-      teamId: 'Owner_1',
+      teamId: 'Owner_1_aaaaaaaaaaaa',
     }),
   ).rejects.toThrow('blob unavailable');
   expect(restoreTeamState).toHaveBeenCalledWith(

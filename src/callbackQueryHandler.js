@@ -27,6 +27,7 @@ const {
 } = require('./constants');
 
 const { sendLogMessage, sendMessageToUser } = require('./utils');
+const { resolveTeamSelector } = require('./utils/teamCallbackSelector');
 const { ensureSourceIsScreenshot } = require('./utils/teamSourceSwitcher');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
 const { t, getLanguageName } = require('./i18n');
@@ -229,7 +230,7 @@ async function handleLanguageCallback(bot, query) {
 async function handleBestTeamRankingCallback(bot, query) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
-  const teamId = query.data.split(':')[1];
+  const teamId = resolveTeamSelector(chatId, query.data.split(':')[1]);
   const presetId = query.data.split(':')[2];
 
   const result = await setBestTeamRankingPreference({
@@ -271,7 +272,7 @@ async function handleBestTeamRankingCallback(bot, query) {
 async function handleTeamCallback(bot, query) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
-  const teamId = query.data.split(':')[1];
+  const teamId = resolveTeamSelector(chatId, query.data.split(':')[1]);
 
   const result = await selectTeamPreference({ chatId, teamId });
   if (result.status !== 'ok') {

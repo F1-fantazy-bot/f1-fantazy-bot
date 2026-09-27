@@ -1,7 +1,7 @@
 const { LEAGUE_GRAPH_TYPES } = require('../constants');
 const { getChipEmoji } = require('../utils/chipEmojis');
 const { filterExcludedGraphTeams } = require('../utils/leagueGraphFilter');
-const { buildLeagueTeamId } = require('../utils/teamId');
+const { buildLeagueTeamId, sameLeagueTeamIds } = require('../utils/teamId');
 
 const TEAM_COLOR_PALETTE = [
   '#e6194B',
@@ -115,7 +115,7 @@ function teamSeries({
   values,
   includeChips,
 }) {
-  const teamId = buildLeagueTeamId(team?.userName, team?.teamNo);
+  const teamId = buildLeagueTeamId(team?.userName, team?.teamNo, team?.accountId);
   const chips = includeChips ? chipByMatchday(team) : new Map();
 
   return {
@@ -128,7 +128,7 @@ function teamSeries({
         ? team.position
         : null,
     color: TEAM_COLOR_PALETTE[index % TEAM_COLOR_PALETTE.length],
-    isSelected: Boolean(teamId && teamId === selectedTeamId),
+    isSelected: Boolean(teamId && sameLeagueTeamIds(teamId, selectedTeamId)),
     points: matchdays.map((matchday, pointIndex) => ({
       matchdayId: matchday.matchdayId,
       label: matchday.label,

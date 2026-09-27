@@ -4,6 +4,7 @@ const {
   sanitizeIdSegment,
   sanitizeTeamName,
   buildLeagueTeamId,
+  buildLeagueTeamCallbackKey,
 } = require('./teamId');
 const {
   currentTeamCache,
@@ -103,6 +104,7 @@ function mapLeagueTeamToBotTeam(leagueTeam) {
     ...(leagueTeam.teamNo !== undefined && leagueTeam.teamNo !== null
       ? { teamNo: leagueTeam.teamNo }
       : {}),
+    ...(leagueTeam.accountId ? { accountId: leagueTeam.accountId } : {}),
   };
 }
 
@@ -228,4 +230,5 @@ module.exports = {
   sanitizeIdSegment,
   sanitizeTeamName,
   buildLeagueTeamId,
+  buildLeagueTeamCallbackKey,
 };

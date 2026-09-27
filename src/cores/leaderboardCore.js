@@ -10,7 +10,7 @@
 const { getSelectedTeam } = require('../cache');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
-const { buildLeagueTeamId } = require('../utils/teamId');
+const { buildLeagueTeamId, sameLeagueTeamIds } = require('../utils/teamId');
 
 /**
  * @param {{ chatId: number|string, leagueCode: string }} args
@@ -75,7 +75,7 @@ async function getLeaderboard({ chatId, leagueCode }) {
       typeof team.totalScore === 'number' && Number.isFinite(team.totalScore)
         ? team.totalScore
         : null;
-    const teamId = buildLeagueTeamId(team.userName, team.teamNo) || null;
+    const teamId = buildLeagueTeamId(team.userName, team.teamNo, team.accountId) || null;
     const gapToLeader =
       totalScore !== null && leaderScore !== null
         ? totalScore - leaderScore
@@ -92,7 +92,7 @@ async function getLeaderboard({ chatId, leagueCode }) {
       teamId,
       totalScore,
       gapToLeader,
-      isSelected: Boolean(teamId && selectedTeamId && teamId === selectedTeamId),
+      isSelected: Boolean(teamId && selectedTeamId && sameLeagueTeamIds(teamId, selectedTeamId)),
     };
   });
 

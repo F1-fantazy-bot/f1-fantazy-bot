@@ -6,6 +6,7 @@ jest.mock('./wrapToolExecute', () => ({
 }));
 jest.mock('./cacheBootstrap', () => ({
   ensureCacheReady: jest.fn().mockResolvedValue(undefined),
+  ensureCurrentUserIdentity: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('./identity', () => ({
   getAgentChatId: jest.fn(() => 42),

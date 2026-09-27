@@ -15,9 +15,12 @@
 // the main bot.
 
 const { initializeCaches } = require('../cacheInitializer');
+const { refreshLeagueSourcedTeams } = require('../cacheInitializer');
+const { currentTeamCache, isLeagueTeamId } = require('../cache');
 const { getNotifierBot } = require('./notifierBot');
 
 let pendingCacheReady = null;
+const pendingUserRefresh = new Map();
 
 function ensureCacheReady() {
   if (!pendingCacheReady) {
@@ -34,8 +37,29 @@ function ensureCacheReady() {
   return pendingCacheReady;
 }
 
-function resetCacheReadyForTests() {
-  pendingCacheReady = null;
+// The test agent can start before a newly deployed scraper finishes writing
+// accountId. Recheck legacy IDs on reads so a warm instance can migrate them
+// after the weekly blob becomes available, without requiring an app restart.
+async function ensureCurrentUserIdentity(chatId) {
+  await ensureCacheReady();
+  const key = String(chatId);
+  const hasLegacyTeam = Object.keys(currentTeamCache[key] || {}).some(
+    (teamId) => isLeagueTeamId(teamId) && !/_\d+_[a-f0-9]{12}$/i.test(teamId),
+  );
+  if (!hasLegacyTeam) {
+    return;
+  }
+  if (!pendingUserRefresh.has(key)) {
+    const refresh = refreshLeagueSourcedTeams(getNotifierBot(), key)
+      .finally(() => pendingUserRefresh.delete(key));
+    pendingUserRefresh.set(key, refresh);
+  }
+  await pendingUserRefresh.get(key);
 }
 
-module.exports = { ensureCacheReady, resetCacheReadyForTests };
+function resetCacheReadyForTests() {
+  pendingCacheReady = null;
+  pendingUserRefresh.clear();
+}
+
+module.exports = { ensureCacheReady, ensureCurrentUserIdentity, resetCacheReadyForTests };

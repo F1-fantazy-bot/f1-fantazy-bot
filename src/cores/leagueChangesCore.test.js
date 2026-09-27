@@ -145,6 +145,50 @@ describe('leagueChangesCore', () => {
     ]);
   });
 
+
+  test('separates same-name teamNo 1 entries from different accounts', () => {
+    const planningA = team({
+      teamName: 'Tom A',
+      userName: 'Tom Kregenbild',
+      teamNo: 1,
+      accountId: 'aaaaaaaaaaaa',
+      position: 3,
+      drivers: [{ name: 'Norris', isCaptain: true }],
+    });
+    const planningB = team({
+      teamName: 'Tom B',
+      userName: 'Tom Kregenbild',
+      teamNo: 1,
+      accountId: 'bbbbbbbbbbbb',
+      position: 4,
+      drivers: [{ name: 'Russell', isCaptain: true }],
+    });
+    const lockedA = team({
+      ...planningA,
+      position: 1,
+      drivers: [{ name: 'Leclerc', isCaptain: true }],
+    });
+    const lockedB = team({
+      ...planningB,
+      position: 2,
+    });
+
+    const result = compareLeagueChanges({
+      latest: snapshot({ teams: [lockedB, lockedA] }),
+      planning: snapshot({ teams: [planningA, planningB] }),
+    });
+
+    expect(result.changedTeams).toEqual([
+      expect.objectContaining({
+        teamName: 'Tom A',
+        drivers: { in: ['Leclerc'], out: ['Norris'] },
+      }),
+    ]);
+    expect(result.unchangedTeams).toEqual([
+      expect.objectContaining({ teamName: 'Tom B' }),
+    ]);
+  });
+
   test('marks locked-only teams as new without inventing transfer details', () => {
     const result = compareLeagueChanges({
       latest: snapshot({ teams: [team()] }),

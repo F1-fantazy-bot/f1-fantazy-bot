@@ -18,8 +18,12 @@ const {
   getNextRaceInfoData,
   getLeagueTeamsData,
   saveUserTeam,
+  deleteUserTeam,
 } = require('./azureStorageService');
-const { listAllUsers } = require('./userRegistryService');
+const {
+  listAllUsers,
+  updateUserAttributesAtomically,
+} = require('./userRegistryService');
 const { listUserLeagues } = require('./leagueRegistryService');
 const {
   initializeCaches,
@@ -45,10 +49,12 @@ jest.mock('./azureStorageService', () => ({
   getNextRaceInfoData: jest.fn(),
   getLeagueTeamsData: jest.fn(),
   saveUserTeam: jest.fn(),
+  deleteUserTeam: jest.fn(),
 }));
 
 jest.mock('./userRegistryService', () => ({
   listAllUsers: jest.fn(),
+  updateUserAttributesAtomically: jest.fn(),
 }));
 
 jest.mock('./leagueRegistryService', () => ({
@@ -388,6 +394,18 @@ describe('cacheInitializer', () => {
     beforeEach(() => {
       getLeagueTeamsData.mockReset();
       saveUserTeam.mockReset().mockResolvedValue(undefined);
+      deleteUserTeam.mockReset().mockResolvedValue(undefined);
+      updateUserAttributesAtomically.mockReset().mockImplementation(async (chatId, transform) => {
+        const current = { ...userCache[String(chatId)] };
+        const changes = await transform(current);
+        if (!changes) {return { updated: false, user: current };}
+        const user = { ...current, ...changes };
+        for (const [field, value] of Object.entries(changes)) {
+          if (value === null) {delete user[field];}
+        }
+
+        return { updated: true, user };
+      });
       listUserLeagues.mockReset().mockResolvedValue([]);
       Object.keys(userCache).forEach((k) => delete userCache[k]);
     });
@@ -395,10 +413,10 @@ describe('cacheInitializer', () => {
     it('refreshes new-format teams (sanitizedUserName_teamNo) from the latest league blob', async () => {
       currentTeamCache[111] = {
         T1: { drivers: ['OLD'], constructors: ['OLD'] },
-        'My-Team-Owner_1': { drivers: ['STALE'], constructors: ['STALE'] },
+        'My-Team-Owner_1_aaaaaaaaaaaa': { drivers: ['STALE'], constructors: ['STALE'] },
       };
       currentTeamCache[222] = {
-        'Other-Owner_1': { drivers: ['STALE'], constructors: ['STALE'] },
+        'Other-Owner_1_bbbbbbbbbbbb': { drivers: ['STALE'], constructors: ['STALE'] },
       };
 
       // Both chatIds are members of league "ABC" so the refresh loop will
@@ -414,6 +432,7 @@ describe('cacheInitializer', () => {
             teamName: 'My Team',
             userName: 'My Team Owner',
             teamNo: 1,
+            accountId: 'aaaaaaaaaaaa',
             position: 1,
             budget: 100,
             transfersRemaining: 2,
@@ -427,6 +446,7 @@ describe('cacheInitializer', () => {
             teamName: 'Other',
             userName: 'Other Owner',
             teamNo: 1,
+            accountId: 'bbbbbbbbbbbb',
             position: 2,
             budget: 90,
             transfersRemaining: 1,
@@ -444,7 +464,7 @@ describe('cacheInitializer', () => {
         constructors: ['OLD'],
       });
       // League-sourced teams are rebuilt with mapped codes
-      expect(currentTeamCache[111]['My-Team-Owner_1']).toEqual(
+      expect(currentTeamCache[111]['My-Team-Owner_1_aaaaaaaaaaaa']).toEqual(
         expect.objectContaining({
           drivers: ['VER', 'NOR'],
           constructors: ['RED'],
@@ -452,7 +472,7 @@ describe('cacheInitializer', () => {
           freeTransfers: 2,
         }),
       );
-      expect(currentTeamCache[222]['Other-Owner_1']).toEqual(
+      expect(currentTeamCache[222]['Other-Owner_1_bbbbbbbbbbbb']).toEqual(
         expect.objectContaining({
           drivers: ['BEA'],
           constructors: ['VRB'],
@@ -467,6 +487,197 @@ describe('cacheInitializer', () => {
         expect.any(Object),
         { silent: true },
       );
+    });
+
+
+    it('migrates an unambiguous legacy id to username_teamNo_accountId', async () => {
+      currentTeamCache[111] = {
+        'Tom-Kregenbild_1': { drivers: ['STALE'], constructors: ['STALE'] },
+      };
+      userCache['111'] = {
+        selectedTeam: 'Tom-Kregenbild_1',
+        bestTeamBudgetChangePointsPerMillion: { 'Tom-Kregenbild_1': 1.5 },
+        selectedBestTeamByTeam: {},
+        selectedChipByTeam: {},
+      };
+      listUserLeagues.mockResolvedValue([
+        { leagueCode: 'ABC', leagueName: 'League ABC' },
+      ]);
+      getLeagueTeamsData.mockResolvedValue({
+        teams: [
+          {
+            teamName: 'NoNoItsSoNotRightMikeyNO',
+            userName: 'Tom Kregenbild',
+            teamNo: 1,
+            accountId: 'a84f1234abcd',
+            budget: 100,
+            transfersRemaining: 2,
+            drivers: [{ name: 'L. Norris', price: 25, isCaptain: true }],
+            constructors: [{ name: 'McLaren', price: 20 }],
+          },
+        ],
+      });
+
+      await refreshLeagueSourcedTeams(mockBot);
+
+      expect(currentTeamCache[111]['Tom-Kregenbild_1']).toBeUndefined();
+      expect(
+        currentTeamCache[111]['Tom-Kregenbild_1_a84f1234abcd'],
+      ).toEqual(
+        expect.objectContaining({
+          teamName: 'NoNoItsSoNotRightMikeyNO',
+          accountId: 'a84f1234abcd',
+        }),
+      );
+      expect(userCache['111'].selectedTeam).toBe(
+        'Tom-Kregenbild_1_a84f1234abcd',
+      );
+      expect(saveUserTeam).toHaveBeenCalledWith(
+        mockBot,
+        '111',
+        'Tom-Kregenbild_1_a84f1234abcd',
+        expect.any(Object),
+        { silent: true },
+      );
+      expect(deleteUserTeam).toHaveBeenCalledWith(
+        mockBot,
+        '111',
+        'Tom-Kregenbild_1',
+        { silent: true },
+      );
+      expect(updateUserAttributesAtomically).toHaveBeenCalledWith('111', expect.any(Function));
+    });
+
+    it('drops an ambiguous legacy id instead of guessing between accounts', async () => {
+      currentTeamCache[111] = {
+        'Tom-Kregenbild_1': { drivers: ['UNKNOWN ACCOUNT'] },
+      };
+      userCache['111'] = {
+        selectedTeam: 'Tom-Kregenbild_1',
+        bestTeamBudgetChangePointsPerMillion: {},
+        selectedBestTeamByTeam: {},
+        selectedChipByTeam: { 'Tom-Kregenbild_1': 'EXTRA_BOOST' },
+      };
+      listUserLeagues.mockResolvedValue([
+        { leagueCode: 'ABC', leagueName: 'League ABC' },
+      ]);
+      getLeagueTeamsData.mockResolvedValue({
+        teams: [
+          {
+            teamName: 'NoNoItsSoNotRightMikeyNO',
+            userName: 'Tom Kregenbild',
+            teamNo: 1,
+            accountId: 'aaaaaaaaaaaa',
+          },
+          {
+            teamName: 'Agentic Racing Co.',
+            userName: 'Tom Kregenbild',
+            teamNo: 1,
+            accountId: 'bbbbbbbbbbbb',
+          },
+        ],
+      });
+
+      await refreshLeagueSourcedTeams(mockBot);
+
+      expect(currentTeamCache[111]).toEqual({});
+      expect(userCache['111'].selectedTeam).toBeNull();
+      expect(userCache['111'].selectedChipByTeam).toEqual({});
+      expect(saveUserTeam).not.toHaveBeenCalled();
+      expect(deleteUserTeam).toHaveBeenCalledWith(
+        mockBot,
+        '111',
+        'Tom-Kregenbild_1',
+        { silent: true },
+      );
+      expect(updateUserAttributesAtomically).toHaveBeenCalledWith('111', expect.any(Function));
+    });
+
+    it('rekeys the same account after a username change and is idempotent', async () => {
+      currentTeamCache[111] = {
+        'Tom-Kregenbild_1_a84f1234abcd': {
+          accountId: 'a84f1234abcd', teamNo: 1, userName: 'Tom Kregenbild',
+          teamName: 'Agentic Racing Co.', drivers: ['OLD'],
+        },
+      };
+      userCache['111'] = {
+        selectedTeam: 'Tom-Kregenbild_1_a84f1234abcd',
+        bestTeamBudgetChangePointsPerMillion: {
+          'Tom-Kregenbild_1_a84f1234abcd': 1.5,
+        },
+        selectedBestTeamByTeam: {},
+        selectedChipByTeam: { 'Tom-Kregenbild_1_a84f1234abcd': 'EXTRA_BOOST' },
+      };
+      listUserLeagues.mockResolvedValue([{ leagueCode: 'ABC' }]);
+      getLeagueTeamsData.mockResolvedValue({ teams: [{
+        teamName: 'Agentic Racing Co.', userName: 'Tom NewName', teamNo: 1,
+        accountId: 'a84f1234abcd', budget: 100, transfersRemaining: 1,
+        drivers: [], constructors: [],
+      }] });
+
+      await refreshLeagueSourcedTeams(mockBot);
+      const nextId = 'Tom-NewName_1_a84f1234abcd';
+      expect(Object.keys(currentTeamCache[111])).toEqual([nextId]);
+      expect(userCache['111'].selectedTeam).toBe(nextId);
+      expect(userCache['111'].selectedChipByTeam).toEqual({ [nextId]: 'EXTRA_BOOST' });
+      expect(userCache['111'].bestTeamBudgetChangePointsPerMillion).toEqual({ [nextId]: 1.5 });
+      expect(deleteUserTeam).toHaveBeenCalledTimes(1);
+
+      await refreshLeagueSourcedTeams(mockBot);
+      expect(Object.keys(currentTeamCache[111])).toEqual([nextId]);
+      expect(deleteUserTeam).toHaveBeenCalledTimes(1);
+    });
+
+    it('retains the legacy blob for a safe restart if preference persistence fails', async () => {
+      currentTeamCache[111] = { 'Tom-Kregenbild_1': { drivers: ['OLD'] } };
+      userCache['111'] = { selectedTeam: 'Tom-Kregenbild_1',
+        selectedChipByTeam: {}, selectedBestTeamByTeam: {},
+        bestTeamBudgetChangePointsPerMillion: {} };
+      listUserLeagues.mockResolvedValue([{ leagueCode: 'ABC' }]);
+      getLeagueTeamsData.mockResolvedValue({ teams: [{
+        teamName: 'Agentic Racing Co.', userName: 'Tom Kregenbild',
+        teamNo: 1, accountId: 'aaaaaaaaaaaa',
+        drivers: [], constructors: [],
+      }] });
+      updateUserAttributesAtomically.mockRejectedValueOnce(new Error('storage unavailable'));
+      await refreshLeagueSourcedTeams(mockBot);
+      expect(saveUserTeam).toHaveBeenCalledWith(mockBot, '111',
+        'Tom-Kregenbild_1_aaaaaaaaaaaa', expect.any(Object), { silent: true });
+      expect(deleteUserTeam).not.toHaveBeenCalled();
+      expect(currentTeamCache[111]['Tom-Kregenbild_1']).toEqual({ drivers: ['OLD'] });
+    });
+
+    it('moves only the old preference key from the latest durable user row', async () => {
+      currentTeamCache[111] = { 'Tom-Kregenbild_1': { drivers: ['OLD'] } };
+      userCache['111'] = {
+        selectedTeam: 'Tom-Kregenbild_1',
+        selectedChipByTeam: { 'Tom-Kregenbild_1': 'OLD' },
+      };
+      listUserLeagues.mockResolvedValue([{ leagueCode: 'ABC' }]);
+      getLeagueTeamsData.mockResolvedValue({ teams: [{
+        teamName: 'Kilzid', userName: 'Tom Kregenbild', teamNo: 1,
+        accountId: 'a84f12c98d31', drivers: [], constructors: [],
+      }] });
+
+      const currentFromStorage = {
+        selectedTeam: 'Tom-Kregenbild_1',
+        selectedChipByTeam: JSON.stringify({
+          'Tom-Kregenbild_1': 'EXTRA_BOOST',
+          'Other-Owner_2_eeeeeeeeeeee': 'WILDCARD',
+        }),
+      };
+      updateUserAttributesAtomically.mockImplementationOnce(async (_chatId, transform) => {
+        const changes = await transform(currentFromStorage);
+
+        return { updated: true, user: { ...currentFromStorage, ...changes } };
+      });
+
+      await refreshLeagueSourcedTeams(mockBot);
+
+      expect(userCache['111'].selectedChipByTeam).toEqual({
+        'Tom-Kregenbild_1_a84f12c98d31': 'EXTRA_BOOST',
+        'Other-Owner_2_eeeeeeeeeeee': 'WILDCARD',
+      });
     });
 
     it('is a no-op for users with only T1/T2/T3 style ids', async () => {

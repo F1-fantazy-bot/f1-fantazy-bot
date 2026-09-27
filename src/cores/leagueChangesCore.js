@@ -1,15 +1,7 @@
 // Pure league-change comparison shared by Telegram and the web agent.
 // The core returns raw structured values; each surface owns localization,
 // escaping, and presentation.
-const { buildLeagueTeamId } = require('../utils/teamId');
-
-function teamIdentity(team) {
-  const teamId = buildLeagueTeamId(team?.userName, team?.teamNo);
-
-  // Older snapshots did not always include teamNo. Preserve their previous
-  // single-team matching behavior without weakening current composite ids.
-  return teamId || (team?.userName ? `legacy:${team.userName}` : null);
-}
+const { resolveLockedRoster } = require('./raceSummaryCore');
 
 function pickCaptainName(team, key) {
   const drivers = Array.isArray(team?.drivers) ? team.drivers : [];
@@ -145,12 +137,15 @@ function compareLeagueChanges({ latest, planning } = {}) {
     };
   }
 
-  const planningByTeam = new Map();
-  for (const team of Array.isArray(planning.teams) ? planning.teams : []) {
-    const identity = teamIdentity(team);
-    if (identity) {
-      planningByTeam.set(identity, team);
-    }
+  const planningTeams = Array.isArray(planning.teams) ? planning.teams : [];
+  function findPlanningTeam(lockedTeam) {
+    const direct = resolveLockedRoster(lockedTeam, planningTeams).team;
+    if (direct) {return direct;}
+    if (lockedTeam.accountId) {return null;}
+    const reverse = planningTeams.filter((candidate) =>
+      resolveLockedRoster(candidate, [lockedTeam]).team === lockedTeam);
+
+    return reverse.length === 1 ? reverse[0] : null;
   }
 
   const teams = [...(Array.isArray(latest.teams) ? latest.teams : [])]
@@ -158,7 +153,7 @@ function compareLeagueChanges({ latest, planning } = {}) {
       (left, right) =>
         (left?.position || Infinity) - (right?.position || Infinity),
     )
-    .map((team) => normalizeTeam(team, planningByTeam.get(teamIdentity(team))));
+    .map((team) => normalizeTeam(team, findPlanningTeam(team)));
 
   return {
     status: 'ok',

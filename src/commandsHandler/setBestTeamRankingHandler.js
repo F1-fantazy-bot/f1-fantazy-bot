@@ -1,6 +1,7 @@
 const { t } = require('../i18n');
 const { BEST_TEAM_WEIGHTS_CALLBACK_TYPE } = require('../constants');
 const { resolveSelectedTeam, remainingRaceCountCache, sharedKey } = require('../cache');
+const { selectorForTeam } = require('../utils/teamCallbackSelector');
 const {
   BEST_TEAM_RANKING_PRESETS,
 } = require('../services/setBestTeamRankingService');
@@ -11,6 +12,8 @@ async function handleSetBestTeamRanking(bot, msg) {
   if (!teamId) {
     return;
   }
+  const selector = selectorForTeam(chatId, teamId);
+  if (!selector) {return;}
 
   const cachedRemainingRaceCount = remainingRaceCountCache[sharedKey];
   const effectiveRemainingRaceCount = Number.isFinite(cachedRemainingRaceCount)
@@ -28,7 +31,7 @@ async function handleSetBestTeamRanking(bot, msg) {
           VALUE: preset.budgetChangePointsPerMillion,
         },
       ),
-      callback_data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:${teamId}:${preset.id}`,
+      callback_data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:${selector}:${preset.id}`,
     },
   ]);
 

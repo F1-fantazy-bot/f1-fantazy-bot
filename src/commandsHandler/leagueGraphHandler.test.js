@@ -86,7 +86,7 @@ const FIXTURE = {
     {
       teamName: 'dorsegal1',
       userName: 'Dor Segal',
-      teamNo: 1,
+      teamNo: 1, accountId: 'bbbbbbbbbbbb',
       position: 2,
       totalScore: 984,
       raceScores: {
@@ -99,7 +99,7 @@ const FIXTURE = {
     {
       teamName: 'Cooperon',
       userName: 'Ron Cooper',
-      teamNo: 1,
+      teamNo: 1, accountId: 'aaaaaaaaaaaa',
       position: 1,
       totalScore: 976,
       raceScores: {
@@ -115,7 +115,7 @@ const FIXTURE = {
     {
       teamName: 'Kilzid',
       userName: 'Doron Kilzi',
-      teamNo: 1,
+      teamNo: 1, accountId: 'cccccccccccc',
       position: 3,
       totalScore: 965,
       raceScores: {
@@ -334,7 +334,7 @@ describe('leagueGraphHandler', () => {
     });
 
     it('highlights the selected team with a thicker line and larger points', () => {
-      const selectedTeamId = 'Ron-Cooper_1';
+      const selectedTeamId = 'Ron-Cooper_1_aaaaaaaaaaaa';
       const config = buildChartConfig(FIXTURE, { selectedTeamId });
 
       expect(config.data.datasets[0].label).toBe('Cooperon');
@@ -348,7 +348,7 @@ describe('leagueGraphHandler', () => {
       // Different league code in the data; the same selectedTeamId still
       // matches because it is keyed by userName + teamNo, not leagueCode.
       const dataInOtherLeague = { ...FIXTURE, leagueCode: 'ANOTHER_LEAGUE' };
-      const selectedTeamId = 'Ron-Cooper_1';
+      const selectedTeamId = 'Ron-Cooper_1_aaaaaaaaaaaa';
       const config = buildChartConfig(dataInOtherLeague, { selectedTeamId });
       const cooperon = config.data.datasets.find((d) => d.label === 'Cooperon');
       expect(cooperon.borderWidth).toBe(6);
@@ -362,7 +362,7 @@ describe('leagueGraphHandler', () => {
         ),
       };
       const config = buildChartConfig(data, {
-        selectedTeamId: 'Ron-Cooper_1',
+        selectedTeamId: 'Ron-Cooper_1_aaaaaaaaaaaa',
       });
       const cooperon = config.data.datasets.find((d) => d.label === 'Cooperon');
       expect(cooperon.borderWidth).toBe(3);
@@ -552,7 +552,7 @@ describe('leagueGraphHandler', () => {
     });
 
     it('passes selectedTeamId into chart config so selected series is highlighted', async () => {
-      getSelectedTeam.mockReturnValue('Ron-Cooper_1');
+      getSelectedTeam.mockReturnValue('Ron-Cooper_1_aaaaaaaaaaaa');
       getLeagueData.mockResolvedValueOnce(FIXTURE);
       fetchCurrentSeasonRaces.mockResolvedValueOnce({
         MRData: { RaceTable: { Races: [] } },

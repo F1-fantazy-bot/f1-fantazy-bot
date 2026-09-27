@@ -1,6 +1,7 @@
 jest.mock('../azureStorageService', () => ({
   getLiveScoreData: jest.fn(),
   getLockedTeamsData: jest.fn(),
+  getLeagueData: jest.fn(),
 }));
 
 jest.mock('../leagueRegistryService', () => ({
@@ -18,6 +19,7 @@ jest.mock('../utils/leagueTeamHelpers', () => ({
 const {
   getLiveScoreData,
   getLockedTeamsData,
+  getLeagueData,
 } = require('../azureStorageService');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getSelectedTeam } = require('../cache');
@@ -34,7 +36,7 @@ const LEAGUE_CODE = 'TESTLEAGUE';
 const baseLockedTeam = (overrides = {}) => ({
   teamName: 'Kilzi',
   userName: 'Doron-Kilzi',
-  teamNo: 1,
+  teamNo: 1, accountId: 'aaaaaaaaaaaa',
   position: 1,
   drivers: [
     { name: 'VER', isCaptain: true },
@@ -62,6 +64,27 @@ describe('getLiveScoreForTeam', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     getSelectedTeam.mockReturnValue(null);
+    getLeagueData.mockResolvedValue(null);
+  });
+
+  it('assigns distinct canonical IDs to two historical Tom locked rosters', async () => {
+    listUserLeagues.mockResolvedValue([{ leagueCode: LEAGUE_CODE }]);
+    getLeagueData.mockResolvedValue({ teams: [
+      { teamName: 'NoNoItsSoNotRightMikeyNO', userName: 'Tom Kregenbild',
+        teamNo: 1, accountId: 'aaaaaaaaaaaa' },
+      { teamName: 'Agentic Racing Co.', userName: 'Tom Kregenbild',
+        teamNo: 1, accountId: 'bbbbbbbbbbbb' },
+    ] });
+    getLockedTeamsData.mockResolvedValue({ matchdayId: 5, teams: [
+      baseLockedTeam({ teamName: 'NoNoItsSoNotRightMikeyNO',
+        userName: 'Tom Kregenbild', accountId: undefined }),
+      baseLockedTeam({ teamName: 'Agentic Racing Co.',
+        userName: 'Tom Kregenbild', accountId: undefined }),
+    ] });
+    const result = await listLeagueTeams({ chatId: CHAT_ID, leagueCode: LEAGUE_CODE });
+    expect(result.teams.map((team) => team.teamId)).toEqual([
+      'Tom-Kregenbild_1_aaaaaaaaaaaa', 'Tom-Kregenbild_1_bbbbbbbbbbbb',
+    ]);
   });
 
   it('returns invalid_input when both leagueCode and leagueName are missing', async () => {
@@ -112,7 +135,7 @@ describe('getLiveScoreForTeam', () => {
       // buildLeagueTeamId(t.userName, t.teamNo) won't match the supplied
       // teamId — but the teamName fallback should fire.
       teams: [
-        baseLockedTeam({ userName: 'Doron K', teamNo: 2, teamName: 'Kilzid2' }),
+        baseLockedTeam({ userName: 'Doron K', teamNo: 2, accountId: 'aaaaaaaaaaaa', teamName: 'Kilzid2' }),
       ],
     });
     getLiveScoreData.mockResolvedValue(baseLiveScoreData);
@@ -120,7 +143,7 @@ describe('getLiveScoreForTeam', () => {
     const result = await getLiveScoreForTeam({
       chatId: CHAT_ID,
       leagueCode: LEAGUE_CODE,
-      teamId: 'Doron-Kilzi_2',
+      teamId: 'Doron-Kilzi_2_aaaaaaaaaaaa',
       teamName: 'Kilzid2',
     });
 
@@ -166,11 +189,11 @@ describe('getLiveScoreForTeam', () => {
     // VER 30 + 30 (boost) + HAM 10 + MCL 15 = 85
     expect(result.breakdown.totalPoints).toBe(85);
     expect(result.breakdown.driverBreakdown).toHaveLength(2);
-    expect(result.teamId).toBe(buildLeagueTeamId('Doron-Kilzi', 1));
+    expect(result.teamId).toBe(buildLeagueTeamId('Doron-Kilzi', 1, 'aaaaaaaaaaaa'));
   });
 
   it('returns ok with breakdown when teamId matches', async () => {
-    const teamId = buildLeagueTeamId('Doron-Kilzi', 1);
+    const teamId = buildLeagueTeamId('Doron-Kilzi', 1, 'aaaaaaaaaaaa');
     listUserLeagues.mockResolvedValue([
       { leagueCode: LEAGUE_CODE, leagueName: 'Test League' },
     ]);
@@ -192,7 +215,7 @@ describe('getLiveScoreForTeam', () => {
   });
 
   it('defaults to selectedTeam when no team args are provided', async () => {
-    const teamId = buildLeagueTeamId('Doron-Kilzi', 1);
+    const teamId = buildLeagueTeamId('Doron-Kilzi', 1, 'aaaaaaaaaaaa');
     getSelectedTeam.mockReturnValue(teamId);
     listUserLeagues.mockResolvedValue([
       { leagueCode: LEAGUE_CODE, leagueName: 'Test League' },
@@ -263,7 +286,7 @@ describe('getLiveScoreLeaderboard', () => {
   });
 
   it('returns ok with sorted rows + isSelected highlight', async () => {
-    const selectedId = buildLeagueTeamId('Doron-Kilzi', 1);
+    const selectedId = buildLeagueTeamId('Doron-Kilzi', 1, 'aaaaaaaaaaaa');
     getSelectedTeam.mockReturnValue(selectedId);
     listUserLeagues.mockResolvedValue([
       { leagueCode: LEAGUE_CODE, leagueName: 'Test League' },
@@ -272,8 +295,8 @@ describe('getLiveScoreLeaderboard', () => {
       leagueName: 'Test League',
       matchdayId: 5,
       teams: [
-        baseLockedTeam({ userName: 'Other', teamNo: 1, position: 2 }),
-        baseLockedTeam(), // Doron-Kilzi_1 has VER captain
+        baseLockedTeam({ userName: 'Other', teamNo: 1, accountId: 'aaaaaaaaaaaa', position: 2 }),
+        baseLockedTeam(), // Doron-Kilzi_1_aaaaaaaaaaaa has VER captain
       ],
     });
     getLiveScoreData.mockResolvedValue(baseLiveScoreData);
@@ -313,13 +336,13 @@ describe('getLiveScoreLeaderboard', () => {
       teams: [
         baseLockedTeam({
           userName: 'Low',
-          teamNo: 1,
+          teamNo: 1, accountId: 'aaaaaaaaaaaa',
           drivers: [{ name: 'HAM' }],
           constructors: [],
         }),
         baseLockedTeam({
           userName: 'High',
-          teamNo: 1,
+          teamNo: 1, accountId: 'aaaaaaaaaaaa',
           drivers: [{ name: 'VER', isCaptain: true }],
           constructors: [{ name: 'MCL' }],
         }),
@@ -350,9 +373,9 @@ describe('listLeagueTeams', () => {
       leagueName: 'Kilzi Test',
       matchdayId: 5,
       teams: [
-        baseLockedTeam({ userName: 'B', teamNo: 1, teamName: 'B-team', position: 3 }),
-        baseLockedTeam({ userName: 'A', teamNo: 1, teamName: 'A-team', position: 1 }),
-        baseLockedTeam({ userName: 'C', teamNo: 1, teamName: 'C-team', position: 2 }),
+        baseLockedTeam({ userName: 'B', teamNo: 1, accountId: 'aaaaaaaaaaaa', teamName: 'B-team', position: 3 }),
+        baseLockedTeam({ userName: 'A', teamNo: 1, accountId: 'aaaaaaaaaaaa', teamName: 'A-team', position: 1 }),
+        baseLockedTeam({ userName: 'C', teamNo: 1, accountId: 'aaaaaaaaaaaa', teamName: 'C-team', position: 2 }),
       ],
     });
 
@@ -368,7 +391,7 @@ describe('listLeagueTeams', () => {
   });
 
   it("marks the user's own team with isSelected: true", async () => {
-    const selectedId = buildLeagueTeamId('Doron-Kilzi', 2);
+    const selectedId = buildLeagueTeamId('Doron-Kilzi', 2, 'aaaaaaaaaaaa');
     getSelectedTeam.mockReturnValue(selectedId);
     listUserLeagues.mockResolvedValue([
       { leagueCode: LEAGUE_CODE, leagueName: 'Kilzi Test' },
@@ -379,13 +402,13 @@ describe('listLeagueTeams', () => {
       teams: [
         baseLockedTeam({
           userName: 'Doron Kilzi',
-          teamNo: 2,
+          teamNo: 2, accountId: 'aaaaaaaaaaaa',
           teamName: 'Kilzid2',
           position: 5,
         }),
         baseLockedTeam({
           userName: 'Other',
-          teamNo: 1,
+          teamNo: 1, accountId: 'aaaaaaaaaaaa',
           teamName: 'Other Team',
           position: 1,
         }),

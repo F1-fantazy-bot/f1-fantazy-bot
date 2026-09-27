@@ -46,7 +46,7 @@ const {
   refreshChipPreferencesSafely,
 } = require('../services/activateChipService');
 const { getAgentChatId } = require('./identity');
-const { ensureCacheReady } = require('./cacheBootstrap');
+const { ensureCacheReady, ensureCurrentUserIdentity } = require('./cacheBootstrap');
 const { wrapToolExecute } = require('./wrapToolExecute');
 const { getActionChoicesTool, wrapSelectableExecute } = require('./readTools/getActionChoicesTool');
 const { executeConfirmedWrite } = require('./writeToolHelpers');
@@ -168,6 +168,7 @@ const tools = [
     execute: wrapToolExecute('list_user_teams', async ({ mode } = {}) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
+      await ensureCurrentUserIdentity(chatId);
       await refreshChipPreferencesSafely(chatId);
 
       return await withUiLanguage(chatId, {
@@ -350,6 +351,7 @@ const tools = [
     execute: wrapToolExecute('list_followed_teams', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
+      await ensureCurrentUserIdentity(chatId);
 
       return await withUiLanguage(chatId, {
         ...(await listFollowedTeams({ chatId })),

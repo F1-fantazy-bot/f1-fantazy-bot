@@ -79,7 +79,7 @@ describe('liveScoreHandler', () => {
       {
         teamName: 'Cooperon',
         userName: 'Ron Cooper',
-        teamNo: 1,
+        teamNo: 1, accountId: 'aaaaaaaaaaaa',
         position: 1,
         matchdayId: 4,
         transfersRemaining: 0,
@@ -96,7 +96,7 @@ describe('liveScoreHandler', () => {
       {
         teamName: 'Ravivmar',
         userName: 'Raviv',
-        teamNo: 1,
+        teamNo: 1, accountId: 'bbbbbbbbbbbb',
         position: 2,
         matchdayId: 4,
         transfersRemaining: 1,
@@ -113,7 +113,7 @@ describe('liveScoreHandler', () => {
       {
         teamName: 'Empty',
         userName: 'no-points-user',
-        teamNo: 1,
+        teamNo: 1, accountId: 'cccccccccccc',
         position: 3,
         matchdayId: 4,
         transfersRemaining: -1,    // 1 excess transfer → -10 penalty
@@ -515,7 +515,7 @@ describe('liveScoreHandler', () => {
       expect(keyboard[1][0].text).toBe('1. Cooperon');
       expect(keyboard[2][0].text).toBe('2. Ravivmar');
       expect(keyboard[3][0].text).toBe('3. Empty');
-      expect(keyboard[1][0].callback_data).toBe('LS:T:ABC:Cooperon');
+      expect(keyboard[1][0].callback_data).toBe('LS:T:ABC:1_aaaaaaaaaaaa');
       expect(mockBot.answerCallbackQuery).toHaveBeenCalledWith('cb-1');
     });
 
@@ -523,7 +523,7 @@ describe('liveScoreHandler', () => {
       getLockedTeamsData.mockResolvedValueOnce(lockedSnapshot);
       getLiveScoreData.mockResolvedValueOnce(liveScorePayload);
 
-      await handleLiveScoreCallback(mockBot, baseQuery('LS:T:ABC:Cooperon'));
+      await handleLiveScoreCallback(mockBot, baseQuery('LS:T:ABC:1_aaaaaaaaaaaa'));
 
       const [, body, opts] = mockBot.sendMessage.mock.calls[0];
       expect(opts).toEqual({ parse_mode: 'HTML' });
@@ -553,7 +553,7 @@ describe('liveScoreHandler', () => {
       getLiveScoreData.mockResolvedValueOnce(liveScorePayload);
 
       // "Empty" team has transfersRemaining=-1 → -10 penalty.
-      await handleLiveScoreCallback(mockBot, baseQuery('LS:T:ABC:Empty'));
+      await handleLiveScoreCallback(mockBot, baseQuery('LS:T:ABC:1_cccccccccccc'));
 
       const body = mockBot.sendMessage.mock.calls[0][1];
       // gross = 40 (HAM*2), net = 30
@@ -566,7 +566,7 @@ describe('liveScoreHandler', () => {
       getLockedTeamsData.mockResolvedValueOnce(lockedSnapshot);
       getLiveScoreData.mockResolvedValueOnce(liveScorePayload);
 
-      await handleLiveScoreCallback(mockBot, baseQuery('LS:T:ABC:Cooperon'));
+      await handleLiveScoreCallback(mockBot, baseQuery('LS:T:ABC:1_aaaaaaaaaaaa'));
 
       const body = mockBot.sendMessage.mock.calls[0][1];
       expect(body).toContain('<b>Total Live Points:</b> 116.00');
@@ -635,7 +635,7 @@ describe('liveScoreHandler', () => {
 
     it('ALL action → bolds the user\'s selectedTeam row when it lives in this league', async () => {
       // user's selectedTeam is the fantasy-id form for Cooperon
-      getSelectedTeam.mockReturnValue('Ron-Cooper_1');
+      getSelectedTeam.mockReturnValue('Ron-Cooper_1_aaaaaaaaaaaa');
       getLockedTeamsData.mockResolvedValueOnce(lockedSnapshot);
       getLiveScoreData.mockResolvedValueOnce(liveScorePayload);
 
@@ -664,7 +664,7 @@ describe('liveScoreHandler', () => {
       getLockedTeamsData.mockResolvedValueOnce(lockedSnapshot);
       getLiveScoreData.mockRejectedValueOnce(new Error('blob missing'));
 
-      await handleLiveScoreCallback(mockBot, baseQuery('LS:T:ABC:Cooperon'));
+      await handleLiveScoreCallback(mockBot, baseQuery('LS:T:ABC:1_aaaaaaaaaaaa'));
 
       expect(sendErrorMessage).toHaveBeenCalledWith(
         mockBot,

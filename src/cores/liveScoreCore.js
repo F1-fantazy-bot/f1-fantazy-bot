@@ -17,12 +17,15 @@
 const {
   getLiveScoreData,
   getLockedTeamsData,
+  getLeagueData,
 } = require('../azureStorageService');
 const { listUserLeagues } = require('../leagueRegistryService');
-const { getSelectedTeam } = require('../cache');
+const { getSelectedTeam, currentTeamCache } = require('../cache');
+const { resolveLockedRoster } = require('./raceSummaryCore');
 const {
   sanitizeTeamName,
   buildLeagueTeamId,
+  sameLeagueTeamIds,
 } = require('../utils/teamId');
 const {
   mapLockedTeamForScoring,
@@ -70,7 +73,39 @@ async function ensureFollowed({ chatId, leagueCode, leagueName }) {
   };
 }
 
-function pickLockedTeam({ snapshot, teamId, teamName }) {
+async function canonicalIdsForSnapshot(leagueCode, snapshot) {
+  const teams = snapshot?.teams || [];
+  const ids = new Map();
+  for (const team of teams) {
+    const id = buildLeagueTeamId(team.userName, team.teamNo, team.accountId);
+    if (id) {ids.set(team, id);}
+  }
+  if (ids.size === teams.length || typeof getLeagueData !== 'function') {return ids;}
+
+  try {
+    const standings = await getLeagueData(leagueCode);
+    const candidates = new Map();
+    for (const team of standings?.teams || []) {
+      const id = buildLeagueTeamId(team.userName, team.teamNo, team.accountId);
+      if (!id) {continue;}
+      const matched = resolveLockedRoster(team, teams).team;
+      if (matched && !ids.has(matched)) {
+        const existing = candidates.get(matched) || new Set();
+        existing.add(id);
+        candidates.set(matched, existing);
+      }
+    }
+    for (const [team, matches] of candidates) {
+      if (matches.size === 1) {ids.set(team, [...matches][0]);}
+    }
+  } catch (_err) {
+    // Historical IDs are optional if standings are temporarily unavailable.
+  }
+
+  return ids;
+}
+
+function pickLockedTeam({ snapshot, teamId, teamName, chatId, canonicalIds }) {
   const teams = Array.isArray(snapshot?.teams) ? snapshot.teams : [];
   if (teams.length === 0) {
     return { status: 'team_not_found' };
@@ -78,31 +113,38 @@ function pickLockedTeam({ snapshot, teamId, teamName }) {
 
   // Try teamId match first.
   if (teamId) {
-    const match = teams.find(
-      (t) => buildLeagueTeamId(t.userName, t.teamNo) === teamId,
+    const exact = teams.filter(
+      (t) => sameLeagueTeamIds(canonicalIds.get(t), teamId),
     );
-    if (match) {
-      return { status: 'ok', team: match };
+    if (exact.length === 1) {
+      return { status: 'ok', team: exact[0] };
     }
-    // Fall through to teamName matching if available — buildLeagueTeamId
-    // formatting may differ from how selectedTeam was generated when the
-    // user's account name has non-ASCII or unusual characters.
+    if (exact.length > 1) {return { status: 'team_not_found' };}
+    const cached = currentTeamCache?.[chatId]?.[teamId];
+    if (cached?.accountId) {
+      const historical = resolveLockedRoster(cached, teams);
+      if (historical.team) {return { status: 'ok', team: historical.team };}
+    }
+
+    if (!teamName || cached?.accountId) {
+      return { status: 'team_not_found', teamId };
+    }
   }
 
   if (teamName) {
-    const exact = teams.find(
+    const exact = teams.filter(
       (t) => (t.teamName || t.userName) === teamName,
     );
-    if (exact) {
-      return { status: 'ok', team: exact };
+    if (exact.length === 1) {
+      return { status: 'ok', team: exact[0] };
     }
     const slug = sanitizeTeamName(teamName);
-    const sanitizedMatch = teams.find(
+    const sanitizedMatches = teams.filter(
       (t) =>
         sanitizeTeamName(t.teamName || t.userName || 'team') === slug,
     );
-    if (sanitizedMatch) {
-      return { status: 'ok', team: sanitizedMatch };
+    if (sanitizedMatches.length === 1) {
+      return { status: 'ok', team: sanitizedMatches[0] };
     }
   }
 
@@ -150,10 +192,13 @@ async function getLiveScoreForTeam({
 
   const selectedTeamId =
     !teamId && !teamName ? getSelectedTeam(chatId) : null;
+  const canonicalIds = await canonicalIdsForSnapshot(resolvedLeagueCode, snapshot);
   const pick = pickLockedTeam({
     snapshot,
     teamId: teamId || selectedTeamId,
     teamName,
+    chatId,
+    canonicalIds,
   });
   if (pick.status !== 'ok' || !pick.team) {
     return {
@@ -171,7 +216,7 @@ async function getLiveScoreForTeam({
         userName: t.userName,
         teamNo: t.teamNo,
         position: t.position,
-        teamId: buildLeagueTeamId(t.userName, t.teamNo),
+        teamId: canonicalIds.get(t) || null,
       })),
     };
   }
@@ -187,7 +232,7 @@ async function getLiveScoreForTeam({
     leagueName: snapshot.leagueName || followed.leagueName,
     matchdayId: snapshot.matchdayId ?? null,
     extractedAt: liveScoreData?.extractedAt ?? null,
-    teamId: buildLeagueTeamId(match.userName, match.teamNo),
+    teamId: canonicalIds.get(match) || teamId || selectedTeamId || null,
     teamName: match.teamName || match.userName || null,
     userName: match.userName || null,
     position: match.position ?? null,
@@ -227,13 +272,17 @@ async function getLiveScoreLeaderboard({
   }
 
   const selectedTeamId = getSelectedTeam(chatId);
+  const canonicalIds = await canonicalIdsForSnapshot(resolvedLeagueCode, snapshot);
+  const selectedLockedTeam = currentTeamCache?.[chatId]?.[selectedTeamId]
+    ? resolveLockedRoster(currentTeamCache[chatId][selectedTeamId], snapshot.teams).team
+    : null;
 
   const rows = snapshot.teams.map((team) => {
     const realTeam = mapLockedTeamForScoring(team);
     const options = deriveLiveScoreOptions(team);
     const { totalPoints, totalPriceChange, transferPenalty } =
       calculateLiveScoreBreakdown(realTeam, liveScoreData, options);
-    const teamId = buildLeagueTeamId(team.userName, team.teamNo);
+    const teamId = canonicalIds.get(team) || null;
 
     return {
       teamId,
@@ -244,7 +293,8 @@ async function getLiveScoreLeaderboard({
       totalPoints,
       totalPriceChange,
       transferPenalty,
-      isSelected: !!teamId && teamId === selectedTeamId,
+      isSelected: team === selectedLockedTeam ||
+        (!!teamId && sameLeagueTeamIds(teamId, selectedTeamId)),
     };
   });
 
@@ -291,10 +341,14 @@ async function listLeagueTeams({ chatId, leagueCode, leagueName } = {}) {
   }
 
   const selectedTeamId = getSelectedTeam(chatId);
+  const canonicalIds = await canonicalIdsForSnapshot(resolvedLeagueCode, snapshot);
+  const selectedLockedTeam = currentTeamCache?.[chatId]?.[selectedTeamId]
+    ? resolveLockedRoster(currentTeamCache[chatId][selectedTeamId], snapshot.teams).team
+    : null;
   const teams = [...snapshot.teams]
     .sort((a, b) => (a.position || Infinity) - (b.position || Infinity))
     .map((t) => {
-      const teamId = buildLeagueTeamId(t.userName, t.teamNo);
+      const teamId = canonicalIds.get(t) || null;
 
       return {
         teamId,
@@ -302,7 +356,8 @@ async function listLeagueTeams({ chatId, leagueCode, leagueName } = {}) {
         userName: t.userName || null,
         teamNo: t.teamNo ?? null,
         position: t.position ?? null,
-        isSelected: !!teamId && teamId === selectedTeamId,
+        isSelected: t === selectedLockedTeam ||
+          (!!teamId && sameLeagueTeamIds(teamId, selectedTeamId)),
       };
     });
 
