@@ -103,6 +103,7 @@ function mapLeagueTeamToBotTeam(leagueTeam) {
     ...(leagueTeam.teamNo !== undefined && leagueTeam.teamNo !== null
       ? { teamNo: leagueTeam.teamNo }
       : {}),
+    ...(leagueTeam.accountId ? { accountId: leagueTeam.accountId } : {}),
   };
 }
 
