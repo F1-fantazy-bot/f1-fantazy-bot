@@ -18,8 +18,12 @@ const {
   getNextRaceInfoData,
   getLeagueTeamsData,
   saveUserTeam,
+  deleteUserTeam,
 } = require('./azureStorageService');
-const { listAllUsers } = require('./userRegistryService');
+const {
+  listAllUsers,
+  updateUserAttributes,
+} = require('./userRegistryService');
 const { listUserLeagues } = require('./leagueRegistryService');
 const {
   initializeCaches,
@@ -45,10 +49,12 @@ jest.mock('./azureStorageService', () => ({
   getNextRaceInfoData: jest.fn(),
   getLeagueTeamsData: jest.fn(),
   saveUserTeam: jest.fn(),
+  deleteUserTeam: jest.fn(),
 }));
 
 jest.mock('./userRegistryService', () => ({
   listAllUsers: jest.fn(),
+  updateUserAttributes: jest.fn(),
 }));
 
 jest.mock('./leagueRegistryService', () => ({
@@ -388,8 +394,13 @@ describe('cacheInitializer', () => {
     beforeEach(() => {
       getLeagueTeamsData.mockReset();
       saveUserTeam.mockReset().mockResolvedValue(undefined);
+      deleteUserTeam.mockReset().mockResolvedValue(undefined);
+      updateUserAttributes.mockReset().mockResolvedValue(undefined);
       listUserLeagues.mockReset().mockResolvedValue([]);
       Object.keys(userCache).forEach((k) => delete userCache[k]);
+      Object.keys(selectedChipCache).forEach(
+        (k) => delete selectedChipCache[k],
+      );
     });
 
     it('refreshes new-format teams (sanitizedUserName_teamNo) from the latest league blob', async () => {
@@ -467,6 +478,147 @@ describe('cacheInitializer', () => {
         expect.any(Object),
         { silent: true },
       );
+    });
+
+    it('migrates an unambiguous legacy league team to username_teamNo_accountId', async () => {
+      const oldId = 'Tom-Kregenbild_1';
+      const newId = 'Tom-Kregenbild_1_aaaaaaaaaaaa';
+      currentTeamCache[111] = {
+        [oldId]: { drivers: ['STALE'], teamName: 'Tom Team' },
+      };
+      userCache['111'] = {
+        selectedTeam: oldId,
+        bestTeamBudgetChangePointsPerMillion: { [oldId]: 1.3 },
+        selectedBestTeamByTeam: {},
+        selectedChipByTeam: { [oldId]: 'WILDCARD' },
+      };
+      selectedChipCache[111] = { [oldId]: 'WILDCARD' };
+      listUserLeagues.mockResolvedValue([
+        { leagueCode: 'ABC', leagueName: 'League ABC' },
+      ]);
+      getLeagueTeamsData.mockResolvedValue({
+        leagueCode: 'ABC',
+        teams: [
+          {
+            teamName: 'Tom Team',
+            userName: 'Tom Kregenbild',
+            accountId: 'aaaaaaaaaaaa',
+            teamNo: 1,
+            position: 1,
+            budget: 100,
+            transfersRemaining: 2,
+            drivers: [{ name: 'M. Verstappen', price: 30, isCaptain: true }],
+            constructors: [{ name: 'Ferrari', price: 20 }],
+          },
+        ],
+      });
+
+      await refreshLeagueSourcedTeams(mockBot);
+
+      expect(currentTeamCache[111][oldId]).toBeUndefined();
+      expect(currentTeamCache[111][newId]).toEqual(
+        expect.objectContaining({
+          teamName: 'Tom Team',
+          userName: 'Tom Kregenbild',
+          accountId: 'aaaaaaaaaaaa',
+          teamNo: 1,
+        }),
+      );
+      expect(userCache['111'].selectedTeam).toBe(newId);
+      expect(
+        userCache['111'].bestTeamBudgetChangePointsPerMillion,
+      ).toEqual({ [newId]: 1.3 });
+      expect(userCache['111'].selectedChipByTeam).toEqual({
+        [newId]: 'WILDCARD',
+      });
+      expect(selectedChipCache[111]).toEqual({
+        [newId]: 'WILDCARD',
+      });
+      expect(saveUserTeam).toHaveBeenCalledWith(
+        mockBot,
+        '111',
+        newId,
+        expect.objectContaining({ accountId: 'aaaaaaaaaaaa' }),
+        { silent: true },
+      );
+      expect(deleteUserTeam).toHaveBeenCalledWith(
+        mockBot,
+        '111',
+        oldId,
+        { silent: true },
+      );
+      expect(updateUserAttributes).toHaveBeenCalledWith(
+        '111',
+        expect.objectContaining({
+          selectedTeam: newId,
+        }),
+      );
+    });
+
+    it('removes an ambiguous legacy id instead of guessing between accounts', async () => {
+      const oldId = 'Tom-Kregenbild_1';
+      currentTeamCache[111] = {
+        [oldId]: { drivers: ['STALE'], teamName: 'Unknown Tom Team' },
+      };
+      userCache['111'] = {
+        selectedTeam: oldId,
+        bestTeamBudgetChangePointsPerMillion: { [oldId]: 1.65 },
+        selectedBestTeamByTeam: {},
+        selectedChipByTeam: { [oldId]: 'WILDCARD' },
+      };
+      selectedChipCache[111] = { [oldId]: 'WILDCARD' };
+      listUserLeagues.mockResolvedValue([
+        { leagueCode: 'ABC', leagueName: 'League ABC' },
+      ]);
+      getLeagueTeamsData.mockResolvedValue({
+        leagueCode: 'ABC',
+        teams: [
+          {
+            teamName: 'NoNoItsSoNotRightMikeyNO',
+            userName: 'Tom Kregenbild',
+            accountId: 'aaaaaaaaaaaa',
+            teamNo: 1,
+            budget: 100,
+            drivers: [],
+            constructors: [],
+          },
+          {
+            teamName: 'Agentic Racing Co.',
+            userName: 'Tom Kregenbild',
+            accountId: 'bbbbbbbbbbbb',
+            teamNo: 1,
+            budget: 100,
+            drivers: [],
+            constructors: [],
+          },
+        ],
+      });
+
+      await refreshLeagueSourcedTeams(mockBot);
+
+      expect(currentTeamCache[111][oldId]).toBeUndefined();
+      expect(Object.keys(currentTeamCache[111])).toEqual([]);
+      expect(userCache['111'].selectedTeam).toBeNull();
+      expect(
+        userCache['111'].bestTeamBudgetChangePointsPerMillion,
+      ).toEqual({});
+      expect(userCache['111'].selectedChipByTeam).toEqual({});
+      expect(selectedChipCache[111]).toBeUndefined();
+      expect(deleteUserTeam).toHaveBeenCalledWith(
+        mockBot,
+        '111',
+        oldId,
+        { silent: true },
+      );
+      expect(updateUserAttributes).toHaveBeenCalledWith(
+        '111',
+        expect.objectContaining({
+          selectedTeam: null,
+          bestTeamBudgetChangePointsPerMillion: null,
+          selectedChipByTeam: null,
+        }),
+      );
+      expect(saveUserTeam).not.toHaveBeenCalled();
     });
 
     it('is a no-op for users with only T1/T2/T3 style ids', async () => {
