@@ -17,7 +17,7 @@ async function handleSetBestTeamRanking(bot, msg) {
     ? Math.max(0, cachedRemainingRaceCount - 1)
     : null;
 
-  const inline_keyboard = BEST_TEAM_RANKING_PRESETS.map((preset) => [
+  const inline_keyboard = BEST_TEAM_RANKING_PRESETS.map((preset, index) => [
     {
       text: t(
         '{ICON} {LABEL} ({VALUE})',
@@ -28,7 +28,7 @@ async function handleSetBestTeamRanking(bot, msg) {
           VALUE: preset.budgetChangePointsPerMillion,
         },
       ),
-      callback_data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:${teamId}:${preset.id}`,
+      callback_data: `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:${teamId}:${index}`,
     },
   ]);
 
