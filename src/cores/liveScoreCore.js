@@ -187,7 +187,11 @@ async function getLiveScoreForTeam({
     leagueName: snapshot.leagueName || followed.leagueName,
     matchdayId: snapshot.matchdayId ?? null,
     extractedAt: liveScoreData?.extractedAt ?? null,
-    teamId: buildLeagueTeamId(match.userName, match.teamNo),
+    teamId: buildLeagueTeamId(
+      match.userName,
+      match.teamNo,
+      match.accountId,
+    ),
     teamName: match.teamName || match.userName || null,
     userName: match.userName || null,
     position: match.position ?? null,
