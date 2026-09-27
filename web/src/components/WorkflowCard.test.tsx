@@ -272,5 +272,7 @@ test('workflow arrival renders the live workflow inline and tracks its visibilit
   expect(refresh).toHaveBeenCalled();
 
   await act(async () => root.unmount());
+  roots.splice(roots.indexOf(root), 1);
+  container.remove();
   expect(markInline).toHaveBeenCalledWith(flow.id, false);
 });
