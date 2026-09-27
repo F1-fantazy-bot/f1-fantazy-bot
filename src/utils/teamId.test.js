@@ -34,5 +34,7 @@ describe('league team ids', () => {
 
     expect(accountSegment).toHaveLength(ACCOUNT_ID_SEGMENT_MAX_LENGTH);
     expect(id.length).toBeLessThanOrEqual(59);
+    expect(Buffer.byteLength(`TEAM:${id}`, 'utf8')).toBeLessThanOrEqual(64);
+    expect(Buffer.byteLength(`BW:${id}:0`, 'utf8')).toBeLessThanOrEqual(64);
   });
 });
