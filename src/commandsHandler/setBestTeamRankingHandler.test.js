@@ -48,9 +48,15 @@ describe('handleSetBestTeamRanking', () => {
 
     BEST_TEAM_RANKING_PRESETS.forEach((preset, index) => {
       expect(sentKeyboard[index][0].callback_data).toBe(
-        `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T1:${preset.id}`,
+        `${BEST_TEAM_WEIGHTS_CALLBACK_TYPE}:T1:${index}`,
       );
     });
+
+    expect(
+      sentKeyboard.every(
+        (row) => Buffer.byteLength(row[0].callback_data, 'utf8') <= 64,
+      ),
+    ).toBe(true);
 
     expect(sentKeyboard[0][0].text).toBe(
       '🎯 Pure Points (0)',
