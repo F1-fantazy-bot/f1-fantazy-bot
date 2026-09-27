@@ -223,6 +223,17 @@ test('workflow discovery keeps the team list renderer silent', () => {
   expect(
     registration.render({
       status: 'complete',
+      result: {
+        lang: 'en',
+        mode: 'workflow_discovery',
+        teams: [],
+      },
+      args: {},
+    }),
+  ).toBeNull();
+  expect(
+    registration.render({
+      status: 'complete',
       result: { lang: 'en', teams: [] },
       args: {},
     }),
