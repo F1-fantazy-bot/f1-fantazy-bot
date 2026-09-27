@@ -167,7 +167,7 @@ export function WorkflowCard({
     </section>
   );
 }
-function WorkflowArrival({
+export function WorkflowArrival({
   result,
   workflow,
   busy = false,
