@@ -2,7 +2,7 @@ const { t } = require('../i18n');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { getLeagueData } = require('../azureStorageService');
 const { getSelectedTeam } = require('../cache');
-const { buildLeagueTeamId } = require('../utils/teamId');
+const { buildLeagueTeamId, sameLeagueTeamIds } = require('../utils/teamId');
 const {
   LEAGUE_CALLBACK_TYPE,
   COMMAND_FOLLOW_LEAGUE,
@@ -51,7 +51,7 @@ function formatLeaderboard(leagueData, chatId) {
     const line = ` ${pos}. ${name} — ${escapeHtml(score)}${gapSuffix}`;
     const teamId = buildLeagueTeamId(team.userName, team.teamNo, team.accountId);
 
-    return teamId && teamId === selectedTeamId ? `<b>${line}</b>` : line;
+    return teamId && sameLeagueTeamIds(teamId, selectedTeamId) ? `<b>${line}</b>` : line;
   });
 
   return `${header}\n\n${lines.join('\n')}`;

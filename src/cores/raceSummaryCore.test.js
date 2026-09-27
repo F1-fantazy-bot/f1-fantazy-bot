@@ -185,6 +185,37 @@ describe('raceSummaryCore', () => {
     });
   });
 
+  test('matches historical Tom rosters by exact team name without overwriting', () => {
+    const make = (teamName, accountId) => team(teamName, { matchday_2: 50 }, {
+      userName: 'Tom Kregenbild', teamNo: 1, accountId,
+    });
+    const teams = [make('NoNoItsSoNotRightMikeyNO', 'aaaaaaaaaaaa'),
+      make('Agentic Racing Co.', 'bbbbbbbbbbbb')];
+    const locked = teams.map((entry, index) => ({
+      teamName: entry.teamName, userName: entry.userName, teamNo: 1,
+      matchdayId: 2, drivers: [{ name: `Locked ${index}` }], constructors: [],
+    }));
+    const data = buildRaceSummaryData({ teams }, { matchdayId: 2, teams: locked });
+    expect(data.teams.map((entry) => entry.drivers[0].name)).toEqual(['Locked 0', 'Locked 1']);
+    expect(data.teams.map((entry) => entry.rosterMatchStatus)).toEqual([
+      'legacy_team_name', 'legacy_team_name',
+    ]);
+  });
+
+  test('reports genuinely ambiguous historical roster as unavailable', () => {
+    const planning = team('Tom team', { matchday_2: 50 }, {
+      userName: 'Tom Kregenbild', teamNo: 1, accountId: 'aaaaaaaaaaaa',
+    });
+    const locked = [1, 2].map(() => ({
+      teamName: 'Tom team', userName: 'Tom Kregenbild', teamNo: 1,
+      matchdayId: 2, drivers: [{ name: 'Wrong' }],
+    }));
+    const data = buildRaceSummaryData({ teams: [planning] }, { matchdayId: 2, teams: locked });
+    expect(data.teams[0]).toMatchObject({
+      drivers: [], rosterMatchStatus: 'ambiguous_legacy_identity', transferPenalty: null,
+    });
+  });
+
   test('includes boost and penalty differences even when roster members match', () => {
     const differences = buildKeyTeamDifferences([
       {
@@ -208,6 +239,12 @@ describe('raceSummaryCore', () => {
     ]);
 
     expect(differences[0]).toMatchObject({
+      sameRosterMembers: true,
+      sameBoostConfiguration: false,
+      sameActiveChips: true,
+      sameTransferPenalty: false,
+      sameRaceConfiguration: false,
+      penaltyGap: -10,
       subject: {
         uniqueDrivers: [],
         uniqueConstructors: [],
@@ -221,6 +258,42 @@ describe('raceSummaryCore', () => {
         transferPenalty: 10,
       },
       scoreGap: 51,
+    });
+  });
+
+  test('compares only active chips and penalty waiver as race configuration', () => {
+    const base = { drivers: ['A', 'B'], constructors: ['X'],
+      boostDriver: 'A', extraBoostDriver: 'B', transferPenalty: 0 };
+    const first = { ...base, teamName: 'A', latestRaceScore: 100,
+      activeChips: ['No Negative', 'Wildcard'], transferPenaltyWaived: true };
+    const second = { ...base, teamName: 'B', latestRaceScore: 90,
+      activeChips: ['Wildcard', 'No Negative', 'Wildcard'], transferPenaltyWaived: true };
+    const equal = buildKeyTeamDifferences([first, second])[0];
+    expect(equal).toMatchObject({ sameRosterMembers: true,
+      sameBoostConfiguration: true, sameActiveChips: true,
+      sameTransferPenalty: true, sameRaceConfiguration: true });
+
+    const differing = buildKeyTeamDifferences([first, {
+      ...second, activeChips: ['No Negative'], transferPenaltyWaived: false,
+    }])[0];
+    expect(differing).toMatchObject({ sameRosterMembers: true,
+      sameBoostConfiguration: true, sameActiveChips: false,
+      sameTransferPenalty: false, sameRaceConfiguration: false });
+  });
+
+  test('excludes chips used in earlier matchdays', () => {
+    const planning = ['A', 'B'].map((teamName, index) => team(teamName,
+      { matchday_2: 100 - index }, { userName: teamName,
+        teamNo: 1, accountId: `${index ? 'bbbb' : 'aaaa'}aaaaaaaa` }));
+    const locked = planning.map((row, index) => ({
+      ...row, matchdayId: 2,
+      drivers: [{ name: 'D', isCaptain: true }], constructors: [{ name: 'C' }],
+      transfersRemaining: 0,
+      chipsUsed: index ? [{ name: 'No Negative', gameDayId: 1 }] : [],
+    }));
+    const summary = buildRaceSummaryData({ teams: planning }, { matchdayId: 2, teams: locked });
+    expect(summary.keyTeamDifferences[0]).toMatchObject({
+      sameActiveChips: true, sameTransferPenalty: true, sameRaceConfiguration: true,
     });
   });
 

@@ -42,8 +42,21 @@ const {
 } = require('../constants');
 
 const VIEW = { LEAGUES: 'leagues', TEAMS: 'teams' };
+const {
+  identityKeyFromLeagueTeamId,
+  sameLeagueTeamIds,
+} = require('../utils/teamId');
+const {
+  encodeLeagueCallbackCode,
+  resolveLeagueCallbackCode,
+} = require('../utils/leagueCallbackCode');
 
 function cb(action, ...payload) {
+  if (action === TEAMS_TRACKER_ACTIONS.OPEN_LEAGUE ||
+      action === TEAMS_TRACKER_ACTIONS.TOGGLE) {
+    payload[0] = encodeLeagueCallbackCode(payload[0]);
+  }
+
   return [TEAMS_TRACKER_CALLBACK_TYPE, action, ...payload].join(':');
 }
 
@@ -92,7 +105,7 @@ async function seedFollowedSelection(chatId) {
 
     for (const team of data.teams) {
       const candidateTeamId = buildLeagueTeamId(team.userName, team.teamNo, team.accountId);
-      if (candidateTeamId && followed.has(candidateTeamId)) {
+      if (candidateTeamId && [...followed].some((id) => sameLeagueTeamIds(id, candidateTeamId))) {
         seeded.push({
           leagueCode: league.leagueCode,
           teamId: candidateTeamId,
@@ -112,15 +125,15 @@ async function seedFollowedSelection(chatId) {
 function isSelected(session, teamId) {
   if (!teamId) {return false;}
 
-  return session.selected.some((sel) => sel.teamId === teamId);
+  return session.selected.some((sel) => sameLeagueTeamIds(sel.teamId, teamId));
 }
 
 function pushAddOrderIfNew(session, teamId) {
-  if ((session.initiallyFollowed || []).includes(teamId)) {
+  if ((session.initiallyFollowed || []).some((id) => sameLeagueTeamIds(id, teamId))) {
     return;
   }
   session.addOrder = session.addOrder || [];
-  if (!session.addOrder.includes(teamId)) {
+  if (!session.addOrder.some((id) => sameLeagueTeamIds(id, teamId))) {
     session.addOrder.push(teamId);
   }
 }
@@ -135,7 +148,7 @@ function countSelected(session) {
   const ids = new Set();
   for (const sel of session.selected) {
     if (sel.teamId) {
-      ids.add(sel.teamId);
+      ids.add(identityKeyFromLeagueTeamId(sel.teamId) || sel.teamId);
     }
   }
 
@@ -192,7 +205,7 @@ async function findFantasyTeamLeagues(chatId, fantasyTeamId) {
 
     const appears = data.teams.some(
       (team) =>
-        buildLeagueTeamId(team.userName, team.teamNo, team.accountId) === fantasyTeamId,
+        sameLeagueTeamIds(buildLeagueTeamId(team.userName, team.teamNo, team.accountId), fantasyTeamId),
     );
     if (appears) {
       out.push(league.leagueCode);
@@ -484,7 +497,8 @@ async function applySaveInternal(bot, chatId, session) {
       droppedStale += 1;
       continue;
     }
-    if (finalSelectionByTeamId.has(sel.teamId)) {
+    const logicalKey = identityKeyFromLeagueTeamId(sel.teamId) || sel.teamId;
+    if (finalSelectionByTeamId.has(logicalKey)) {
       // Duplicate via visual sync — keep the first occurrence.
       continue;
     }
@@ -495,7 +509,7 @@ async function applySaveInternal(bot, chatId, session) {
     }
     const match = roster.teams.find(
       (team) =>
-        buildLeagueTeamId(team.userName, team.teamNo, team.accountId) === sel.teamId,
+        sameLeagueTeamIds(buildLeagueTeamId(team.userName, team.teamNo, team.accountId), sel.teamId),
     );
     if (!match) {
       droppedStale += 1;
@@ -503,11 +517,11 @@ async function applySaveInternal(bot, chatId, session) {
     }
     const entry = {
       leagueCode: sel.leagueCode,
-      teamId: sel.teamId,
+      teamId: buildLeagueTeamId(match.userName, match.teamNo, match.accountId),
       leagueTeam: match,
     };
     finalSelections.push(entry);
-    finalSelectionByTeamId.set(sel.teamId, entry);
+    finalSelectionByTeamId.set(logicalKey, entry);
   }
 
   const finalTeamIds = new Set(finalSelections.map((sel) => sel.teamId));
@@ -520,7 +534,7 @@ async function applySaveInternal(bot, chatId, session) {
 
   // Remove teams that were previously followed but are no longer selected.
   for (const teamId of previouslyFollowed) {
-    if (!finalTeamIds.has(teamId)) {
+    if (![...finalTeamIds].some((id) => sameLeagueTeamIds(id, teamId))) {
       await removeFollowedTeam(bot, chatId, teamId, {
         mutateSelectedTeam: false,
       });
@@ -530,7 +544,7 @@ async function applySaveInternal(bot, chatId, session) {
   // Add newly selected teams that weren't previously followed.
   const addedTeamIds = [];
   for (const sel of finalSelections) {
-    if (previouslyFollowed.has(sel.teamId)) {continue;}
+    if ([...previouslyFollowed].some((id) => sameLeagueTeamIds(id, sel.teamId))) {continue;}
     try {
       await followLeagueTeam(bot, chatId, {
         leagueCode: sel.leagueCode,
@@ -550,11 +564,11 @@ async function applySaveInternal(bot, chatId, session) {
 
   // Resolve active team deterministically.
   let nextActive = null;
-  if (prevActive && finalTeamIds.has(prevActive)) {
-    nextActive = prevActive;
+  if (prevActive && [...finalTeamIds].some((id) => sameLeagueTeamIds(id, prevActive))) {
+    nextActive = [...finalTeamIds].find((id) => sameLeagueTeamIds(id, prevActive));
   } else if (session.addOrder && session.addOrder.length > 0) {
     nextActive =
-      session.addOrder.find((teamId) => finalTeamIds.has(teamId)) || null;
+      [...finalTeamIds].find((id) => session.addOrder.some((teamId) => sameLeagueTeamIds(id, teamId))) || null;
   }
   if (!nextActive && addedTeamIds.length > 0) {
     nextActive = addedTeamIds.find((teamId) => finalTeamIds.has(teamId)) ||
@@ -649,7 +663,10 @@ async function handleTeamsTrackerCallback(bot, query) {
     }
 
     if (action === TEAMS_TRACKER_ACTIONS.OPEN_LEAGUE) {
-      const [leagueCode] = payload;
+      const leagueCode = await resolveLeagueCallbackCode(chatId, payload[0], listUserLeagues);
+      if (!leagueCode) {await respondExpired(bot, query);
+
+ return;}
       session.currentView = VIEW.TEAMS;
       session.currentLeagueCode = leagueCode;
       await touchSession(chatId, session);
@@ -660,7 +677,11 @@ async function handleTeamsTrackerCallback(bot, query) {
     }
 
     if (action === TEAMS_TRACKER_ACTIONS.TOGGLE) {
-      const [leagueCode, callbackKey] = payload;
+      const [leagueSelector, callbackKey] = payload;
+      const leagueCode = await resolveLeagueCallbackCode(chatId, leagueSelector, listUserLeagues);
+      if (!leagueCode) {await respondExpired(bot, query);
+
+ return;}
       const teamId = await resolveTeamIdFromCallbackKey(
         leagueCode,
         callbackKey,
@@ -680,10 +701,10 @@ async function handleTeamsTrackerCallback(bot, query) {
         // Remove every entry staged for this fantasy team across all
         // leagues (visual sync).
         session.selected = session.selected.filter(
-          (sel) => sel.teamId !== teamId,
+          (sel) => !sameLeagueTeamIds(sel.teamId, teamId),
         );
         session.addOrder = (session.addOrder || []).filter(
-          (id) => id !== teamId,
+          (id) => !sameLeagueTeamIds(id, teamId),
         );
       } else {
         // Enforce the cap on DISTINCT fantasy teams. A team already in
@@ -709,7 +730,7 @@ async function handleTeamsTrackerCallback(bot, query) {
         }
         for (const lc of leagues) {
           const exists = session.selected.some(
-            (sel) => sel.leagueCode === lc && sel.teamId === teamId,
+            (sel) => sel.leagueCode === lc && sameLeagueTeamIds(sel.teamId, teamId),
           );
           if (!exists) {
             session.selected.push({ leagueCode: lc, teamId });

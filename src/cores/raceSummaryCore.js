@@ -2,7 +2,7 @@
 // agent. This module owns facts only; model calls, localization, telemetry,
 // storage, and presentation remain in their adapters/services.
 const { filterExcludedGraphTeams } = require('../utils/leagueGraphFilter');
-const { buildLeagueTeamId } = require('../utils/teamId');
+const { buildLeagueTeamIdentityKey } = require('../utils/teamId');
 const { deriveLiveScoreOptions } = require('../utils/liveScoreCalc');
 
 function findRaceName(seasonData, raceNumber) {
@@ -17,15 +17,34 @@ function findRaceName(seasonData, raceNumber) {
   );
 }
 
-function rosterKey(team) {
-  return (
-    buildLeagueTeamId(
-      team?.userName,
-      team?.teamNo,
-      team?.accountId,
-    ) ||
-    `${team?.teamName || team?.userName || ''}:${team?.teamNo || 1}`
-  );
+function normalized(value) {
+  return String(value || '').normalize('NFKC').trim().toLowerCase();
+}
+
+function legacyContextMatches(team, locked) {
+  return normalized(team.userName) === normalized(locked.userName) &&
+    Number(team.teamNo || 1) === Number(locked.teamNo || 1);
+}
+
+function resolveLockedRoster(team, lockedTeams) {
+  const identity = buildLeagueTeamIdentityKey(team.accountId, team.teamNo);
+  if (identity) {
+    const exact = lockedTeams.filter((locked) =>
+      buildLeagueTeamIdentityKey(locked.accountId, locked.teamNo) === identity);
+    if (exact.length === 1) {return { team: exact[0], status: 'exact_account' };}
+    if (exact.length > 1) {return { team: null, status: 'ambiguous_legacy_identity' };}
+  }
+  // Account-aware rows from another account must never be matched through
+  // display fields. Only snapshots predating account IDs use legacy matching.
+  const historical = lockedTeams.filter((locked) => !locked.accountId &&
+    legacyContextMatches(team, locked));
+  const nameMatches = historical.filter((locked) =>
+    normalized(team.teamName) && normalized(team.teamName) === normalized(locked.teamName));
+  if (nameMatches.length === 1) {return { team: nameMatches[0], status: 'legacy_team_name' };}
+  if (nameMatches.length > 1) {return { team: null, status: 'ambiguous_legacy_identity' };}
+  if (historical.length === 1) {return { team: historical[0], status: 'legacy_unique_identity' };}
+
+  return { team: null, status: historical.length > 1 ? 'ambiguous_legacy_identity' : 'missing' };
 }
 
 function memberName(member) {
@@ -52,28 +71,53 @@ function buildTeamDifference(subject, comparison, label) {
     return rosterNames(first, field).filter((name) => !secondNames.has(name));
   };
 
+  const subjectDrivers = rosterNames(subject, 'drivers');
+  const comparisonDrivers = rosterNames(comparison, 'drivers');
+  const subjectConstructors = rosterNames(subject, 'constructors');
+  const comparisonConstructors = rosterNames(comparison, 'constructors');
+  const sameNames = (a, b) => a.length === b.length &&
+    [...a].sort().every((name, index) => name === [...b].sort()[index]);
+  const sameRosterMembers = sameNames(subjectDrivers, comparisonDrivers) &&
+    sameNames(subjectConstructors, comparisonConstructors);
+  const sameBoostConfiguration = subject.boostDriver === comparison.boostDriver &&
+    subject.extraBoostDriver === comparison.extraBoostDriver;
+  const sameActiveChips = sameNames(
+    [...new Set(subject.activeChips || [])],
+    [...new Set(comparison.activeChips || [])],
+  );
+  const sameTransferPenalty = subject.transferPenalty !== null &&
+    subject.transferPenalty !== undefined &&
+    subject.transferPenalty === comparison.transferPenalty &&
+    subject.transferPenaltyWaived === comparison.transferPenaltyWaived;
+  const fields = (team, other) => ({
+    teamName: team.teamName,
+    racePlace: team.racePlace,
+    raceScore: team.latestRaceScore,
+    uniqueDrivers: uniqueMembers('drivers', team, other),
+    uniqueConstructors: uniqueMembers('constructors', team, other),
+    boostDriver: team.boostDriver || null,
+    extraBoostDriver: team.extraBoostDriver || null,
+    transferPenalty: team.transferPenalty,
+    transferPenaltyWaived: team.transferPenaltyWaived,
+    chips: team.activeChips || [],
+    noNegativeActive: team.noNegativeActive || false,
+    rosterMatchStatus: team.rosterMatchStatus,
+  });
+
   return {
     label,
-    subject: {
-      teamName: subject.teamName,
-      racePlace: subject.racePlace,
-      raceScore: subject.latestRaceScore,
-      uniqueDrivers: uniqueMembers('drivers', subject, comparison),
-      uniqueConstructors: uniqueMembers('constructors', subject, comparison),
-      boostDriver: subject.boostDriver || null,
-      extraBoostDriver: subject.extraBoostDriver || null,
-      transferPenalty: Number(subject.transferPenalty) || 0,
-    },
-    comparison: {
-      teamName: comparison.teamName,
-      racePlace: comparison.racePlace,
-      raceScore: comparison.latestRaceScore,
-      uniqueDrivers: uniqueMembers('drivers', comparison, subject),
-      uniqueConstructors: uniqueMembers('constructors', comparison, subject),
-      boostDriver: comparison.boostDriver || null,
-      extraBoostDriver: comparison.extraBoostDriver || null,
-      transferPenalty: Number(comparison.transferPenalty) || 0,
-    },
+    subject: fields(subject, comparison),
+    comparison: fields(comparison, subject),
+    sameRosterMembers,
+    sameBoostConfiguration,
+    sameActiveChips,
+    sameTransferPenalty,
+    sameRaceConfiguration: sameRosterMembers && sameBoostConfiguration &&
+      sameActiveChips && sameTransferPenalty,
+    penaltyGap: subject.transferPenalty === null || subject.transferPenalty === undefined ||
+      comparison.transferPenalty === null || comparison.transferPenalty === undefined
+      ? null : subject.transferPenalty - comparison.transferPenalty,
+    chipDifferences: !sameActiveChips,
     scoreGap: subject.latestRaceScore - comparison.latestRaceScore,
   };
 }
@@ -139,23 +183,36 @@ function buildRaceSummaryData(leagueData, lockedTeamsData, raceName = null) {
   );
   const lockedMatchesRace =
     Number(lockedTeamsData?.matchdayId) === latestMatchdayNumber;
-  const lockedByTeam = new Map(
-    filterExcludedGraphTeams(
-      lockedMatchesRace ? lockedTeamsData?.teams : [],
-    ).map((team) => [rosterKey(team), team]),
+  const lockedTeams = filterExcludedGraphTeams(
+    lockedMatchesRace ? lockedTeamsData?.teams : [],
   );
   const summaryTeams = teams.map((team) => {
-    const lockedTeam = lockedByTeam.get(rosterKey(team));
-    const drivers = lockedTeam?.drivers || team.drivers || [];
-    const constructors = lockedTeam?.constructors || team.constructors || [];
-    const chipsUsed = lockedTeam?.chipsUsed || team.chipsUsed || [];
-    const { transferPenalty } = lockedTeam
-      ? deriveLiveScoreOptions(lockedTeam)
-      : { transferPenalty: 0 };
+    const { team: lockedTeam, status: rosterMatchStatus } =
+      resolveLockedRoster(team, lockedTeams);
+    const drivers = lockedTeam?.drivers || (lockedMatchesRace ? [] : team.drivers || []);
+    const constructors = lockedTeam?.constructors || (lockedMatchesRace ? [] : team.constructors || []);
+    const chipsUsed = lockedTeam?.chipsUsed || (lockedMatchesRace ? [] : team.chipsUsed || []);
+    const { transferPenalty, noNegativeActive } = lockedTeam
+      ? deriveLiveScoreOptions({ ...lockedTeam,
+        matchdayId: lockedTeam.matchdayId ?? latestMatchdayNumber,
+        chipsUsed: chipsUsed.map((chip) => ({ ...chip,
+          gameDayId: Number(chip.gameDayId) })),
+      })
+      : { transferPenalty: null, noNegativeActive: false };
+    const activeChips = lockedTeam ? chipsUsed.filter((chip) =>
+      Number(chip.gameDayId) === latestMatchdayNumber)
+      .map((chip) => chip.name).filter(Boolean) : [];
+    const normalizedActiveChips = [...new Set(activeChips)].sort();
+    const transferPenaltyWaived = lockedTeam
+      ? normalizedActiveChips.some((name) => name === 'Wildcard' || name === 'Limitless')
+      : null;
 
     return {
       teamName: team.teamName || team.userName,
       userName: team.userName,
+      teamNo: team.teamNo,
+      accountId: team.accountId || null,
+      rosterMatchStatus,
       currentPosition: team.position,
       totalScore: team.totalScore,
       latestRaceScore: latestMatchday
@@ -169,6 +226,9 @@ function buildRaceSummaryData(leagueData, lockedTeamsData, raceName = null) {
       drivers,
       constructors,
       chipsUsed,
+      activeChips: normalizedActiveChips,
+      noNegativeActive,
+      transferPenaltyWaived,
       boostDriver: flaggedMemberName({ drivers }, 'isCaptain'),
       extraBoostDriver: flaggedMemberName({ drivers }, 'isMegaCaptain'),
       transferPenalty,
@@ -192,4 +252,5 @@ module.exports = {
   buildKeyTeamDifferences,
   buildRaceSummaryData,
   findRaceName,
+  resolveLockedRoster,
 };

@@ -194,14 +194,14 @@ Analysis rules:
 - Explain meaningful driver or constructor differences between teams, but never claim that one specific pick caused a score gap unless the data explicitly proves it.
 - keyTeamDifferences also includes each side's boostDriver, extraBoostDriver, and transferPenalty. Teams with the same seven roster members but different boost assignments are NOT identical; explicitly mention the boost difference when relevant.
 - A positive transferPenalty is an explicit scoring deduction and may be stated as such. Do not invent a penalty when the value is zero or unavailable.
-- When individual-point data is unavailable, simply describe the roster, boost, penalty, and final score differences that are explicitly present; do not add generic disclaimers about what those differences do or do not prove.
+- If the supplied aggregate data cannot explain the remaining score gap, state that per-driver scoring detail is unavailable and do not attribute that remainder to an invented cause.
 - Do not turn a single high or low score into a trend. Trends must be supported by multiple races or a clear recurring pattern in raceScores.
 - Prefer meaningful multi-race patterns over simply quoting season highs and lows.
 - Do not call a chip successful merely because the team scored highly; describe the timing and outcome and only make stronger claims when the data supports them.
 - Prefer insights that are not obvious from simply reading the standings.
 - Do not directly compare the immediately previous race result; use historical scores only for broader multi-race or season patterns.
 - Mention fantasy-team names.
-- Never describe two teams as having identical or the same lineups unless their drivers, constructors, boostDriver, extraBoostDriver, and transferPenalty all match.
+- Use sameRaceConfiguration to decide whether teams were effectively identical for the summarized race. It requires the same seven members, DRS and Extra DRS Boost, active chips for this matchday, and transfer penalty or waiver state. If members and boosts match but penalties differ, explain the known penalty. Describe differing active chips even when the seven members match. If sameRaceConfiguration is true and scores still differ, state that the supplied aggregate data lacks enough per-driver detail to attribute the remainder.
 - Do not invent causal explanations.
 - If an unsupported conclusion can simply be omitted, omit it.
 

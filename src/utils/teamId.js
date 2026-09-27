@@ -34,8 +34,7 @@ function buildLegacyLeagueTeamId(userName, teamNo) {
  *
  * New data uses {sanitize(userName)}_{teamNo}_{accountId}. accountId is the
  * stable opaque account discriminator emitted by f1-fantasy-api-data from the
- * F1 Fantasy user_guid. Older blobs may not contain accountId yet; in that
- * case return the legacy id so they remain readable until the next scrape.
+ * F1 Fantasy user_guid. Missing account IDs cannot produce canonical IDs.
  */
 function buildLeagueTeamId(userName, teamNo, accountId) {
   const legacyId = buildLegacyLeagueTeamId(userName, teamNo);
@@ -43,11 +42,30 @@ function buildLeagueTeamId(userName, teamNo, accountId) {
     return null;
   }
 
-  if (accountId === null || accountId === undefined || accountId === '') {
-    return legacyId;
-  }
+  if (typeof accountId !== 'string' || !/^[a-z0-9]{1,40}$/i.test(accountId)) {return null;}
 
-  return `${legacyId}_${sanitizeIdSegment(accountId)}`;
+  return `${legacyId}_${accountId.toLowerCase()}`;
+}
+
+function buildLeagueTeamIdentityKey(accountId, teamNo) {
+  if (typeof accountId !== 'string' || !/^[a-z0-9]{1,40}$/i.test(accountId) ||
+    teamNo === null || teamNo === undefined || teamNo === '') {return null;}
+
+  return `${accountId.toLowerCase()}:${teamNo}`;
+}
+
+function identityKeyFromLeagueTeamId(teamId) {
+  const match = typeof teamId === 'string'
+    ? teamId.match(/_(\d+)_([a-z0-9]{1,40})$/i) : null;
+
+  return match ? buildLeagueTeamIdentityKey(match[2], Number(match[1])) : null;
+}
+
+function sameLeagueTeamIds(left, right) {
+  const leftKey = identityKeyFromLeagueTeamId(left);
+  const rightKey = identityKeyFromLeagueTeamId(right);
+
+  return leftKey && rightKey ? leftKey === rightKey : Boolean(left && left === right);
 }
 
 /**
@@ -56,15 +74,9 @@ function buildLeagueTeamId(userName, teamNo, accountId) {
  * and resolve back to the canonical id from the fresh league roster.
  */
 function buildLeagueTeamCallbackKey(userName, teamNo, accountId) {
-  if (accountId !== null && accountId !== undefined && accountId !== '') {
-    if (teamNo === null || teamNo === undefined || teamNo === '') {
-      return null;
-    }
+  const key = buildLeagueTeamIdentityKey(accountId, teamNo);
 
-    return `${teamNo}_${sanitizeIdSegment(accountId)}`;
-  }
-
-  return buildLegacyLeagueTeamId(userName, teamNo);
+  return key ? `${teamNo}_${accountId.toLowerCase()}` : null;
 }
 
 // Back-compat alias — some call sites still use the old function name to
@@ -77,5 +89,8 @@ module.exports = {
   sanitizeTeamName,
   buildLegacyLeagueTeamId,
   buildLeagueTeamId,
+  buildLeagueTeamIdentityKey,
+  identityKeyFromLeagueTeamId,
+  sameLeagueTeamIds,
   buildLeagueTeamCallbackKey,
 };

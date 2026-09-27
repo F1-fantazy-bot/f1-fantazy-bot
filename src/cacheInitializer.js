@@ -32,6 +32,7 @@ const { listUserLeagues } = require('./leagueRegistryService');
 const {
   buildLegacyLeagueTeamId,
   buildLeagueTeamId,
+  buildLeagueTeamIdentityKey,
 } = require('./utils/teamId');
 const { mapLeagueTeamToBotTeam } = require('./utils/leagueTeamHelpers');
 const { refreshSimulationData } = require('./services/simulationRefreshService');
@@ -261,7 +262,6 @@ async function refreshLeagueSourcedTeams(bot) {
 
     const followedLeagueCodes = await loadFollowedLeagueCodes(chatId);
     const teamIds = Object.keys(teamsById);
-    let userIdentityChanged = false;
 
     for (const oldTeamId of teamIds) {
       // Screenshot teams (T1/T2/T3) have no underscore.
@@ -272,6 +272,10 @@ async function refreshLeagueSourcedTeams(bot) {
       try {
         const exactMatches = new Map();
         const legacyCandidates = new Map();
+        const cachedTeam = teamsById[oldTeamId];
+        const stableIdentity = buildLeagueTeamIdentityKey(
+          cachedTeam?.accountId, cachedTeam?.teamNo,
+        );
 
         for (const leagueCode of followedLeagueCodes) {
           const data = await loadLeagueTeams(leagueCode);
@@ -298,7 +302,9 @@ async function refreshLeagueSourcedTeams(bot) {
               team.teamNo,
             );
             if (
-              legacyId === oldTeamId &&
+              (stableIdentity
+                ? buildLeagueTeamIdentityKey(team.accountId, team.teamNo) === stableIdentity
+                : legacyId === oldTeamId) &&
               canonicalId !== oldTeamId &&
               !legacyCandidates.has(canonicalId)
             ) {
@@ -341,7 +347,9 @@ async function refreshLeagueSourcedTeams(bot) {
           }
           delete currentTeamCache[chatId][oldTeamId];
           rewriteUserTeamId(chatId, oldTeamId, newTeamId);
-          userIdentityChanged = true;
+          // Durable preferences must point at the new blob before the old
+          // blob is removed. A crash between these steps is retryable.
+          await persistMigratedUser(chatId);
 
           try {
             await deleteUserTeam(bot, chatId, oldTeamId, { silent: true });
@@ -362,7 +370,7 @@ async function refreshLeagueSourcedTeams(bot) {
           // entry and require the user to select the desired team again.
           delete currentTeamCache[chatId][oldTeamId];
           rewriteUserTeamId(chatId, oldTeamId, null);
-          userIdentityChanged = true;
+          await persistMigratedUser(chatId);
 
           try {
             await deleteUserTeam(bot, chatId, oldTeamId, { silent: true });
@@ -387,17 +395,6 @@ async function refreshLeagueSourcedTeams(bot) {
       }
     }
 
-    if (userIdentityChanged) {
-      try {
-        await persistMigratedUser(chatId);
-      } catch (err) {
-        failed += 1;
-        console.error(
-          `Failed to persist account-aware team migration for ${chatId}:`,
-          err,
-        );
-      }
-    }
   }
 
   if (

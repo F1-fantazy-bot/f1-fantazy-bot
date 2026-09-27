@@ -43,7 +43,7 @@ describe('getLeaderboard', () => {
   });
 
   test('returns sorted standings with gapToLeader and selected highlight', async () => {
-    cache.userCache['42'] = { selectedTeam: 'Kilzid_1' };
+    cache.userCache['42'] = { selectedTeam: 'Kilzid_1_aaaaaaaaaaaa' };
     listUserLeagues.mockResolvedValue([{ leagueCode: 'C7' }]);
     getLeagueData.mockResolvedValue({
       leagueName: 'MSFT ILDC 2026 League',
@@ -51,9 +51,9 @@ describe('getLeaderboard', () => {
       memberCount: 3,
       fetchedAt: '2026-05-17T00:00:00Z',
       teams: [
-        { position: 3, teamName: 'Other2', userName: 'Other2', teamNo: 1, totalScore: 900 },
-        { position: 1, teamName: 'Cooperon', userName: 'Cooperon', teamNo: 1, totalScore: 1223 },
-        { position: 2, teamName: 'Kilzid', userName: 'Kilzid', teamNo: 1, totalScore: 1100 },
+        { position: 3, teamName: 'Other2', userName: 'Other2', teamNo: 1, accountId: 'cccccccccccc', totalScore: 900 },
+        { position: 1, teamName: 'Cooperon', userName: 'Cooperon', teamNo: 1, accountId: 'bbbbbbbbbbbb', totalScore: 1223 },
+        { position: 2, teamName: 'Kilzid', userName: 'Kilzid', teamNo: 1, accountId: 'aaaaaaaaaaaa', totalScore: 1100 },
       ],
     });
 
@@ -63,7 +63,7 @@ describe('getLeaderboard', () => {
     expect(result.leagueName).toBe('MSFT ILDC 2026 League');
     expect(result.memberCount).toBe(3);
     expect(result.fetchedAt).toBe('2026-05-17T00:00:00Z');
-    expect(result.selectedTeamId).toBe('Kilzid_1');
+    expect(result.selectedTeamId).toBe('Kilzid_1_aaaaaaaaaaaa');
 
     const positions = result.standings.map((s) => s.position);
     expect(positions).toEqual([1, 2, 3]);
@@ -71,7 +71,7 @@ describe('getLeaderboard', () => {
     const cooperon = result.standings[0];
     expect(cooperon).toMatchObject({
       teamName: 'Cooperon',
-      teamId: 'Cooperon_1',
+      teamId: 'Cooperon_1_bbbbbbbbbbbb',
       totalScore: 1223,
       gapToLeader: 0,
       isSelected: false,
@@ -80,7 +80,7 @@ describe('getLeaderboard', () => {
     const kilzid = result.standings[1];
     expect(kilzid).toMatchObject({
       teamName: 'Kilzid',
-      teamId: 'Kilzid_1',
+      teamId: 'Kilzid_1_aaaaaaaaaaaa',
       totalScore: 1100,
       gapToLeader: -123,
       isSelected: true,
@@ -92,7 +92,7 @@ describe('getLeaderboard', () => {
     getLeagueData.mockResolvedValue({
       leagueName: 'L',
       teams: [
-        { teamName: 'Mystery', userName: 'M', teamNo: 1 },
+        { teamName: 'Mystery', userName: 'M', teamNo: 1, accountId: 'aaaaaaaaaaaa' },
       ],
     });
 
@@ -102,7 +102,7 @@ describe('getLeaderboard', () => {
       position: null,
       totalScore: null,
       gapToLeader: null,
-      teamId: 'M_1',
+      teamId: 'M_1_aaaaaaaaaaaa',
     });
   });
 });

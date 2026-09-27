@@ -17,7 +17,7 @@ const {
 } = require('../cache');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { loadLeagueTeamsData } = require('../utils/leagueTeamHelpers');
-const { buildLeagueTeamId } = require('../utils/teamId');
+const { buildLeagueTeamId, sameLeagueTeamIds } = require('../utils/teamId');
 
 /**
  * @param {{ chatId: number|string }} args
@@ -78,7 +78,7 @@ async function listFollowedTeams({ chatId }) {
     const leagueName = leagueNameByCode[leagueCode] || leagueCode;
     for (const row of data.teams) {
       const teamId = buildLeagueTeamId(row.userName, row.teamNo, row.accountId);
-      if (!teamId || !trackedTeamIds.has(teamId)) {
+      if (!teamId || ![...trackedTeamIds].some((trackedId) => sameLeagueTeamIds(teamId, trackedId))) {
         continue;
       }
 

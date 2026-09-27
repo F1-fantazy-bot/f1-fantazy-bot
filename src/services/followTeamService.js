@@ -6,7 +6,11 @@ const {
   isLeagueTeamId,
 } = require('../cache');
 const { MAX_FOLLOWED_LEAGUE_TEAMS } = require('../constants');
-const { buildLeagueTeamId } = require('../utils/teamId');
+const {
+  buildLeagueTeamId,
+  identityKeyFromLeagueTeamId,
+  sameLeagueTeamIds,
+} = require('../utils/teamId');
 const {
   setCachedSelectedTeam,
 } = require('./selectTeamService');
@@ -144,9 +148,9 @@ function createFollowTeamService(ports) {
           userName: team.userName || null,
           teamNo: team.teamNo ?? null,
           position: team.position ?? null,
-          isFollowed: followedTeamIds.has(choice.teamId),
+          isFollowed: [...followedTeamIds].some((id) => sameLeagueTeamIds(id, choice.teamId)),
           isSelected:
-            Boolean(choice.teamId) && choice.teamId === selectedTeamId,
+            Boolean(choice.teamId) && sameLeagueTeamIds(choice.teamId, selectedTeamId),
         };
       })
       .filter((team) => Boolean(team.teamId));
@@ -271,7 +275,7 @@ function createFollowTeamService(ports) {
           continue;
         }
         const matches = teamId
-          ? choice.teamId === teamId
+          ? sameLeagueTeamIds(choice.teamId, teamId)
           : normalize(choice.teamName) === normalize(teamName);
         if (matches) {
           choices.push(choice);
@@ -288,7 +292,7 @@ function createFollowTeamService(ports) {
       ).values(),
     ];
     const uniqueTeamIds = new Set(
-      uniqueChoices.map((choice) => choice.teamId),
+      uniqueChoices.map((choice) => identityKeyFromLeagueTeamId(choice.teamId)),
     );
     if (!teamId && uniqueTeamIds.size > 1) {
       return {
@@ -341,7 +345,8 @@ function createFollowTeamService(ports) {
     }
 
     const choice = uniqueChoices[0];
-    const alreadyFollowed = followedTeamIds.includes(choice.teamId);
+    const alreadyFollowed = followedTeamIds.some((id) =>
+      sameLeagueTeamIds(id, choice.teamId));
 
     if (action === ACTION.ADD && alreadyFollowed) {
       return {

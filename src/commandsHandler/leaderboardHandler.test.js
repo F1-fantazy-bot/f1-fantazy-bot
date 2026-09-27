@@ -80,15 +80,15 @@ describe('leaderboardHandler', () => {
     });
 
     it('bolds the selected team row (by fantasy id)', () => {
-      getSelectedTeam.mockReturnValue('userA_1');
+      getSelectedTeam.mockReturnValue('userA_1_aaaaaaaaaaaa');
 
       const output = formatLeaderboard(
         {
           leagueName: 'Amba',
           leagueCode: 'ABC',
           teams: [
-            { teamName: 'A', userName: 'userA', teamNo: 1, totalScore: 900, position: 1 },
-            { teamName: 'B', userName: 'userB', teamNo: 1, totalScore: 800, position: 2 },
+            { teamName: 'A', userName: 'userA', teamNo: 1, accountId: 'aaaaaaaaaaaa', totalScore: 900, position: 1 },
+            { teamName: 'B', userName: 'userB', teamNo: 1, accountId: 'aaaaaaaaaaaa', totalScore: 800, position: 2 },
           ],
         },
         1,
@@ -101,14 +101,14 @@ describe('leaderboardHandler', () => {
     it('bolds across leagues by fantasy id (cross-league)', () => {
       // Selected id was picked from a different league; same fantasy team
       // appears in this one too. It still bolds.
-      getSelectedTeam.mockReturnValue('userA_1');
+      getSelectedTeam.mockReturnValue('userA_1_aaaaaaaaaaaa');
 
       const output = formatLeaderboard(
         {
           leagueName: 'Other',
           leagueCode: 'XYZ',
           teams: [
-            { teamName: 'A renamed', userName: 'userA', teamNo: 1, totalScore: 700, position: 1 },
+            { teamName: 'A renamed', userName: 'userA', teamNo: 1, accountId: 'aaaaaaaaaaaa', totalScore: 700, position: 1 },
           ],
         },
         1,
@@ -118,7 +118,7 @@ describe('leaderboardHandler', () => {
     });
 
     it('does not bold rows missing userName or teamNo', () => {
-      getSelectedTeam.mockReturnValue('userA_1');
+      getSelectedTeam.mockReturnValue('userA_1_aaaaaaaaaaaa');
 
       const output = formatLeaderboard(
         {

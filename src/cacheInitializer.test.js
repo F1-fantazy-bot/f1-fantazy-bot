@@ -403,10 +403,10 @@ describe('cacheInitializer', () => {
     it('refreshes new-format teams (sanitizedUserName_teamNo) from the latest league blob', async () => {
       currentTeamCache[111] = {
         T1: { drivers: ['OLD'], constructors: ['OLD'] },
-        'My-Team-Owner_1': { drivers: ['STALE'], constructors: ['STALE'] },
+        'My-Team-Owner_1_aaaaaaaaaaaa': { drivers: ['STALE'], constructors: ['STALE'] },
       };
       currentTeamCache[222] = {
-        'Other-Owner_1': { drivers: ['STALE'], constructors: ['STALE'] },
+        'Other-Owner_1_bbbbbbbbbbbb': { drivers: ['STALE'], constructors: ['STALE'] },
       };
 
       // Both chatIds are members of league "ABC" so the refresh loop will
@@ -422,6 +422,7 @@ describe('cacheInitializer', () => {
             teamName: 'My Team',
             userName: 'My Team Owner',
             teamNo: 1,
+            accountId: 'aaaaaaaaaaaa',
             position: 1,
             budget: 100,
             transfersRemaining: 2,
@@ -435,6 +436,7 @@ describe('cacheInitializer', () => {
             teamName: 'Other',
             userName: 'Other Owner',
             teamNo: 1,
+            accountId: 'bbbbbbbbbbbb',
             position: 2,
             budget: 90,
             transfersRemaining: 1,
@@ -452,7 +454,7 @@ describe('cacheInitializer', () => {
         constructors: ['OLD'],
       });
       // League-sourced teams are rebuilt with mapped codes
-      expect(currentTeamCache[111]['My-Team-Owner_1']).toEqual(
+      expect(currentTeamCache[111]['My-Team-Owner_1_aaaaaaaaaaaa']).toEqual(
         expect.objectContaining({
           drivers: ['VER', 'NOR'],
           constructors: ['RED'],
@@ -460,7 +462,7 @@ describe('cacheInitializer', () => {
           freeTransfers: 2,
         }),
       );
-      expect(currentTeamCache[222]['Other-Owner_1']).toEqual(
+      expect(currentTeamCache[222]['Other-Owner_1_bbbbbbbbbbbb']).toEqual(
         expect.objectContaining({
           drivers: ['BEA'],
           constructors: ['VRB'],
@@ -549,7 +551,7 @@ describe('cacheInitializer', () => {
         selectedTeam: 'Tom-Kregenbild_1',
         bestTeamBudgetChangePointsPerMillion: {},
         selectedBestTeamByTeam: {},
-        selectedChipByTeam: {},
+        selectedChipByTeam: { 'Tom-Kregenbild_1': 'EXTRA_BOOST' },
       };
       listUserLeagues.mockResolvedValue([
         { leagueCode: 'ABC', leagueName: 'League ABC' },
@@ -575,6 +577,7 @@ describe('cacheInitializer', () => {
 
       expect(currentTeamCache[111]).toEqual({});
       expect(userCache['111'].selectedTeam).toBeNull();
+      expect(userCache['111'].selectedChipByTeam).toEqual({});
       expect(saveUserTeam).not.toHaveBeenCalled();
       expect(deleteUserTeam).toHaveBeenCalledWith(
         mockBot,
@@ -586,6 +589,59 @@ describe('cacheInitializer', () => {
         '111',
         expect.objectContaining({ selectedTeam: null }),
       );
+    });
+
+    it('rekeys the same account after a username change and is idempotent', async () => {
+      currentTeamCache[111] = {
+        'Tom-Kregenbild_1_a84f1234abcd': {
+          accountId: 'a84f1234abcd', teamNo: 1, userName: 'Tom Kregenbild',
+          teamName: 'Agentic Racing Co.', drivers: ['OLD'],
+        },
+      };
+      userCache['111'] = {
+        selectedTeam: 'Tom-Kregenbild_1_a84f1234abcd',
+        bestTeamBudgetChangePointsPerMillion: {
+          'Tom-Kregenbild_1_a84f1234abcd': 1.5,
+        },
+        selectedBestTeamByTeam: {},
+        selectedChipByTeam: { 'Tom-Kregenbild_1_a84f1234abcd': 'EXTRA_BOOST' },
+      };
+      listUserLeagues.mockResolvedValue([{ leagueCode: 'ABC' }]);
+      getLeagueTeamsData.mockResolvedValue({ teams: [{
+        teamName: 'Agentic Racing Co.', userName: 'Tom NewName', teamNo: 1,
+        accountId: 'a84f1234abcd', budget: 100, transfersRemaining: 1,
+        drivers: [], constructors: [],
+      }] });
+
+      await refreshLeagueSourcedTeams(mockBot);
+      const nextId = 'Tom-NewName_1_a84f1234abcd';
+      expect(Object.keys(currentTeamCache[111])).toEqual([nextId]);
+      expect(userCache['111'].selectedTeam).toBe(nextId);
+      expect(userCache['111'].selectedChipByTeam).toEqual({ [nextId]: 'EXTRA_BOOST' });
+      expect(userCache['111'].bestTeamBudgetChangePointsPerMillion).toEqual({ [nextId]: 1.5 });
+      expect(deleteUserTeam).toHaveBeenCalledTimes(1);
+
+      await refreshLeagueSourcedTeams(mockBot);
+      expect(Object.keys(currentTeamCache[111])).toEqual([nextId]);
+      expect(deleteUserTeam).toHaveBeenCalledTimes(1);
+    });
+
+    it('retains the legacy blob for a safe restart if preference persistence fails', async () => {
+      currentTeamCache[111] = { 'Tom-Kregenbild_1': { drivers: ['OLD'] } };
+      userCache['111'] = { selectedTeam: 'Tom-Kregenbild_1',
+        selectedChipByTeam: {}, selectedBestTeamByTeam: {},
+        bestTeamBudgetChangePointsPerMillion: {} };
+      listUserLeagues.mockResolvedValue([{ leagueCode: 'ABC' }]);
+      getLeagueTeamsData.mockResolvedValue({ teams: [{
+        teamName: 'Agentic Racing Co.', userName: 'Tom Kregenbild',
+        teamNo: 1, accountId: 'aaaaaaaaaaaa',
+        drivers: [], constructors: [],
+      }] });
+      updateUserAttributes.mockRejectedValueOnce(new Error('storage unavailable'));
+      await refreshLeagueSourcedTeams(mockBot);
+      expect(saveUserTeam).toHaveBeenCalledWith(mockBot, '111',
+        'Tom-Kregenbild_1_aaaaaaaaaaaa', expect.any(Object), { silent: true });
+      expect(deleteUserTeam).not.toHaveBeenCalled();
     });
 
     it('is a no-op for users with only T1/T2/T3 style ids', async () => {

@@ -15,7 +15,7 @@ function team(overrides = {}) {
   return {
     teamName: 'Alpha',
     userName: 'owner',
-    teamNo: 1,
+    teamNo: 1, accountId: 'aaaaaaaaaaaa',
     position: 1,
     raceScores: { matchday_1: 100, matchday_2: 50 },
     raceBudgets: { matchday_1: 100, matchday_2: 101 },
@@ -65,13 +65,13 @@ describe('leagueGraphsCore', () => {
   });
 
   test('builds gap-to-leader points with selection, chips, and exclusions', () => {
-    const selectedTeamId = buildLeagueTeamId('owner', 2);
+    const selectedTeamId = buildLeagueTeamId('owner', 2, 'aaaaaaaaaaaa');
     const result = buildGapToLeaderSeries(
       league([
         team(),
         team({
           teamName: 'Beta',
-          teamNo: 2,
+          teamNo: 2, accountId: 'aaaaaaaaaaaa',
           position: 2,
           raceScores: { matchday_1: 90 },
           chipsUsed: [{ name: 'Wildcard', gameDayId: 2 }],
@@ -103,9 +103,9 @@ describe('leagueGraphsCore', () => {
   test('uses competition ranking for tied cumulative standings', () => {
     const teams = [
       team({ raceScores: { matchday_1: 100 } }),
-      team({ teamNo: 2, raceScores: { matchday_1: 80 } }),
-      team({ teamNo: 3, raceScores: { matchday_1: 80 } }),
-      team({ teamNo: 4, raceScores: { matchday_1: 60 } }),
+      team({ teamNo: 2, accountId: 'aaaaaaaaaaaa', raceScores: { matchday_1: 80 } }),
+      team({ teamNo: 3, accountId: 'aaaaaaaaaaaa', raceScores: { matchday_1: 80 } }),
+      team({ teamNo: 4, accountId: 'aaaaaaaaaaaa', raceScores: { matchday_1: 60 } }),
     ];
 
     expect(computeRankPerMatchday(teams, ['matchday_1'])).toEqual([
@@ -130,7 +130,7 @@ describe('leagueGraphsCore', () => {
         team({ teamName: 'No latest', raceBudgets: { matchday_1: 105 } }),
         team({
           teamName: 'Leader',
-          teamNo: 2,
+          teamNo: 2, accountId: 'aaaaaaaaaaaa',
           position: 2,
           raceBudgets: { matchday_1: 100, matchday_2: 110 },
         }),

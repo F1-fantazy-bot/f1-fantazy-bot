@@ -3,11 +3,17 @@ const {
   getLockedTeamsData,
 } = require('../azureStorageService');
 const { listUserLeagues } = require('../leagueRegistryService');
-const { getSelectedTeam } = require('../cache');
+const { getSelectedTeam, currentTeamCache } = require('../cache');
+const { resolveLockedRoster } = require('../cores/raceSummaryCore');
+const {
+  encodeLeagueCallbackCode,
+  resolveLeagueCallbackCode,
+} = require('../utils/leagueCallbackCode');
 const {
   sanitizeTeamName,
   buildLeagueTeamId,
   buildLeagueTeamCallbackKey,
+  sameLeagueTeamIds,
 } = require('../utils/teamId');
 const {
   mapLockedTeamForScoring,
@@ -106,6 +112,8 @@ function joinMembersWithEmptyLine(members, chatId) {
 // `mapLockedTeamForScoring` for back-compat with this handler's test.
 
 function callbackData(action, ...payload) {
+  if (payload.length > 0) {payload[0] = encodeLeagueCallbackCode(payload[0]);}
+
   return [LIVE_SCORE_CALLBACK_TYPE, action, ...payload].join(':');
 }
 
@@ -217,7 +225,8 @@ function formatAllTeamsLeaderboard({
       row.teamNo,
       row.accountId,
     );
-    const isSelected = !!teamId && teamId === selectedTeamId;
+    const isSelected = Boolean(row.isSelected) ||
+      (!!teamId && sameLeagueTeamIds(teamId, selectedTeamId));
     const penaltyMarker = row.transferPenalty > 0 ? ' †' : '';
     const text = ` ${rank}. ${escapeHtml(row.teamName || row.userName || '—')} — ${row.totalPoints.toFixed(2)} ${t('pts', chatId)} | Δ ${formatSignedDelta(row.totalPriceChange.toFixed(2))}${penaltyMarker}`;
 
@@ -325,7 +334,7 @@ async function sendLiveScoreForTeam(bot, chatId, leagueCode, selector) {
     return;
   }
 
-  const match = snapshot.teams.find((team) => {
+  const matches = snapshot.teams.filter((team) => {
     const accountSelector = team.accountId
       ? buildLeagueTeamCallbackKey(
         team.userName,
@@ -337,8 +346,9 @@ async function sendLiveScoreForTeam(bot, chatId, leagueCode, selector) {
       team.teamName || team.userName || 'team',
     );
 
-    return accountSelector === selector || legacySlug === selector;
+    return accountSelector === selector || (!team.accountId && legacySlug === selector);
   });
+  const match = matches.length === 1 ? matches[0] : null;
   if (!match) {
     await bot.sendMessage(
       chatId,
@@ -396,6 +406,10 @@ async function sendLiveScoreForAllTeams(bot, chatId, leagueCode) {
     return;
   }
 
+  const selectedTeamId = getSelectedTeam(chatId);
+  const selectedLockedTeam = currentTeamCache?.[chatId]?.[selectedTeamId]
+    ? resolveLockedRoster(currentTeamCache[chatId][selectedTeamId], snapshot.teams).team
+    : null;
   const rows = snapshot.teams.map((team) => {
     const realTeam = mapLockedTeamForScoring(team);
     const options = deriveLiveScoreOptions(team);
@@ -407,6 +421,7 @@ async function sendLiveScoreForAllTeams(bot, chatId, leagueCode) {
       userName: team.userName,
       teamNo: team.teamNo,
       accountId: team.accountId,
+      isSelected: team === selectedLockedTeam,
       position: team.position,
       totalPoints,
       totalPriceChange,
@@ -491,9 +506,10 @@ async function handleLiveScoreCallback(bot, query) {
   const parts = (query.data || '').split(':');
   // parts[0] = LIVE_SCORE_CALLBACK_TYPE
   const action = parts[1];
-  const leagueCode = parts[2];
+  const leagueCode = await resolveLeagueCallbackCode(chatId, parts[2], listUserLeagues);
 
   try {
+    if (!leagueCode) {return;}
     if (action === LIVE_SCORE_ACTIONS.LEAGUE) {
       await sendTeamPicker(bot, chatId, leagueCode, query.message);
     } else if (action === LIVE_SCORE_ACTIONS.TEAM) {

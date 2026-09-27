@@ -231,6 +231,7 @@ describe('handleCallbackQuery', () => {
   });
 
   it('should handle team callback', async () => {
+    cache.currentTeamCache[123] = { T2: { drivers: [] } };
     const query = {
       id: 'q4',
       data: `${TEAM_CALLBACK_TYPE}:T2`,
