@@ -1,3 +1,8 @@
+const activeExpiry = {
+  selectedAt: new Date(Date.now() - 86400000).toISOString(),
+  expiresAt: new Date(Date.now() + 5 * 86400000).toISOString(),
+};
+
 const { KILZI_CHAT_ID, LIMITLESS_CHIP, EXTRA_BOOST_CHIP, WILDCARD_CHIP } = require('../constants');
 
 const mockCalculateBestTeams = jest.fn();
@@ -189,9 +194,10 @@ describe('scenario independence', () => {
     const baseline = computeBestTeamScenarios({ chatId: KILZI_CHAT_ID });
     mockCalculateBestTeams.mockClear();
     selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: savedChip };
+    userCache[String(KILZI_CHAT_ID)] = { selectedChipExpiryByTeam: { [TEAM_ID]: activeExpiry } };
     const savedState = JSON.stringify({ chips: selectedChipCache, teams: currentTeamCache });
     const result = computeBestTeamScenarios({ chatId: KILZI_CHAT_ID });
-    expect(result.chip).toBe(savedChip || null);
+    expect(result.chip).toBe(savedChip === 'WITHOUT_CHIP' ? null : savedChip || null);
     expect(result.scenarios).toEqual(baseline.scenarios);
     expect(mockCalculateBestTeams).toHaveBeenCalledTimes(16);
     for (const { ppm, results } of result.scenarios) {
@@ -234,10 +240,11 @@ describe('scenario independence', () => {
     }
     for (const savedChip of savedChips) {
       selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: savedChip };
+      userCache[String(KILZI_CHAT_ID)] = { selectedChipExpiryByTeam: { [TEAM_ID]: activeExpiry } };
       const savedState = JSON.stringify({ chips: selectedChipCache, teams: currentTeamCache });
       const result = computeBestTeamScenarios({ chatId: KILZI_CHAT_ID });
       expect(result.scenarios).toEqual(baseline.scenarios);
-      expect(result.chip).toBe(savedChip || null);
+      expect(result.chip).toBe(savedChip === 'WITHOUT_CHIP' ? null : savedChip || null);
       expect(JSON.stringify({ chips: selectedChipCache, teams: currentTeamCache })).toBe(savedState);
     }
   });

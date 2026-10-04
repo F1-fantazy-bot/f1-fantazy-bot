@@ -1,3 +1,4 @@
+const { normalizeChipExpiryByTeam, serializeChipExpiryByTeam } = require('../utils/chipExpiry');
 const azureStorageService = require('../azureStorageService');
 const {
   bestTeamsCache,
@@ -36,6 +37,7 @@ function captureTeamState(chatId) {
     selectedBest: normalizeSelectedBestTeamByTeam(
       userCache[key]?.selectedBestTeamByTeam,
     ),
+    chipExpiry: normalizeChipExpiryByTeam(userCache[key]?.selectedChipExpiryByTeam),
     chips: normalizeSelectedChipByTeam(
       userCache[key]?.selectedChipByTeam,
     ),
@@ -57,6 +59,7 @@ async function restoreTeamStateWithStorage(chatId, snapshot, storage) {
       snapshot.selectedBest,
     ),
     selectedChipByTeam: serializeSelectedChipByTeam(snapshot.chips),
+    selectedChipExpiryByTeam: serializeChipExpiryByTeam(snapshot.chipExpiry),
   }));
 
   if (Object.keys(snapshot.teams).length > 0) {
@@ -75,7 +78,7 @@ async function restoreTeamStateWithStorage(chatId, snapshot, storage) {
     snapshot.selectedBest,
     null,
   );
-  setCachedChipPreferences(chatId, snapshot.chips, null);
+  setCachedChipPreferences(chatId, snapshot.chips, null, snapshot.chipExpiry || {});
   setCachedSelectedTeam(chatId, snapshot.selectedTeam, {
     preserveNull: true,
   });

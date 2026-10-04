@@ -7,7 +7,7 @@
 const { calculateBestTeams } = require('../bestTeamsCalculator');
 const {
   currentTeamCache,
-  selectedChipCache,
+  getActiveChip,
   sharedKey,
   remainingRaceCountCache,
   nextRaceInfoCache,
@@ -137,7 +137,7 @@ function computeBestTeamScenarios({ chatId, teamId, teamName }) {
     return { ...prepared, teamId: resolvedTeamId };
   }
   const cachedJsonData = prepared.calculationData;
-  const selectedChip = selectedChipCache[chatId]?.[resolvedTeamId] || null;
+  const selectedChip = getActiveChip(chatId, resolvedTeamId) || null;
   const remainingRaceCount = remainingRaceCountCache[sharedKey];
   const safeRemainingRaceCount = Number.isFinite(remainingRaceCount)
     ? remainingRaceCount

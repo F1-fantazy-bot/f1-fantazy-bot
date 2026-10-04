@@ -1,3 +1,8 @@
+const activeExpiry = {
+  selectedAt: new Date(Date.now() - 86400000).toISOString(),
+  expiresAt: new Date(Date.now() + 5 * 86400000).toISOString(),
+};
+
 const { KILZI_CHAT_ID, COMMAND_BEST_TEAMS } = require('../constants');
 
 const { calculateChangesToTeam } = require('../bestTeamsCalculator');
@@ -39,7 +44,7 @@ describe('handleNumberMessage', () => {
     delete selectedChipCache[KILZI_CHAT_ID];
     delete currentTeamCache[KILZI_CHAT_ID];
     delete remainingRaceCountCache[sharedKey];
-    delete userCache[String(KILZI_CHAT_ID)];
+    userCache[String(KILZI_CHAT_ID)] = { selectedChipExpiryByTeam: { T1: activeExpiry } };
     setSelectedBestTeamPreference.mockClear();
     // Set up single team so resolveSelectedTeam auto-resolves to T1
     currentTeamCache[KILZI_CHAT_ID] = { [TEAM_ID]: { drivers: ['VER'] } };
@@ -176,9 +181,10 @@ describe('handleNumberMessage', () => {
         expectedPriceChange: 0.2,
       },
     };
-    selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: 'LIMITLESS_CHIP' };
+    selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: 'LIMITLESS' };
     remainingRaceCountCache[sharedKey] = 22;
     userCache[String(KILZI_CHAT_ID)] = {
+      selectedChipExpiryByTeam: { T1: activeExpiry },
       bestTeamBudgetChangePointsPerMillion: { [TEAM_ID]: 2 },
     };
 
@@ -189,7 +195,7 @@ describe('handleNumberMessage', () => {
       constructorsToRemove: ['RBR'],
       extraBoostDriver: null,
       newBoost: 'HAM',
-      chipToActivate: 'LIMITLESS_CHIP',
+      chipToActivate: 'LIMITLESS',
       deltaPoints: 10.5,
       deltaBudgetAdjustedPoints: 30.2,
       deltaPrice: -2.3,
@@ -220,7 +226,7 @@ describe('handleNumberMessage', () => {
         CurrentTeam: mockCurrentTeam,
       },
       mockSelectedTeam,
-      'LIMITLESS_CHIP',
+      'LIMITLESS',
       2,
       22,
     );
@@ -232,7 +238,7 @@ describe('handleNumberMessage', () => {
       `*Constructors To Add:* MER\n` +
       `*Constructors To Remove:* RBR\n` +
       `*New Boost Driver:* HAM\n` +
-      `*Chip To Activate:* LIMITLESS CHIP\n` +
+      `*Chip To Activate:* LIMITLESS\n` +
       `\n*Team ${teamRowRequested} Info:*\n` +
       `*Projected Points:* 0.00\n` +
       `*Budget-Adjusted Points:* 30.20\n` +
@@ -295,6 +301,7 @@ describe('handleNumberMessage', () => {
     };
     remainingRaceCountCache[sharedKey] = 22;
     userCache[String(KILZI_CHAT_ID)] = {
+      selectedChipExpiryByTeam: { T1: activeExpiry },
       bestTeamBudgetChangePointsPerMillion: { [TEAM_ID]: 2 },
     };
 
@@ -405,4 +412,24 @@ describe('handleNumberMessage', () => {
       undefined,
     );
   });
+});
+
+test('expired chip calculations cannot be selected even without a profile refresh', async () => {
+  const expiry = { selectedAt: '2026-09-18T00:00:00.000Z', expiresAt: '2026-09-21T01:00:00.000Z' };
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.parse(expiry.expiresAt));
+  const chatId = 99;
+  const bot = { sendMessage: jest.fn().mockResolvedValue() };
+  currentTeamCache[chatId] = { T1: { drivers: ['VER'] } };
+  userCache[chatId] = { selectedChipByTeam: { T1: 'LIMITLESS' }, selectedChipExpiryByTeam: { T1: expiry } };
+  selectedChipCache[chatId] = { T1: 'LIMITLESS' };
+  bestTeamsCache[chatId] = { T1: { chip: 'LIMITLESS', chipExpiresAt: expiry.expiresAt, bestTeams: [{ row: 1 }] } };
+  setSelectedBestTeamPreference.mockClear();
+  try {
+    await handleNumberMessage(bot, chatId, '1');
+    expect(bot.sendMessage).toHaveBeenCalledWith(chatId, expect.stringContaining('No cached teams available'));
+    expect(setSelectedBestTeamPreference).not.toHaveBeenCalled();
+  } finally {
+    clock.mockRestore();
+    for (const cache of [currentTeamCache, userCache, selectedChipCache, bestTeamsCache]) {delete cache[chatId];}
+  }
 });
