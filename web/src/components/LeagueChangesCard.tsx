@@ -34,6 +34,7 @@ export type LeagueChangeTeam = {
   captain: RoleChange;
   megaCaptain: RoleChange;
   chipsActivated: string[];
+  transferPenalty?: number;
 };
 
 export type LeagueChangesResult = {
@@ -104,6 +105,8 @@ export function LeagueChangesCard({
         captain: 'קפטן',
         megaCaptain: 'מגה קפטן',
         chip: "צ'יפ שהופעל",
+        penalty: 'קנס העברות',
+        points: 'נקודות',
         unchanged: 'קבוצות ללא שינויים',
         unknown: 'ללא',
         error: 'לא ניתן להציג את שינויי הליגה כרגע.',
@@ -135,6 +138,8 @@ export function LeagueChangesCard({
         captain: 'Captain',
         megaCaptain: 'Mega captain',
         chip: 'Chip activated',
+        penalty: 'Transfer penalty',
+        points: 'points',
         unchanged: 'Teams with no changes',
         unknown: 'None',
         error: 'League changes cannot be displayed right now.',
@@ -364,6 +369,7 @@ export function LeagueChangesCard({
                 {team.constructors.in.length ? <li><strong>{labels.constructorsIn}:</strong> {names(team.constructors.in)}</li> : null}
                 {team.captain ? <li><strong>{labels.captain}:</strong> {team.captain.from || labels.unknown} → {team.captain.to || labels.unknown}</li> : null}
                 {team.megaCaptain ? <li><strong>{labels.megaCaptain}:</strong> {team.megaCaptain.from || labels.unknown} → {team.megaCaptain.to || labels.unknown}</li> : null}
+                {(team.transferPenalty || 0) > 0 ? <li style={{ color: 'var(--app-danger-text)' }}><strong>{labels.penalty}:</strong> <bdi>-{team.transferPenalty}</bdi> {labels.points}</li> : null}
                 {team.chipsActivated.map((chip) => <li key={chip}><strong>{labels.chip}:</strong> {chip}</li>)}
               </ul>
             </article>

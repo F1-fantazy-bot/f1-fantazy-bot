@@ -276,3 +276,14 @@ describe('LeagueChangesCard', () => {
     rendered.cleanup();
   });
 });
+
+test.each(['en', 'he'])('shows a negative transfer penalty only on penalized teams in %s', (lang) => {
+  const base = { teamName: 'Dor', userName: 'dor', position: 1, isNew: false, hasChanges: true, drivers: { in: [], out: [] }, constructors: { in: [], out: [] }, captain: null, megaCaptain: null, chipsActivated: [] };
+  const view = renderCard({ status: 'ok', lang, leagueName: 'Amba', changedTeams: [{ ...base, transferPenalty: 10 }, { ...base, teamName: 'Waived', transferPenalty: 0 }] });
+  const articles = view.container.querySelectorAll('article');
+  expect(articles[0].textContent).toContain(lang === 'he' ? 'קנס העברות' : 'Transfer penalty');
+  expect(articles[0].textContent).toContain('-10');
+  expect(articles[1].textContent).not.toContain(lang === 'he' ? 'קנס העברות' : 'Transfer penalty');
+  expect(view.container.querySelector('section')?.dir).toBe(lang === 'he' ? 'rtl' : 'ltr');
+  view.cleanup();
+});

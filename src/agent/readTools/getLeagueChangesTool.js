@@ -25,7 +25,7 @@ function publicLeague(league) {
 const getLeagueChangesTool = defineTool({
   name: 'get_league_changes',
   description:
-    'Compare each team\'s Monday planning roster with the locked roster for the current matchday in one followed league. Pass a canonical leagueCode only when the user provided or selected one. If leagueCode is omitted, the result contains the user\'s followed leagues for clickable selection. Returns structured driver/constructor transfers, captain and mega-captain changes, current-matchday chips, new teams, and unchanged teams. Statuses: select_league, no_followed_leagues, not_followed, missing_locked, missing_planning, matchday_mismatch, or ok.',
+    'Compare each team\'s Monday planning roster with the locked roster for the current matchday in one followed league. Pass a canonical leagueCode only when the user provided or selected one. If leagueCode is omitted, the result contains the user\'s followed leagues for clickable selection. Returns structured driver/constructor transfers, captain and mega-captain changes, current-matchday chips, transferPenalty (points deducted for excess transfers, waived by current-matchday Wildcard/Limitless), new teams, and unchanged teams. Statuses: select_league, no_followed_leagues, not_followed, missing_locked, missing_planning, matchday_mismatch, or ok.',
   parameters: z.object({
     leagueCode: z
       .string()

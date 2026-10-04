@@ -248,7 +248,8 @@ describe('all rich components honor Hebrew ui language', () => {
                 constructors: { in: ['FER'], out: ['MER'] },
                 captain: { from: 'NOR', to: 'LEC' },
                 megaCaptain: null,
-                chipsActivated: ['Wildcard'],
+                chipsActivated: [],
+                transferPenalty: 10,
               },
             ],
             unchangedTeams: [],
@@ -261,7 +262,7 @@ describe('all rich components honor Hebrew ui language', () => {
         'נהגים שנכנסו',
         'קבוצות שיצאו',
         'קפטן',
-        "צ'יפ שהופעל",
+        'קנס העברות',
       ],
     },
     {
