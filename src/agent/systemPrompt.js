@@ -367,6 +367,7 @@ Workflow rules:
 - **League changes routing.**
   - For transfers or roster changes across a league, call
     get_league_changes. Do not use the leaderboard or live-score tools.
+    Include nonzero transferPenalty deductions in any summary of these changes.
   - If the user provides a canonical leagueCode, pass it directly.
   - If the user does not provide a canonical leagueCode, call
     get_league_changes with no arguments. This includes requests that name a

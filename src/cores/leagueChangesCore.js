@@ -1,6 +1,7 @@
 // Pure league-change comparison shared by Telegram and the web agent.
 // The core returns raw structured values; each surface owns localization,
 // escaping, and presentation.
+const { deriveLiveScoreOptions } = require('../utils/liveScoreCalc');
 const { resolveLockedRoster } = require('./raceSummaryCore');
 
 function pickCaptainName(team, key) {
@@ -40,7 +41,8 @@ function compareNames(latestEntries, planningEntries) {
   };
 }
 
-function compareTeamChanges(latestTeam, planningTeam) {
+function compareTeamChanges(latestTeam, planningTeam, matchdayId = latestTeam?.matchdayId) {
+  const { transferPenalty } = deriveLiveScoreOptions({ ...latestTeam, matchdayId });
   if (!planningTeam) {
     return {
       isNew: true,
@@ -50,6 +52,7 @@ function compareTeamChanges(latestTeam, planningTeam) {
       captain: null,
       megaCaptain: null,
       chipsActivated: [],
+      transferPenalty,
     };
   }
 
@@ -84,17 +87,19 @@ function compareTeamChanges(latestTeam, planningTeam) {
         constructors.out.length ||
         captain ||
         megaCaptain ||
-        chipsActivated.length,
+        chipsActivated.length ||
+        transferPenalty > 0,
     ),
     drivers,
     constructors,
     captain,
     megaCaptain,
     chipsActivated,
+    transferPenalty,
   };
 }
 
-function normalizeTeam(latestTeam, planningTeam) {
+function normalizeTeam(latestTeam, planningTeam, matchdayId) {
   return {
     teamName:
       latestTeam?.teamName || latestTeam?.userName || planningTeam?.teamName || null,
@@ -104,7 +109,7 @@ function normalizeTeam(latestTeam, planningTeam) {
       Number.isFinite(latestTeam.position)
         ? latestTeam.position
         : null,
-    ...compareTeamChanges(latestTeam, planningTeam),
+    ...compareTeamChanges(latestTeam, planningTeam, matchdayId),
   };
 }
 
@@ -153,7 +158,7 @@ function compareLeagueChanges({ latest, planning } = {}) {
       (left, right) =>
         (left?.position || Infinity) - (right?.position || Infinity),
     )
-    .map((team) => normalizeTeam(team, findPlanningTeam(team)));
+    .map((team) => normalizeTeam(team, findPlanningTeam(team), lockedMatchdayId));
 
   return {
     status: 'ok',

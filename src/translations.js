@@ -686,6 +686,7 @@ const translations = {
     '↪ Captain: {FROM} → {TO}': '↪ קפטן: {FROM} → {TO}',
     '↪ Mega captain: {FROM} → {TO}': '↪ מגה קפטן: {FROM} → {TO}',
     '↪ Chip: {CHIP}': "↪ צ'יפ: {CHIP}",
+    '↪ Transfer penalty: -{POINTS} points': '↪ קנס העברות: -{POINTS} נקודות',
     '🆕 new team': '🆕 קבוצה חדשה',
     'No team changes for matchday {N}.': 'אין שינויי קבוצות עבור סבב {N}.',
     '({COUNT} other team(s) had no changes)':
