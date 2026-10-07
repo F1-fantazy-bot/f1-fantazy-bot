@@ -1,5 +1,6 @@
 import {
-  WorkflowConversation,
+  WorkflowAssistantMessage,
+  WorkflowUserMessage,
   WorkflowWorkspace,
 } from './components/WorkflowCard';
 import { CopilotKit } from '@copilotkit/react-core';
@@ -286,15 +287,17 @@ function VerifiedAgentChat({
               <ClearHistoryButton />
             </div>
           </div>
-          <WorkflowConversation>
+          <div className="chat-wrapper">
             <CopilotChat
+              UserMessage={WorkflowUserMessage}
+              AssistantMessage={WorkflowAssistantMessage}
               instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
               labels={{
                 title: 'F1 Fantasy Agent',
                 initial: 'Hi! Ask what I can do to get a personalized guide.',
               }}
             />
-          </WorkflowConversation>
+          </div>
         </WorkflowWorkspace>
       </CopilotKit>
     </WriteDecisionProvider>
@@ -392,15 +395,17 @@ export function UnauthedAgent({
                 <ClearHistoryButton />
               </div>
             </div>
-            <WorkflowConversation>
+            <div className="chat-wrapper">
               <CopilotChat
+                UserMessage={WorkflowUserMessage}
+                AssistantMessage={WorkflowAssistantMessage}
                 instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
                 labels={{
                   title: 'F1 Fantasy Agent',
                   initial: 'Hi! Ask what I can do to get a personalized guide.',
                 }}
               />
-            </WorkflowConversation>
+            </div>
           </WorkflowWorkspace>
         </CopilotKit>
       </WriteDecisionProvider>

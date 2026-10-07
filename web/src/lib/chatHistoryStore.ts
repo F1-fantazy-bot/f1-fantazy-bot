@@ -228,5 +228,24 @@ export function clearWorkflowHistory(): void {
   const now = Date.now();
   clearedMemory.set(key, now);
   try { window.localStorage.setItem(key, String(now)); } catch { /* Memory fallback. */ }
+  try { window.localStorage.removeItem(`${storageKey()}::workflow-prompts`); } catch { /* Optional display metadata. */ }
   window.dispatchEvent(new Event(HISTORY_CLEARED_EVENT));
+}
+
+// Display-only links to persisted user-message IDs. Never store tool payloads or
+// inject workflow cards into the agent's messages. Keep the metadata bounded.
+export function loadWorkflowPromptIds(): Record<string, string> {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(`${storageKey()}::workflow-prompts`) || '{}');
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    return Object.fromEntries(Object.entries(value)
+      .filter(([id, prompt]) => id.length <= 200 && typeof prompt === 'string' && prompt.length <= 200)
+      .slice(-40)) as Record<string, string>;
+  } catch { return {}; }
+}
+
+export function saveWorkflowPromptIds(ids: Record<string, string>): void {
+  try {
+    window.localStorage.setItem(`${storageKey()}::workflow-prompts`, JSON.stringify(Object.fromEntries(Object.entries(ids).slice(-40))));
+  } catch { /* Optional display metadata; chat and durable workflows still work. */ }
 }

@@ -1767,6 +1767,9 @@ client-only and intentionally narrow — see
 - Storage key is scoped per Google `sub` when the user is signed in
   (`f1-fantasy-agent-history::<sub>`) and falls back to the
   unscoped key in local-dev / un-authed mode.
+- A separate `::workflow-prompts` display index retains at most 40 workflow IDs
+  and originating user-message IDs so recovered cards stay in their original
+  turns. It contains no tool payloads and never enters model context.
 
 **Why restore is reconciliation-based, not one-shot.** CopilotKit v2
 hands `useAgent()` a `ProxiedCopilotRuntimeAgent` in "pending" mode
@@ -1986,10 +1989,13 @@ model text and workflow IDs cannot approve execution. Each advance claims one
 step using ETag CAS inside the shared user mutation boundary. Never bypass the
 registered services or repeat a successful write when recovering a later read.
 `web/src/components/WorkflowCard.tsx` reloads durable status and renders ordered
-results through `workflowRenderers.tsx`. Both authenticated and local chat mount
-`WorkflowConversation`, which portals recovered cards and progress errors into
-CopilotChat's scoped `.copilotKitMessagesContainer`. Live `propose_workflow`
-cards retain their tool-message position and suppress the recovered duplicate.
+results through `workflowRenderers.tsx`. Both authenticated and local chat use
+`WorkflowUserMessage` / `WorkflowAssistantMessage` slots to render recovered
+cards within the native message list. Each workflow is linked to its originating
+user-message ID, using tool results when present; bounded, account-scoped
+display metadata preserves those links across reloads and repeated prompts.
+Live `propose_workflow` cards retain their tool-message position and suppress
+the recovered duplicate. Clear history removes the display links.
 Never render recovered workflows after the chat or inject them into agent history.
 Full lifecycle, retention, recovery and
 test-slot rollout instructions: [Web workflows](docs/agent-workflows.md).

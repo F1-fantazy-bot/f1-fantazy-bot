@@ -1,8 +1,12 @@
-const { testAgent } = vi.hoisted(() => ({ testAgent: { isRunning: false } }));
+const { testAgent } = vi.hoisted(() => ({ testAgent: { isRunning: false, messages: [] as Message[] } }));
 vi.mock('@copilotkit/react-core/v2', () => ({
   useAgent: () => ({ agent: testAgent }),
 }));
 vi.mock('@copilotkit/react-core', () => ({ useCopilotAction: vi.fn() }));
+vi.mock('@copilotkit/react-ui', () => ({
+  UserMessage: ({ message }: { message: { id: string; content: string } }) => <div data-prompt-id={message.id}>{message.content}</div>,
+  AssistantMessage: ({ message, subComponent }: { message: { content: string }; subComponent?: React.ReactNode }) => <div>{message.content}{subComponent}</div>,
+}));
 vi.mock('./ActionChoicesCard', () => ({
   ActionChoicesCard: () => null,
   isActionChoices: () => false,
@@ -12,10 +16,12 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, expect, test, vi } from 'vitest';
 import { useCopilotAction } from '@copilotkit/react-core';
+import type { Message } from '@ag-ui/core';
 import {
   WorkflowArrival,
   WorkflowCard,
-  WorkflowConversation,
+  WorkflowAssistantMessage,
+  WorkflowUserMessage,
   WorkflowWorkspace,
   type Workflow,
 } from './WorkflowCard';
@@ -50,12 +56,22 @@ const flow: Workflow = {
 const roots: ReturnType<typeof createRoot>[] = [];
 function Conversation({ children }: { children?: React.ReactNode }) {
   return (
-    <WorkflowConversation>
+    <div className="chat-wrapper">
       <div className="copilotKitMessages">
-        <div className="copilotKitMessagesContainer"><span>Chat</span>{children}</div>
+        <div className="copilotKitMessagesContainer">
+          <WorkflowAssistantMessage
+            message={{ id: 'greeting', role: 'assistant', content: 'Chat' }}
+            messages={[{ id: 'greeting', role: 'assistant', content: 'Chat' }]}
+            rawData={{}} isLoading={false} isGenerating={false}
+          />
+          {testAgent.messages.filter((message) => message.role === 'user').map((message) => (
+            <WorkflowUserMessage key={message.id} message={message as { id: string; role: 'user'; content: string }} rawData={message} ImageRenderer={() => null} />
+          ))}
+          {children}
+        </div>
       </div>
       <textarea aria-label="Message" />
-    </WorkflowConversation>
+    </div>
   );
 }
 function render(workflow = flow, lang: 'en' | 'he' = 'en') {
@@ -76,6 +92,10 @@ function render(workflow = flow, lang: 'en' | 'he' = 'en') {
 afterEach(() => {
   roots.splice(0).forEach((root) => act(() => root.unmount()));
   document.body.innerHTML = '';
+  testAgent.messages = [];
+  window.localStorage.clear();
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 test('one combined approval and exact ordered steps', () => {
   const { container, onDecision } = render();
@@ -316,4 +336,49 @@ test('polled workflows do not duplicate inline cards and return inside chat afte
   expect(container.querySelectorAll('section')).toHaveLength(1);
   expect(container.querySelector('section')?.closest('.copilotKitMessagesContainer')).not.toBeNull();
   vi.unstubAllGlobals();
+});
+
+test('successive identical prompts keep each recovered workflow below its own prompt through polling and reload', async () => {
+  vi.useFakeTimers();
+  const first = { ...flow, id: 'first', createdAt: 1 };
+  const second = { ...flow, id: 'second', createdAt: 2 };
+  let records = [first];
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ workflows: records }) })));
+  testAgent.messages = [{ id: 'prompt-1', role: 'user', content: flow.request }];
+  const container = document.createElement('div');
+  document.body.append(container);
+  let root = createRoot(container);
+  const mount = async () => act(async () => root.render(
+    <WorkflowWorkspace runtimeUrl="http://localhost/api/agent/copilotkit"><Conversation /></WorkflowWorkspace>,
+  ));
+  const order = () => [...container.querySelectorAll('[data-prompt-id], section')].map((node) => node.getAttribute('data-prompt-id') || 'workflow');
+  await mount();
+  expect(order()).toEqual(['prompt-1', 'workflow']);
+  testAgent.messages = [...testAgent.messages, { id: 'prompt-2', role: 'user', content: flow.request }];
+  await mount();
+  expect(order()).toEqual(['prompt-1', 'workflow', 'prompt-2']);
+  records = [second, first]; // Durable listing order must not reorder the conversation.
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+  expect(order()).toEqual(['prompt-1', 'workflow', 'prompt-2', 'workflow']);
+  act(() => root.unmount());
+  root = createRoot(container);
+  await mount();
+  expect(order()).toEqual(['prompt-1', 'workflow', 'prompt-2', 'workflow']);
+  act(() => root.unmount());
+});
+
+test('tool results anchor workflows to the correct earlier turn when a newer prompt already exists', async () => {
+  testAgent.messages = [
+    { id: 'original', role: 'user', content: 'Original request' },
+    { id: 'result', role: 'tool', toolCallId: 'call', content: JSON.stringify(flow) },
+    { id: 'latest', role: 'user', content: 'A different question' },
+  ];
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ workflows: [flow] }) })));
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  roots.push(root);
+  await act(async () => root.render(<WorkflowWorkspace runtimeUrl="http://localhost/api/agent/copilotkit"><Conversation /></WorkflowWorkspace>));
+  const order = [...container.querySelectorAll('[data-prompt-id], section')].map((node) => node.getAttribute('data-prompt-id') || 'workflow');
+  expect(order).toEqual(['original', 'workflow', 'latest']);
 });
