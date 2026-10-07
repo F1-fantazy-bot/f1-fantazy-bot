@@ -2005,10 +2005,10 @@ ordered request and let preparation return choices before approval. Standalone
 `get_action_choices` supports `get_best_teams` chip choices via `chipOverride`;
 subsequent target choices preserve that calculation-only override.
 
-Clear history first calls the authenticated `cancel_all` workflow decision for
-the current account, then clears chat and stores an account-scoped display cutoff.
+Clear history immediately clears chat and stores an account-scoped display cutoff,
+then calls the authenticated `cancel_all` workflow decision for the current account.
 Cancellation prevents later claims; a running action may finish and its outcome
-is retained. Failure keeps history visible for retry. The durable owner history
+is retained. Failure leaves the UI cleared and offers retry. The durable owner history
 generation and transactional proposal commit prevent preparations started before
 clear from reappearing afterward. Choice cards subscribe to the shared agent run lock
 so remounted cards stay disabled and announce progress during continuation.

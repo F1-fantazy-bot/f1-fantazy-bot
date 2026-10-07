@@ -1,3 +1,4 @@
+import { flushSync } from 'react-dom';
 import { WorkflowHistoryContext } from './workflowHistoryContext';
 import {
   workflowHistoryCutoff,
@@ -389,13 +390,15 @@ export function WorkflowWorkspace({
   const refreshRef = useRef<() => void>(() => {});
   const refresh = useRef(() => refreshRef.current()).current;
   refreshRef.current = () => {
+    if (clearingRef.current) return;
+    const generation = progressGeneration.current;
     fetch(`${base}/workflows`, { headers })
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json();
       })
       .then((data) => {
-        if (alive.current && Array.isArray(data.workflows))
+        if (alive.current && generation === progressGeneration.current && Array.isArray(data.workflows))
           setWorkflows(data.workflows);
       })
       .catch(() => {});
@@ -535,6 +538,14 @@ export function WorkflowWorkspace({
     setClearing(true);
     try {
       agent.abortRun?.();
+      flushSync(() => {
+        clear();
+        clearWorkflowHistory();
+        agent.setMessages([]);
+        setBlockingWorkflow(null);
+        setError(false);
+        setWorkflows([]);
+      });
       const response = await fetch(`${base}/workflow-decision`, {
         method: 'POST',
         headers,
@@ -544,12 +555,9 @@ export function WorkflowWorkspace({
       const data = await response.json();
       if (data.status !== 'ok') throw new Error('Workflow cancellation failed');
       if (!alive.current) return;
-      clear();
+      // Hide drafts that finished preparing between the click and cancellation.
+      // Do not clear any new chat messages entered while the request was pending.
       clearWorkflowHistory();
-      agent.setMessages([]);
-      setBlockingWorkflow(null);
-      setError(false);
-      setWorkflows(data.workflows || []);
     } finally {
       clearingRef.current = false;
       if (alive.current) setClearing(false);

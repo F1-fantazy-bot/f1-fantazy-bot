@@ -27,3 +27,31 @@
 .app-actions:has(.clear-history-control__message) {
   align-items: flex-start;
 }
+
+.clear-history-control__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.clear-history-control__button:disabled {
+  opacity: 0.55;
+}
+
+.clear-history-control__spinner {
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: clear-history-spin 0.8s linear infinite;
+}
+
+@keyframes clear-history-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clear-history-control__spinner { animation: none; }
+}

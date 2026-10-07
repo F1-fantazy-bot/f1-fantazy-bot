@@ -470,11 +470,12 @@ test('a hidden blocking workflow can be cancelled without a generic verification
   setHistoryScope(null);
 });
 
-test('clear history calls server cancellation before clearing chat and keeps the button text', async () => {
+test('clear history immediately clears chat before server cancellation and shows busy feedback', async () => {
   let complete!: () => void;
   const fetchMock = vi.fn(async (_url: unknown, options?: RequestInit) => {
     if (!options?.body)
       return { ok: true, json: async () => ({ workflows: [flow] }) };
+    expect(testAgent.setMessages).toHaveBeenCalledWith([]);
     await new Promise<void>((resolve) => {
       complete = resolve;
     });
@@ -500,7 +501,9 @@ test('clear history calls server cancellation before clearing chat and keeps the
   await act(async () => button.click());
   expect(button.textContent).toBe('Clear chat history');
   expect(button.disabled).toBe(true);
-  expect(testAgent.setMessages).not.toHaveBeenCalled();
+  expect(button.getAttribute('aria-busy')).toBe('true');
+  expect(button.querySelector('.clear-history-control__spinner')).not.toBeNull();
+  expect(testAgent.setMessages).toHaveBeenCalledWith([]);
   const request = fetchMock.mock.calls.find(
     ([, options]) => options?.body,
   )![1]!;
@@ -511,7 +514,7 @@ test('clear history calls server cancellation before clearing chat and keeps the
   expect(button.disabled).toBe(false);
 });
 
-test('clear failure preserves chat and offers retry', async () => {
+test('clear failure keeps the UI cleared and offers retry', async () => {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (_url, options) =>
@@ -533,9 +536,9 @@ test('clear failure preserves chat and offers retry', async () => {
     ),
   );
   await act(async () => container.querySelector('button')!.click());
-  expect(testAgent.setMessages).not.toHaveBeenCalled();
+  expect(testAgent.setMessages).toHaveBeenCalledWith([]);
   expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-    'Unable to clear chat history',
+    'Unable to finish clearing history',
   );
   expect(container.querySelector('button')!.disabled).toBe(false);
 });
@@ -587,7 +590,7 @@ test('a late clear response after account change does not erase the new account 
   save([{id:'new-message',role:'user',content:'Keep this message'}]);
   await act(async()=>finish());
   expect(load()).toHaveLength(1);
-  expect(testAgent.setMessages).not.toHaveBeenCalled();
+  expect(testAgent.setMessages).toHaveBeenCalledTimes(1);
   setHistoryScope(null);
 });
 

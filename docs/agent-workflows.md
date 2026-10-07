@@ -69,9 +69,10 @@ Single-action confirmation tools and Telegram commands remain available.
 
 The existing **Clear chat history** button also cancels all unfinished workflows
 for the authenticated account, including hidden workflows and other tabs. It
-stops local advancement before issuing `decision: "cancel_all"`; only after the
-server confirms cancellation does it clear messages and the display history.
-Failures preserve history and offer retry. Already-running actions may finish;
+clears messages and display history immediately, stops local advancement, then
+issues `decision: "cancel_all"`. The unchanged button text gains a spinner and a
+visible disabled state while cancellation runs. Failures leave the UI cleared
+and offer retry. Already-running actions may finish;
 completed changes and outcomes remain stored. Uncertain writes retain their
 reconciliation state and are never repeated or blindly unlocked.
 
