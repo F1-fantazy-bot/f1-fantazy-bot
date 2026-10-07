@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import './ClearHistoryButton.css';
 import { useWorkflowHistory } from './workflowHistoryContext';
 import { useUiLanguage } from './uiLanguage';
 
 export function ClearHistoryButton() {
   const { clearHistory, clearing } = useWorkflowHistory();
   const { lang } = useUiLanguage();
+  const statusId = useId();
   const [error, setError] = useState(false);
   const onClick = async () => {
     setError(false);
@@ -15,12 +17,13 @@ export function ClearHistoryButton() {
     }
   };
   return (
-    <span>
+    <div className="clear-history-control">
       <button
         type="button"
         onClick={() => void onClick()}
         disabled={clearing}
         aria-busy={clearing}
+        aria-describedby={clearing || error ? statusId : undefined}
         style={{
           padding: '6px 12px',
           fontSize: 12,
@@ -36,19 +39,19 @@ export function ClearHistoryButton() {
         Clear chat history
       </button>
       {clearing && (
-        <span role="status">
+        <div id={statusId} className="clear-history-control__message" role="status" dir={lang === 'he' ? 'rtl' : 'ltr'}>
           {lang === 'he'
             ? 'מבטל תהליכים ומנקה היסטוריה…'
             : 'Stopping workflows and clearing history…'}
-        </span>
+        </div>
       )}
       {error && (
-        <span role="alert">
+        <div id={statusId} className="clear-history-control__message clear-history-control__message--error" role="alert" dir={lang === 'he' ? 'rtl' : 'ltr'}>
           {lang === 'he'
             ? 'לא ניתן לבטל את כל התהליכים. ההיסטוריה נשמרה; נסה שוב.'
             : 'Could not stop all workflows. History was kept; please try again.'}
-        </span>
+        </div>
       )}
-    </span>
+    </div>
   );
 }

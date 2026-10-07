@@ -590,3 +590,16 @@ test('a late clear response after account change does not erase the new account 
   expect(testAgent.setMessages).not.toHaveBeenCalled();
   setHistoryScope(null);
 });
+
+test('clear succeeds without chat messages or workflow cards', async () => {
+  testAgent.messages = [];
+  testAgent.setMessages.mockClear();
+  vi.stubGlobal('fetch',vi.fn(async (_url,options) => ({ok:true,json:async()=>options?.body
+    ? {status:'ok',workflows:[]} : {workflows:[]}})));
+  const container=document.createElement('div'); document.body.append(container);
+  const root=createRoot(container); roots.push(root);
+  await act(async()=>root.render(<WorkflowWorkspace runtimeUrl="http://localhost/api/agent/copilotkit"><ClearHistoryButton /><Conversation /></WorkflowWorkspace>));
+  await act(async()=>container.querySelector('button')!.click());
+  expect(testAgent.setMessages).toHaveBeenCalledWith([]);
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+});

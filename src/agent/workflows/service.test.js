@@ -523,3 +523,11 @@ test('a write becoming uncertain after clear remains recoverable without repeati
   expect(h.write.execute).toHaveBeenCalledTimes(1);
   expect(await h.service.busy(42)).toBe(false);
 });
+
+test('clearing an account with no workflows succeeds repeatedly without executing anything', async () => {
+  const h = harness();
+  expect(await h.service.cancelAll(42)).toEqual({ status: 'ok', workflows: [] });
+  expect(await h.service.cancelAll(42)).toEqual({ status: 'ok', workflows: [] });
+  expect(h.write.execute).not.toHaveBeenCalled();
+  expect(h.read.execute).not.toHaveBeenCalled();
+});
