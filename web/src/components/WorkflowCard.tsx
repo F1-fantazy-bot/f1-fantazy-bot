@@ -1,8 +1,28 @@
-import { workflowHistoryCutoff, HISTORY_CLEARED_EVENT } from '../lib/chatHistoryStore';
+import {
+  workflowHistoryCutoff,
+  HISTORY_CLEARED_EVENT,
+  loadWorkflowPromptIds,
+  saveWorkflowPromptIds,
+} from '../lib/chatHistoryStore';
 import { isToolErrorResult, ToolErrorFallback } from './ToolErrorFallback';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useCopilotAction } from '@copilotkit/react-core';
 import { useAgent } from '@copilotkit/react-core/v2';
+import {
+  AssistantMessage,
+  UserMessage,
+  type AssistantMessageProps,
+  type UserMessageProps,
+} from '@copilotkit/react-ui';
+import type { Message } from '@ag-ui/core';
 import {
   isAgentRunActive,
   releaseAgentRun,
@@ -16,6 +36,50 @@ import {
   writeActionChoices,
 } from './ActionChoicesCard';
 import { safeParse } from './safeParse';
+
+type ConversationCard = { id: string; promptId?: string; content: ReactNode };
+const WorkflowConversationContext = createContext<ConversationCard[]>([]);
+
+// Use CopilotChat's message slots: React owns the cards' position relative to
+// later prompts, while the native components retain text, controls and tool UI.
+export function WorkflowUserMessage(props: UserMessageProps) {
+  const cards = useContext(WorkflowConversationContext);
+  return (
+    <>
+      <UserMessage {...props} />
+      {cards.filter((card) => card.promptId === props.message?.id).map((card) => (
+        <div key={card.id}>{card.content}</div>
+      ))}
+    </>
+  );
+}
+
+export function WorkflowAssistantMessage(props: AssistantMessageProps) {
+  const cards = useContext(WorkflowConversationContext);
+  return (
+    <>
+      <AssistantMessage {...props} />
+      {props.messages?.[0]?.id === props.message?.id &&
+        cards.filter((card) => !card.promptId).map((card) => (
+          <div key={card.id}>{card.content}</div>
+        ))}
+    </>
+  );
+}
+
+function workflowPromptId(messages: Message[], flow: Workflow): string | undefined {
+  // A tool result identifies its originating turn even when polling returns
+  // workflows newest first or the user repeats exactly the same prompt.
+  const resultIndex = messages.findIndex((message) => {
+    if (message.role !== 'tool') return false;
+    const result = safeParse(message.content) as { id?: string } | undefined;
+    return result?.id === flow.id;
+  });
+  const preceding = resultIndex < 0 ? messages : messages.slice(0, resultIndex);
+  const users = preceding.filter((message) => message.role === 'user');
+  const matching = users.filter((message) => message.content === flow.request);
+  return (resultIndex < 0 && matching.length ? matching : users).slice(-1)[0]?.id;
+}
 
 export type Workflow = {
   id: string;
@@ -276,9 +340,13 @@ export function WorkflowWorkspace({
   idToken?: string;
   children: ReactNode;
 }) {
+  const promptIds = useRef(loadWorkflowPromptIds());
   const [cutoff, setCutoff] = useState(workflowHistoryCutoff);
   useEffect(() => {
-    const update = () => setCutoff(workflowHistoryCutoff());
+    const update = () => {
+      promptIds.current = loadWorkflowPromptIds();
+      setCutoff(workflowHistoryCutoff());
+    };
     window.addEventListener(HISTORY_CLEARED_EVENT, update);
     window.addEventListener('storage', update);
     return () => {
@@ -294,6 +362,18 @@ export function WorkflowWorkspace({
   const [error, setError] = useState(false);
   const alive = useRef(true);
   const { agent } = useAgent({ agentId: 'default' });
+  const messages = agent.messages || [];
+  const lastPromptId = messages.filter((message) => message.role === 'user').slice(-1)[0]?.id;
+  for (const flow of workflows) {
+    if (cutoff && (flow.createdAt || 0) <= cutoff) continue;
+    if (!promptIds.current[flow.id]) {
+      const promptId = workflowPromptId(messages, flow);
+      if (promptId) promptIds.current[flow.id] = promptId;
+    }
+  }
+  useEffect(() => {
+    saveWorkflowPromptIds(promptIds.current);
+  }, [workflows, messages]);
   const { lang } = useUiLanguage();
   const base = runtimeUrl.replace(/\/copilotkit\/?$/, '');
   const headers = {
@@ -426,40 +506,33 @@ export function WorkflowWorkspace({
     (flow) =>
       !inlineWorkflowIds.has(flow.id) &&
       (!cutoff || (flow.createdAt || 0) > cutoff),
-  );
+  ).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  const conversationCards: ConversationCard[] = visibleWorkflows.map((flow) => ({
+    id: flow.id,
+    promptId: messages.some((message) => message.id === promptIds.current[flow.id])
+      ? promptIds.current[flow.id] : undefined,
+    content: (
+      <WorkflowCard
+        workflow={flow}
+        busy={active !== null || agent.isRunning || isAgentRunActive(agent)}
+        onDecision={(decision) => { void decide(flow, decision); }}
+      />
+    ),
+  }));
+  if (error) conversationCards.push({
+    id: 'workflow-progress-error',
+    promptId: lastPromptId,
+    content: (
+      <p role="alert">
+        {lang === 'he'
+          ? 'לא ניתן לאמת את ההתקדמות. יש לבדוק את המצב לפני המשך.'
+          : 'Progress could not be verified. Check status before resuming.'}
+      </p>
+    ),
+  });
   return (
-    <>
+    <WorkflowConversationContext.Provider value={conversationCards}>
       {children}
-      {(visibleWorkflows.length > 0 || error) && (
-        <div
-          style={{
-            maxWidth: 1000,
-            width: '100%',
-            margin: '0 auto',
-            padding: 12,
-          }}
-        >
-          {error && (
-            <p role="alert">
-              {lang === 'he'
-                ? 'לא ניתן לאמת את ההתקדמות. יש לבדוק את המצב לפני המשך.'
-                : 'Progress could not be verified. Check status before resuming.'}
-            </p>
-          )}
-          {visibleWorkflows.map((flow) => (
-            <WorkflowCard
-              key={flow.id}
-              workflow={flow}
-              busy={
-                active !== null || agent.isRunning || isAgentRunActive(agent)
-              }
-              onDecision={(decision) => {
-                void decide(flow, decision);
-              }}
-            />
-          ))}
-        </div>
-      )}
-    </>
+    </WorkflowConversationContext.Provider>
   );
 }
