@@ -1986,7 +1986,12 @@ model text and workflow IDs cannot approve execution. Each advance claims one
 step using ETag CAS inside the shared user mutation boundary. Never bypass the
 registered services or repeat a successful write when recovering a later read.
 `web/src/components/WorkflowCard.tsx` reloads durable status and renders ordered
-results through `workflowRenderers.tsx`. Full lifecycle, retention, recovery and
+results through `workflowRenderers.tsx`. Both authenticated and local chat mount
+`WorkflowConversation`, which portals recovered cards and progress errors into
+CopilotChat's scoped `.copilotKitMessagesContainer`. Live `propose_workflow`
+cards retain their tool-message position and suppress the recovered duplicate.
+Never render recovered workflows after the chat or inject them into agent history.
+Full lifecycle, retention, recovery and
 test-slot rollout instructions: [Web workflows](docs/agent-workflows.md).
 
 Workflow proposals may omit unresolved chip/team/preset arguments: retain the entire

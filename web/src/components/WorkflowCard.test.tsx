@@ -11,9 +11,11 @@ vi.mock('./ActionChoicesCard', () => ({
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, expect, test, vi } from 'vitest';
+import { useCopilotAction } from '@copilotkit/react-core';
 import {
   WorkflowArrival,
   WorkflowCard,
+  WorkflowConversation,
   WorkflowWorkspace,
   type Workflow,
 } from './WorkflowCard';
@@ -46,6 +48,16 @@ const flow: Workflow = {
   ],
 };
 const roots: ReturnType<typeof createRoot>[] = [];
+function Conversation({ children }: { children?: React.ReactNode }) {
+  return (
+    <WorkflowConversation>
+      <div className="copilotKitMessages">
+        <div className="copilotKitMessagesContainer"><span>Chat</span>{children}</div>
+      </div>
+      <textarea aria-label="Message" />
+    </WorkflowConversation>
+  );
+}
 function render(workflow = flow, lang: 'en' | 'he' = 'en') {
   const container = document.createElement('div');
   document.body.append(container);
@@ -152,10 +164,13 @@ test('workspace uses one approval and advances with status reads without model t
   await act(async () =>
     root.render(
       <WorkflowWorkspace runtimeUrl="http://localhost/api/agent/copilotkit">
-        <span>Chat</span>
+        <Conversation />
       </WorkflowWorkspace>,
     ),
   );
+  const card = container.querySelector('section')!;
+  expect(card.closest('.copilotKitMessagesContainer')).not.toBeNull();
+  expect(container.querySelectorAll('section')).toHaveLength(1);
   await act(async () =>
     [...container.querySelectorAll('button')]
       .find((button) => button.textContent === 'Approve and run')!
@@ -206,7 +221,7 @@ test('clear history hides previous workflows immediately and after remount while
   document.body.append(container);
   let root = createRoot(container);
   const mount = async () => {
-    await act(async () => root.render(<WorkflowWorkspace runtimeUrl="http://localhost/api/agent/copilotkit"><span>Chat</span></WorkflowWorkspace>));
+    await act(async () => root.render(<WorkflowWorkspace runtimeUrl="http://localhost/api/agent/copilotkit"><Conversation /></WorkflowWorkspace>));
   };
   await mount();
   expect(container.textContent).toContain(old.request);
@@ -275,4 +290,30 @@ test('workflow arrival renders the live workflow inline and tracks its visibilit
   roots.splice(roots.indexOf(root), 1);
   container.remove();
   expect(markInline).toHaveBeenCalledWith(flow.id, false);
+});
+
+test('polled workflows do not duplicate inline cards and return inside chat after inline unmount', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ workflows: [flow] }) })));
+  function Proposal() {
+    const calls = vi.mocked(useCopilotAction).mock.calls;
+    const registration = calls[calls.length - 1][0];
+    const renderProposal = registration.render as (props: { result: Workflow }) => React.ReactNode;
+    return renderProposal({ result: flow });
+  }
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  roots.push(root);
+  const mount = async (inline: boolean) => act(async () => root.render(
+    <WorkflowWorkspace runtimeUrl="http://localhost/api/agent/copilotkit">
+      <Conversation>{inline && <Proposal />}</Conversation>
+    </WorkflowWorkspace>,
+  ));
+  await mount(true);
+  expect(container.querySelectorAll('section')).toHaveLength(1);
+  expect(container.querySelector('section')?.closest('.copilotKitMessagesContainer')).not.toBeNull();
+  await mount(false);
+  expect(container.querySelectorAll('section')).toHaveLength(1);
+  expect(container.querySelector('section')?.closest('.copilotKitMessagesContainer')).not.toBeNull();
+  vi.unstubAllGlobals();
 });

@@ -1,4 +1,7 @@
-import { WorkflowWorkspace } from './components/WorkflowCard';
+import {
+  WorkflowConversation,
+  WorkflowWorkspace,
+} from './components/WorkflowCard';
 import { CopilotKit } from '@copilotkit/react-core';
 import { CopilotChat } from '@copilotkit/react-ui';
 import '@copilotkit/react-ui/styles.css';
@@ -283,7 +286,7 @@ function VerifiedAgentChat({
               <ClearHistoryButton />
             </div>
           </div>
-          <div className="chat-wrapper">
+          <WorkflowConversation>
             <CopilotChat
               instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
               labels={{
@@ -291,7 +294,7 @@ function VerifiedAgentChat({
                 initial: 'Hi! Ask what I can do to get a personalized guide.',
               }}
             />
-          </div>
+          </WorkflowConversation>
         </WorkflowWorkspace>
       </CopilotKit>
     </WriteDecisionProvider>
@@ -389,7 +392,7 @@ export function UnauthedAgent({
                 <ClearHistoryButton />
               </div>
             </div>
-            <div className="chat-wrapper">
+            <WorkflowConversation>
               <CopilotChat
                 instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
                 labels={{
@@ -397,7 +400,7 @@ export function UnauthedAgent({
                   initial: 'Hi! Ask what I can do to get a personalized guide.',
                 }}
               />
-            </div>
+            </WorkflowConversation>
           </WorkflowWorkspace>
         </CopilotKit>
       </WriteDecisionProvider>

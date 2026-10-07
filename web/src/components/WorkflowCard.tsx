@@ -1,6 +1,15 @@
 import { workflowHistoryCutoff, HISTORY_CLEARED_EVENT } from '../lib/chatHistoryStore';
 import { isToolErrorResult, ToolErrorFallback } from './ToolErrorFallback';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { useCopilotAction } from '@copilotkit/react-core';
 import { useAgent } from '@copilotkit/react-core/v2';
 import {
@@ -16,6 +25,33 @@ import {
   writeActionChoices,
 } from './ActionChoicesCard';
 import { safeParse } from './safeParse';
+
+const WorkflowConversationContext = createContext<ReactNode>(null);
+
+// CopilotChat does not expose its default Messages component. Mount recovered
+// cards in its message container so they share the conversation's scrolling.
+export function WorkflowConversation({ children }: { children: ReactNode }) {
+  const cards = useContext(WorkflowConversationContext);
+  const wrapper = useRef<HTMLDivElement>(null);
+  const [target, setTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const root = wrapper.current;
+    if (!root) return;
+    const update = () => {
+      setTarget(root.querySelector<HTMLElement>('.copilotKitMessagesContainer'));
+    };
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(root, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <div className="chat-wrapper" ref={wrapper}>
+      {children}
+      {target && createPortal(cards, target)}
+    </div>
+  );
+}
 
 export type Workflow = {
   id: string;
@@ -427,39 +463,37 @@ export function WorkflowWorkspace({
       !inlineWorkflowIds.has(flow.id) &&
       (!cutoff || (flow.createdAt || 0) > cutoff),
   );
+  const conversationCards =
+    (visibleWorkflows.length > 0 || error) && (
+      <div
+        style={{
+          width: '100%',
+        }}
+      >
+        {error && (
+          <p role="alert">
+            {lang === 'he'
+              ? 'לא ניתן לאמת את ההתקדמות. יש לבדוק את המצב לפני המשך.'
+              : 'Progress could not be verified. Check status before resuming.'}
+          </p>
+        )}
+        {visibleWorkflows.map((flow) => (
+          <WorkflowCard
+            key={flow.id}
+            workflow={flow}
+            busy={
+              active !== null || agent.isRunning || isAgentRunActive(agent)
+            }
+            onDecision={(decision) => {
+              void decide(flow, decision);
+            }}
+          />
+        ))}
+      </div>
+    );
   return (
-    <>
+    <WorkflowConversationContext.Provider value={conversationCards}>
       {children}
-      {(visibleWorkflows.length > 0 || error) && (
-        <div
-          style={{
-            maxWidth: 1000,
-            width: '100%',
-            margin: '0 auto',
-            padding: 12,
-          }}
-        >
-          {error && (
-            <p role="alert">
-              {lang === 'he'
-                ? 'לא ניתן לאמת את ההתקדמות. יש לבדוק את המצב לפני המשך.'
-                : 'Progress could not be verified. Check status before resuming.'}
-            </p>
-          )}
-          {visibleWorkflows.map((flow) => (
-            <WorkflowCard
-              key={flow.id}
-              workflow={flow}
-              busy={
-                active !== null || agent.isRunning || isAgentRunActive(agent)
-              }
-              onDecision={(decision) => {
-                void decide(flow, decision);
-              }}
-            />
-          ))}
-        </div>
-      )}
-    </>
+    </WorkflowConversationContext.Provider>
   );
 }
