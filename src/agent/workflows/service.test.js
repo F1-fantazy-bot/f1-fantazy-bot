@@ -4,14 +4,33 @@ function harness(boundary) {
   const receipts = new Map();
   let version = 0;
   let lease;
+  let historyVersion = 0;
   const store = {
+    history: async () => ({ version: historyVersion }),
+    clearHistory: async () => {
+      historyVersion++;
+
+      return true;
+    },
+    saveProposal: async (owner, flow, create, expected) =>
+      expected !== historyVersion
+        ? 'cancelled'
+        : (await store.save(owner, flow, create))
+          ? 'saved'
+          : 'conflict',
     putReceipt: async (_owner, flow, step) => {
       receipts.set(step.claimId, structuredClone({ flow }));
     },
     getReceipt: async (_owner, _flow, step) =>
       structuredClone(receipts.get(step.claimId)),
     read: jest.fn(async (owner, id) =>
-      structuredClone(rows.get(`${owner}/${id}`) || null),
+      structuredClone(
+        id === 'lease'
+          ? lease
+            ? { workflowId: lease }
+            : null
+          : rows.get(`${owner}/${id}`) || null,
+      ),
     ),
     save: jest.fn(async (owner, flow, create) => {
       const key = `${owner}/${flow.id}`;
@@ -230,9 +249,14 @@ test('a second workflow cannot interleave', async () => {
   await h.service.decide(42, decision(a, 'approve'));
   await h.service.decide(42, decision(b, 'approve'));
   await h.service.decide(42, decision(a, 'advance'));
-  expect((await h.service.decide(42, decision(b, 'advance'))).status).toBe(
-    'busy',
-  );
+  const blocked = await h.service.decide(42, decision(b, 'advance'));
+  expect(blocked.status).toBe('busy');
+  expect(blocked.blockingWorkflow.id).toBe(a.id);
+  expect(blocked.blockingWorkflow.steps[0].state).toBe('completed');
+  expect(blocked.blockingWorkflow).not.toHaveProperty('owner');
+  await h.service.decide(42, decision(a, 'cancel'));
+  const resumed = await h.service.decide(42, decision(b, 'advance'));
+  expect(resumed.steps[0].state).toBe('completed');
 });
 test('invalid dependencies and step limits reject before writes', async () => {
   const h = harness();
@@ -362,15 +386,140 @@ test('missing chip retains the entire request and dependent calculation before a
   const { service, write, read, input, store } = harness();
   delete input.steps[0].args.chip;
   write.prepare.mockResolvedValueOnce({
-    status: 'selection_required', choice: 'chip',
-    options: [{ label: 'Extra DRS', action: 'activate_chip', args: { teamId: 'X', chip: 'EXTRA_BOOST' } }],
+    status: 'selection_required',
+    choice: 'chip',
+    options: [
+      {
+        label: 'Extra DRS',
+        action: 'activate_chip',
+        args: { teamId: 'X', chip: 'EXTRA_BOOST' },
+      },
+    ],
   });
   const result = await service.propose(42, input);
   expect(result).toMatchObject({
-    status: 'selection_required', pendingStepId: 'chip', pendingWorkflow: input,
+    status: 'selection_required',
+    pendingStepId: 'chip',
+    pendingWorkflow: input,
   });
   expect(result.pendingWorkflow.steps).toHaveLength(2);
   expect(store.save).not.toHaveBeenCalled();
   expect(write.execute).not.toHaveBeenCalled();
   expect(read.execute).not.toHaveBeenCalled();
+});
+
+test('clear cancels all owner workflows, preserving completed results and other accounts', async () => {
+  const h = harness();
+  const completed = await h.service.propose(42, {
+    request: 'Done',
+    steps: [{ id: 'done', tool: 'get_best_teams', args: {}, dependsOn: [] }],
+  });
+  await h.service.decide(42, decision(completed, 'advance', 'done'));
+  const active = await h.service.propose(42, h.input);
+  await h.service.decide(42, decision(active, 'approve'));
+  await h.service.decide(42, decision(active, 'advance'));
+  const pending = await h.service.propose(42, h.input);
+  const other = await h.service.propose(43, h.input);
+  const result = await h.service.cancelAll(42);
+  expect(result.status).toBe('ok');
+  expect((await h.service.status(42, completed.id)).state).toBe('completed');
+  expect((await h.service.status(42, active.id)).steps[0].state).toBe(
+    'completed',
+  );
+  expect((await h.service.status(42, active.id)).state).toBe('cancelled');
+  expect((await h.service.status(42, pending.id)).state).toBe('cancelled');
+  expect((await h.service.status(43, other.id)).state).toBe(
+    'awaiting_approval',
+  );
+  expect(await h.service.busy(42)).toBe(false);
+});
+
+test('clear during execution lets the claimed action finish but never starts the next step', async () => {
+  const h = harness();
+  let finish;
+  h.write.execute.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const f = await h.service.propose(42, h.input);
+  await h.service.decide(42, decision(f, 'approve'));
+  const running = h.service.decide(42, decision(f, 'advance'));
+  while (!finish) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  const result = await h.service.cancelAll(42);
+  expect(result.workflows[0].state).toBe('cancelling');
+  finish({ status: 'ok' });
+  const after = await running;
+  expect(after.state).toBe('cancelled');
+  expect(after.steps[0].state).toBe('completed');
+  expect(after.steps[1].state).toBe('cancelled');
+  expect(h.read.execute).not.toHaveBeenCalled();
+  expect(await h.service.busy(42)).toBe(false);
+});
+
+test('a proposal prepared before clear cannot appear afterward', async () => {
+  const h = harness();
+  let finish;
+  h.write.prepare.mockImplementationOnce(
+    (_owner, args) =>
+      new Promise((resolve) => {
+        finish = () => resolve({ args, summary: 'Chip' });
+      }),
+  );
+  const pending = h.service.propose(42, h.input);
+  while (!finish) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  await h.service.cancelAll(42);
+  finish();
+  expect((await pending).status).toBe('cancelled');
+  expect(await h.service.list(42)).toEqual([]);
+  expect((await h.service.propose(42, h.input)).state).toBe(
+    'awaiting_approval',
+  );
+});
+
+test('clear preserves uncertain writes for reconciliation rather than retrying or releasing them blindly', async () => {
+  const h = harness();
+  h.write.execute.mockRejectedValue(new Error('Lost response'));
+  const f = await h.service.propose(42, h.input);
+  await h.service.decide(42, decision(f, 'approve'));
+  await h.service.decide(42, decision(f, 'advance'));
+  await h.service.cancelAll(42);
+  expect((await h.service.status(42, f.id)).state).toBe('outcome_unknown');
+  expect(await h.service.busy(42)).toBe(true);
+  h.write.reconcile = jest.fn(async () => ({ status: 'ok' }));
+  expect((await h.service.decide(42, decision(f, 'resume'))).state).toBe(
+    'cancelled',
+  );
+  expect(h.write.execute).toHaveBeenCalledTimes(1);
+  expect(h.read.execute).not.toHaveBeenCalled();
+  expect(await h.service.busy(42)).toBe(false);
+});
+
+test('bulk cancellation retries concurrent ETag changes instead of falsely reporting success', async () => {
+  const h = harness();
+  const flow = await h.service.propose(42, h.input);
+  h.store.save.mockResolvedValueOnce(false);
+  expect((await h.service.cancelAll(42)).status).toBe('ok');
+  expect((await h.service.status(42, flow.id)).state).toBe('cancelled');
+});
+
+test('a write becoming uncertain after clear remains recoverable without repeating it', async () => {
+  const h = harness(); let finish;
+  h.write.execute.mockImplementation(() => new Promise(resolve => {finish = resolve;}));
+  const flow = await h.service.propose(42, h.input);
+  await h.service.decide(42, decision(flow, 'approve'));
+  const running = h.service.decide(42, decision(flow, 'advance'));
+  while (!finish) {await new Promise(resolve => setImmediate(resolve));}
+  await h.service.cancelAll(42);
+  finish({ status: 'failed', uncertain: true });
+  expect((await running).state).toBe('outcome_unknown');
+  h.write.reconcile = jest.fn(async () => ({ status: 'ok' }));
+  expect((await h.service.decide(42, decision(flow, 'resume'))).state).toBe('cancelled');
+  expect(h.write.execute).toHaveBeenCalledTimes(1);
+  expect(await h.service.busy(42)).toBe(false);
 });

@@ -67,6 +67,20 @@ status announcements. It requests one step per HTTP request, reads status
 between steps, and stops automatic advancement on unmount or request failure.
 Single-action confirmation tools and Telegram commands remain available.
 
+The existing **Clear chat history** button also cancels all unfinished workflows
+for the authenticated account, including hidden workflows and other tabs. It
+stops local advancement before issuing `decision: "cancel_all"`; only after the
+server confirms cancellation does it clear messages and the display history.
+Failures preserve history and offer retry. Already-running actions may finish;
+completed changes and outcomes remain stored. Uncertain writes retain their
+reconciliation state and are never repeated or blindly unlocked.
+
+Each account has a durable `history` generation in the workflow table. Clearing
+increments it before cancelling stored flows. Proposal commits atomically check
+that generation with an ETag-protected Table transaction, so a preparation
+started before clear cannot publish a new workflow afterward. New requests
+started after clear can propose workflows normally.
+
 ## Validation and rollout
 
 Run `npm test -- --runInBand`, `npm --prefix web test`, `npm run lint`, and

@@ -2005,9 +2005,12 @@ ordered request and let preparation return choices before approval. Standalone
 `get_action_choices` supports `get_best_teams` chip choices via `chipOverride`;
 subsequent target choices preserve that calculation-only override.
 
-Clear history stores an account-scoped, display-only workflow timestamp cutoff;
-workflow polling filters older cards after refresh without changing durable state
-or execution authorization. Choice cards subscribe to the shared agent run lock
+Clear history first calls the authenticated `cancel_all` workflow decision for
+the current account, then clears chat and stores an account-scoped display cutoff.
+Cancellation prevents later claims; a running action may finish and its outcome
+is retained. Failure keeps history visible for retry. The durable owner history
+generation and transactional proposal commit prevent preparations started before
+clear from reappearing afterward. Choice cards subscribe to the shared agent run lock
 so remounted cards stay disabled and announce progress during continuation.
 
 Workflow best-team tables expose a calculation-scoped result destination below
@@ -2017,3 +2020,8 @@ transfer details there; standalone chat calculations keep their inline results.
 All-tracked-team calculation requests discover canonical
 IDs using list_user_teams and create a read step per team, without switching the
 saved active team or asking the user to reduce the request to one team.
+
+When advancement is blocked by another workflow, the authenticated decision API
+returns `blockingWorkflow` from the same owner partition. Show its recovery
+controls even if Clear history hid it; never silently delete a lease or retry a
+write. Cancellation preserves completed results and releases the workflow lock.
