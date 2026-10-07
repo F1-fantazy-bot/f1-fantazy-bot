@@ -535,7 +535,7 @@ test('clear failure preserves chat and offers retry', async () => {
   await act(async () => container.querySelector('button')!.click());
   expect(testAgent.setMessages).not.toHaveBeenCalled();
   expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-    'History was kept',
+    'Unable to clear chat history',
   );
   expect(container.querySelector('button')!.disabled).toBe(false);
 });
