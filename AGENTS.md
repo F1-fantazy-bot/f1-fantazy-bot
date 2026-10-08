@@ -1778,6 +1778,10 @@ client-only and intentionally narrow — see
   to text-only persistence: snapshots never enter `agent.messages` or model
   context. Writes, approvals, admin results and clarification choices are
   excluded. Clear history and sign-out remove the scoped display cache.
+  Read-only followed-team and user-team lists are included, including empty
+  followed lists and the user-team tool's status-free `{ teams, lang }` result.
+  Results with `selectionMode` or internal `mode` are excluded so removal
+  choices and silent workflow discovery do not become recovered read cards.
   `HistoryRestorer` captures completed cards during message updates and flushes
   text plus display snapshots on `pagehide`, including before the save debounce.
 

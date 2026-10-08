@@ -115,3 +115,46 @@ test('clear removes recovered cards immediately and they stay absent after remou
   expect(reloaded.querySelector('[data-read-card-id]')).toBeNull();
   expect(testAgent.messages).toEqual([]);
 });
+
+test.each(['list_followed_teams', 'list_user_teams'])('%s cards survive refresh under repeated Hebrew prompts without duplicates or tool context', async (tool) => {
+  const result = {
+    ...(tool === 'list_followed_teams' ? { status: 'ok' } : {}),
+    lang: 'he',
+    teams: [{
+      teamId: 'tracked-team-1', teamName: 'Kilzid', isSelected: true,
+      leagues: [{ leagueCode: 'league-1', leagueName: 'kilzi test', position: 5 }],
+      isLeague: true, chip: null, drivers: ['VER'], constructors: ['FER'],
+      boost: 'VER', freeTransfers: 2, costCapRemaining: 3,
+    }],
+  };
+  const messages: Message[] = ['prompt-1', 'prompt-2'].flatMap((id) => [
+    { id, role: 'user', content: 'מי הקבוצות שאני עוקב אחריהן' },
+    { id: `${id}-call-message`, role: 'assistant', toolCalls: [
+      { id: `${id}-call`, type: 'function', function: { name: tool, arguments: '{}' } },
+    ] },
+    { id: `${id}-result`, role: 'tool', toolCallId: `${id}-call`, content: JSON.stringify(result) },
+    { id: `${id}-answer`, role: 'assistant', content: 'הקבוצות מוצגות בכרטיסים.' },
+  ]);
+  save(toStoredMessages(messages));
+  saveReadCards(messages);
+  const container = mount();
+  await act(async () => {});
+  for (const prompt of ['first', 'repeated']) {
+    const turn = container.querySelector(`[data-prompt="${prompt}"]`)!;
+    expect(turn.querySelectorAll('[data-read-card-id]')).toHaveLength(1);
+    expect(turn.textContent).toContain('Kilzid');
+    expect(turn.textContent).toContain('פעילה');
+    expect(turn.querySelector('[dir="rtl"]')).not.toBeNull();
+    expect(turn.querySelector('button:not([disabled])')).toBeNull();
+    if (tool === 'list_followed_teams') {
+      expect(turn.textContent).toContain('kilzi test');
+      expect(turn.textContent).toContain('מ5');
+    }
+  }
+  expect(testAgent.messages).toEqual(toAgUiMessages(load()));
+  expect(testAgent.messages.every((message) => message.role !== 'tool' && !('toolCalls' in message))).toBe(true);
+  act(() => testAgent.setMessages([]));
+  expect(container.querySelectorAll('[data-read-card-id]')).toHaveLength(2);
+  act(() => { clear(); testAgent.setMessages([]); });
+  expect(container.querySelectorAll('[data-read-card-id]')).toHaveLength(0);
+});

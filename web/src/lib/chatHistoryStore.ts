@@ -257,6 +257,7 @@ const READ_CARD_TOOLS = new Set([
   'get_live_score_leaderboard', 'get_league_changes', 'get_league_graph',
   'get_race_summary', 'get_whats_new', 'get_simulation_status',
   'get_data_status', 'get_agent_guide',
+  'list_followed_teams', 'list_user_teams',
 ]);
 export type StoredReadCard = {
   id: string;
@@ -272,7 +273,12 @@ function isReadCard(value: unknown): value is StoredReadCard {
     && typeof card.promptId === 'string' && card.promptId.length > 0 && card.promptId.length <= 200
     && READ_CARD_TOOLS.has(card.tool) && !!card.result
     && typeof card.result === 'object' && !Array.isArray(card.result)
-    && card.result.status === 'ok';
+    && card.result.selectionMode === undefined && card.result.mode === undefined
+    && (card.result.status === 'ok'
+      || (card.tool === 'list_followed_teams' && card.result.status === 'empty')
+      // This tool returns { teams, lang }, without a status field.
+      || (card.tool === 'list_user_teams' && card.result.status === undefined
+        && Array.isArray(card.result.teams)));
 }
 
 export function loadReadCards(): StoredReadCard[] {

@@ -81,6 +81,26 @@ describe('read-card display persistence', () => {
     expect(loadReadCards()).toEqual([]);
   });
 
+  test.each([
+    ['list_followed_teams', { status: 'ok', lang: 'he', teams: [{ teamId: 'team-1', teamName: 'Kilzid', isSelected: true, leagues: [] }] }],
+    ['list_followed_teams', { status: 'empty', lang: 'he' }],
+    ['list_user_teams', { lang: 'he', teams: [] }],
+  ])('preserves the read-only %s result across text-only restoration', (tool, result) => {
+    saveReadCards(conversation(tool, result));
+    saveReadCards(conversation(tool, result).slice(0, 1));
+    expect(loadReadCards()).toEqual([{ id: 'tool-call', promptId: 'prompt', tool, result }]);
+  });
+
+  test.each([
+    ['list_followed_teams', { status: 'ok', teams: [], selectionMode: 'unfollow_team' }],
+    ['list_user_teams', { teams: [], mode: 'workflow_discovery' }],
+    ['list_user_teams', { status: 'tool_error', teams: [] }],
+    ['list_user_teams', {}],
+  ])('excludes actionable, internal or unsuccessful %s results', (tool, result) => {
+    saveReadCards(conversation(tool, result));
+    expect(loadReadCards()).toEqual([]);
+  });
+
   test('drops snapshots whose originating prompt was trimmed and rejects malformed or oversized caches', () => {
     saveReadCards(conversation());
     saveReadCards(Array.from({ length: 21 }, (_, i) => ({ id: `prompt-${i}`, role: 'user', content: 'Next race' })));
