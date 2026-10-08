@@ -1,19 +1,13 @@
 // Browser-only chat history persistence for the F1 Fantasy web-chat
 // agent.
 //
-// Persists ONLY the last N user-or-assistant text messages of the
-// current conversation in `localStorage`. Phase 6.5.
+// Persists the last N user-or-assistant text messages of the current
+// conversation, plus a separate bounded display cache for read cards.
 //
-// Why text-only:
-// - Tool calls / tool results / large blobs (`availableTeams`,
-//   leaderboard rows, live-score breakdowns) are NEVER persisted.
-//   Reloading must not let stale data re-enter the LLM context and
-//   must not bloat localStorage past the per-origin quota.
-// - The 12 React tool-render components do NOT reappear after a
-//   reload — only the user's question + the assistant's final text
-//   reply. This is the intentional v1 behavior. The persistence
-//   layer is for VISUAL CONTINUITY, not for context-passing
-//   efficiency.
+// Only text is restored to agent.messages. Tool calls/results, internal
+// instructions and large blobs never re-enter the LLM context. Completed,
+// allowlisted read cards use the display-only cache below, rendered in their
+// original turns by ReadCardHistoryProvider without changing model context.
 //
 // Failure modes handled:
 // - Missing key, corrupt JSON, version mismatch, non-array messages,
@@ -163,6 +157,8 @@ export function clear(): void {
   } catch {
     // Nothing to do — storage isn't writeable in this context.
   }
+  try { window.localStorage.removeItem(`${storageKey()}::read-cards`); } catch { /* Optional display cache. */ }
+  window.dispatchEvent(new Event(READ_CARDS_CHANGED_EVENT));
 }
 
 // Flatten the AG-UI `Message.content` into a plain string. Strict
@@ -248,4 +244,80 @@ export function saveWorkflowPromptIds(ids: Record<string, string>): void {
   try {
     window.localStorage.setItem(`${storageKey()}::workflow-prompts`, JSON.stringify(Object.fromEntries(Object.entries(ids).slice(-40))));
   } catch { /* Optional display metadata; chat and durable workflows still work. */ }
+}
+
+// Completed informational cards are display snapshots, separate from text
+// history. Never restore tool calls/results, choices or approval nonces to the
+// agent. Bound this cache independently and retain only visible prompt IDs.
+export const READ_CARDS_CHANGED_EVENT = 'f1-read-cards-changed';
+const READ_CARD_TOOLS = new Set([
+  'get_next_race_info', 'get_next_races', 'get_race_weather', 'get_deadline',
+  'get_current_team', 'get_best_teams', 'get_best_team_scenarios',
+  'get_best_team_changes', 'get_leaderboard', 'get_live_score_for_team',
+  'get_live_score_leaderboard', 'get_league_changes', 'get_league_graph',
+  'get_race_summary', 'get_whats_new', 'get_simulation_status',
+  'get_data_status', 'get_agent_guide',
+]);
+export type StoredReadCard = {
+  id: string;
+  promptId: string;
+  tool: string;
+  result: Record<string, unknown>;
+};
+
+function isReadCard(value: unknown): value is StoredReadCard {
+  if (!value || typeof value !== 'object') return false;
+  const card = value as StoredReadCard;
+  return typeof card.id === 'string' && card.id.length > 0 && card.id.length <= 200
+    && typeof card.promptId === 'string' && card.promptId.length > 0 && card.promptId.length <= 200
+    && READ_CARD_TOOLS.has(card.tool) && !!card.result
+    && typeof card.result === 'object' && !Array.isArray(card.result)
+    && card.result.status === 'ok';
+}
+
+export function loadReadCards(): StoredReadCard[] {
+  try {
+    const raw = window.localStorage.getItem(`${storageKey()}::read-cards`);
+    if (!raw || new Blob([raw]).size > MAX_BYTES) return [];
+    const value = JSON.parse(raw);
+    if (value?.version !== 1 || !Array.isArray(value.cards)
+      || value.cards.length > MAX_MESSAGES || !value.cards.every(isReadCard)) return [];
+    return [...new Map<string, StoredReadCard>(value.cards.map((card: StoredReadCard) => [card.id, card])).values()];
+  } catch { return []; }
+}
+
+export function saveReadCards(messages: Message[]): void {
+  const visiblePrompts = new Set(toStoredMessages(messages).slice(-MAX_MESSAGES)
+    .filter((message) => message.role === 'user').map((message) => message.id));
+  const cards = new Map(loadReadCards().filter((card) => visiblePrompts.has(card.promptId))
+    .map((card) => [card.id, card]));
+  const calls = new Map<string, { tool: string; promptId: string }>();
+  let promptId: string | undefined;
+  for (const message of messages) {
+    if (message.role === 'user') promptId = message.id;
+    if (message.role === 'assistant' && promptId) {
+      for (const call of message.toolCalls || []) {
+        calls.set(call.id, { tool: call.function.name, promptId });
+      }
+    }
+    if (message.role !== 'tool') continue;
+    const call = calls.get(message.toolCallId);
+    if (!call || !visiblePrompts.has(call.promptId) || !READ_CARD_TOOLS.has(call.tool)) continue;
+    try {
+      const card = { id: message.toolCallId, ...call, result: JSON.parse(message.content) };
+      if (isReadCard(card) && new Blob([JSON.stringify(card)]).size <= MAX_BYTES) cards.set(card.id, card);
+    } catch { /* Ignore incomplete/malformed results while streaming. */ }
+  }
+  const next = [...cards.values()].slice(-MAX_MESSAGES);
+  let payload = JSON.stringify({ version: 1, cards: next });
+  while (next.length && new Blob([payload]).size > MAX_BYTES) {
+    next.shift();
+    payload = JSON.stringify({ version: 1, cards: next });
+  }
+  try {
+    const key = `${storageKey()}::read-cards`;
+    if (window.localStorage.getItem(key) === payload) return;
+    window.localStorage.setItem(key, payload);
+    window.dispatchEvent(new Event(READ_CARDS_CHANGED_EVENT));
+  } catch { /* Display caching failures must not affect chat or text history. */ }
 }

@@ -1770,6 +1770,16 @@ client-only and intentionally narrow — see
 - A separate `::workflow-prompts` display index retains at most 40 workflow IDs
   and originating user-message IDs so recovered cards stay in their original
   turns. It contains no tool payloads and never enters model context.
+- A separate `::read-cards` display cache retains completed, allowlisted
+  informational results (20 cards, 100 KB, UTF-8 byte budget), linked to visible
+  user-message IDs. `ReadCardHistoryProvider` renders recovered cards through
+  the existing read renderers in the native user-message slot and suppresses
+  duplicates while live tool results exist. This is the display-only exception
+  to text-only persistence: snapshots never enter `agent.messages` or model
+  context. Writes, approvals, admin results and clarification choices are
+  excluded. Clear history and sign-out remove the scoped display cache.
+  `HistoryRestorer` captures completed cards during message updates and flushes
+  text plus display snapshots on `pagehide`, including before the save debounce.
 
 **Why restore is reconciliation-based, not one-shot.** CopilotKit v2
 hands `useAgent()` a `ProxiedCopilotRuntimeAgent` in "pending" mode

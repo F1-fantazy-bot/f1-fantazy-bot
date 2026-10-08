@@ -36,6 +36,7 @@ import {
   writeActionChoices,
 } from './ActionChoicesCard';
 import { safeParse } from './safeParse';
+import { ReadCardHistory, ReadCardHistoryProvider } from './ReadCardHistory';
 
 type ConversationCard = { id: string; promptId?: string; content: ReactNode };
 const WorkflowConversationContext = createContext<ConversationCard[]>([]);
@@ -47,6 +48,7 @@ export function WorkflowUserMessage(props: UserMessageProps) {
   return (
     <>
       <UserMessage {...props} />
+      <ReadCardHistory promptId={props.message?.id} />
       {cards.filter((card) => card.promptId === props.message?.id).map((card) => (
         <div key={card.id}>{card.content}</div>
       ))}
@@ -532,7 +534,7 @@ export function WorkflowWorkspace({
   });
   return (
     <WorkflowConversationContext.Provider value={conversationCards}>
-      {children}
+      <ReadCardHistoryProvider>{children}</ReadCardHistoryProvider>
     </WorkflowConversationContext.Provider>
   );
 }
