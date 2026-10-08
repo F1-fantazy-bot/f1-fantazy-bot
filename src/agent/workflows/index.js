@@ -54,28 +54,26 @@ function getWorkflowStatusTool() {
         : (await service.list(owner)).slice(-5);
 
       return {
-        workflows: flows
-          .filter(Boolean)
-          .map((flow) => ({
-            id: flow.id,
-            revision: flow.revision,
-            request: flow.request,
-            state: flow.state,
-            steps: flow.steps.map((step) => ({
-              id: step.id,
-              tool: step.tool,
-              state: step.state,
-              summary: step.result?.summary || step.summary,
-              ...(step.result?.calculationId
-                ? {
-                    calculationId: step.result.calculationId,
-                    teamId: step.result.teamId,
-                    teamName: step.result.teamName,
-                    chip: step.result.chip,
-                  }
-                : {}),
-            })),
+        workflows: flows.filter(Boolean).map((flow) => ({
+          id: flow.id,
+          revision: flow.revision,
+          request: flow.request,
+          state: flow.state,
+          steps: flow.steps.map((step) => ({
+            id: step.id,
+            tool: step.tool,
+            state: step.state,
+            summary: step.result?.summary || step.summary,
+            ...(step.result?.calculationId
+              ? {
+                  calculationId: step.result.calculationId,
+                  teamId: step.result.teamId,
+                  teamName: step.result.teamName,
+                  chip: step.result.chip,
+                }
+              : {}),
           })),
+        })),
       };
     }),
   });
@@ -89,6 +87,11 @@ async function applyWorkflowRequest({ chatId, payload, list = false }) {
   }
   if (list) {
     return { status: 200, body: { workflows: await service.list(chatId) } };
+  }
+  if (payload?.decision === 'cancel_all') {
+    const body = await service.cancelAll(chatId);
+
+    return { status: body.status === 'ok' ? 200 : 409, body };
   }
   if (
     !payload ||
