@@ -537,11 +537,11 @@ describe('workflow endpoints', () => {
     expect(context.res.status).toBe(200);
     expect(context.res.headers['Cache-Control']).toBe('no-store');
   });
-  test('unauthorized requests never reach workflow storage or execution', async () => {
+  test.each(['approve', 'cancel_all'])('unauthorized %s requests never reach workflow storage or execution', async (decision) => {
     applyWorkflowRequest.mockClear();
     authenticateRequest.mockResolvedValue({ status: STATUS.UNAUTHORIZED });
     const context = { log: jest.fn() };
-    await webhook(context, makeReq({ url: '/api/agent/workflow-decision', body: { decision: 'approve' } }));
+    await webhook(context, makeReq({ url: '/api/agent/workflow-decision', body: { decision } }));
     expect(context.res.status).toBe(401);
     expect(applyWorkflowRequest).not.toHaveBeenCalled();
   });
@@ -552,4 +552,14 @@ describe('workflow endpoints', () => {
     await webhook(context, makeReq({ url: '/api/agent/workflow-decision', method: 'GET' }));
     expect(context.res.status).toBe(405);
   });
+});
+
+test('bulk workflow cancellation uses authenticated owner identity', async () => {
+  const { applyWorkflowRequest }=require('../src/agent/workflows');
+  authenticateRequest.mockResolvedValue({ status:STATUS.OK,chatId:42 });
+  applyWorkflowRequest.mockResolvedValue({ status:200,body:{ status:'ok',workflows:[] } });
+  const context={ log:jest.fn() };
+  await webhook(context,makeReq({ url:'/api/agent/workflow-decision',body:{ decision:'cancel_all',chatId:99 } }));
+  expect(context.res.status).toBe(200);
+  expect(applyWorkflowRequest).toHaveBeenLastCalledWith(expect.objectContaining({ chatId:42,payload:expect.objectContaining({ decision:'cancel_all' }) }));
 });

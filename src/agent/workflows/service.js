@@ -74,7 +74,8 @@ function createWorkflowService({
         cancelRequested: flow.cancelRequested,
       };
       if (flow.cancelRequested) {
-        recovered.state = 'cancelled';
+        recovered.state = recovered.steps.some((step) => step.state === 'outcome_unknown')
+          ? 'outcome_unknown' : 'cancelled';
         recovered.steps.forEach((step) => {
           if (step.state === 'waiting') {
             step.state = 'cancelled';
@@ -159,6 +160,7 @@ function createWorkflowService({
     return { steps };
   }
   async function propose(owner, input) {
+    const historyVersion = (await store.history(owner)).version;
     const previous = input.workflowId
       ? await get(owner, input.workflowId)
       : null;
@@ -207,8 +209,14 @@ function createWorkflowService({
     if (!prepared.steps.some((s) => s.write && !s.satisfied)) {
       flow.state = 'ready';
     }
-    if (!(await store.save(owner, flow, !previous))) {
-      return { status: 'conflict' };
+    const saved = await store.saveProposal(
+      owner,
+      flow,
+      !previous,
+      historyVersion,
+    );
+    if (saved !== 'saved') {
+      return { status: saved };
     }
     log(flow, previous ? 'revised' : 'proposed');
 
@@ -257,7 +265,9 @@ function createWorkflowService({
       flow.cancelRequested = true;
       flow.state = flow.steps.some((s) => s.state === 'running')
         ? 'cancelling'
-        : 'cancelled';
+        : flow.steps.some((s) => s.state === 'outcome_unknown')
+          ? 'outcome_unknown'
+          : 'cancelled';
       flow.steps.forEach((step) => {
         if (step.state === 'waiting') {
           step.state = 'cancelled';
@@ -289,7 +299,11 @@ function createWorkflowService({
       if (reconciled) {
         uncertain.state = 'already_satisfied';
         uncertain.result = reconciled;
-        flow.state = flow.steps.every(finished) ? 'completed' : 'ready';
+        flow.state = flow.cancelRequested
+          ? 'cancelled'
+          : flow.steps.every(finished)
+            ? 'completed'
+            : 'ready';
         if (!(await store.save(owner, flow))) {
           return { status: 'conflict' };
         }
@@ -346,7 +360,16 @@ function createWorkflowService({
       return publicFlow(flow);
     }
     if (!(await store.acquire(owner, flow.id))) {
-      return { status: 'busy', workflow: publicFlow(flow) };
+      const lease = await store.read(owner, 'lease');
+      const blocking = lease?.workflowId
+        ? await get(owner, lease.workflowId)
+        : null;
+
+      return {
+        status: 'busy',
+        workflow: publicFlow(flow),
+        blockingWorkflow: publicFlow(blocking),
+      };
     }
 
     return boundary(owner, async () => {
@@ -458,7 +481,7 @@ function createWorkflowService({
       }
       latest.steps[latest.steps.findIndex((s) => s.id === step.id)] = step;
       latest.state = latest.cancelRequested
-        ? 'cancelled'
+        ? step.state === 'outcome_unknown' ? 'outcome_unknown' : 'cancelled'
         : !finished(step)
           ? step.state
           : latest.steps.every(finished)
@@ -505,9 +528,45 @@ function createWorkflowService({
     });
   }
 
+  async function cancelAll(owner) {
+    // Prevent a proposal already being prepared from appearing after clear.
+    if (!(await store.clearHistory(owner))) {
+      return { status: 'conflict' };
+    }
+    const snapshots = await store.list(owner);
+    const outcomes = [];
+    for (const snapshot of snapshots.filter((f) => f.owner === owner)) {
+      let outcome;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const current = await get(owner, snapshot.id);
+        if (!current || terminal(current)) {
+          outcome = current;
+          break;
+        }
+        outcome = await decide(owner, {
+          id: current.id,
+          revision: current.revision,
+          decision: 'cancel',
+        });
+        if (!['conflict', 'stale_revision'].includes(outcome?.status)) {
+          break;
+        }
+      }
+      if (outcome?.status) {
+        return { status: 'conflict' };
+      }
+      if (outcome) {
+        outcomes.push(publicFlow(outcome));
+      }
+    }
+
+    return { status: 'ok', workflows: outcomes };
+  }
+
   return {
     propose,
     decide,
+    cancelAll,
     busy: async (owner) => Boolean(await store.read(owner, 'lease')),
     status: async (owner, id) => publicFlow(await get(owner, id)),
     list: async (owner) =>

@@ -35,6 +35,23 @@ function clientFake() {
       }
       rows.delete(key);
     }),
+    submitTransaction: jest.fn(async (actions) => {
+      for (const [kind, entity, , options] of actions) {
+        const existing = rows.get(`${entity.partitionKey}/${entity.rowKey}`);
+        if (
+          (kind === 'create' && existing) ||
+          (kind === 'update' && existing?.etag !== options.etag)
+        ) {
+          throw { statusCode: 412 };
+        }
+      }
+      for (const [, entity] of actions) {
+        rows.set(`${entity.partitionKey}/${entity.rowKey}`, {
+          ...entity,
+          etag: String(++sequence),
+        });
+      }
+    }),
     async *listEntities() {
       yield* rows.values();
     },
@@ -77,4 +94,44 @@ test('receipt persists across workers and is excluded from workflow list', async
   await first.putReceipt(42, flow, step);
   expect((await second.getReceipt(42, flow, step)).flow.id).toBe('flow');
   expect(await second.list(42)).toEqual([]);
+});
+
+test('history cancellation prevents prepared proposals from committing across workers', async () => {
+  const client = clientFake();
+  const first = createStore(client),
+    second = createStore(client);
+  const before = await first.history(42);
+  await second.clearHistory(42);
+  const flow = {
+    id: 'late',
+    owner: 42,
+    steps: [],
+    expiresAt: new Date(Date.now() + 60000).toISOString(),
+  };
+  expect(await first.saveProposal(42, flow, true, before.version)).toBe(
+    'cancelled',
+  );
+  expect(await first.read(42, 'late')).toBeNull();
+  const fresh = await first.history(42);
+  expect(await first.saveProposal(42, flow, true, fresh.version)).toBe('saved');
+  expect((await first.list(42)).map((f) => f.id)).toEqual(['late']);
+});
+
+test('proposal transaction retries a concurrent clear and never commits the old generation', async () => {
+  const client = clientFake(),
+    store = createStore(client);
+  const before = await store.history(42);
+  client.submitTransaction.mockImplementationOnce(async () => {
+    await store.clearHistory(42);
+    throw { statusCode: 412 };
+  });
+  expect(
+    await store.saveProposal(
+      42,
+      { id: 'race', steps: [] },
+      true,
+      before.version,
+    ),
+  ).toBe('cancelled');
+  expect(await store.read(42, 'race')).toBeNull();
 });

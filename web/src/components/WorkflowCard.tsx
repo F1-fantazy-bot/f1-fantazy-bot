@@ -1,8 +1,12 @@
+import { flushSync } from 'react-dom';
+import { WorkflowHistoryContext } from './workflowHistoryContext';
 import {
   workflowHistoryCutoff,
   HISTORY_CLEARED_EVENT,
   loadWorkflowPromptIds,
   saveWorkflowPromptIds,
+  clear,
+  clearWorkflowHistory,
 } from '../lib/chatHistoryStore';
 import { isToolErrorResult, ToolErrorFallback } from './ToolErrorFallback';
 import {
@@ -200,10 +204,7 @@ export function WorkflowCard({
       {!done && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {workflow.state === 'awaiting_approval' && (
-            <button
-              disabled={busy}
-              onClick={() => onDecision('approve')}
-            >
+            <button disabled={busy} onClick={() => onDecision('approve')}>
               {he ? 'אישור והפעלה' : 'Approve and run'}
             </button>
           )}
@@ -358,8 +359,14 @@ export function WorkflowWorkspace({
   const [inlineWorkflowIds, setInlineWorkflowIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [clearing, setClearing] = useState(false);
+  const clearingRef = useRef(false);
+  const progressGeneration = useRef(0);
   const [active, setActive] = useState<string | null>(null);
   const [error, setError] = useState(false);
+  const [blockingWorkflow, setBlockingWorkflow] = useState<Workflow | null>(
+    null,
+  );
   const alive = useRef(true);
   const { agent } = useAgent({ agentId: 'default' });
   const messages = agent.messages || [];
@@ -383,13 +390,15 @@ export function WorkflowWorkspace({
   const refreshRef = useRef<() => void>(() => {});
   const refresh = useRef(() => refreshRef.current()).current;
   refreshRef.current = () => {
+    if (clearingRef.current) return;
+    const generation = progressGeneration.current;
     fetch(`${base}/workflows`, { headers })
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json();
       })
       .then((data) => {
-        if (alive.current && Array.isArray(data.workflows))
+        if (alive.current && generation === progressGeneration.current && Array.isArray(data.workflows))
           setWorkflows(data.workflows);
       })
       .catch(() => {});
@@ -407,6 +416,7 @@ export function WorkflowWorkspace({
   const autoRef = useRef<(flow: Workflow) => boolean>(() => false);
   const autoRun = useRef((flow: Workflow) => autoRef.current(flow)).current;
   autoRef.current = (flow) => {
+    if (clearingRef.current) return false;
     if (autoStarted.current.has(flow.id)) return true;
     if (agent.isRunning || isAgentRunActive(agent) || active) return false;
     autoStarted.current.add(flow.id);
@@ -428,8 +438,7 @@ export function WorkflowWorkspace({
     parameters: [],
     available: 'frontend',
     render: ({ result }) => {
-      const parsed =
-        typeof result === 'string' ? safeParse(result) : result;
+      const parsed = typeof result === 'string' ? safeParse(result) : result;
       const initial = parsed as Workflow | undefined;
       const live = initial?.id
         ? workflows.find((item) => item.id === initial.id)
@@ -451,11 +460,14 @@ export function WorkflowWorkspace({
     },
   });
   async function decide(flow: Workflow, decision: string) {
+    if (clearingRef.current) return;
+    const generation = progressGeneration.current;
     const cancel = decision === 'cancel';
     if (!cancel && (active || agent.isRunning || !tryAcquireAgentRun(agent)))
       return;
     if (!cancel) setActive(flow.id);
     setError(false);
+    let blocked = false;
     const request = async (current: Workflow, action: string) => {
       const response = await fetch(`${base}/workflow-decision`, {
         method: 'POST',
@@ -471,10 +483,24 @@ export function WorkflowWorkspace({
       });
       if (!response.ok) throw new Error();
       const data = await response.json();
+      if (data.status === 'busy' && data.blockingWorkflow?.id) {
+        blocked = true;
+        if (alive.current && generation === progressGeneration.current)
+          setBlockingWorkflow(data.blockingWorkflow);
+        throw new Error('Workflow blocked');
+      }
       if (data.status && data.status !== 'ok') throw new Error();
       const next = (data.workflow || data) as Workflow;
       if (!next.id) throw new Error();
-      if (alive.current)
+      if (alive.current && generation === progressGeneration.current)
+        setBlockingWorkflow((previous) =>
+          previous?.id === next.id
+            ? ['completed', 'cancelled'].includes(next.state)
+              ? null
+              : next
+            : previous,
+        );
+      if (alive.current && generation === progressGeneration.current)
         setWorkflows((previous) =>
           previous.some((item) => item.id === next.id)
             ? previous.map((item) => (item.id === next.id ? next : item))
@@ -487,13 +513,16 @@ export function WorkflowWorkspace({
       while (
         !cancel &&
         alive.current &&
+        generation === progressGeneration.current &&
         current.state === 'ready'
       ) {
         current = await request(current, 'advance');
-        if (alive.current) current = await request(current, 'status');
+        if (alive.current && generation === progressGeneration.current)
+          current = await request(current, 'status');
       }
     } catch {
-      if (alive.current) setError(true);
+      if (alive.current && generation === progressGeneration.current)
+        setError(!blocked);
     } finally {
       if (!cancel) {
         releaseAgentRun(agent);
@@ -502,8 +531,41 @@ export function WorkflowWorkspace({
       refresh();
     }
   }
+  async function clearHistory() {
+    if (clearingRef.current) return;
+    clearingRef.current = true;
+    progressGeneration.current++;
+    setClearing(true);
+    try {
+      agent.abortRun?.();
+      flushSync(() => {
+        clear();
+        clearWorkflowHistory();
+        agent.setMessages([]);
+        setBlockingWorkflow(null);
+        setError(false);
+        setWorkflows([]);
+      });
+      const response = await fetch(`${base}/workflow-decision`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ decision: 'cancel_all' }),
+      });
+      if (!response.ok) throw new Error('Workflow cancellation failed');
+      const data = await response.json();
+      if (data.status !== 'ok') throw new Error('Workflow cancellation failed');
+      if (!alive.current) return;
+      // Hide drafts that finished preparing between the click and cancellation.
+      // Do not clear any new chat messages entered while the request was pending.
+      clearWorkflowHistory();
+    } finally {
+      clearingRef.current = false;
+      if (alive.current) setClearing(false);
+    }
+  }
   const visibleWorkflows = workflows.filter(
     (flow) =>
+      flow.id !== blockingWorkflow?.id &&
       !inlineWorkflowIds.has(flow.id) &&
       (!cutoff || (flow.createdAt || 0) > cutoff),
   ).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
@@ -519,6 +581,20 @@ export function WorkflowWorkspace({
       />
     ),
   }));
+  if (blockingWorkflow) conversationCards.push({
+    id: 'workflow-blocker',
+    promptId: lastPromptId,
+    content: (
+      <section role="status" dir={lang === 'he' ? 'rtl' : 'ltr'} style={{padding:12}}>
+        <p>{lang === 'he'
+          ? 'תהליך קודם עדיין פעיל בחשבון שלך. יש להמשיך או לבטל אותו לפני הפעלת תהליך נוסף.'
+          : 'An earlier workflow is still active on your account. Resume or cancel it before running another workflow.'}</p>
+        <WorkflowCard workflow={blockingWorkflow}
+          busy={active !== null || agent.isRunning || isAgentRunActive(agent)}
+          onDecision={(decision) => {void decide(blockingWorkflow, decision);}} />
+      </section>
+    ),
+  });
   if (error) conversationCards.push({
     id: 'workflow-progress-error',
     promptId: lastPromptId,
@@ -531,8 +607,10 @@ export function WorkflowWorkspace({
     ),
   });
   return (
-    <WorkflowConversationContext.Provider value={conversationCards}>
-      {children}
-    </WorkflowConversationContext.Provider>
+    <WorkflowHistoryContext.Provider value={{ clearHistory, clearing }}>
+      <WorkflowConversationContext.Provider value={conversationCards}>
+        {children}
+      </WorkflowConversationContext.Provider>
+    </WorkflowHistoryContext.Provider>
   );
 }

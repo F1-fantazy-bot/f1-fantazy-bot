@@ -1,4 +1,4 @@
-const { testAgent } = vi.hoisted(() => ({ testAgent: { isRunning: false, messages: [] as Message[] } }));
+const { testAgent } = vi.hoisted(() => ({ testAgent: { isRunning: false, messages: [] as Message[], setMessages: vi.fn(), abortRun: vi.fn() } }));
 vi.mock('@copilotkit/react-core/v2', () => ({
   useAgent: () => ({ agent: testAgent }),
 }));
@@ -25,6 +25,7 @@ import {
   WorkflowWorkspace,
   type Workflow,
 } from './WorkflowCard';
+import { ClearHistoryButton } from './ClearHistoryButton';
 import { UiLanguageProvider } from './uiLanguage';
 vi.mock('./workflowRenderers', () => ({
   WorkflowResult: ({ result }: { result: { summary?: string } }) => (
@@ -381,4 +382,227 @@ test('tool results anchor workflows to the correct earlier turn when a newer pro
   await act(async () => root.render(<WorkflowWorkspace runtimeUrl="http://localhost/api/agent/copilotkit"><Conversation /></WorkflowWorkspace>));
   const order = [...container.querySelectorAll('[data-prompt-id], section')].map((node) => node.getAttribute('data-prompt-id') || 'workflow');
   expect(order).toEqual(['original', 'workflow', 'latest']);
+});
+
+test('a hidden blocking workflow can be cancelled without a generic verification error', async () => {
+  const { clearWorkflowHistory, setHistoryScope } =
+    await import('../lib/chatHistoryStore');
+  setHistoryScope('blocked-workflow-test');
+  clearWorkflowHistory();
+  const older = {
+    ...flow,
+    id: 'older',
+    request: 'Earlier calculation',
+    createdAt: Date.now() - 10000,
+    state: 'ready',
+    steps: [{ ...flow.steps[1], id: 'pending' }],
+  };
+  const newer = {
+    ...older,
+    id: 'newer',
+    request: 'New calculation',
+    createdAt: Date.now() + 1000,
+  };
+  let cancelled = false;
+  let currentNewer = newer;
+  const fetchMock = vi.fn(async (_url: unknown, options?: RequestInit) => {
+    if (!options?.body)
+      return { ok: true, json: async () => ({ workflows: [older, newer] }) };
+    const input = JSON.parse(String(options.body));
+    if (input.id === older.id && input.decision === 'cancel') {
+      cancelled = true;
+      return { ok: true, json: async () => ({ ...older, state: 'cancelled' }) };
+    }
+    if (input.decision === 'advance' && !cancelled)
+      return {
+        ok: true,
+        json: async () => ({
+          status: 'busy',
+          workflow: newer,
+          blockingWorkflow: older,
+        }),
+      };
+    if (input.decision === 'advance')
+      currentNewer = { ...newer, state: 'completed' };
+    return { ok: true, json: async () => currentNewer };
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  roots.push(root);
+  await act(async () =>
+    root.render(
+      <WorkflowWorkspace runtimeUrl="http://localhost/api/agent/copilotkit">
+        <Conversation />
+      </WorkflowWorkspace>,
+    ),
+  );
+  expect(container.textContent).not.toContain('Earlier calculation');
+  await act(async () =>
+    [...container.querySelectorAll('button')]
+      .find((b) => b.textContent === 'Resume')!
+      .click(),
+  );
+  expect(container.textContent).toContain(
+    'An earlier workflow is still active',
+  );
+  expect(container.textContent).toContain('Earlier calculation');
+  expect(container.textContent).not.toContain('Progress could not be verified');
+  const oldCard = [...container.querySelectorAll('section')].find(
+    (s) => s.querySelector('h3')?.textContent === 'Earlier calculation',
+  )!;
+  await act(async () =>
+    [...oldCard.querySelectorAll('button')]
+      .find((b) => b.textContent === 'Cancel')!
+      .click(),
+  );
+  expect(cancelled).toBe(true);
+  expect(container.textContent).not.toContain(
+    'An earlier workflow is still active',
+  );
+  await act(async () =>
+    [...container.querySelectorAll('button')]
+      .find((b) => b.textContent === 'Resume')!
+      .click(),
+  );
+  expect(container.textContent).toContain('Completed');
+  setHistoryScope(null);
+});
+
+test('clear history immediately clears chat before server cancellation and shows busy feedback', async () => {
+  let complete!: () => void;
+  const fetchMock = vi.fn(async (_url: unknown, options?: RequestInit) => {
+    if (!options?.body)
+      return { ok: true, json: async () => ({ workflows: [flow] }) };
+    expect(testAgent.setMessages).toHaveBeenCalledWith([]);
+    await new Promise<void>((resolve) => {
+      complete = resolve;
+    });
+    return { ok: true, json: async () => ({ status: 'ok', workflows: [] }) };
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  testAgent.setMessages.mockClear();
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  roots.push(root);
+  await act(async () =>
+    root.render(
+      <WorkflowWorkspace
+        runtimeUrl="http://localhost/api/agent/copilotkit"
+        idToken="test-token"
+      >
+        <ClearHistoryButton /><Conversation />
+      </WorkflowWorkspace>,
+    ),
+  );
+  const button = container.querySelector('button')!;
+  await act(async () => button.click());
+  expect(button.textContent).toBe('Clear chat history');
+  expect(button.disabled).toBe(true);
+  expect(button.getAttribute('aria-busy')).toBe('true');
+  expect(button.querySelector('.clear-history-control__spinner')).not.toBeNull();
+  expect(testAgent.setMessages).toHaveBeenCalledWith([]);
+  const request = fetchMock.mock.calls.find(
+    ([, options]) => options?.body,
+  )![1]!;
+  expect(JSON.parse(String(request.body))).toEqual({ decision: 'cancel_all' });
+  expect(request.headers).toMatchObject({ Authorization: 'Bearer test-token' });
+  await act(async () => complete());
+  expect(testAgent.setMessages).toHaveBeenCalledWith([]);
+  expect(button.disabled).toBe(false);
+});
+
+test('clear failure keeps the UI cleared and offers retry', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (_url, options) =>
+      options?.body
+        ? { ok: false }
+        : { ok: true, json: async () => ({ workflows: [] }) },
+    ),
+  );
+  testAgent.setMessages.mockClear();
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  roots.push(root);
+  await act(async () =>
+    root.render(
+      <WorkflowWorkspace runtimeUrl="http://localhost/api/agent/copilotkit">
+        <ClearHistoryButton /><Conversation />
+      </WorkflowWorkspace>,
+    ),
+  );
+  await act(async () => container.querySelector('button')!.click());
+  expect(testAgent.setMessages).toHaveBeenCalledWith([]);
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+    'Unable to finish clearing history',
+  );
+  expect(container.querySelector('button')!.disabled).toBe(false);
+});
+
+test('clear stops automatic advancement after the current request returns', async () => {
+  const {setHistoryScope}=await import('../lib/chatHistoryStore');
+  setHistoryScope('clear-in-flight');
+  let finish!: () => void;
+  let advanceCount = 0;
+  const reading = {...flow,state:'ready',steps:flow.steps.map(step=>({...step,write:false}))};
+  const fetchMock = vi.fn(async (_url:unknown,options?:RequestInit) => {
+    if (!options?.body) return {ok:true,json:async()=>({workflows:[reading]})};
+    const input = JSON.parse(String(options.body));
+    if (input.decision === 'cancel_all') return {ok:true,json:async()=>({status:'ok',workflows:[]})};
+    if (input.decision === 'advance') {
+      advanceCount++;
+      await new Promise<void>(resolve=>{finish=resolve;});
+    }
+    return {ok:true,json:async()=>reading};
+  });
+  vi.stubGlobal('fetch',fetchMock);
+  const container=document.createElement('div'); document.body.append(container);
+  const root=createRoot(container); roots.push(root);
+  await act(async()=>root.render(<WorkflowWorkspace runtimeUrl="http://localhost/api/agent/copilotkit"><ClearHistoryButton /><Conversation /></WorkflowWorkspace>));
+  await act(async()=>[...container.querySelectorAll('button')].find(b=>b.textContent==='Resume')!.click());
+  expect(advanceCount).toBe(1);
+  await act(async()=>[...container.querySelectorAll('button')].find(b=>b.textContent==='Clear chat history')!.click());
+  await act(async()=>finish());
+  expect(advanceCount).toBe(1);
+  expect(container.textContent).not.toContain('Progress could not be verified');
+  setHistoryScope(null);
+});
+
+test('a late clear response after account change does not erase the new account history', async () => {
+  const {setHistoryScope,save,load}=await import('../lib/chatHistoryStore');
+  setHistoryScope('old-account'); let finish!: () => void;
+  vi.stubGlobal('fetch',vi.fn(async (_url,options)=> {
+    if (!options?.body) return {ok:true,json:async()=>({workflows:[]})};
+    await new Promise<void>(resolve=>{finish=resolve;});
+    return {ok:true,json:async()=>({status:'ok',workflows:[]})};
+  }));
+  testAgent.setMessages.mockClear();
+  const container=document.createElement('div');document.body.append(container);
+  const root=createRoot(container);
+  await act(async()=>root.render(<WorkflowWorkspace runtimeUrl="http://localhost/api/agent/copilotkit"><ClearHistoryButton /><Conversation /></WorkflowWorkspace>));
+  await act(async()=>container.querySelector('button')!.click());
+  act(()=>root.unmount());
+  setHistoryScope('new-account');
+  save([{id:'new-message',role:'user',content:'Keep this message'}]);
+  await act(async()=>finish());
+  expect(load()).toHaveLength(1);
+  expect(testAgent.setMessages).toHaveBeenCalledTimes(1);
+  setHistoryScope(null);
+});
+
+test('clear succeeds without chat messages or workflow cards', async () => {
+  testAgent.messages = [];
+  testAgent.setMessages.mockClear();
+  vi.stubGlobal('fetch',vi.fn(async (_url,options) => ({ok:true,json:async()=>options?.body
+    ? {status:'ok',workflows:[]} : {workflows:[]}})));
+  const container=document.createElement('div'); document.body.append(container);
+  const root=createRoot(container); roots.push(root);
+  await act(async()=>root.render(<WorkflowWorkspace runtimeUrl="http://localhost/api/agent/copilotkit"><ClearHistoryButton /><Conversation /></WorkflowWorkspace>));
+  await act(async()=>container.querySelector('button')!.click());
+  expect(testAgent.setMessages).toHaveBeenCalledWith([]);
+  expect(container.querySelector('[role="alert"]')).toBeNull();
 });

@@ -97,7 +97,7 @@ function createStore(client) {
     for await (const entity of (await table()).listEntities({
       queryOptions: { filter: `PartitionKey eq '${Number(owner)}'` },
     })) {
-      if (entity.rowKey === 'lease') {
+      if (['lease', 'history'].includes(entity.rowKey)) {
         continue;
       }
       if (entity.rowKey.includes(':receipt:')) {
@@ -123,6 +123,73 @@ function createStore(client) {
     }
 
     return result;
+  }
+  async function history(owner) {
+    let marker = await read(owner, 'history');
+    if (!marker) {
+      await save(owner, { id: 'history', version: 0 }, true);
+      marker = await read(owner, 'history');
+    }
+
+    return marker;
+  }
+  async function clearHistory(owner) {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const marker = await history(owner);
+      if (await save(owner, { ...marker, version: marker.version + 1 })) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+  async function saveProposal(owner, value, create, expectedVersion) {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const marker = await history(owner);
+      if (marker.version !== expectedVersion) {
+        return 'cancelled';
+      }
+      const { etag, ...data } = value;
+      const entity = {
+        partitionKey: String(owner),
+        rowKey: value.id,
+        expiresAt: value.expiresAt,
+        ...encode(data),
+      };
+      try {
+        // A clear and a proposal commit cannot cross each other: both update
+        // the same owner marker under ETag CAS in one Table transaction.
+        await (
+          await table()
+        ).submitTransaction([
+          [
+            'update',
+            {
+              partitionKey: String(owner),
+              rowKey: 'history',
+              ...encode({ id: 'history', version: marker.version }),
+            },
+            'Replace',
+            { etag: marker.etag },
+          ],
+          create ? ['create', entity] : ['update', entity, 'Replace', { etag }],
+        ]);
+
+        return 'saved';
+      } catch (error) {
+        if (![409, 412, 404].includes(error.statusCode)) {
+          throw error;
+        }
+        if (!create && (await read(owner, value.id))?.etag !== etag) {
+          return 'conflict';
+        }
+        if (create && (await read(owner, value.id))) {
+          return 'conflict';
+        }
+      }
+    }
+
+    return 'conflict';
   }
   async function acquire(owner, id) {
     const lease = await read(owner, 'lease');
@@ -161,6 +228,9 @@ function createStore(client) {
   return {
     read,
     save,
+    history,
+    clearHistory,
+    saveProposal,
     list,
     acquire,
     release,
