@@ -55,15 +55,18 @@ describe('read-card display persistence', () => {
   ];
   afterEach(() => { setHistoryScope(null); window.localStorage.clear(); });
 
-  test('stores only completed allowlisted informational cards and excludes write approvals, choices and errors', () => {
+  test('persists every registered result category and ignores unregistered tools', () => {
     for (const name of ['confirm_write', 'activate_chip', 'get_action_choices', 'propose_workflow', 'list_web_users']) {
       saveReadCards(conversation(name, { status: 'ok', writeNonce: 'secret' }));
-      expect(loadReadCards()).toEqual([]);
+      expect(loadReadCards()).toHaveLength(1);
     }
     for (const status of ['confirmation_required', 'tool_error', 'selection_required']) {
       saveReadCards(conversation('get_next_race_info', { status }));
-      expect(loadReadCards()).toEqual([]);
+      expect(loadReadCards()).toHaveLength(1);
     }
+    window.localStorage.clear();
+    saveReadCards(conversation('unknown_tool', { status: 'ok' }));
+    expect(loadReadCards()).toEqual([]);
     saveReadCards(conversation());
     expect(loadReadCards()).toEqual([{ id: 'tool-call', promptId: 'prompt', tool: 'get_next_race_info', result: { status: 'ok', raceName: 'Singapore' } }]);
   });
@@ -92,11 +95,10 @@ describe('read-card display persistence', () => {
   });
 
   test.each([
-    ['list_followed_teams', { status: 'ok', teams: [], selectionMode: 'unfollow_team' }],
     ['list_user_teams', { teams: [], mode: 'workflow_discovery' }],
-    ['list_user_teams', { status: 'tool_error', teams: [] }],
-    ['list_user_teams', {}],
-  ])('excludes actionable, internal or unsuccessful %s results', (tool, result) => {
+    ['list_user_teams', null],
+    ['list_user_teams', []],
+  ])('excludes internal or malformed %s results', (tool, result) => {
     saveReadCards(conversation(tool, result));
     expect(loadReadCards()).toEqual([]);
   });
@@ -105,7 +107,7 @@ describe('read-card display persistence', () => {
     saveReadCards(conversation());
     saveReadCards(Array.from({ length: 21 }, (_, i) => ({ id: `prompt-${i}`, role: 'user', content: 'Next race' })));
     expect(loadReadCards()).toEqual([]);
-    saveReadCards(conversation('get_next_race_info', { status: 'ok', text: 'א'.repeat(60_000) }));
+    saveReadCards(conversation('get_next_race_info', { status: 'ok', text: 'א'.repeat(2 * 1024 * 1024) }));
     expect(loadReadCards()).toEqual([]);
     window.localStorage.setItem('f1-fantasy-agent-history::read-cards', '{broken');
     expect(loadReadCards()).toEqual([]);

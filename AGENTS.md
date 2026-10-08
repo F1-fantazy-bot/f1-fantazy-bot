@@ -1759,9 +1759,9 @@ client-only and intentionally narrow — see
 `web/src/lib/chatHistoryStore.ts` for the contract:
 
 - Only `role: 'user' | 'assistant'` messages with a non-empty text
-  `content` survive. Tool calls / tool results / large blobs are
-  NEVER persisted (no reloading stale tool data into the LLM, no
-  bloating the per-origin localStorage quota).
+  `content` enter the restored agent context. Tool calls, tool results and
+  approval nonces never enter that context; card data lives in a separate,
+  bounded display cache.
 - Caps: 20 messages, 100 KB total payload, 8 KB per message. Oldest
   messages are trimmed first.
 - Storage key is scoped per Google `sub` when the user is signed in
@@ -1770,20 +1770,30 @@ client-only and intentionally narrow — see
 - A separate `::workflow-prompts` display index retains at most 40 workflow IDs
   and originating user-message IDs so recovered cards stay in their original
   turns. It contains no tool payloads and never enters model context.
-- A separate `::read-cards` display cache retains completed, allowlisted
-  informational results (20 cards, 100 KB, UTF-8 byte budget), linked to visible
-  user-message IDs. `ReadCardHistoryProvider` renders recovered cards through
-  the existing read renderers in the native user-message slot and suppresses
-  duplicates while live tool results exist. This is the display-only exception
-  to text-only persistence: snapshots never enter `agent.messages` or model
-  context. Writes, approvals, admin results and clarification choices are
-  excluded. Clear history and sign-out remove the scoped display cache.
-  Read-only followed-team and user-team lists are included, including empty
-  followed lists and the user-team tool's status-free `{ teams, lang }` result.
-  Results with `selectionMode` or internal `mode` are excluded so removal
-  choices and silent workflow discovery do not become recovered read cards.
-  `HistoryRestorer` captures completed cards during message updates and flushes
-  text plus display snapshots on `pagehide`, including before the save debounce.
+- A separate `::read-cards` display cache retains visible tool results
+  (200 cards, 2 MiB, UTF-8 byte budget), linked to retained user-message IDs.
+  `toolHistoryPolicy.json` covers all 52 registered tools: read/admin cards,
+  choices, write confirmations and receipts, and workflow recovery. The tool
+  catalogue coverage test fails if a new tool lacks a policy and fixture.
+  Empty, unavailable, prerequisite and error results are included. Only silent
+  `list_user_teams` workflow discovery is excluded because it has no visible card.
+- `ReadCardHistoryProvider` renders snapshots under their original prompt IDs
+  through the existing components and hides duplicates while native tool calls
+  or results are present. Successful workflows recover from durable server
+  state; their results are not duplicated in the display cache. Interrupted
+  requests retain a visible explanation rather than an indefinite loading card.
+- Direct UI write proposals and receipts are captured separately because they
+  do not pass through agent messages. Decisions survive refresh: settled cards
+  stay settled; a submission interrupted before its outcome is known is blocked
+  with an explanation. Refresh never runs a tool, approves a write, or restores
+  tool messages to the model. New clicks still use authenticated endpoints and
+  existing server nonce ownership, expiration and single-use checks.
+- Recovered receipts do not replay global language or selected-team effects.
+  Successful direct actions update the cached parent list so removed teams or
+  leagues do not reappear and the selected team stays consistent on refresh.
+  Clear history and sign-out remove the scoped display cache.
+  `HistoryRestorer` captures cards during message updates and flushes text plus
+  snapshots on `pagehide`, including before the save debounce.
 
 **Why restore is reconciliation-based, not one-shot.** CopilotKit v2
 hands `useAgent()` a `ProxiedCopilotRuntimeAgent` in "pending" mode

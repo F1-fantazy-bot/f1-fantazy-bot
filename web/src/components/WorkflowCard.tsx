@@ -54,7 +54,7 @@ export function WorkflowUserMessage(props: UserMessageProps) {
       <UserMessage {...props} />
       <ReadCardHistory promptId={props.message?.id} />
       {cards.filter((card) => card.promptId === props.message?.id).map((card) => (
-        <div key={card.id}>{card.content}</div>
+        <div key={card.id} data-workflow-card-id={card.id}>{card.content}</div>
       ))}
     </>
   );
@@ -67,7 +67,7 @@ export function WorkflowAssistantMessage(props: AssistantMessageProps) {
       <AssistantMessage {...props} />
       {props.messages?.[0]?.id === props.message?.id &&
         cards.filter((card) => !card.promptId).map((card) => (
-          <div key={card.id}>{card.content}</div>
+          <div key={card.id} data-workflow-card-id={card.id}>{card.content}</div>
         ))}
     </>
   );

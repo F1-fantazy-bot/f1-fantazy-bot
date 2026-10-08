@@ -2,11 +2,11 @@
 // agent.
 //
 // Persists the last N user-or-assistant text messages of the current
-// conversation, plus a separate bounded display cache for read cards.
+// conversation, plus a separate bounded display cache for tool cards.
 //
 // Only text is restored to agent.messages. Tool calls/results, internal
-// instructions and large blobs never re-enter the LLM context. Completed,
-// allowlisted read cards use the display-only cache below, rendered in their
+// instructions and large blobs never re-enter the LLM context. Registered
+// tool cards use the display-only cache below, rendered in their
 // original turns by ReadCardHistoryProvider without changing model context.
 //
 // Failure modes handled:
@@ -21,6 +21,7 @@
 //   to avoid React-key collisions.
 
 import type { Message } from '@ag-ui/core';
+import toolHistoryPolicy from './toolHistoryPolicy.json';
 
 // Localstorage key — scoped per-Google-sub at runtime so multiple
 // users on the same browser don't see each other's history.
@@ -246,77 +247,59 @@ export function saveWorkflowPromptIds(ids: Record<string, string>): void {
   } catch { /* Optional display metadata; chat and durable workflows still work. */ }
 }
 
-// Completed informational cards are display snapshots, separate from text
-// history. Never restore tool calls/results, choices or approval nonces to the
-// agent. Bound this cache independently and retain only visible prompt IDs.
+// All displayed tool results are snapshots, separate from text history. Never
+// restore tool calls/results or approval nonces to the agent. Interactive cards
+// continue through authenticated endpoints only after a new explicit click.
 export const READ_CARDS_CHANGED_EVENT = 'f1-read-cards-changed';
-const READ_CARD_TOOLS = new Set([
-  'get_next_race_info', 'get_next_races', 'get_race_weather', 'get_deadline',
-  'get_current_team', 'get_best_teams', 'get_best_team_scenarios',
-  'get_best_team_changes', 'get_leaderboard', 'get_live_score_for_team',
-  'get_live_score_leaderboard', 'get_league_changes', 'get_league_graph',
-  'get_race_summary', 'get_whats_new', 'get_simulation_status',
-  'get_data_status', 'get_agent_guide',
-  'list_followed_teams', 'list_user_teams',
-]);
+export const DIRECT_CARD_PROPOSAL_EVENT = 'f1-direct-card-proposal';
+const MAX_CARDS = 200;
+const MAX_CARD_BYTES = 2 * 1024 * 1024;
+export type CardDecision = 'pending' | 'submitting' | 'confirmed' | 'cancelled' | 'error' | 'blocked' | 'revoked';
 export type StoredReadCard = {
   id: string;
   promptId: string;
   tool: string;
   result: Record<string, unknown>;
+  args?: Record<string, unknown>;
+  direct?: boolean;
+  decision?: CardDecision;
+  interrupted?: boolean;
 };
+
+export function toolPersistencePolicy(tool: string): string | undefined {
+  return Object.prototype.hasOwnProperty.call(toolHistoryPolicy, tool)
+    ? toolHistoryPolicy[tool as keyof typeof toolHistoryPolicy] : undefined;
+}
 
 function isReadCard(value: unknown): value is StoredReadCard {
   if (!value || typeof value !== 'object') return false;
   const card = value as StoredReadCard;
   return typeof card.id === 'string' && card.id.length > 0 && card.id.length <= 200
     && typeof card.promptId === 'string' && card.promptId.length > 0 && card.promptId.length <= 200
-    && READ_CARD_TOOLS.has(card.tool) && !!card.result
+    && !!toolPersistencePolicy(card.tool) && !!card.result
     && typeof card.result === 'object' && !Array.isArray(card.result)
-    && card.result.selectionMode === undefined && card.result.mode === undefined
-    && (card.result.status === 'ok'
-      || (card.tool === 'list_followed_teams' && card.result.status === 'empty')
-      // This tool returns { teams, lang }, without a status field.
-      || (card.tool === 'list_user_teams' && card.result.status === undefined
-        && Array.isArray(card.result.teams)));
+    && !(card.tool === 'list_user_teams' && card.result.mode === 'workflow_discovery')
+    && (card.args === undefined || (!!card.args && typeof card.args === 'object' && !Array.isArray(card.args)))
+    && (card.direct === undefined || typeof card.direct === 'boolean')
+    && (card.interrupted === undefined || typeof card.interrupted === 'boolean')
+    && (card.decision === undefined || ['pending', 'submitting', 'confirmed', 'cancelled', 'error', 'blocked', 'revoked'].includes(card.decision));
 }
 
 export function loadReadCards(): StoredReadCard[] {
   try {
     const raw = window.localStorage.getItem(`${storageKey()}::read-cards`);
-    if (!raw || new Blob([raw]).size > MAX_BYTES) return [];
+    if (!raw || new Blob([raw]).size > MAX_CARD_BYTES) return [];
     const value = JSON.parse(raw);
     if (value?.version !== 1 || !Array.isArray(value.cards)
-      || value.cards.length > MAX_MESSAGES || !value.cards.every(isReadCard)) return [];
+      || value.cards.length > MAX_CARDS || !value.cards.every(isReadCard)) return [];
     return [...new Map<string, StoredReadCard>(value.cards.map((card: StoredReadCard) => [card.id, card])).values()];
   } catch { return []; }
 }
 
-export function saveReadCards(messages: Message[]): void {
-  const visiblePrompts = new Set(toStoredMessages(messages).slice(-MAX_MESSAGES)
-    .filter((message) => message.role === 'user').map((message) => message.id));
-  const cards = new Map(loadReadCards().filter((card) => visiblePrompts.has(card.promptId))
-    .map((card) => [card.id, card]));
-  const calls = new Map<string, { tool: string; promptId: string }>();
-  let promptId: string | undefined;
-  for (const message of messages) {
-    if (message.role === 'user') promptId = message.id;
-    if (message.role === 'assistant' && promptId) {
-      for (const call of message.toolCalls || []) {
-        calls.set(call.id, { tool: call.function.name, promptId });
-      }
-    }
-    if (message.role !== 'tool') continue;
-    const call = calls.get(message.toolCallId);
-    if (!call || !visiblePrompts.has(call.promptId) || !READ_CARD_TOOLS.has(call.tool)) continue;
-    try {
-      const card = { id: message.toolCallId, ...call, result: JSON.parse(message.content) };
-      if (isReadCard(card) && new Blob([JSON.stringify(card)]).size <= MAX_BYTES) cards.set(card.id, card);
-    } catch { /* Ignore incomplete/malformed results while streaming. */ }
-  }
-  const next = [...cards.values()].slice(-MAX_MESSAGES);
+function writeReadCards(cards: StoredReadCard[]): void {
+  const next = cards.slice(-MAX_CARDS);
   let payload = JSON.stringify({ version: 1, cards: next });
-  while (next.length && new Blob([payload]).size > MAX_BYTES) {
+  while (next.length && new Blob([payload]).size > MAX_CARD_BYTES) {
     next.shift();
     payload = JSON.stringify({ version: 1, cards: next });
   }
@@ -326,4 +309,104 @@ export function saveReadCards(messages: Message[]): void {
     window.localStorage.setItem(key, payload);
     window.dispatchEvent(new Event(READ_CARDS_CHANGED_EVENT));
   } catch { /* Display caching failures must not affect chat or text history. */ }
+}
+
+function applyReceiptToSnapshots(cards: Iterable<StoredReadCard>, result: Record<string, unknown>, args?: Record<string, unknown>, promptId?: string): void {
+  if (result.status !== 'ok') return;
+  for (const card of cards) {
+    const teams = card.result.teams;
+    if (result.tool === 'select_team' && typeof result.teamId === 'string' && card.tool === 'list_user_teams' && Array.isArray(teams)) {
+      card.result = { ...card.result, teams: teams.map((team) => ({ ...team, isSelected: team.teamId === result.teamId })) };
+    }
+    if (card.promptId !== promptId) continue;
+    if (result.tool === 'follow_team' && args?.action === 'remove' && card.tool === 'list_followed_teams' && Array.isArray(teams)) {
+      card.result = { ...card.result, teams: teams.filter((team) => team.teamId !== result.teamId)
+        .map((team) => ({ ...team, isSelected: team.teamId === result.fallbackSelectedTeam })) };
+    }
+    if (result.tool === 'follow_team' && args?.action === 'add' && card.tool === 'list_league_teams' && Array.isArray(teams)) {
+      card.result = { ...card.result, teams: teams.map((team) => team.teamId === result.teamId ? { ...team, isFollowed: true } : team) };
+    }
+    if (result.tool === 'unfollow_league' && card.tool === 'list_user_leagues' && Array.isArray(card.result.leagues)) {
+      card.result = { ...card.result, leagues: card.result.leagues.filter((league) => league.leagueCode !== result.leagueCode) };
+    }
+  }
+}
+
+export function saveReadCards(messages: Message[]): void {
+  const visiblePrompts = new Set(toStoredMessages(messages).slice(-MAX_MESSAGES)
+    .filter((message) => message.role === 'user').map((message) => message.id));
+  const cards = new Map(loadReadCards().filter((card) => visiblePrompts.has(card.promptId))
+    .map((card) => [card.id, card]));
+  const calls = new Map<string, { tool: string; promptId: string; args?: Record<string, unknown> }>();
+  const completed = new Set<string>();
+  let promptId: string | undefined;
+  for (const message of messages) {
+    if (message.role === 'user') promptId = message.id;
+    if (message.role === 'assistant' && promptId) {
+      for (const call of message.toolCalls || []) {
+        let args: Record<string, unknown> | undefined;
+        try {
+          const parsed = JSON.parse(call.function.arguments);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) args = parsed;
+        } catch { /* Streaming arguments can be incomplete. */ }
+        calls.set(call.id, { tool: call.function.name, promptId, ...(args && Object.keys(args).length ? { args } : {}) });
+      }
+    }
+    if (message.role !== 'tool') continue;
+    const call = calls.get(message.toolCallId);
+    if (!call || !visiblePrompts.has(call.promptId) || !toolPersistencePolicy(call.tool)) continue;
+    try {
+      const card: StoredReadCard = { id: message.toolCallId, ...call, result: JSON.parse(message.content) };
+      completed.add(card.id);
+      // Successful workflows recover from the server, with current state and
+      // the existing prompt links. Cache only workflow failures/choice cards.
+      if (toolPersistencePolicy(call.tool) === 'workflow'
+        && ((typeof card.result?.id === 'string' && Array.isArray(card.result.steps))
+          || Array.isArray(card.result?.workflows))) {
+        cards.delete(card.id);
+        continue;
+      }
+      if (isReadCard(card)) {
+        const previous = cards.get(card.id);
+        if (previous?.decision) card.decision = previous.decision;
+        cards.set(card.id, card);
+        if (call.tool === 'confirm_write' && typeof call.args?.writeNonce === 'string') {
+          for (const original of cards.values()) {
+            if (original.result.writeNonce === call.args.writeNonce) original.decision = card.result.status === 'ok' ? 'confirmed' : 'blocked';
+            if (original.result.writeNonce === call.args.writeNonce) applyReceiptToSnapshots(cards.values(), card.result, original.args, original.promptId);
+          }
+        }
+      }
+    } catch { /* Ignore incomplete/malformed results while streaming. */ }
+  }
+  for (const [id, call] of calls) {
+    if (completed.has(id) || !visiblePrompts.has(call.promptId) || !toolPersistencePolicy(call.tool)
+      || (call.tool === 'list_user_teams' && call.args?.mode === 'workflow_discovery')) continue;
+    if (!cards.has(id)) cards.set(id, { id, ...call, result: {}, interrupted: true });
+  }
+  for (const card of cards.values()) {
+    if (card.direct && card.decision === 'confirmed') applyReceiptToSnapshots(cards.values(), card.result, card.args, card.promptId);
+  }
+  writeReadCards([...cards.values()]);
+}
+
+export function saveCardDecision(writeNonce: string, decision: CardDecision, result?: Record<string, unknown>): void {
+  const cards = loadReadCards();
+  let changed = false;
+  for (const card of cards) {
+    if (card.result.writeNonce !== writeNonce) continue;
+    changed = true;
+    card.decision = decision;
+    if (result) applyReceiptToSnapshots(cards, result, card.args, card.promptId);
+    if (result && card.direct) card.result = result;
+  }
+  if (changed) writeReadCards(cards);
+}
+
+export function saveDirectCard(messages: Message[], tool: string, args: Record<string, unknown>, result: Record<string, unknown>): void {
+  const promptId = toStoredMessages(messages).filter((message) => message.role === 'user').slice(-1)[0]?.id;
+  if (!promptId || !toolPersistencePolicy(tool)) return;
+  const id = typeof result.writeNonce === 'string' ? `direct:${result.writeNonce}` : `direct:${crypto.randomUUID()}`;
+  const card: StoredReadCard = { id, promptId, tool, result, args, direct: true };
+  if (isReadCard(card)) writeReadCards([...loadReadCards().filter((previous) => previous.id !== id), card]);
 }

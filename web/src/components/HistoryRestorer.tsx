@@ -57,6 +57,8 @@ import {
   toStoredMessages,
   toAgUiMessages,
   saveReadCards,
+  DIRECT_CARD_PROPOSAL_EVENT,
+  saveDirectCard,
 } from '../lib/chatHistoryStore';
 
 // Used as a save-debounce dedupe key — NOT as the canonical
@@ -117,6 +119,18 @@ export function HistoryRestorer(): null {
       },
     });
     return () => sub.unsubscribe();
+  }, [agent]);
+
+  useEffect(() => {
+    if (!agent) return;
+    const capture = (event: Event) => {
+      const { tool, args, result } = (event as CustomEvent<{
+        tool: string; args: Record<string, unknown>; result: Record<string, unknown>;
+      }>).detail;
+      saveDirectCard(agent.messages, tool, args, result);
+    };
+    window.addEventListener(DIRECT_CARD_PROPOSAL_EVENT, capture);
+    return () => window.removeEventListener(DIRECT_CARD_PROPOSAL_EVENT, capture);
   }, [agent]);
 
   // A refresh can arrive before the debounce fires. Flush the last visible

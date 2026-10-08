@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAgent, useCopilotKit } from '@copilotkit/react-core/v2';
 import { useWriteDecision } from './WriteDecisionContext';
 import { isWriteResult, type WriteResult } from './WriteResultCard';
+import { loadReadCards, saveCardDecision, type CardDecision } from '../lib/chatHistoryStore';
 
 // Result envelope the backend returns from a write-tool *propose* call.
 // Lives here (rather than in writeToolHelpers) to keep the frontend
@@ -39,6 +40,7 @@ export function WriteConfirmCard({
   directConfirm = false,
   directConfirmErrorMessage,
   onSettled,
+  initialDecision,
 }: {
   result: WriteConfirmationRequired;
   directConfirm?: boolean;
@@ -48,6 +50,7 @@ export function WriteConfirmCard({
     message?: string,
     finalResult?: WriteResult,
   ) => void;
+  initialDecision?: CardDecision;
 }) {
   const { agent } = useAgent({ agentId: 'default' });
   const { copilotkit } = useCopilotKit();
@@ -102,16 +105,21 @@ export function WriteConfirmCard({
         directConfirmError:
           'The final status could not be verified. Refresh the team list before trying again.',
       };
-  const [decision, setDecision] = useState<
-    | 'pending'
-    | 'submitting'
-    | 'confirmed'
-    | 'cancelled'
-    | 'error'
-    | 'blocked'
-    | 'revoked'
-  >('pending');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [decision, setDecision] = useState<CardDecision>(() => {
+    const saved = initialDecision || loadReadCards().find((card) => card.result.writeNonce === result.writeNonce)?.decision;
+    return saved === 'submitting' ? 'blocked' : saved || 'pending';
+  });
+  const [errorMessage, setErrorMessage] = useState(() => decision === 'blocked'
+    ? (isHebrew ? 'הפעולה הופסקה לפני שניתן היה לאמת את התוצאה. יש לבדוק את המצב לפני ניסיון נוסף.'
+      : 'The action was interrupted before its outcome could be verified. Check its status before retrying.') : '');
+  useEffect(() => {
+    saveCardDecision(result.writeNonce, decision);
+  }, [result.writeNonce, decision]);
+  useEffect(() => {
+    if (initialDecision && ['confirmed', 'cancelled', 'blocked', 'revoked'].includes(initialDecision)) {
+      setDecision(initialDecision);
+    }
+  }, [initialDecision]);
 
   async function send(
     content: string,

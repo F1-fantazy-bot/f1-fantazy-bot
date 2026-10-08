@@ -1,4 +1,5 @@
 import { RaceInfoCard } from './RaceInfoCard';
+import { LanguageCard } from './LanguageCard';
 import { BestTeamChangesCard, workflowChangesTarget } from './BestTeamChangesCard';
 import { InteractiveUserLeagues } from './UserLeaguesAction';
 import { InteractiveLeagueTeams } from './LeagueTeamsAction';
@@ -36,6 +37,7 @@ function renderer<T>(Component: ComponentType<{ result?: T }>) {
   return (result: unknown) => <Component result={result as T} />;
 }
 export const workflowRenderers = {
+  get_language: renderer(LanguageCard),
   get_next_race_info: renderer(RaceInfoCard),
   get_best_team_changes: renderer(BestTeamChangesCard),
   list_user_leagues: renderer(InteractiveUserLeagues),

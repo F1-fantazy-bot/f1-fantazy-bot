@@ -21,10 +21,12 @@ const { testAgent, subscribers } = vi.hoisted(() => {
 });
 vi.mock('@copilotkit/react-core/v2', () => ({
   useAgent: () => ({ agent: testAgent }),
+  useCopilotKit: () => ({ copilotkit: { runAgent: vi.fn() } }),
   UseAgentUpdate: { OnMessagesChanged: 'messages', OnRunStatusChanged: 'running' },
 }));
 import { HistoryRestorer } from './HistoryRestorer';
 import { ReadCardHistory, ReadCardHistoryProvider } from './ReadCardHistory';
+import { WriteDecisionProvider } from './WriteDecisionContext';
 
 beforeAll(() => { (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true; });
 afterAll(() => { delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT; });
@@ -46,11 +48,11 @@ function mount() {
   const container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
-  act(() => root!.render(<ReadCardHistoryProvider>
+  act(() => root!.render(<WriteDecisionProvider runtimeUrl="http://localhost/api/agent/copilotkit"><ReadCardHistoryProvider>
     <HistoryRestorer />
     <div data-prompt="first"><ReadCardHistory promptId="prompt-1" /></div>
     <div data-prompt="repeated"><ReadCardHistory promptId="prompt-2" /></div>
-  </ReadCardHistoryProvider>));
+  </ReadCardHistoryProvider></WriteDecisionProvider>));
   return container;
 }
 afterEach(() => {
