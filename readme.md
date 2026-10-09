@@ -70,6 +70,8 @@ A **web-chat agent** (preview) provides a second channel for the same functional
 - **Admin Controls**: Restricted commands for data management and system control
 - **Version Reporting**: `/version` command reveals the deployed commit details
 
+The general AI model is pinned to `gpt-6.1-sol` in `src/aiModel.js`; race summaries use `gpt-6-astra`.
+
 ## How to Run Locally
 
 1. **Clone the repository**
@@ -96,7 +98,6 @@ A **web-chat agent** (preview) provides a second channel for the same functional
    # Azure OpenAI Configuration
    AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint
    AZURE_OPENAI_API_KEY=your_azure_openai_api_key
-   AZURE_OPEN_AI_MODEL=gpt-6.1-sol
 
    # Azure Storage Configuration
    AZURE_STORAGE_CONNECTION_STRING=your_azure_storage_connection_string

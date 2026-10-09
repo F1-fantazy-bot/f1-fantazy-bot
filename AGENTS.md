@@ -94,7 +94,7 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
 Required environment variables (see `readme.md` for full list):
 
 - Telegram: `TELEGRAM_BOT_TOKEN`
-- Azure OpenAI: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPEN_AI_MODEL`. The general deployment is `gpt-6.1-sol`, configured by the agent ARM defaults/settings script and both Telegram deployment workflows. Race summaries remain pinned to `gpt-6-astra` in the shared service.
+- Azure OpenAI: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`. The general deployment is pinned to `gpt-6.1-sol` in `src/aiModel.js` for the agent, Telegram `/ask`, and JSON extraction; there is no model environment override. Race summaries remain pinned to `gpt-6-astra` in the shared service.
 - Azure Storage: `AZURE_STORAGE_CONNECTION_STRING`, `AZURE_STORAGE_CONTAINER_NAME`
   - **Note:** `AZURE_STORAGE_CONNECTION_STRING` is also used by the Pending Reply Manager and User Registry Service for Azure Table Storage (no additional env var needed).
 - Azure Management API for billing and manual Logic App triggers: `AZURE_SUBSCRIPTION_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`
@@ -760,7 +760,7 @@ Browser (Vite + React + CopilotKit)
 |---|---|
 | **CopilotKit v2** (`@copilotkit/runtime/v2`) | Rich React chat components with `useCopilotAction({ render })` for per-tool generative UI; runs tool execution server-side via `BuiltInAgent`. |
 | **Vercel AI SDK** under the hood (not the `openai` SDK directly) | CopilotKit v2 ignores bare `actions:` on `CopilotRuntime` — it requires an `agents:` map. `BuiltInAgent` uses AI SDK's `streamText` internally. We accepted this even though we initially planned to reuse the existing `openai`-SDK pattern. |
-| **`@ai-sdk/azure`** with model-specific API selection | Pass `baseURL: '${endpoint}/openai'` for both classic and Foundry hosts. Sol uses `azure.responses(deploymentId)`, Azure v1 URLs (`/openai/v1/responses`), and `apiVersion: 'v1'` because Chat Completions rejects Sol reasoning with function tools. Legacy deployments retain `azure.chat(deploymentId)` and deployment-based URLs with the existing preview version. Sol uses medium reasoning, explicit SDK reasoning-model handling, and `store: false`; encrypted reasoning is replayed between tool steps without server-side response storage. |
+| **`@ai-sdk/azure`** with Azure v1 Responses | Pass `baseURL: '${endpoint}/openai'` for both classic and Foundry hosts. The agent always uses `azure.responses(AI_MODEL)` on `/openai/v1/responses` with `apiVersion: 'v1'` and `useDeploymentBasedUrls: false`. Sol is pinned in `src/aiModel.js` with medium reasoning, `forceReasoning: true` (the installed SDK does not recognize GPT-6 names), sequential tools, and `store: false`; encrypted reasoning is replayed between tool steps. There is no legacy model routing or environment override. Telegram `/ask` and extraction use the same pinned model with Chat Completions without tools; summaries use pinned `gpt-6-astra`. |
 | **Zod** for tool parameters | Required by `defineTool` (Standard Schema V1). Already a transitive dep through `@copilotkit/runtime`. |
 | **Single-route mode** on the runtime handler | The default `multi-route` mode would force the frontend to address per-route URLs; single-route keeps the frontend pointed at `{basePath}` with a JSON envelope. Side effect: `GET /threads?agentId=…` returns 405 in single-route — these errors in the browser console are harmless and represent chat-history persistence we haven't enabled. |
 | **`parallelToolCalls: false`** on the agent's `providerOptions.openai` | CopilotKit's `useLazyToolRenderer` (`node_modules/@copilotkit/react-core/src/hooks/use-lazy-tool-renderer.tsx` line 15) only ever renders `message.toolCalls[0]`. When Azure OpenAI emits two tool calls in the SAME assistant message (its default behaviour for independent tool calls), only the first React component renders and the rest are silently dropped. Forcing sequential calls makes each tool land in its own assistant message, so each gets its own rich UI render. |
@@ -1419,7 +1419,6 @@ unbounded UserRegistry read to the login path.
 |---|---|---|
 | `AZURE_OPENAI_ENDPOINT` | Agent | Azure OpenAI host (works for both `*.openai.azure.com` and `*.services.ai.azure.com`). |
 | `AZURE_OPENAI_API_KEY` | Agent | Azure OpenAI auth. |
-| `AZURE_OPEN_AI_MODEL` | Agent + Telegram `/ask` + JSON extraction | General deployment name: `gpt-6.1-sol`. The agent uses `azure.responses(deployment)` with medium reasoning, sequential tool calls, `forceReasoning: true`, and `store: false`. Sol reasoning with function tools requires Responses and rejects `none`. Telegram `/ask` and JSON extraction continue using Chat Completions without tools. Race summaries use their own pinned `gpt-6-astra` deployment. |
 | `AGENT_HARDCODED_CHAT_ID` | Agent | Fallback identity used when no per-request context is active (local dev + cache bootstrap). On Azure-deployed slots both prod + test set `GOOGLE_CLIENT_ID`, so the hardcoded path is unreachable from user traffic — it survives as a local-dev fallback only. The LLM never sees it. Defaults to `KILZI_CHAT_ID` in `scripts/dev-agent-server.js` if absent. |
 | `GOOGLE_CLIENT_ID` | Agent | OAuth 2.0 Web client ID. NOT a secret — safe in app settings. Set on BOTH Azure slots (production + test). When the agent webhook sees a valid bearer it enforces Google sign-in + allowlist lookup on every POST. When unset (local dev only), auth is bypassed and `AGENT_HARDCODED_CHAT_ID` is used instead. |
 | `VITE_GOOGLE_CLIENT_ID` | SWA build env | Same client ID, baked into the bundle by both the prod SWA workflow AND the PR/staging workflow. Unset at build time = chat renders without auth gate (local dev only). |
@@ -1700,7 +1699,7 @@ This is the cross-phase invariant. For every capability that needs to be on **bo
 ### Local dev workflow
 
 ```bash
-# .env must already include AZURE_OPENAI_ENDPOINT/AZURE_OPENAI_API_KEY/AZURE_OPEN_AI_MODEL
+# .env must already include AZURE_OPENAI_ENDPOINT/AZURE_OPENAI_API_KEY
 # AGENT_HARDCODED_CHAT_ID is set by scripts/dev-agent-server.js to KILZI_CHAT_ID
 # if absent.
 

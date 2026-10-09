@@ -16,6 +16,7 @@ const {
   createCopilotRuntimeHandler,
 } = require('@copilotkit/runtime/v2');
 const { createAzure } = require('@ai-sdk/azure');
+const { AI_MODEL } = require('../aiModel');
 const { wrapLanguageModel } = require('ai');
 
 const { tools } = require('./tools');
@@ -24,76 +25,36 @@ const { getNotifierBot } = require('./notifierBot');
 const { createTokenUsageMiddleware } = require('./tokenUsageMiddleware');
 
 const COPILOTKIT_ENDPOINT = '/api/agent/copilotkit';
-const AZURE_OPENAI_API_VERSION = '2024-04-01-preview';
 const AGENT_MAX_STEPS = 5;
-const MODELS_REQUIRING_NO_REASONING_WITH_TOOLS = new Set(['gpt-5.6-terra']);
 
 let cachedHandler = null;
 
 function readEnv() {
-  const { AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPEN_AI_MODEL } =
-    process.env;
+  const { AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY } = process.env;
 
-  if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY || !AZURE_OPEN_AI_MODEL) {
+  if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY) {
     throw new Error(
-      'Missing Azure OpenAI configuration (AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_API_KEY / AZURE_OPEN_AI_MODEL).',
+      'Missing Azure OpenAI configuration (AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_API_KEY).',
     );
   }
 
   return {
     endpoint: AZURE_OPENAI_ENDPOINT.replace(/\/+$/, ''),
     apiKey: AZURE_OPENAI_API_KEY,
-    model: AZURE_OPEN_AI_MODEL,
   };
 }
 
-function buildAzureLanguageModel({ endpoint, apiKey, model }) {
-  const responses = usesResponsesApi(model);
+function buildAzureLanguageModel({ endpoint, apiKey }) {
   // Sol requires Responses for reasoning with function tools. Azure's v1
-  // endpoint selects the deployment through the model field in the body.
-  // Legacy deployments retain their deployment-based Chat Completions URL.
+  // endpoint selects the pinned deployment through the model field in the body.
   const azure = createAzure({
     baseURL: `${endpoint}/openai`,
     apiKey,
-    apiVersion: responses ? 'v1' : AZURE_OPENAI_API_VERSION,
-    useDeploymentBasedUrls: !responses,
+    apiVersion: 'v1',
+    useDeploymentBasedUrls: false,
   });
 
-  return responses ? azure.responses(model) : azure.chat(model);
-}
-
-function usesResponsesApi(model) {
-  return (
-    String(model || '')
-      .trim()
-      .toLowerCase() === 'gpt-6.1-sol'
-  );
-}
-
-function getReasoningEffort(model) {
-  const normalizedModel = String(model || '')
-    .trim()
-    .toLowerCase();
-
-  // Terra requires `none` for tool calls. Sol accepts low/medium/high/xhigh
-  // and rejects `none`; the legacy GPT-5.3 Chat deployment also uses medium.
-  return MODELS_REQUIRING_NO_REASONING_WITH_TOOLS.has(normalizedModel)
-    ? 'none'
-    : 'medium';
-}
-
-function getReasoningOptions(model) {
-  const options = { reasoningEffort: getReasoningEffort(model) };
-  if (usesResponsesApi(model)) {
-    // The installed AI SDK recognizes GPT-5 reasoning model names, but not
-    // GPT-6. Explicitly enable developer messages and reasoning token settings.
-    options.forceReasoning = true;
-    // Retain the stateless conversation behavior used by Chat Completions.
-    // The SDK requests encrypted reasoning so later tool steps can replay it.
-    options.store = false;
-  }
-
-  return options;
+  return azure.responses(AI_MODEL);
 }
 
 function buildAgent(cfg) {
@@ -126,11 +87,15 @@ function buildAgent(cfg) {
     // hook fires — the rest are silently dropped from the UI. Forcing
     // sequential tool calls makes each tool call land in its own
     // assistant message, so each gets its own rich UI render. Reasoning
-    // effort is chosen for the configured Azure deployment.
+    // effort is fixed for the pinned Sol deployment.
     providerOptions: {
       openai: {
         parallelToolCalls: false,
-        ...getReasoningOptions(cfg.model),
+        reasoningEffort: 'medium',
+        // The installed SDK does not recognize GPT-6 reasoning model names.
+        forceReasoning: true,
+        // Request encrypted reasoning for stateless tool-step continuations.
+        store: false,
       },
     },
   });
@@ -165,5 +130,4 @@ module.exports = {
   COPILOTKIT_ENDPOINT,
   getSystemPrompt,
   buildAgent,
-  getReasoningEffort,
 };

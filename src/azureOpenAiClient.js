@@ -12,7 +12,6 @@ function getAzureOpenAiClient() {
     client = new AzureOpenAI({
       AZURE_OPENAI_ENDPOINT: process.env.AZURE_OPENAI_ENDPOINT,
       AZURE_OPENAI_API_KEY: process.env.AZURE_OPENAI_API_KEY,
-      AZURE_OPEN_AI_MODEL: process.env.AZURE_OPEN_AI_MODEL,
       apiVersion: API_VERSION,
     });
   }

@@ -82,7 +82,7 @@ describe('handleAskCommand', () => {
 
     expect(isAdminMessage).toHaveBeenCalledWith(msgMock);
     expect(__createMock).toHaveBeenCalledWith({
-      model: undefined,
+      model: 'gpt-6.1-sol',
       messages: [
         { role: 'system', content: buildAskSystemPrompt(true) },
         { role: 'user', content: 'question' },
@@ -103,7 +103,7 @@ describe('handleAskCommand', () => {
 
     expect(isAdminMessage).toHaveBeenCalledWith(msgMock);
     expect(__createMock).toHaveBeenCalledWith({
-      model: undefined,
+      model: 'gpt-6.1-sol',
       messages: [
         { role: 'system', content: buildAskSystemPrompt(false) },
         { role: 'user', content: 'question' },

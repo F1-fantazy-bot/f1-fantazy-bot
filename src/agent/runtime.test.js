@@ -8,7 +8,6 @@ jest.mock('@copilotkit/runtime/v2', () => ({
 
 jest.mock('@ai-sdk/azure', () => ({
   createAzure: jest.fn(() => ({
-    chat: jest.fn(() => ({ modelId: 'test-model' })),
     responses: jest.fn(() => ({ modelId: 'test-model' })),
   })),
 }));
@@ -27,14 +26,13 @@ jest.mock('./tokenUsageMiddleware', () => ({
   createTokenUsageMiddleware: () => ({ specificationVersion: 'v3' }),
 }));
 
-const { buildAgent } = require('./runtime');
+const { buildAgent, getCopilotRuntimeHandler } = require('./runtime');
 const { createAzure } = require('@ai-sdk/azure');
 
 test('BuiltInAgent forwards hidden developer confirmation messages', () => {
   buildAgent({
     endpoint: 'https://example.openai.azure.com',
     apiKey: 'key',
-    model: 'deployment',
   });
 
   expect(mockBuiltInAgent).toHaveBeenCalledWith(
@@ -44,58 +42,10 @@ test('BuiltInAgent forwards hidden developer confirmation messages', () => {
   );
 });
 
-test.each(['gpt-5.3-chat'])(
-  'uses sequential tool calls with medium reasoning effort for %s',
-  (model) => {
-    buildAgent({
-      endpoint: 'https://example.openai.azure.com',
-      apiKey: 'key',
-      model,
-    });
-
-    expect(createAzure.mock.results.at(-1).value.chat).toHaveBeenCalledWith(
-      model,
-    );
-    expect(mockBuiltInAgent).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        providerOptions: {
-          openai: {
-            parallelToolCalls: false,
-            reasoningEffort: 'medium',
-          },
-        },
-      }),
-    );
-  },
-);
-
-test.each(['gpt-5.6-terra'])(
-  'uses sequential tool calls without reasoning effort for %s',
-  (model) => {
-    buildAgent({
-      endpoint: 'https://example.openai.azure.com',
-      apiKey: 'key',
-      model,
-    });
-
-    expect(mockBuiltInAgent).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        providerOptions: {
-          openai: {
-            parallelToolCalls: false,
-            reasoningEffort: 'none',
-          },
-        },
-      }),
-    );
-  },
-);
-
 test('Sol uses supported medium reasoning and explicit reasoning-model handling', () => {
   buildAgent({
     endpoint: 'https://example.openai.azure.com',
     apiKey: 'key',
-    model: 'gpt-6.1-sol',
   });
 
   expect(mockBuiltInAgent).toHaveBeenLastCalledWith(
@@ -111,6 +61,36 @@ test('Sol uses supported medium reasoning and explicit reasoning-model handling'
     }),
   );
 });
+
+test.each([undefined, 'incompatible-deployment'])(
+  'pins the agent model when the old model environment setting is %s',
+  (oldModel) => {
+    const originalEnv = process.env;
+    process.env = {
+      ...originalEnv,
+      AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com/',
+      AZURE_OPENAI_API_KEY: 'test-key',
+    };
+    delete process.env.AZURE_OPEN_AI_MODEL;
+    if (oldModel) {
+      process.env.AZURE_OPEN_AI_MODEL = oldModel;
+    }
+    try {
+      getCopilotRuntimeHandler();
+      expect(createAzure).toHaveBeenLastCalledWith({
+        baseURL: 'https://example.openai.azure.com/openai',
+        apiKey: 'test-key',
+        apiVersion: 'v1',
+        useDeploymentBasedUrls: false,
+      });
+      expect(
+        createAzure.mock.results.at(-1).value.responses,
+      ).toHaveBeenCalledWith('gpt-6.1-sol');
+    } finally {
+      process.env = originalEnv;
+    }
+  },
+);
 
 test('the real Azure provider serializes Sol reasoning settings with tools', async () => {
   const fetch = jest.fn(
@@ -142,7 +122,6 @@ test('the real Azure provider serializes Sol reasoning settings with tools', asy
   const agent = buildAgent({
     endpoint: 'https://example.openai.azure.com',
     apiKey: 'test-key',
-    model: 'gpt-6.1-sol',
   });
 
   await agent.config.model.doGenerate({
@@ -291,7 +270,6 @@ test('the real CopilotKit agent completes a streamed Responses tool round trip',
   const agent = buildAgent({
     endpoint: 'https://example.openai.azure.com',
     apiKey: 'test-key',
-    model: 'gpt-6.1-sol',
   });
   const events = [];
   await new Promise((resolve, reject) =>
