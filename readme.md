@@ -96,7 +96,7 @@ A **web-chat agent** (preview) provides a second channel for the same functional
    # Azure OpenAI Configuration
    AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint
    AZURE_OPENAI_API_KEY=your_azure_openai_api_key
-   AZURE_OPEN_AI_MODEL=your_azure_openai_model_deployment_name
+   AZURE_OPEN_AI_MODEL=gpt-6.1-sol
 
    # Azure Storage Configuration
    AZURE_STORAGE_CONNECTION_STRING=your_azure_storage_connection_string
@@ -119,7 +119,7 @@ A **web-chat agent** (preview) provides a second channel for the same functional
 
    - **Telegram Bot Token**: Go to [@BotFather](https://t.me/botfather) and follow the instructions to create a new bot. This token will be your test token for local development.
 
-   - **Azure OpenAI**: Get your endpoint, API key, and model deployment name from the [Azure AI portal](https://ai.azure.com/).
+   - **Azure OpenAI**: Get your endpoint and API key from the [Azure AI portal](https://ai.azure.com/). The general model deployment is `gpt-6.1-sol`; race summaries use the separate `gpt-6-astra` deployment.
 
    - **Azure Storage**: Create a storage account in Azure and get the connection string from the portal. Create a container for the bot's data storage.
 

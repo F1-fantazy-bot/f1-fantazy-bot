@@ -94,7 +94,7 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
 Required environment variables (see `readme.md` for full list):
 
 - Telegram: `TELEGRAM_BOT_TOKEN`
-- Azure OpenAI: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPEN_AI_MODEL`
+- Azure OpenAI: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPEN_AI_MODEL`. The general deployment is `gpt-6.1-sol`, configured by the agent ARM defaults/settings script and both Telegram deployment workflows. Race summaries remain pinned to `gpt-6-astra` in the shared service.
 - Azure Storage: `AZURE_STORAGE_CONNECTION_STRING`, `AZURE_STORAGE_CONTAINER_NAME`
   - **Note:** `AZURE_STORAGE_CONNECTION_STRING` is also used by the Pending Reply Manager and User Registry Service for Azure Table Storage (no additional env var needed).
 - Azure Management API for billing and manual Logic App triggers: `AZURE_SUBSCRIPTION_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`
@@ -1418,7 +1418,7 @@ unbounded UserRegistry read to the login path.
 |---|---|---|
 | `AZURE_OPENAI_ENDPOINT` | Agent | Azure OpenAI host (works for both `*.openai.azure.com` and `*.services.ai.azure.com`). |
 | `AZURE_OPENAI_API_KEY` | Agent | Azure OpenAI auth. |
-| `AZURE_OPEN_AI_MODEL` | Agent + Telegram `/ask` | Deployment name (used by `azure.chat(deployment)`). |
+| `AZURE_OPEN_AI_MODEL` | Agent + Telegram `/ask` + JSON extraction | General deployment name: `gpt-6.1-sol` (used by `azure.chat(deployment)` for the agent, with medium reasoning and sequential tool calls). Race summaries use their own pinned `gpt-6-astra` deployment. |
 | `AGENT_HARDCODED_CHAT_ID` | Agent | Fallback identity used when no per-request context is active (local dev + cache bootstrap). On Azure-deployed slots both prod + test set `GOOGLE_CLIENT_ID`, so the hardcoded path is unreachable from user traffic — it survives as a local-dev fallback only. The LLM never sees it. Defaults to `KILZI_CHAT_ID` in `scripts/dev-agent-server.js` if absent. |
 | `GOOGLE_CLIENT_ID` | Agent | OAuth 2.0 Web client ID. NOT a secret — safe in app settings. Set on BOTH Azure slots (production + test). When the agent webhook sees a valid bearer it enforces Google sign-in + allowlist lookup on every POST. When unset (local dev only), auth is bypassed and `AGENT_HARDCODED_CHAT_ID` is used instead. |
 | `VITE_GOOGLE_CLIENT_ID` | SWA build env | Same client ID, baked into the bundle by both the prod SWA workflow AND the PR/staging workflow. Unset at build time = chat renders without auth gate (local dev only). |
