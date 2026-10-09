@@ -92,19 +92,19 @@ export function isWriteResult(value: unknown): value is WriteResult {
   return isKnownStatus(status);
 }
 
-export function WriteResultCard({ result }: { result: WriteResult }) {
+export function WriteResultCard({ result, historical = false }: { result: WriteResult; historical?: boolean }) {
   const { setLang } = useUiLanguage();
   const status = isKnownStatus(result.status) ? result.status : 'ok';
   const style = STATUS_STYLES[status];
   const isHebrew = result.uiLang === 'he';
   useEffect(() => {
-    if (result.uiLang === 'he' || result.uiLang === 'en') {
+    if (!historical && (result.uiLang === 'he' || result.uiLang === 'en')) {
       setLang(result.uiLang);
     }
-  }, [result.uiLang, setLang]);
+  }, [result.uiLang, setLang, historical]);
   useEffect(() => {
     if (
-      result.status === 'ok' &&
+      !historical && result.status === 'ok' &&
       result.tool === 'select_team' &&
       typeof result.teamId === 'string'
     ) {
@@ -114,7 +114,7 @@ export function WriteResultCard({ result }: { result: WriteResult }) {
         }),
       );
     }
-  }, [result.status, result.teamId, result.tool]);
+  }, [result.status, result.teamId, result.tool, historical]);
   const titles: Record<WriteResultStatus, string> = isHebrew
     ? {
         ok: 'בוצע',

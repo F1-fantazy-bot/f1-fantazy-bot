@@ -1,4 +1,5 @@
 import { WorkflowCard } from './WorkflowCard';
+import { LanguageCard } from './LanguageCard';
 import { UiLanguageProvider } from './uiLanguage';
 import { BestTeamChangesCard } from './BestTeamChangesCard';
 import { act, type ReactElement } from 'react';
@@ -93,6 +94,7 @@ describe('all rich components honor Hebrew ui language', () => {
     element: ReactElement;
     expected: string[];
   }> = [
+    { name: 'saved language', element: <LanguageCard result={{ lang: 'he' }} />, expected: ['השפה השמורה', 'עברית'] },
     {
       name: 'action choices',
       element: <ActionChoicesCard result={{ status: 'selection_required', lang: 'he', choice: 'league', options: [{ label: 'הליגה שלי', action: 'get_live_score_for_team', args: { leagueCode: 'USER-CODE' } }] }} />,

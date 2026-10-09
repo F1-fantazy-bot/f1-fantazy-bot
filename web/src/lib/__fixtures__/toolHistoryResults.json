@@ -1,0 +1,837 @@
+{
+  "get_agent_guide": {
+    "status": "ok",
+    "lang": "he",
+    "title": "עמדת הפיקוד שלך",
+    "intro": "אפשר לשאול באופן טבעי.",
+    "profile": {
+      "teamCount": 1,
+      "followedTeamCount": 1,
+      "leagueCount": 1,
+      "hasProjectionData": true
+    },
+    "recommendations": [],
+    "sections": [
+      {
+        "topic": "teams",
+        "tasks": [
+          {
+            "id": "optimize_team",
+            "topic": "teams",
+            "icon": "🏆",
+            "title": "שפר את הקבוצה שלך",
+            "description": "השווה הרכבים.",
+            "example": "הצג קבוצות מומלצות"
+          }
+        ]
+      }
+    ],
+    "notices": []
+  },
+  "get_next_races": {
+    "lang": "he",
+    "season": "2026",
+    "races": [
+      {
+        "round": "1",
+        "raceName": "Australian Grand Prix",
+        "date": "2026-03-08"
+      }
+    ],
+    "counts": {
+      "total": 1,
+      "sprint": 0
+    }
+  },
+  "list_user_teams": {
+    "lang": "he",
+    "teams": [
+      {
+        "teamId": "T1",
+        "teamName": "Kilzid",
+        "isLeague": false,
+        "isSelected": true,
+        "chip": null,
+        "drivers": [
+          "VER"
+        ],
+        "constructors": [
+          "MCL"
+        ],
+        "boost": "VER",
+        "freeTransfers": 2,
+        "costCapRemaining": 1.2
+      }
+    ]
+  },
+  "list_followed_teams": {
+    "lang": "he",
+    "status": "ok",
+    "teams": [
+      {
+        "teamId": "T1",
+        "teamName": "Kilzid",
+        "isSelected": true,
+        "leagues": [
+          {
+            "leagueCode": "ABC",
+            "leagueName": "Test",
+            "position": 2
+          }
+        ]
+      }
+    ]
+  },
+  "get_leaderboard": {
+    "lang": "he",
+    "status": "ok",
+    "leagueName": "Test",
+    "memberCount": 1,
+    "standings": [
+      {
+        "position": 1,
+        "teamName": "Kilzid",
+        "userName": null,
+        "teamNo": 1,
+        "teamId": "T1",
+        "totalScore": 100,
+        "gapToLeader": 0,
+        "isSelected": true
+      }
+    ]
+  },
+  "get_league_changes": {
+    "lang": "he",
+    "status": "ok",
+    "leagueName": "ליגת בדיקה",
+    "matchdayId": 7,
+    "changedTeams": [
+      {
+        "teamName": "Kilzid",
+        "userName": "Kilzid",
+        "position": 1,
+        "isNew": false,
+        "hasChanges": true,
+        "drivers": {
+          "in": [
+            "LEC"
+          ],
+          "out": [
+            "HAM"
+          ]
+        },
+        "constructors": {
+          "in": [
+            "FER"
+          ],
+          "out": [
+            "MER"
+          ]
+        },
+        "captain": {
+          "from": "NOR",
+          "to": "LEC"
+        },
+        "megaCaptain": null,
+        "chipsActivated": [],
+        "transferPenalty": 10
+      }
+    ],
+    "unchangedTeams": []
+  },
+  "get_league_graph": {
+    "status": "ok",
+    "lang": "he",
+    "leagueCode": "ABC",
+    "leagueName": "ליגת בדיקה",
+    "graphType": "gap",
+    "matchdays": [
+      {
+        "key": "matchday_1",
+        "matchdayId": 1,
+        "label": "בחריין"
+      }
+    ],
+    "series": [
+      {
+        "teamId": "T1",
+        "teamName": "הקבוצה שלי",
+        "userName": "owner",
+        "teamNo": 1,
+        "position": 1,
+        "color": "#e6194b",
+        "isSelected": true,
+        "points": [
+          {
+            "matchdayId": 1,
+            "label": "בחריין",
+            "value": 0,
+            "chip": null
+          }
+        ]
+      }
+    ]
+  },
+  "get_race_summary": {
+    "status": "ok",
+    "lang": "he",
+    "leagueName": "ליגת בדיקה",
+    "raceName": "גרנד פרי סין",
+    "raceNumber": 2,
+    "summary": "🏁 ליגת בדיקה — גרנד פרי סין — מרוץ 2\n\n🏆 מנצחים ומפסידים\nהקבוצה Rocket ניצחה.\n\n🔧 הבדלי קבוצות\nההרכבים היו שונים.\n\n📈 מגמות עונה\nהצמרת התהפכה.\n\n🎭 סיפורים\nהוויילדקארד הגיע בזמן."
+  },
+  "get_whats_new": {
+    "status": "ok",
+    "lang": "he",
+    "announcement": {
+      "createdAt": "2026-04-29T07:58:42Z",
+      "version": "wow",
+      "text": "עדכון *חדש*\n\n- אפשר לעקוב אחרי ליגה"
+    }
+  },
+  "get_simulation_status": {
+    "status": "ok",
+    "lang": "he",
+    "source": {
+      "kind": "simulation",
+      "name": "תחזית מונזה"
+    },
+    "matchday": 16,
+    "freshness": {
+      "status": "fresh",
+      "updatedAtLocal": "2 בספט׳ 2026, 14:00"
+    },
+    "available": {
+      "drivers": 22,
+      "constructors": 11
+    },
+    "projections": {
+      "drivers": [
+        {
+          "code": "VER",
+          "expectedPoints": 25
+        }
+      ],
+      "constructors": [
+        {
+          "code": "MCL",
+          "expectedPoints": 30
+        }
+      ]
+    }
+  },
+  "get_admin_version": {
+    "status": "ok",
+    "lang": "he",
+    "version": {
+      "commitId": "abc123",
+      "commitMessage": "עדכון מנהלים",
+      "commitLink": "https://example.test/commit"
+    }
+  },
+  "get_billing_stats": {
+    "status": "ok",
+    "lang": "he",
+    "billing": {
+      "currentMonth": {
+        "hasData": true,
+        "totalCost": 12.5,
+        "period": {
+          "monthName": "ספטמבר",
+          "year": 2026
+        },
+        "services": [
+          {
+            "serviceName": "Functions",
+            "cost": 12.5,
+            "currency": "USD"
+          }
+        ]
+      },
+      "previousMonth": {
+        "hasData": false
+      },
+      "comparison": null
+    }
+  },
+  "list_bot_users": {
+    "status": "ok",
+    "lang": "he",
+    "directory": {
+      "totalCount": 1,
+      "displayedCount": 1,
+      "users": [
+        {
+          "chatId": "7",
+          "nickname": "פול",
+          "lang": "he"
+        }
+      ]
+    },
+    "selection": {
+      "mode": "send_user_message",
+      "message": "עדכון חשוב"
+    }
+  },
+  "list_web_users": {
+    "status": "ok",
+    "lang": "he",
+    "directory": {
+      "totalCount": 1,
+      "displayedCount": 1,
+      "users": [
+        {
+          "email": "admin@example.com",
+          "chatId": "7",
+          "linkedDisplay": "פול"
+        }
+      ]
+    }
+  },
+  "get_botfather_setup": {
+    "status": "ok",
+    "lang": "he",
+    "setup": {
+      "totalCount": 1,
+      "displayedCount": 1,
+      "commands": [
+        {
+          "command": "help",
+          "description": "עזרה"
+        }
+      ]
+    }
+  },
+  "get_data_status": {
+    "status": "incomplete",
+    "lang": "he",
+    "source": "simulation",
+    "simulation": {
+      "status": "ok",
+      "name": "תחזית מונזה",
+      "matchday": 16,
+      "freshness": {
+        "status": "stale"
+      }
+    },
+    "projections": {
+      "drivers": 22,
+      "constructors": 11,
+      "available": true
+    },
+    "teams": {
+      "ownedCount": 2,
+      "selected": null,
+      "hasSelectedTeam": false
+    },
+    "missingPrerequisites": [
+      "selected_team"
+    ],
+    "nextActions": [
+      "select_team"
+    ],
+    "cache": {
+      "projections": {
+        "drivers": [
+          {
+            "code": "VER",
+            "expectedPoints": 25
+          }
+        ],
+        "constructors": [
+          {
+            "code": "MCL",
+            "expectedPoints": 30
+          }
+        ]
+      },
+      "teams": [
+        {
+          "teamId": "T1",
+          "teamName": "קילזי",
+          "isSelected": true,
+          "drivers": [
+            "VER"
+          ],
+          "constructors": [
+            "MCL"
+          ]
+        }
+      ]
+    }
+  },
+  "get_best_team_scenarios": {
+    "lang": "he",
+    "status": "ok",
+    "teamName": "Kilzid",
+    "scenarios": [
+      {
+        "ppm": 0,
+        "ppmLabel": "Pure Points",
+        "results": [
+          {
+            "chipKey": "EXTRA_BOOST",
+            "chipLabel": "Without Chip",
+            "projectedPoints": 100,
+            "expectedPriceChange": 1,
+            "recommendation": null
+          }
+        ]
+      }
+    ]
+  },
+  "get_race_weather": {
+    "lang": "he",
+    "status": "ok",
+    "raceName": "Italian Grand Prix",
+    "sessions": [
+      {
+        "key": "race",
+        "label": "Race",
+        "startsAt": "2026-09-06T13:00:00.000Z",
+        "hours": [],
+        "forecasts": []
+      }
+    ]
+  },
+  "get_deadline": {
+    "lang": "he",
+    "status": "ok",
+    "raceName": "Italian Grand Prix",
+    "sessionType": "qualifying",
+    "alreadyStarted": true
+  },
+  "get_current_team": {
+    "lang": "he",
+    "status": "ok",
+    "teamId": "T1",
+    "teamName": "Kilzid",
+    "chip": "EXTRA_BOOST",
+    "drivers": [
+      "VER"
+    ],
+    "constructors": [
+      "MCL"
+    ],
+    "teamInfo": {
+      "totalPrice": 100,
+      "teamExpectedPoints": 50
+    }
+  },
+  "get_live_score_for_team": {
+    "lang": "he",
+    "status": "ok",
+    "leagueName": "Test",
+    "teamName": "Kilzid",
+    "matchdayId": 1,
+    "breakdown": {
+      "totalPoints": 10,
+      "totalPriceChange": 1,
+      "driverBreakdown": [
+        {
+          "code": "VER",
+          "points": 10
+        }
+      ]
+    }
+  },
+  "get_live_score_leaderboard": {
+    "lang": "he",
+    "status": "ok",
+    "leagueName": "Test",
+    "matchdayId": 1,
+    "rows": [
+      {
+        "teamId": "T1",
+        "teamName": "Kilzid",
+        "totalPoints": 10,
+        "totalPriceChange": 1,
+        "isSelected": true
+      }
+    ]
+  },
+  "get_best_team_changes": {
+    "status": "ok",
+    "lang": "he",
+    "row": 1,
+    "noChanges": true
+  },
+  "get_next_race_info": {
+    "status": "ok",
+    "lang": "he",
+    "raceName": "Italian Grand Prix",
+    "circuitName": "Monza",
+    "location": {
+      "locality": "Monza",
+      "country": "Italy"
+    },
+    "weekendFormat": "regular",
+    "isSprintWeekend": false,
+    "sessions": {
+      "qualifying": "2026-09-05T14:00:00.000Z",
+      "race": "2026-09-06T13:00:00.000Z"
+    },
+    "weather": {
+      "qualifyingWeather": {
+        "temperature": 26,
+        "precipitation": 5,
+        "wind": 3
+      },
+      "raceWeather": {
+        "temperature": 29,
+        "precipitation": 10,
+        "wind": 2
+      }
+    },
+    "historicalRaceStats": [
+      {
+        "season": 2025,
+        "polePosition": "Max Verstappen",
+        "winner": "Max Verstappen",
+        "constructor": "Red Bull",
+        "carsFinished": 18
+      }
+    ],
+    "trackHistory": [
+      {
+        "lang": "en",
+        "text": "English track history."
+      },
+      {
+        "lang": "he",
+        "text": "היסטוריית מסלול בעברית."
+      }
+    ]
+  },
+  "get_language": {
+    "lang": "he"
+  },
+  "list_user_leagues": {
+    "lang": "he",
+    "leagues": [
+      {
+        "leagueCode": "ABC",
+        "leagueName": "ליגת בדיקה"
+      }
+    ]
+  },
+  "list_league_teams": {
+    "status": "ok",
+    "lang": "he",
+    "leagueCode": "ABC",
+    "leagueName": "ליגת בדיקה",
+    "teams": [
+      {
+        "teamId": "T1",
+        "teamName": "Kilzid",
+        "position": 1,
+        "isSelected": true
+      }
+    ]
+  },
+  "get_best_teams": {
+    "status": "ok",
+    "lang": "he",
+    "teamId": "T1",
+    "teamName": "Kilzid",
+    "chip": null,
+    "rankBy": "points",
+    "budgetChangePointsPerMillion": 0,
+    "calculationId": "calculation-fixture",
+    "filters": {
+      "mustIncludeDrivers": [],
+      "mustExcludeDrivers": [],
+      "mustIncludeConstructors": [],
+      "mustExcludeConstructors": []
+    },
+    "bestTeams": [
+      {
+        "row": 1,
+        "drivers": [
+          "VER"
+        ],
+        "constructors": [
+          "FER"
+        ],
+        "boostDriver": "VER",
+        "extraBoostDriver": null,
+        "totalPrice": 99,
+        "transfersNeeded": 1,
+        "penalty": 0,
+        "projectedPoints": 150,
+        "budgetAdjustedPoints": null,
+        "expectedPriceChange": 1
+      }
+    ]
+  },
+  "get_action_choices": {
+    "status": "selection_required",
+    "lang": "he",
+    "choice": "team",
+    "options": [
+      {
+        "label": "Kilzid",
+        "action": "get_current_team",
+        "args": {
+          "teamId": "T1"
+        }
+      }
+    ]
+  },
+  "set_language": {
+    "status": "ok",
+    "tool": "set_language",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "select_team": {
+    "status": "ok",
+    "tool": "select_team",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "set_best_team_ranking": {
+    "status": "ok",
+    "tool": "set_best_team_ranking",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "activate_chip": {
+    "status": "ok",
+    "tool": "activate_chip",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "follow_league": {
+    "status": "ok",
+    "tool": "follow_league",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "unfollow_league": {
+    "status": "ok",
+    "tool": "unfollow_league",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "follow_team": {
+    "status": "ok",
+    "tool": "follow_team",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "report_bug": {
+    "status": "ok",
+    "tool": "report_bug",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "load_latest_simulation": {
+    "status": "ok",
+    "tool": "load_latest_simulation",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "reset_user_data": {
+    "status": "ok",
+    "tool": "reset_user_data",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "set_user_nickname": {
+    "status": "ok",
+    "tool": "set_user_nickname",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "allow_web_user": {
+    "status": "ok",
+    "tool": "allow_web_user",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "revoke_web_user": {
+    "status": "ok",
+    "tool": "revoke_web_user",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "send_user_message": {
+    "status": "ok",
+    "tool": "send_user_message",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "broadcast_message": {
+    "status": "ok",
+    "tool": "broadcast_message",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "trigger_scraping": {
+    "status": "ok",
+    "tool": "trigger_scraping",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "trigger_api_data": {
+    "status": "ok",
+    "tool": "trigger_api_data",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "trigger_api_data_locked": {
+    "status": "ok",
+    "tool": "trigger_api_data_locked",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "trigger_next_race_info": {
+    "status": "ok",
+    "tool": "trigger_next_race_info",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "trigger_live_score_scheduler": {
+    "status": "ok",
+    "tool": "trigger_live_score_scheduler",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "confirm_write": {
+    "status": "ok",
+    "tool": "confirm_write",
+    "uiLang": "he",
+    "summary": "הפעולה הושלמה בהצלחה."
+  },
+  "propose_workflow": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "revision": 1,
+    "createdAt": 1,
+    "state": "completed",
+    "request": "בדיקת הכרטיס",
+    "steps": [
+      {
+        "id": "read",
+        "tool": "get_next_race_info",
+        "summary": "מידע על המרוץ",
+        "state": "completed",
+        "write": false,
+        "result": {
+          "status": "ok",
+          "lang": "he",
+          "raceName": "Italian Grand Prix",
+          "circuitName": "Monza",
+          "location": {
+            "locality": "Monza",
+            "country": "Italy"
+          },
+          "weekendFormat": "regular",
+          "isSprintWeekend": false,
+          "sessions": {
+            "qualifying": "2026-09-05T14:00:00.000Z",
+            "race": "2026-09-06T13:00:00.000Z"
+          },
+          "weather": {
+            "qualifyingWeather": {
+              "temperature": 26,
+              "precipitation": 5,
+              "wind": 3
+            },
+            "raceWeather": {
+              "temperature": 29,
+              "precipitation": 10,
+              "wind": 2
+            }
+          },
+          "historicalRaceStats": [
+            {
+              "season": 2025,
+              "polePosition": "Max Verstappen",
+              "winner": "Max Verstappen",
+              "constructor": "Red Bull",
+              "carsFinished": 18
+            }
+          ],
+          "trackHistory": [
+            {
+              "lang": "en",
+              "text": "English track history."
+            },
+            {
+              "lang": "he",
+              "text": "היסטוריית מסלול בעברית."
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "get_workflow_status": {
+    "workflows": [
+      {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "revision": 1,
+        "createdAt": 1,
+        "state": "completed",
+        "request": "בדיקת הכרטיס",
+        "steps": [
+          {
+            "id": "read",
+            "tool": "get_next_race_info",
+            "summary": "מידע על המרוץ",
+            "state": "completed",
+            "write": false,
+            "result": {
+              "status": "ok",
+              "lang": "he",
+              "raceName": "Italian Grand Prix",
+              "circuitName": "Monza",
+              "location": {
+                "locality": "Monza",
+                "country": "Italy"
+              },
+              "weekendFormat": "regular",
+              "isSprintWeekend": false,
+              "sessions": {
+                "qualifying": "2026-09-05T14:00:00.000Z",
+                "race": "2026-09-06T13:00:00.000Z"
+              },
+              "weather": {
+                "qualifyingWeather": {
+                  "temperature": 26,
+                  "precipitation": 5,
+                  "wind": 3
+                },
+                "raceWeather": {
+                  "temperature": 29,
+                  "precipitation": 10,
+                  "wind": 2
+                }
+              },
+              "historicalRaceStats": [
+                {
+                  "season": 2025,
+                  "polePosition": "Max Verstappen",
+                  "winner": "Max Verstappen",
+                  "constructor": "Red Bull",
+                  "carsFinished": 18
+                }
+              ],
+              "trackHistory": [
+                {
+                  "lang": "en",
+                  "text": "English track history."
+                },
+                {
+                  "lang": "he",
+                  "text": "היסטוריית מסלול בעברית."
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

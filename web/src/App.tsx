@@ -38,6 +38,7 @@ import { useLiveScoreLeaderboardAction } from './components/LiveScoreLeaderboard
 import { useUserLeaguesAction } from './components/UserLeaguesAction';
 import { useLeagueTeamsAction } from './components/LeagueTeamsAction';
 import { useAgentGuideAction } from './components/AgentGuideCard';
+import { useLanguageAction } from './components/LanguageCard';
 import {
   useAdminVersionAction,
   useBillingStatsAction,
@@ -88,6 +89,7 @@ function AgentActions() {
   useUserLeaguesAction();
   useLeagueTeamsAction();
   useAgentGuideAction();
+  useLanguageAction();
   useAdminVersionAction();
   useBillingStatsAction();
   useBotUsersAction();

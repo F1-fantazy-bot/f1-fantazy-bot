@@ -4,6 +4,7 @@ import {
   useMemo,
   type ReactNode,
 } from 'react';
+import { DIRECT_CARD_PROPOSAL_EVENT, saveCardDecision } from '../lib/chatHistoryStore';
 
 export type WriteDecision =
   | 'approve'
@@ -117,6 +118,12 @@ export async function requestWriteDecision({
     );
   }
 
+  if (decision === 'cancel' || decision === 'revoke') {
+    saveCardDecision(writeNonce, decision === 'cancel' ? 'cancelled' : 'revoked');
+  } else if (decision === 'approve_and_confirm') {
+    saveCardDecision(writeNonce, 'confirmed', body as Record<string, unknown>);
+  }
+
   return body;
 }
 
@@ -152,6 +159,10 @@ export async function requestWriteProposal({
       body?.message || 'Unable to prepare this change. Please try again.',
     );
   }
+
+  window.dispatchEvent(new CustomEvent(DIRECT_CARD_PROPOSAL_EVENT, {
+    detail: { tool, args, result: body },
+  }));
 
   return body;
 }

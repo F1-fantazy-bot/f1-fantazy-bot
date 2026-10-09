@@ -6,6 +6,9 @@ import {
   saveWorkflowPromptIds,
   setHistoryScope,
   toStoredMessages,
+  clear,
+  loadReadCards,
+  saveReadCards,
 } from './chatHistoryStore';
 
 describe('chatHistoryStore internal-message filtering', () => {
@@ -41,6 +44,75 @@ describe('chatHistoryStore internal-message filtering', () => {
         content: 'Language changed to English.',
       },
     ]);
+  });
+});
+
+describe('read-card display persistence', () => {
+  const conversation = (name = 'get_next_race_info', result: unknown = { status: 'ok', raceName: 'Singapore' }): Message[] => [
+    { id: 'prompt', role: 'user', content: 'Next race' },
+    { id: 'call', role: 'assistant', toolCalls: [{ id: 'tool-call', type: 'function', function: { name, arguments: '{}' } }] },
+    { id: 'result', role: 'tool', toolCallId: 'tool-call', content: JSON.stringify(result) },
+  ];
+  afterEach(() => { setHistoryScope(null); window.localStorage.clear(); });
+
+  test('persists every registered result category and ignores unregistered tools', () => {
+    for (const name of ['confirm_write', 'activate_chip', 'get_action_choices', 'propose_workflow', 'list_web_users']) {
+      saveReadCards(conversation(name, { status: 'ok', writeNonce: 'secret' }));
+      expect(loadReadCards()).toHaveLength(1);
+    }
+    for (const status of ['confirmation_required', 'tool_error', 'selection_required']) {
+      saveReadCards(conversation('get_next_race_info', { status }));
+      expect(loadReadCards()).toHaveLength(1);
+    }
+    window.localStorage.clear();
+    saveReadCards(conversation('unknown_tool', { status: 'ok' }));
+    expect(loadReadCards()).toEqual([]);
+    saveReadCards(conversation());
+    expect(loadReadCards()).toEqual([{ id: 'tool-call', promptId: 'prompt', tool: 'get_next_race_info', result: { status: 'ok', raceName: 'Singapore' } }]);
+  });
+
+  test('preserves snapshots after restoring text and isolates accounts and clear/sign-out', () => {
+    setHistoryScope('first');
+    saveReadCards(conversation());
+    saveReadCards(conversation().slice(0, 1));
+    expect(loadReadCards()).toHaveLength(1);
+    setHistoryScope('second');
+    expect(loadReadCards()).toEqual([]);
+    setHistoryScope('first');
+    expect(loadReadCards()).toHaveLength(1);
+    clear();
+    expect(loadReadCards()).toEqual([]);
+  });
+
+  test.each([
+    ['list_followed_teams', { status: 'ok', lang: 'he', teams: [{ teamId: 'team-1', teamName: 'Kilzid', isSelected: true, leagues: [] }] }],
+    ['list_followed_teams', { status: 'empty', lang: 'he' }],
+    ['list_user_teams', { lang: 'he', teams: [] }],
+  ])('preserves the read-only %s result across text-only restoration', (tool, result) => {
+    saveReadCards(conversation(tool, result));
+    saveReadCards(conversation(tool, result).slice(0, 1));
+    expect(loadReadCards()).toEqual([{ id: 'tool-call', promptId: 'prompt', tool, result }]);
+  });
+
+  test.each([
+    ['list_user_teams', { teams: [], mode: 'workflow_discovery' }],
+    ['list_user_teams', null],
+    ['list_user_teams', []],
+  ])('excludes internal or malformed %s results', (tool, result) => {
+    saveReadCards(conversation(tool, result));
+    expect(loadReadCards()).toEqual([]);
+  });
+
+  test('drops snapshots whose originating prompt was trimmed and rejects malformed or oversized caches', () => {
+    saveReadCards(conversation());
+    saveReadCards(Array.from({ length: 21 }, (_, i) => ({ id: `prompt-${i}`, role: 'user', content: 'Next race' })));
+    expect(loadReadCards()).toEqual([]);
+    saveReadCards(conversation('get_next_race_info', { status: 'ok', text: 'א'.repeat(2 * 1024 * 1024) }));
+    expect(loadReadCards()).toEqual([]);
+    window.localStorage.setItem('f1-fantasy-agent-history::read-cards', '{broken');
+    expect(loadReadCards()).toEqual([]);
+    window.localStorage.setItem('f1-fantasy-agent-history::read-cards', JSON.stringify({ version: 1, cards: [{ id: 'id' }] }));
+    expect(loadReadCards()).toEqual([]);
   });
 });
 
