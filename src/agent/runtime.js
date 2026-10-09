@@ -26,16 +26,16 @@ const { createTokenUsageMiddleware } = require('./tokenUsageMiddleware');
 const COPILOTKIT_ENDPOINT = '/api/agent/copilotkit';
 const AZURE_OPENAI_API_VERSION = '2024-04-01-preview';
 const AGENT_MAX_STEPS = 5;
-const MODELS_REQUIRING_NO_REASONING_WITH_TOOLS = new Set(['gpt-5.6-terra']);
+const MODELS_REQUIRING_NO_REASONING_WITH_TOOLS = new Set([
+  'gpt-5.6-terra',
+  'gpt-6.1-sol',
+]);
 
 let cachedHandler = null;
 
 function readEnv() {
-  const {
-    AZURE_OPENAI_ENDPOINT,
-    AZURE_OPENAI_API_KEY,
-    AZURE_OPEN_AI_MODEL,
-  } = process.env;
+  const { AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPEN_AI_MODEL } =
+    process.env;
 
   if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY || !AZURE_OPEN_AI_MODEL) {
     throw new Error(
@@ -67,12 +67,13 @@ function buildAzureLanguageModel({ endpoint, apiKey, model }) {
 }
 
 function getReasoningEffort(model) {
-  const normalizedModel = String(model || '').trim().toLowerCase();
+  const normalizedModel = String(model || '')
+    .trim()
+    .toLowerCase();
 
-  // GPT-5.6 Terra's Chat Completions endpoint rejects a reasoning effort when
-  // function tools are present, while the local GPT-5.3 Chat deployment
-  // rejects `none` and requires `medium`. The Azure deployment name is the
-  // model identifier available at this layer.
+  // Keep Sol tool calls on the non-reasoning path used by the previous Terra
+  // deployment. The legacy GPT-5.3 Chat deployment rejects `none` and requires
+  // `medium`. The Azure deployment name identifies the model at this layer.
   return MODELS_REQUIRING_NO_REASONING_WITH_TOOLS.has(normalizedModel)
     ? 'none'
     : 'medium';

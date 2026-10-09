@@ -22,11 +22,13 @@
 // because a Telegram send error MUST NOT break the LLM stream the
 // CopilotKit runtime is piping back to the browser.
 
-const { sendLogMessage } = require('../utils/utils');
+const { sendLogMessage, sendErrorMessage } = require('../utils/utils');
 const { getRequestContext } = require('./requestContext');
 
 function safeTotal(field) {
-  if (!field || typeof field !== 'object') {return 0;}
+  if (!field || typeof field !== 'object') {
+    return 0;
+  }
   const value = field.total;
 
   return Number.isFinite(value) ? value : 0;
@@ -38,6 +40,30 @@ function formatLine({ modelId, step, prompt, completion, total, email }) {
   return `Agent step usage — model: ${modelId}, step: ${step}, prompt: ${prompt}, completion: ${completion}, total: ${total}${tail}`;
 }
 
+function reportModelError(bot, modelId, error) {
+  if (error?.name === 'AbortError') {
+    return;
+  }
+  const detail = String(error?.message || error || 'Unknown model error').slice(
+    0,
+    1500,
+  );
+  const status = Number.isInteger(error?.statusCode)
+    ? `, status: ${error.statusCode}`
+    : '';
+  const email = (getRequestContext() || {}).email;
+  const line = `Agent model error — model: ${modelId}${status}, error: ${detail}${email ? `\nemail: ${email}` : ''}`;
+  // Report only the message/status, never the SDK error's request body or headers.
+  console.error(`AGENT: ${line}`);
+  try {
+    Promise.resolve(sendErrorMessage(bot, line)).catch((err) => {
+      console.error('AGENT: model error log failed:', err);
+    });
+  } catch (err) {
+    console.error('AGENT: model error log threw synchronously:', err);
+  }
+}
+
 // `bot` is supplied by the runtime when the middleware is constructed so
 // that tests can inject a mock notifier bot.
 function createTokenUsageMiddleware({ bot }) {
@@ -46,10 +72,19 @@ function createTokenUsageMiddleware({ bot }) {
     wrapStream: async ({ doStream, model }) => {
       const modelId = model && model.modelId ? model.modelId : 'unknown';
       let stepIndex = 0;
-      const result = await doStream();
+      let result;
+      try {
+        result = await doStream();
+      } catch (error) {
+        reportModelError(bot, modelId, error);
+        throw error;
+      }
 
       const observer = new TransformStream({
         transform(chunk, controller) {
+          if (chunk && chunk.type === 'error') {
+            reportModelError(bot, modelId, chunk.error);
+          }
           if (chunk && chunk.type === 'finish') {
             stepIndex += 1;
             const prompt = safeTotal(chunk.usage && chunk.usage.inputTokens);

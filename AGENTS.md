@@ -956,6 +956,7 @@ pid: 12345
 
 **Key gotchas:**
 
+- **Failed model calls need separate telemetry.** The middleware reports rejected `doStream()` calls and provider `error` chunks as `Agent model error` to stderr plus both Telegram log/error channels. It preserves the original rejection/chunk, skips intentional `AbortError` cancellations, and logs only bounded message/status details rather than SDK request bodies or headers. Reporting remains fire-and-forget so notifier failures cannot affect the model result.
 - **V3 usage shape is NESTED.** A `LanguageModelV3StreamPart` of type `finish` carries `usage.inputTokens.total` and `usage.outputTokens.total` (NOT the V2 flat `promptTokens` / `completionTokens`). There is no aggregated `totalTokens` in V3 — we compute it locally. Any of these fields may be `undefined`; we substitute 0 so the log line still renders cleanly.
 - **Per-step, not per-turn.** A single agent turn with N tool calls produces up to N+1 `finish` chunks (one per LLM step). We log each — true per-turn aggregation would require factory mode and is deferred. The log line includes a `step: K` label so you can correlate.
 - **Logging is fire-and-forget.** The send is wrapped in BOTH a sync try/catch AND an `.catch()` on the returned promise so a Telegram outage cannot break the LLM stream piping back to the browser. Worst case: the user gets their answer, the log line lands in stderr instead of Telegram.
@@ -1418,7 +1419,7 @@ unbounded UserRegistry read to the login path.
 |---|---|---|
 | `AZURE_OPENAI_ENDPOINT` | Agent | Azure OpenAI host (works for both `*.openai.azure.com` and `*.services.ai.azure.com`). |
 | `AZURE_OPENAI_API_KEY` | Agent | Azure OpenAI auth. |
-| `AZURE_OPEN_AI_MODEL` | Agent + Telegram `/ask` + JSON extraction | General deployment name: `gpt-6.1-sol` (used by `azure.chat(deployment)` for the agent, with medium reasoning and sequential tool calls). Race summaries use their own pinned `gpt-6-astra` deployment. |
+| `AZURE_OPEN_AI_MODEL` | Agent + Telegram `/ask` + JSON extraction | General deployment name: `gpt-6.1-sol` (used by `azure.chat(deployment)` for the agent, with `reasoningEffort: 'none'` and sequential tool calls). The legacy `gpt-5.3-chat` deployment retains medium reasoning. Race summaries use their own pinned `gpt-6-astra` deployment. |
 | `AGENT_HARDCODED_CHAT_ID` | Agent | Fallback identity used when no per-request context is active (local dev + cache bootstrap). On Azure-deployed slots both prod + test set `GOOGLE_CLIENT_ID`, so the hardcoded path is unreachable from user traffic — it survives as a local-dev fallback only. The LLM never sees it. Defaults to `KILZI_CHAT_ID` in `scripts/dev-agent-server.js` if absent. |
 | `GOOGLE_CLIENT_ID` | Agent | OAuth 2.0 Web client ID. NOT a secret — safe in app settings. Set on BOTH Azure slots (production + test). When the agent webhook sees a valid bearer it enforces Google sign-in + allowlist lookup on every POST. When unset (local dev only), auth is bypassed and `AGENT_HARDCODED_CHAT_ID` is used instead. |
 | `VITE_GOOGLE_CLIENT_ID` | SWA build env | Same client ID, baked into the bundle by both the prod SWA workflow AND the PR/staging workflow. Unset at build time = chat renders without auth gate (local dev only). |
