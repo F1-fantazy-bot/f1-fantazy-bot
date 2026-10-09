@@ -67,7 +67,7 @@ test.each(['gpt-5.3-chat'])(
   },
 );
 
-test.each(['gpt-6.1-sol', 'gpt-5.6-terra'])(
+test.each(['gpt-5.6-terra'])(
   'uses sequential tool calls without reasoning effort for %s',
   (model) => {
     buildAgent({
@@ -89,7 +89,27 @@ test.each(['gpt-6.1-sol', 'gpt-5.6-terra'])(
   },
 );
 
-test('the real Azure provider serializes a Sol tool request with reasoning disabled', async () => {
+test('Sol uses supported medium reasoning and explicit reasoning-model handling', () => {
+  buildAgent({
+    endpoint: 'https://example.openai.azure.com',
+    apiKey: 'key',
+    model: 'gpt-6.1-sol',
+  });
+
+  expect(mockBuiltInAgent).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      providerOptions: {
+        openai: {
+          parallelToolCalls: false,
+          reasoningEffort: 'medium',
+          forceReasoning: true,
+        },
+      },
+    }),
+  );
+});
+
+test('the real Azure provider serializes Sol reasoning settings with tools', async () => {
   const fetch = jest.fn(
     async () =>
       new Response(
@@ -120,7 +140,12 @@ test('the real Azure provider serializes a Sol tool request with reasoning disab
   });
 
   await agent.config.model.doGenerate({
-    prompt: [{ role: 'user', content: [{ type: 'text', text: 'Hello' }] }],
+    prompt: [
+      { role: 'system', content: 'Use tools when appropriate.' },
+      { role: 'user', content: [{ type: 'text', text: 'Hello' }] },
+    ],
+    maxOutputTokens: 8192,
+    temperature: 0.5,
     tools: [
       {
         type: 'function',
@@ -135,8 +160,16 @@ test('the real Azure provider serializes a Sol tool request with reasoning disab
   expect(url).toContain('/deployments/gpt-6.1-sol/chat/completions');
   expect(JSON.parse(request.body)).toMatchObject({
     model: 'gpt-6.1-sol',
-    reasoning_effort: 'none',
+    reasoning_effort: 'medium',
+    max_completion_tokens: 8192,
     parallel_tool_calls: false,
+    messages: [
+      { role: 'developer', content: 'Use tools when appropriate.' },
+      { role: 'user', content: 'Hello' },
+    ],
     tools: [{ type: 'function', function: { name: 'get_next_races' } }],
   });
+  const body = JSON.parse(request.body);
+  expect(body).not.toHaveProperty('temperature');
+  expect(body).not.toHaveProperty('max_tokens');
 });

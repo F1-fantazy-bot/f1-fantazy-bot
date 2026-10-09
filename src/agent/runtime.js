@@ -26,10 +26,7 @@ const { createTokenUsageMiddleware } = require('./tokenUsageMiddleware');
 const COPILOTKIT_ENDPOINT = '/api/agent/copilotkit';
 const AZURE_OPENAI_API_VERSION = '2024-04-01-preview';
 const AGENT_MAX_STEPS = 5;
-const MODELS_REQUIRING_NO_REASONING_WITH_TOOLS = new Set([
-  'gpt-5.6-terra',
-  'gpt-6.1-sol',
-]);
+const MODELS_REQUIRING_NO_REASONING_WITH_TOOLS = new Set(['gpt-5.6-terra']);
 
 let cachedHandler = null;
 
@@ -71,12 +68,26 @@ function getReasoningEffort(model) {
     .trim()
     .toLowerCase();
 
-  // Keep Sol tool calls on the non-reasoning path used by the previous Terra
-  // deployment. The legacy GPT-5.3 Chat deployment rejects `none` and requires
-  // `medium`. The Azure deployment name identifies the model at this layer.
+  // Terra requires `none` for tool calls. Sol accepts low/medium/high/xhigh
+  // and rejects `none`; the legacy GPT-5.3 Chat deployment also uses medium.
   return MODELS_REQUIRING_NO_REASONING_WITH_TOOLS.has(normalizedModel)
     ? 'none'
     : 'medium';
+}
+
+function getReasoningOptions(model) {
+  const options = { reasoningEffort: getReasoningEffort(model) };
+  if (
+    String(model || '')
+      .trim()
+      .toLowerCase() === 'gpt-6.1-sol'
+  ) {
+    // The installed AI SDK recognizes GPT-5 reasoning model names, but not
+    // GPT-6. Explicitly enable developer messages and reasoning token settings.
+    options.forceReasoning = true;
+  }
+
+  return options;
 }
 
 function buildAgent(cfg) {
@@ -113,7 +124,7 @@ function buildAgent(cfg) {
     providerOptions: {
       openai: {
         parallelToolCalls: false,
-        reasoningEffort: getReasoningEffort(cfg.model),
+        ...getReasoningOptions(cfg.model),
       },
     },
   });
