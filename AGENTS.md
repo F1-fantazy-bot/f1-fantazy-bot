@@ -949,7 +949,7 @@ BuiltInAgent({ model: wrapped, … })
 The middleware (`src/agent/tokenUsageMiddleware.js`) implements `wrapStream` and pipes every chunk through a `TransformStream`. On each `finish` chunk it logs:
 
 ```
-BOT: Agent step usage — model: gpt-4o, step: 1, prompt: 120, completion: 30, total: 150
+AGENT: Agent step usage — model: gpt-6.1-sol, step: 1, prompt: 120, completion: 30, reasoning: 10, total: 150
 env: prod
 pid: 12345
 ```
@@ -957,7 +957,7 @@ pid: 12345
 **Key gotchas:**
 
 - **Failed model calls need separate telemetry.** The middleware reports rejected `doStream()` calls and provider `error` chunks as `Agent model error` to stderr plus both Telegram log/error channels. It preserves the original rejection/chunk, skips intentional `AbortError` cancellations, and logs only bounded message/status details rather than SDK request bodies or headers. Reporting remains fire-and-forget so notifier failures cannot affect the model result.
-- **V3 usage shape is NESTED.** A `LanguageModelV3StreamPart` of type `finish` carries `usage.inputTokens.total` and `usage.outputTokens.total` (NOT the V2 flat `promptTokens` / `completionTokens`). There is no aggregated `totalTokens` in V3 — we compute it locally. Any of these fields may be `undefined`; we substitute 0 so the log line still renders cleanly.
+- **V3 usage shape is NESTED.** A `LanguageModelV3StreamPart` of type `finish` carries `usage.inputTokens.total` and `usage.outputTokens.total` (NOT the V2 flat `promptTokens` / `completionTokens`). There is no aggregated `totalTokens` in V3 — we compute it locally. Missing totals default to 0. Reasoning tokens come from `usage.outputTokens.reasoning` and are included in completion tokens, so they are not added again to the total. Missing/non-finite reasoning usage is logged as `n/a`; an explicit zero is logged as 0.
 - **Per-step, not per-turn.** A single agent turn with N tool calls produces up to N+1 `finish` chunks (one per LLM step). We log each — true per-turn aggregation would require factory mode and is deferred. The log line includes a `step: K` label so you can correlate.
 - **Logging is fire-and-forget.** The send is wrapped in BOTH a sync try/catch AND an `.catch()` on the returned promise so a Telegram outage cannot break the LLM stream piping back to the browser. Worst case: the user gets their answer, the log line lands in stderr instead of Telegram.
 - **Notifier bot is non-polling.** `src/agent/notifierBot.js` instantiates `new TelegramBot(token, { polling: false })` so the agent process never conflicts with the main Telegram bot process that owns the long-polling loop on the same token. Telegram allows N senders on one token; only one poller is allowed. Falls back to a noop if `TELEGRAM_BOT_TOKEN` is unset (so local dev without Telegram still works).
@@ -1889,7 +1889,7 @@ messages must go through `clear()` first, then through
 | `src/agent/tools.js` | Complete read/write tool catalogue. Every execute path is wrapped directly or through `defineWriteTool` via `wrapToolExecute`. |
 | `src/agent/runtime.js` | Builds Azure model → `wrapLanguageModel({ middleware: createTokenUsageMiddleware(…) })` (Phase 6.1) → `BuiltInAgent` (with `parallelToolCalls: false`) → `CopilotRuntime` → `createCopilotRuntimeHandler`. Caches the handler per process. |
 | `src/agent/notifierBot.js` | Singleton non-polling `TelegramBot` for the agent process (Phase 6.1). Real bot when `TELEGRAM_BOT_TOKEN` set, noop fallback otherwise. Polling stays disabled so it never conflicts with the main bot's poller on the same token. |
-| `src/agent/tokenUsageMiddleware.js` | `LanguageModelV3Middleware` that pipes the stream through a `TransformStream` and logs every `finish` chunk's per-step token usage (Phase 6.1). Reads the V3 NESTED usage shape (`usage.inputTokens.total` / `usage.outputTokens.total`). Logging is fire-and-forget — a Telegram outage cannot break the LLM stream. |
+| `src/agent/tokenUsageMiddleware.js` | `LanguageModelV3Middleware` that pipes the stream through a `TransformStream` and logs every `finish` chunk's per-step token usage (Phase 6.1). Reads the V3 NESTED usage shape (`usage.inputTokens.total` / `usage.outputTokens.total` / `usage.outputTokens.reasoning`); reasoning is part of completion, with unavailable reasoning shown as `n/a`. Logging is fire-and-forget — a Telegram outage cannot break the LLM stream. |
 | `src/agent/wrapToolExecute.js` | `wrapToolExecute(toolName, fn)` try/catches the execute and returns `{ status: 'tool_error', tool, errorId, userMessage }` on throw (Phase 6.2). Full error → `ERRORS_CHANNEL_ID` via `sendErrorMessage(notifierBot, …)`. The 8-char `errorId` is the user-visible correlation token. Raw `err.message` is NEVER included in the returned UI shape. |
 | `src/agent/writeToolHelpers.js` | `defineWriteTool(...)` stages serializable intents and registers commit handlers; `executeConfirmedWrite` consumes only server-approved intents. |
 | `src/agent/writeDecision.js` | Applies authenticated UI `approve`, `approve_and_confirm`, `cancel`, and compensating `revoke` decisions to durable pending-write rows. |
