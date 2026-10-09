@@ -24,7 +24,7 @@
       "value": "f1-fantasy-scraper-json"
     },
     "azureOpenAiModel": {
-      "value": "gpt-5.6-terra"
+      "value": "gpt-6.1-sol"
     },
     "nodeEnv": {
       "value": "production"

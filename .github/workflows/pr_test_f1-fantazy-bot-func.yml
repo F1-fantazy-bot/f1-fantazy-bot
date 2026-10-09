@@ -92,6 +92,10 @@ jobs:
           mask-inputs: false
           app-settings-json: |
             [
+              { "name": "AZURE_OPEN_AI_MODEL",
+                "value": "gpt-6.1-sol",
+                "slotSetting": false },
+
               { "name": "COMMIT_ID",
                 "value": ${{ toJSON(env.COMMIT_ID) }},
                 "slotSetting": false },
