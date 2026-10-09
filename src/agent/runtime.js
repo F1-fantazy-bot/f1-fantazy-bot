@@ -48,19 +48,26 @@ function readEnv() {
 }
 
 function buildAzureLanguageModel({ endpoint, apiKey, model }) {
-  // Use the deployment-based URL pattern (`{baseURL}/deployments/{model}/...`)
-  // because that's what every existing Azure OpenAI deployment supports
-  // regardless of whether the endpoint host is `*.openai.azure.com` or
-  // `*.services.ai.azure.com` (Azure AI Foundry). `azure.chat(...)` returns
-  // a Chat Completions language model (not the new `/responses` API).
+  const responses = usesResponsesApi(model);
+  // Sol requires Responses for reasoning with function tools. Azure's v1
+  // endpoint selects the deployment through the model field in the body.
+  // Legacy deployments retain their deployment-based Chat Completions URL.
   const azure = createAzure({
     baseURL: `${endpoint}/openai`,
     apiKey,
-    apiVersion: AZURE_OPENAI_API_VERSION,
-    useDeploymentBasedUrls: true,
+    apiVersion: responses ? 'v1' : AZURE_OPENAI_API_VERSION,
+    useDeploymentBasedUrls: !responses,
   });
 
-  return azure.chat(model);
+  return responses ? azure.responses(model) : azure.chat(model);
+}
+
+function usesResponsesApi(model) {
+  return (
+    String(model || '')
+      .trim()
+      .toLowerCase() === 'gpt-6.1-sol'
+  );
 }
 
 function getReasoningEffort(model) {
@@ -77,14 +84,13 @@ function getReasoningEffort(model) {
 
 function getReasoningOptions(model) {
   const options = { reasoningEffort: getReasoningEffort(model) };
-  if (
-    String(model || '')
-      .trim()
-      .toLowerCase() === 'gpt-6.1-sol'
-  ) {
+  if (usesResponsesApi(model)) {
     // The installed AI SDK recognizes GPT-5 reasoning model names, but not
     // GPT-6. Explicitly enable developer messages and reasoning token settings.
     options.forceReasoning = true;
+    // Retain the stateless conversation behavior used by Chat Completions.
+    // The SDK requests encrypted reasoning so later tool steps can replay it.
+    options.store = false;
   }
 
   return options;
@@ -120,7 +126,7 @@ function buildAgent(cfg) {
     // hook fires — the rest are silently dropped from the UI. Forcing
     // sequential tool calls makes each tool call land in its own
     // assistant message, so each gets its own rich UI render. Reasoning
-    // effort is chosen for the configured Chat Completions deployment.
+    // effort is chosen for the configured Azure deployment.
     providerOptions: {
       openai: {
         parallelToolCalls: false,
