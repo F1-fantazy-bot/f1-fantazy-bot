@@ -55,7 +55,7 @@ describe('extractJsonDataFromPhotos', () => {
     const result = await extractJsonDataFromPhotos(botMock, type, fileLinks);
 
     expect(__createMock).toHaveBeenCalledWith({
-      model: process.env.AZURE_OPEN_AI_MODEL,
+      model: 'gpt-6.1-sol',
       messages: [
         { role: 'system', content: systemPrompt },
         {

@@ -78,13 +78,6 @@
         "description": "Blob container the agent reads league/team data from. Same container the Telegram bot uses."
       }
     },
-    "azureOpenAiModel": {
-      "type": "string",
-      "defaultValue": "gpt-6.1-sol",
-      "metadata": {
-        "description": "Deployment name of the Azure OpenAI chat model. Matches the Telegram bot's current value."
-      }
-    },
     "nodeEnv": {
       "type": "string",
       "defaultValue": "production",

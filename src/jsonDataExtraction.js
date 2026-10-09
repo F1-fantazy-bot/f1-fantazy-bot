@@ -1,4 +1,4 @@
-const { AZURE_OPEN_AI_MODEL } = process.env;
+const { AI_MODEL } = require('./aiModel');
 const { getAzureOpenAiClient } = require('./azureOpenAiClient');
 const { mapPhotoTypeToSystemPrompt } = require('./utils');
 const { sendLogMessage } = require('./utils');
@@ -25,11 +25,11 @@ exports.extractJsonDataFromPhotos = async function (bot, type, fileLinks) {
   };
 
   const completion = await getAzureOpenAiClient().chat.completions.create({
-    model: AZURE_OPEN_AI_MODEL,
+    model: AI_MODEL,
     messages: [systemMessage, userMessage],
   });
 
-  const azureOpenAiTokensString = `Azure OpenAI model - ${AZURE_OPEN_AI_MODEL}, tokens - prompt: ${completion.usage.prompt_tokens}, completion: ${completion.usage.completion_tokens}, total: ${completion.usage.total_tokens}`;
+  const azureOpenAiTokensString = `Azure OpenAI model - ${AI_MODEL}, tokens - prompt: ${completion.usage.prompt_tokens}, completion: ${completion.usage.completion_tokens}, total: ${completion.usage.total_tokens}`;
   console.log(azureOpenAiTokensString);
   await sendLogMessage(bot, azureOpenAiTokensString);
 

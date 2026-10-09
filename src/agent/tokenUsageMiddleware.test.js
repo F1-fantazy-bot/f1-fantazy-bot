@@ -11,7 +11,9 @@ async function collectStream(stream) {
   const out = [];
   while (true) {
     const { done, value } = await reader.read();
-    if (done) {break;}
+    if (done) {
+      break;
+    }
     out.push(value);
   }
 
@@ -46,6 +48,7 @@ function makeBot() {
 }
 
 const FAKE_MODEL = { modelId: 'gpt-test-1' };
+const { LOG_CHANNEL_ID, ERRORS_CHANNEL_ID } = require('../constants');
 
 describe('safeTotal', () => {
   test('returns 0 when field is missing', () => {
@@ -103,6 +106,99 @@ describe('createTokenUsageMiddleware', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  test('reports an initial model rejection to both channels and preserves the original error', async () => {
+    const bot = makeBot();
+    const error = Object.assign(
+      new Error('Unsupported reasoning effort with tools'),
+      {
+        statusCode: 400,
+        requestBodyValues: { messages: ['private prompt'] },
+        requestHeaders: { authorization: 'private-key' },
+      },
+    );
+
+    await expect(
+      createTokenUsageMiddleware({ bot }).wrapStream({
+        doStream: async () => {
+          throw error;
+        },
+        model: FAKE_MODEL,
+      }),
+    ).rejects.toBe(error);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(bot.calls.map(({ chatId }) => chatId)).toEqual([
+      LOG_CHANNEL_ID,
+      ERRORS_CHANNEL_ID,
+    ]);
+    for (const { line } of bot.calls) {
+      expect(line).toContain(
+        'Agent model error — model: gpt-test-1, status: 400',
+      );
+      expect(line).toContain(error.message);
+      expect(line).not.toContain('private prompt');
+      expect(line).not.toContain('private-key');
+    }
+  });
+
+  test('reports a provider error chunk without replacing it or later stream chunks', async () => {
+    const bot = makeBot();
+    const chunks = [
+      { type: 'error', error: new Error('Azure model failed') },
+      { type: 'text-delta', delta: 'later text' },
+    ];
+    const result = await createTokenUsageMiddleware({ bot }).wrapStream({
+      doStream: async () => ({ stream: makeReadable(chunks) }),
+      model: FAKE_MODEL,
+    });
+
+    const out = await collectStream(result.stream);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(out).toEqual(chunks);
+    expect(out[0]).toBe(chunks[0]);
+    expect(bot.calls.map(({ chatId }) => chatId)).toEqual([
+      LOG_CHANNEL_ID,
+      ERRORS_CHANNEL_ID,
+    ]);
+  });
+
+  test('a failed error notification cannot replace the model rejection', async () => {
+    const bot = {
+      sendMessage: jest.fn().mockRejectedValue(new Error('Telegram is down')),
+    };
+    const error = new Error('Azure model failed');
+
+    await expect(
+      createTokenUsageMiddleware({ bot }).wrapStream({
+        doStream: async () => {
+          throw error;
+        },
+        model: FAKE_MODEL,
+      }),
+    ).rejects.toBe(error);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(bot.sendMessage).toHaveBeenCalledTimes(2);
+  });
+
+  test('intentional cancellation preserves the abort without logging a model failure', async () => {
+    const bot = makeBot();
+    const error = Object.assign(new Error('Cancelled'), { name: 'AbortError' });
+
+    await expect(
+      createTokenUsageMiddleware({ bot }).wrapStream({
+        doStream: async () => {
+          throw error;
+        },
+        model: FAKE_MODEL,
+      }),
+    ).rejects.toBe(error);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(bot.sendMessage).not.toHaveBeenCalled();
   });
 
   test('emits a log line for each finish chunk with nested V3 usage', async () => {
@@ -221,9 +317,7 @@ describe('createTokenUsageMiddleware', () => {
 
   test('telegram failure does not break the stream', async () => {
     const bot = {
-      sendMessage: jest
-        .fn()
-        .mockRejectedValue(new Error('telegram is down')),
+      sendMessage: jest.fn().mockRejectedValue(new Error('telegram is down')),
     };
     const middleware = createTokenUsageMiddleware({ bot });
 
