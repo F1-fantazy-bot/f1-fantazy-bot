@@ -74,10 +74,11 @@ describe('formatLine', () => {
       step: 2,
       prompt: 100,
       completion: 50,
+      reasoning: 20,
       total: 150,
     });
     expect(line).toBe(
-      'Agent step usage — model: gpt-4o, step: 2, prompt: 100, completion: 50, total: 150',
+      'Agent step usage — model: gpt-4o, step: 2, prompt: 100, completion: 50, reasoning: 20, total: 150',
     );
   });
 
@@ -91,7 +92,7 @@ describe('formatLine', () => {
       email: 'foo@example.com',
     });
     expect(line).toBe(
-      'Agent step usage — model: gpt-4o, step: 1, prompt: 10, completion: 5, total: 15\nemail: foo@example.com',
+      'Agent step usage — model: gpt-4o, step: 1, prompt: 10, completion: 5, reasoning: n/a, total: 15\nemail: foo@example.com',
     );
   });
 });
@@ -212,7 +213,7 @@ describe('createTokenUsageMiddleware', () => {
         finishReason: 'tool-calls',
         usage: {
           inputTokens: { total: 120 },
-          outputTokens: { total: 30 },
+          outputTokens: { total: 30, reasoning: 10 },
         },
       },
       { type: 'text-delta', delta: 'world' },
@@ -221,7 +222,7 @@ describe('createTokenUsageMiddleware', () => {
         finishReason: 'stop',
         usage: {
           inputTokens: { total: 200 },
-          outputTokens: { total: 80 },
+          outputTokens: { total: 80, reasoning: 0 },
         },
       },
     ]);
@@ -249,45 +250,51 @@ describe('createTokenUsageMiddleware', () => {
     expect(firstLine).toContain('step: 1');
     expect(firstLine).toContain('prompt: 120');
     expect(firstLine).toContain('completion: 30');
+    expect(firstLine).toContain('reasoning: 10');
     expect(firstLine).toContain('total: 150');
 
     expect(secondLine).toContain('step: 2');
     expect(secondLine).toContain('prompt: 200');
     expect(secondLine).toContain('completion: 80');
+    expect(secondLine).toContain('reasoning: 0');
     expect(secondLine).toContain('total: 280');
   });
 
-  test('treats missing nested totals as zero (no crash)', async () => {
-    const bot = makeBot();
-    const middleware = createTokenUsageMiddleware({ bot });
+  test.each([undefined, null, Number.NaN, Infinity])(
+    'logs unavailable reasoning as n/a and missing totals as zero (%s)',
+    async (reasoning) => {
+      const bot = makeBot();
+      const middleware = createTokenUsageMiddleware({ bot });
 
-    const upstream = makeReadable([
-      {
-        type: 'finish',
-        finishReason: 'stop',
-        usage: {
-          inputTokens: { total: undefined },
-          outputTokens: {},
+      const upstream = makeReadable([
+        {
+          type: 'finish',
+          finishReason: 'stop',
+          usage: {
+            inputTokens: { total: undefined },
+            outputTokens: { reasoning },
+          },
         },
-      },
-    ]);
+      ]);
 
-    const result = await middleware.wrapStream({
-      doStream: async () => ({ stream: upstream }),
-      doGenerate: async () => {
-        throw new Error('not used');
-      },
-      params: {},
-      model: FAKE_MODEL,
-    });
-    await collectStream(result.stream);
-    await new Promise((r) => setImmediate(r));
+      const result = await middleware.wrapStream({
+        doStream: async () => ({ stream: upstream }),
+        doGenerate: async () => {
+          throw new Error('not used');
+        },
+        params: {},
+        model: FAKE_MODEL,
+      });
+      await collectStream(result.stream);
+      await new Promise((r) => setImmediate(r));
 
-    expect(bot.sendMessage).toHaveBeenCalledTimes(1);
-    expect(bot.calls[0].line).toContain('prompt: 0');
-    expect(bot.calls[0].line).toContain('completion: 0');
-    expect(bot.calls[0].line).toContain('total: 0');
-  });
+      expect(bot.sendMessage).toHaveBeenCalledTimes(1);
+      expect(bot.calls[0].line).toContain('prompt: 0');
+      expect(bot.calls[0].line).toContain('completion: 0');
+      expect(bot.calls[0].line).toContain('reasoning: n/a');
+      expect(bot.calls[0].line).toContain('total: 0');
+    },
+  );
 
   test('non-finish chunks pass through without logging', async () => {
     const bot = makeBot();

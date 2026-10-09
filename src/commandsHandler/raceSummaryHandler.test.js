@@ -179,7 +179,12 @@ describe('raceSummaryHandler', () => {
     getLockedTeamsData.mockResolvedValue(lockedFixture);
     openAiClient.chat.completions.create.mockResolvedValue({
       choices: [{ message: { content: '🏁 Rocket wins!' } }],
-      usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      usage: {
+        prompt_tokens: 10,
+        completion_tokens: 5,
+        total_tokens: 15,
+        completion_tokens_details: { reasoning_tokens: 2 },
+      },
     });
     const bot = { sendMessage: jest.fn().mockResolvedValue() };
     await sendRaceSummary(bot, 42, 'ABC');
@@ -197,7 +202,7 @@ describe('raceSummaryHandler', () => {
     expect(request.messages[1].content).toContain('Chinese Grand Prix');
     expect(sendLogMessage).toHaveBeenCalledWith(
       bot,
-      'Race summary Azure OpenAI model - gpt-6-astra, tokens - prompt: 10, completion: 5, total: 15',
+      'Race summary Azure OpenAI model - gpt-6-astra, tokens - prompt: 10, completion: 5, reasoning: 2, total: 15',
     );
   });
 

@@ -14,9 +14,10 @@
 // completionTokens, totalTokens }` to a NESTED shape:
 //   usage.inputTokens.total      (prompt tokens)
 //   usage.outputTokens.total     (completion tokens)
+//   usage.outputTokens.reasoning (included in completion tokens)
 // There is no aggregated `totalTokens` — we compute it ourselves. Any of
-// these fields may be `undefined`, in which case we substitute 0 so the
-// log line still renders cleanly.
+// the totals may be `undefined`, in which case we substitute 0. Missing
+// reasoning usage is logged as n/a rather than implying zero reasoning.
 //
 // Logging is wrapped in try/catch with sync + async failure handling
 // because a Telegram send error MUST NOT break the LLM stream the
@@ -34,10 +35,18 @@ function safeTotal(field) {
   return Number.isFinite(value) ? value : 0;
 }
 
-function formatLine({ modelId, step, prompt, completion, total, email }) {
+function formatLine({
+  modelId,
+  step,
+  prompt,
+  completion,
+  reasoning = 'n/a',
+  total,
+  email,
+}) {
   const tail = email ? `\nemail: ${email}` : '';
 
-  return `Agent step usage — model: ${modelId}, step: ${step}, prompt: ${prompt}, completion: ${completion}, total: ${total}${tail}`;
+  return `Agent step usage — model: ${modelId}, step: ${step}, prompt: ${prompt}, completion: ${completion}, reasoning: ${reasoning}, total: ${total}${tail}`;
 }
 
 function reportModelError(bot, modelId, error) {
@@ -91,6 +100,11 @@ function createTokenUsageMiddleware({ bot }) {
             const completion = safeTotal(
               chunk.usage && chunk.usage.outputTokens,
             );
+            const reasoningTokens = chunk.usage?.outputTokens?.reasoning;
+            const reasoning = Number.isFinite(reasoningTokens)
+              ? reasoningTokens
+              : 'n/a';
+            // Reasoning is already included in outputTokens.total.
             const total = prompt + completion;
             const email = (getRequestContext() || {}).email;
             const line = formatLine({
@@ -98,6 +112,7 @@ function createTokenUsageMiddleware({ bot }) {
               step: stepIndex,
               prompt,
               completion,
+              reasoning,
               total,
               email,
             });
