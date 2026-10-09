@@ -42,7 +42,7 @@ test('BuiltInAgent forwards hidden developer confirmation messages', () => {
   );
 });
 
-test('Sol uses supported medium reasoning and explicit reasoning-model handling', () => {
+test('Sol uses supported medium reasoning without a reasoning-model override', () => {
   buildAgent({
     endpoint: 'https://example.openai.azure.com',
     apiKey: 'key',
@@ -54,7 +54,6 @@ test('Sol uses supported medium reasoning and explicit reasoning-model handling'
         openai: {
           parallelToolCalls: false,
           reasoningEffort: 'medium',
-          forceReasoning: true,
           store: false,
         },
       },
@@ -307,7 +306,14 @@ test('the real CopilotKit agent completes a streamed Responses tool round trip',
   expect(continuation.input).toEqual(
     expect.arrayContaining([
       expect.objectContaining(reasoning),
-      expect.objectContaining(call),
+      // Stateless requests replay the call by call_id; the provider omits
+      // the server-side function item ID when response storage is disabled.
+      expect.objectContaining({
+        type: call.type,
+        call_id: call.call_id,
+        name: call.name,
+        arguments: call.arguments,
+      }),
       expect.objectContaining({
         type: 'function_call_output',
         call_id: call.call_id,

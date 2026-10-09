@@ -739,8 +739,8 @@ Browser (Vite + React + CopilotKit)
    │ • CopilotRuntime({ agents: { default } })   │
    │ • BuiltInAgent({ model, prompt, tools,      │
    │     maxSteps: 5 })                          │
-   │ • Model: @ai-sdk/azure → azure.chat(deploy) │
-   │   built with useDeploymentBasedUrls: true   │
+   │ • Model: azure.responses(AI_MODEL)          │
+   │   built with useDeploymentBasedUrls: false  │
    │   for both *.openai.azure.com and           │
    │   *.services.ai.azure.com endpoints.        │
    └─────────────────────────────────────────────┘
@@ -760,7 +760,7 @@ Browser (Vite + React + CopilotKit)
 |---|---|
 | **CopilotKit v2** (`@copilotkit/runtime/v2`) | Rich React chat components with `useCopilotAction({ render })` for per-tool generative UI; runs tool execution server-side via `BuiltInAgent`. |
 | **Vercel AI SDK** under the hood (not the `openai` SDK directly) | CopilotKit v2 ignores bare `actions:` on `CopilotRuntime` — it requires an `agents:` map. `BuiltInAgent` uses AI SDK's `streamText` internally. We accepted this even though we initially planned to reuse the existing `openai`-SDK pattern. |
-| **`@ai-sdk/azure`** with Azure v1 Responses | Pass `baseURL: '${endpoint}/openai'` for both classic and Foundry hosts. The agent always uses `azure.responses(AI_MODEL)` on `/openai/v1/responses` with `apiVersion: 'v1'` and `useDeploymentBasedUrls: false`. Sol is pinned in `src/aiModel.js` with medium reasoning, `forceReasoning: true` (the installed SDK does not recognize GPT-6 names), sequential tools, and `store: false`; encrypted reasoning is replayed between tool steps. There is no legacy model routing or environment override. Telegram `/ask` and extraction use the same pinned model with Chat Completions without tools; summaries use pinned `gpt-6-astra`. |
+| **`@ai-sdk/azure`** with Azure v1 Responses | Pass `baseURL: '${endpoint}/openai'` for both classic and Foundry hosts. The agent always uses `azure.responses(AI_MODEL)` on `/openai/v1/responses` with `apiVersion: 'v1'` and `useDeploymentBasedUrls: false`. Sol is pinned in `src/aiModel.js` with medium reasoning, sequential tools, and `store: false`. Azure provider `3.0.135` depends on OpenAI provider `3.0.124`, which automatically recognizes GPT-6 reasoning models; no `forceReasoning` override is needed. Keep the AI SDK 6 / provider v3 generation compatible with CopilotKit; encrypted reasoning is replayed between tool steps. There is no legacy model routing or environment override. Telegram `/ask` and extraction use the same pinned model with Chat Completions without tools; summaries use pinned `gpt-6-astra`. |
 | **Zod** for tool parameters | Required by `defineTool` (Standard Schema V1). Already a transitive dep through `@copilotkit/runtime`. |
 | **Single-route mode** on the runtime handler | The default `multi-route` mode would force the frontend to address per-route URLs; single-route keeps the frontend pointed at `{basePath}` with a JSON envelope. Side effect: `GET /threads?agentId=…` returns 405 in single-route — these errors in the browser console are harmless and represent chat-history persistence we haven't enabled. |
 | **`parallelToolCalls: false`** on the agent's `providerOptions.openai` | CopilotKit's `useLazyToolRenderer` (`node_modules/@copilotkit/react-core/src/hooks/use-lazy-tool-renderer.tsx` line 15) only ever renders `message.toolCalls[0]`. When Azure OpenAI emits two tool calls in the SAME assistant message (its default behaviour for independent tool calls), only the first React component renders and the rest are silently dropped. Forcing sequential calls makes each tool land in its own assistant message, so each gets its own rich UI render. |

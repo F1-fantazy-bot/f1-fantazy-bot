@@ -23,7 +23,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@ai-sdk/azure": "^3.0.64",
+    "@ai-sdk/azure": "3.0.135",
     "@azure/arm-costmanagement": "^1.0.0-beta.1",
     "@azure/data-tables": "^13.3.2",
     "@azure/identity": "^4.10.0",

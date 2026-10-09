@@ -92,8 +92,6 @@ function buildAgent(cfg) {
       openai: {
         parallelToolCalls: false,
         reasoningEffort: 'medium',
-        // The installed SDK does not recognize GPT-6 reasoning model names.
-        forceReasoning: true,
         // Request encrypted reasoning for stateless tool-step continuations.
         store: false,
       },
