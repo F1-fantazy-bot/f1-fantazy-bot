@@ -13,11 +13,14 @@ const RACE_SUMMARY_MAX_CHARACTERS = 3000;
 function normalizeUsage(usage) {
   const prompt = Number(usage?.prompt_tokens) || 0;
   const completion = Number(usage?.completion_tokens) || 0;
+  const reasoningTokens = usage?.completion_tokens_details?.reasoning_tokens;
   const suppliedTotal = Number(usage?.total_tokens);
 
   return {
     prompt,
     completion,
+    reasoning: Number.isFinite(reasoningTokens) ? reasoningTokens : 'n/a',
+    // Reasoning tokens are already included in completion_tokens.
     total: Number.isFinite(suppliedTotal) ? suppliedTotal : prompt + completion,
   };
 }
@@ -25,7 +28,7 @@ function normalizeUsage(usage) {
 function formatRaceSummaryUsage(usage) {
   const normalized = normalizeUsage(usage);
 
-  return `Race summary Azure OpenAI model - ${RACE_SUMMARY_MODEL}, tokens - prompt: ${normalized.prompt}, completion: ${normalized.completion}, total: ${normalized.total}`;
+  return `Race summary Azure OpenAI model - ${RACE_SUMMARY_MODEL}, tokens - prompt: ${normalized.prompt}, completion: ${normalized.completion}, reasoning: ${normalized.reasoning}, total: ${normalized.total}`;
 }
 
 async function safelyReport(callback, value) {
