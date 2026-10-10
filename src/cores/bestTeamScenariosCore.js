@@ -125,6 +125,9 @@ function computeBestTeamScenarios({ chatId, teamId, teamName }) {
   if (!drivers || !constructors || !currentTeam) {
     return { status: 'missing_cache', teamId: resolvedTeamId };
   }
+  if (currentTeam.freeTransfers === null) {
+    return { status: 'missing_cache', teamId: resolvedTeamId, missing: { freeTransfers: true } };
+  }
 
   const prepared = prepareBestTeamsData({
     drivers,

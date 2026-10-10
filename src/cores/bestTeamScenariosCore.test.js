@@ -63,6 +63,15 @@ describe('computeBestTeamScenarios', () => {
     clearCaches();
   });
 
+  test('does not invent transfer penalties when the count is unknown', async () => {
+    seedValidCache();
+    currentTeamCache[KILZI_CHAT_ID][TEAM_ID].freeTransfers = null;
+    expect(await computeBestTeamScenarios({ chatId: KILZI_CHAT_ID })).toMatchObject({
+      status: 'missing_cache', missing: { freeTransfers: true },
+    });
+    expect(mockCalculateBestTeams).not.toHaveBeenCalled();
+  });
+
   test('returns missing_cache when no team is cached', () => {
     seedValidCache();
     delete currentTeamCache[KILZI_CHAT_ID][TEAM_ID];

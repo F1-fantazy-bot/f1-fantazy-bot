@@ -181,6 +181,9 @@ async function computeBestTeams({
   if (!drivers || !constructors || !currentTeam) {
     return { status: 'missing_cache', teamId };
   }
+  if (currentTeam.freeTransfers === null) {
+    return { status: 'missing_cache', teamId, missing: { freeTransfers: true } };
+  }
 
   const budgetChangePointsPerMillion =
     context?.ppm ?? getBestTeamBudgetChangePointsPerMillion(chatId, teamId);

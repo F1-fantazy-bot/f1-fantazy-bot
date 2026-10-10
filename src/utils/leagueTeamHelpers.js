@@ -82,10 +82,15 @@ function mapLeagueTeamToBotTeam(leagueTeam) {
     ? Math.max(0, Math.round((cap - teamValue) * 100) / 100)
     : 0;
 
-  const transfersRemainingRaw = Number(leagueTeam.transfersRemaining);
-  const freeTransfers = Number.isFinite(transfersRemainingRaw)
+  const transferCount = leagueTeam.transfersRemaining;
+  const transfersRemainingRaw =
+    (typeof transferCount === 'number' ||
+      (typeof transferCount === 'string' && transferCount.trim()))
+      ? Number(transferCount)
+      : NaN;
+  const freeTransfers = Number.isSafeInteger(transfersRemainingRaw)
     ? Math.max(0, transfersRemainingRaw)
-    : 0;
+    : null;
 
   return {
     drivers: drivers.map((d) => mapNameToCode(d.name)),

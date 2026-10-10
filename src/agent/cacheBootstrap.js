@@ -40,17 +40,22 @@ function ensureCacheReady() {
 // The test agent can start before a newly deployed scraper finishes writing
 // accountId. Recheck legacy IDs on reads so a warm instance can migrate them
 // after the weekly blob becomes available, without requiring an app restart.
-async function ensureCurrentUserIdentity(chatId) {
+async function ensureCurrentUserIdentity(chatId, { refreshCanonical = false } = {}) {
   await ensureCacheReady();
   const key = String(chatId);
-  const hasLegacyTeam = Object.keys(currentTeamCache[key] || {}).some(
-    (teamId) => isLeagueTeamId(teamId) && !/_\d+_[a-f0-9]{12}$/i.test(teamId),
+  const needsRefresh = Object.keys(currentTeamCache[key] || {}).some(
+    (teamId) => isLeagueTeamId(teamId) &&
+      (refreshCanonical || !/_\d+_[a-f0-9]{12}$/i.test(teamId)),
   );
-  if (!hasLegacyTeam) {
+  if (!needsRefresh) {
     return;
   }
   if (!pendingUserRefresh.has(key)) {
-    const refresh = refreshLeagueSourcedTeams(getNotifierBot(), key)
+    // Serialize roster hydration with follow/remove/reset operations so a
+    // read cannot restore a team concurrently removed by another surface.
+    const { runChipMutation } = require('../services/activateChipService');
+    const refresh = runChipMutation(chatId, () =>
+      refreshLeagueSourcedTeams(getNotifierBot(), key))
       .finally(() => pendingUserRefresh.delete(key));
     pendingUserRefresh.set(key, refresh);
   }

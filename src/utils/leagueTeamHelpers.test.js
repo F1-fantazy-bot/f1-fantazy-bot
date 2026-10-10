@@ -260,6 +260,16 @@ describe('mapLeagueTeamToBotTeam', () => {
     ).toBe(0);
   });
 
+  it.each([null, undefined, '', ' ', false, 'unknown', 1.5])(
+    'keeps an unknown transfer count (%p) unknown', (transfersRemaining) => {
+      expect(mapLeagueTeamToBotTeam(fixture({ transfersRemaining })).freeTransfers).toBeNull();
+    },
+  );
+
+  it.each([2, '2'])('retains two free transfers from %p', (transfersRemaining) => {
+    expect(mapLeagueTeamToBotTeam(fixture({ transfersRemaining })).freeTransfers).toBe(2);
+  });
+
   it('omits optional metadata fields when absent', () => {
     const team = fixture();
     delete team.teamName;

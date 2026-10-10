@@ -42,6 +42,17 @@ describe('getCurrentTeam', () => {
     mockCalculateBudgetAdjustedPoints.mockReset();
   });
 
+  it.each([2, 0, null])('reports the saved count %p without inventing zero', async (freeTransfers) => {
+    currentTeamCache[CHAT_ID] = {
+      [TEAM_ID]: { teamName: 'kilzid', drivers: ['VER'], constructors: ['MCL'], freeTransfers },
+    };
+    driversCache[CHAT_ID] = { VER: { price: 30 } };
+    constructorsCache[CHAT_ID] = { MCL: { price: 10 } };
+    mockCalculateTeamInfo.mockReturnValue({ totalPrice: 40 });
+    const result = await getCurrentTeam({ chatId: CHAT_ID });
+    expect(result).toMatchObject({ status: 'ok', teamName: 'kilzid', freeTransfers });
+  });
+
   it('returns no_teams when the user has zero teams', async () => {
     const result = await getCurrentTeam({ chatId: CHAT_ID });
     expect(result).toEqual({ status: 'no_teams' });

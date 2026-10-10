@@ -168,7 +168,7 @@ const tools = [
     execute: wrapToolExecute('list_user_teams', async ({ mode } = {}) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
-      await ensureCurrentUserIdentity(chatId);
+      await ensureCurrentUserIdentity(chatId, { refreshCanonical: true });
       await refreshChipPreferencesSafely(chatId);
 
       return await withUiLanguage(chatId, {
@@ -235,6 +235,7 @@ const tools = [
 
       await ensureCacheReady();
       const chatId = getAgentChatId();
+      await ensureCurrentUserIdentity(chatId, { refreshCanonical: true });
       const [language] = await Promise.all([
         getFreshLanguagePreference(chatId),
         refreshBestTeamRankingPreferencesSafely(chatId),
@@ -329,6 +330,7 @@ const tools = [
     execute: wrapSelectableExecute('get_best_team_scenarios', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
+      await ensureCurrentUserIdentity(chatId, { refreshCanonical: true });
       await refreshChipPreferencesSafely(chatId);
 
       const result = await computeBestTeamScenarios({
@@ -484,6 +486,7 @@ const tools = [
     execute: wrapSelectableExecute('get_current_team', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
+      await ensureCurrentUserIdentity(chatId, { refreshCanonical: true });
       const [language] = await Promise.all([
         getFreshLanguagePreference(chatId),
         refreshBestTeamRankingPreferencesSafely(chatId),

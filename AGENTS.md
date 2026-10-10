@@ -865,6 +865,15 @@ f1-fantazy-bot/
 
 ### Cache bootstrap (cross-process)
 
+Current roster reads (`get_current_team`, `list_user_teams`) and recommendation
+tools (`get_best_teams`, `get_best_team_scenarios`) call
+`ensureCurrentUserIdentity(chatId, { refreshCanonical: true })` to refresh
+league rosters from the latest scraped blobs on warm instances, under the
+shared user mutation lock with concurrent reads coalesced per user. Screenshot
+teams are not refreshed from league data. Unknown league transfer counts remain
+`null` rather than becoming zero; roster displays omit the count and optimization
+cores return `missing_cache` with `missing.freeTransfers` until a count is available.
+
 The Telegram bot's `src/bot.js` runs `initializeCaches(bot)` at startup so every command handler can read from `driversCache`, `currentTeamCache`, etc. The agent runs in a **separate process** (its own Azure Function App) and therefore has its own empty in-memory caches — they MUST be populated before any tool that reads them can run.
 
 `src/agent/cacheBootstrap.js` exports `ensureCacheReady()`: it lazily calls `initializeCaches(getNotifierBot())` once per process. The notifier bot (introduced in Phase 6.1, see [Token usage logging](#token-usage-logging-phase-61)) is a singleton **non-polling** `TelegramBot` instance — when `TELEGRAM_BOT_TOKEN` is set, cache-init logs land in the same Telegram `LOG_CHANNEL_ID` the main bot uses; otherwise it's a noop and logs stay on stdout. The promise is cached for reuse; on failure it resets so the next tool call retries from scratch (transient Azure errors don't brick the agent for the lifetime of the process).

@@ -83,6 +83,15 @@ describe('computeBestTeams', () => {
     clearCaches();
   });
 
+  it('does not invent transfer penalties when the count is unknown', async () => {
+    seedValidCache();
+    currentTeamCache[KILZI_CHAT_ID][TEAM_ID].freeTransfers = null;
+    expect(await computeBestTeams({ chatId: KILZI_CHAT_ID })).toMatchObject({
+      status: 'missing_cache', missing: { freeTransfers: true },
+    });
+    expect(mockCalculateBestTeams).not.toHaveBeenCalled();
+  });
+
   it('returns no_teams when chat has no tracked teams', async () => {
     const result = await computeBestTeams({ chatId: KILZI_CHAT_ID });
     expect(result.status).toBe('no_teams');

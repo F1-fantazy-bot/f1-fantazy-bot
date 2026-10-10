@@ -70,7 +70,7 @@ const {
   getLiveScoreForTeam,
 } = require('../cores/liveScoreCore');
 const { tools } = require('./tools');
-const { ensureCacheReady } = require('./cacheBootstrap');
+const { ensureCacheReady, ensureCurrentUserIdentity } = require('./cacheBootstrap');
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -144,6 +144,8 @@ test.each([
 
   await tool.execute({});
 
+  expect(ensureCurrentUserIdentity).toHaveBeenCalledWith(42, { refreshCanonical: true });
+  expect(ensureCurrentUserIdentity.mock.invocationCallOrder[0]).toBeLessThan(core.mock.invocationCallOrder[0]);
   if (refreshRanking) {
     expect(refreshBestTeamRankingPreferencesSafely).toHaveBeenCalledWith(42);
     expect(
