@@ -140,7 +140,10 @@ function createFollowTeamService(ports) {
     const teams = [...data.teams]
       .sort((a, b) => (a.position || Infinity) - (b.position || Infinity))
       .map((team) => {
-        const choice = teamChoice(league, team);
+        const choice = teamChoice(league, {
+          ...team,
+          ...(data.matchdayId !== undefined ? { matchdayId: data.matchdayId } : {}),
+        });
 
         return {
           teamId: choice.teamId,
@@ -490,6 +493,7 @@ function createFollowTeamService(ports) {
           const sourceSwitched = await ports.sourceSwitcher(args.chatId);
           const teamData = ports.mapLeagueTeamToBotTeam(
             inspected.leagueTeam,
+            { leagueCode: inspected.leagueCode },
           );
           await ports.storage.saveUserTeam(
             args.chatId,

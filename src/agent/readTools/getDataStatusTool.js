@@ -22,6 +22,7 @@ const {
   getUpcomingRaceIdentity,
 } = require('../../services/simulationRaceStatusService');
 const { ensureCacheReady } = require('../cacheBootstrap');
+const { refreshWeeklyTeamData } = require('../../services/weeklyTeamDataService');
 const { getAgentChatId } = require('../identity');
 const { wrapToolExecute } = require('../wrapToolExecute');
 const { localizeDataStatus } = require('./simulationStatusPresentation');
@@ -34,6 +35,7 @@ const getDataStatusTool = defineTool({
   execute: wrapToolExecute('get_data_status', async () => {
     await ensureCacheReady();
     const chatId = getAgentChatId();
+    await refreshWeeklyTeamData(chatId);
     const [{ lang }, nextRaceInfo] = await Promise.all([
       getFreshLanguagePreference(chatId),
       getUpcomingRaceIdentity({

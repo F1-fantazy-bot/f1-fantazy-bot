@@ -19,6 +19,7 @@ const {
 } = require('./teamSourceSwitcher');
 const { listUserLeagues } = require('../leagueRegistryService');
 const { NAME_TO_CODE_MAPPING } = require('../constants');
+const { finiteNumber, teamDataStatus } = require('./teamDataStatus');
 
 function mapNameToCode(name) {
   if (name === null || name === undefined) {
@@ -34,9 +35,10 @@ function mapNameToCode(name) {
  * Map one league team entry (from teams-data.json) to the bot's team cache shape.
  *
  * `costCapRemaining` is derived from `leagueTeam.budget` — which is the
- * user's cost cap going into the upcoming matchday (`team_info.maxTeambal`
- * from the upstream F1 Fantasy API). See the companion scraper PR
- * f1-fantasy-api-data#19 for the field's definition.
+ * user's cost cap going into the upcoming matchday: either live maxTeambal
+ * or the reconstructed race-start cap from scraper PR #26. Unknown values
+ * remain null. The source header supplies the target race; the per-team
+ * roster matchday may be an older archive restored after a temporary chip.
  *
  * Transition / backwards-compat: before that scraper PR shipped, `budget`
  * on cached blobs carried `team_info.teamVal` (the team's current value,
@@ -47,14 +49,14 @@ function mapNameToCode(name) {
  * deployment window; the moment the next scrape repopulates a blob the
  * mapper starts emitting correct values for that team.
  */
-function mapLeagueTeamToBotTeam(leagueTeam) {
+function mapLeagueTeamToBotTeam(leagueTeam, source = {}) {
   const drivers = Array.isArray(leagueTeam.drivers) ? leagueTeam.drivers : [];
   const constructors = Array.isArray(leagueTeam.constructors)
     ? leagueTeam.constructors
     : [];
 
   const sumPrices = (items) =>
-    items.reduce((acc, item) => acc + (Number(item.price) || 0), 0);
+    items.reduce((acc, item) => acc + (finiteNumber(item.price) ?? NaN), 0);
 
   const captain =
     drivers.find((d) => d.isCaptain) ||
@@ -77,15 +79,17 @@ function mapLeagueTeamToBotTeam(leagueTeam) {
   );
 
   const teamValue = sumPrices(drivers) + sumPrices(constructors);
-  const cap = Number(leagueTeam.budget);
-  const costCapRemaining = Number.isFinite(cap)
+  const cap = finiteNumber(leagueTeam.budget);
+  const costCapRemaining = !Object.hasOwn(leagueTeam, 'budget') && !leagueTeam.budgetStatus ? 0
+    : Number.isFinite(cap) && Number.isFinite(teamValue) && leagueTeam.budgetStatus !== 'unknown'
     ? Math.max(0, Math.round((cap - teamValue) * 100) / 100)
-    : 0;
+    : null;
 
-  const transfersRemainingRaw = Number(leagueTeam.transfersRemaining);
-  const freeTransfers = Number.isFinite(transfersRemainingRaw)
+  const transfersRemainingRaw = finiteNumber(leagueTeam.transfersRemaining);
+  const freeTransfers = leagueTeam.transfersStatus === 'unlimited' ? 7
+    : Number.isFinite(transfersRemainingRaw) && leagueTeam.transfersStatus !== 'unknown'
     ? Math.max(0, transfersRemainingRaw)
-    : 0;
+    : null;
 
   return {
     drivers: drivers.map((d) => mapNameToCode(d.name)),
@@ -96,6 +100,8 @@ function mapLeagueTeamToBotTeam(leagueTeam) {
     ...(boostDriverId ? { boostDriverId } : {}),
     freeTransfers,
     costCapRemaining,
+    ...teamDataStatus({ ...leagueTeam, ...(source.matchdayId !== undefined ? { matchdayId: source.matchdayId } : {}) }),
+    ...(source.leagueCode ? { leagueCode: source.leagueCode } : {}),
     // Display + identity metadata. Optional fields the consumers can use to
     // render friendly labels without re-loading the league blob. Older
     // cached teams may not have these populated until the next refresh.

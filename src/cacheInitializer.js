@@ -269,6 +269,10 @@ async function refreshLeagueSourcedTeams(bot, onlyChatId = null) {
           }
 
           for (const team of data.teams) {
+            const sourcedTeam = { ...team,
+              ...(data.matchdayId !== undefined ? { matchdayId: data.matchdayId } : {}),
+              leagueCode,
+            };
             const canonicalId = buildLeagueTeamId(
               team.userName,
               team.teamNo,
@@ -279,7 +283,7 @@ async function refreshLeagueSourcedTeams(bot, onlyChatId = null) {
             }
 
             if (canonicalId === oldTeamId && !exactMatches.has(canonicalId)) {
-              exactMatches.set(canonicalId, team);
+              exactMatches.set(canonicalId, sourcedTeam);
             }
 
             const legacyId = buildLegacyLeagueTeamId(
@@ -293,14 +297,14 @@ async function refreshLeagueSourcedTeams(bot, onlyChatId = null) {
               canonicalId !== oldTeamId &&
               !legacyCandidates.has(canonicalId)
             ) {
-              legacyCandidates.set(canonicalId, team);
+              legacyCandidates.set(canonicalId, sourcedTeam);
             }
           }
         }
 
         if (exactMatches.size > 0) {
           const foundMatch = exactMatches.values().next().value;
-          const refreshedTeam = mapLeagueTeamToBotTeam(foundMatch);
+          const refreshedTeam = mapLeagueTeamToBotTeam(foundMatch, { leagueCode: foundMatch.leagueCode });
           currentTeamCache[chatId][oldTeamId] = refreshedTeam;
 
           try {
@@ -320,7 +324,7 @@ async function refreshLeagueSourcedTeams(bot, onlyChatId = null) {
 
         if (legacyCandidates.size === 1) {
           const [newTeamId, foundMatch] = legacyCandidates.entries().next().value;
-          const refreshedTeam = mapLeagueTeamToBotTeam(foundMatch);
+          const refreshedTeam = mapLeagueTeamToBotTeam(foundMatch, { leagueCode: foundMatch.leagueCode });
 
           // Persist the new canonical blob before deleting the old one.
           await saveUserTeam(bot, chatId, newTeamId, refreshedTeam, {

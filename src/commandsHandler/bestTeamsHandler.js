@@ -6,15 +6,20 @@ const {
   resolveSelectedTeam,
   getDriversForChat,
   getConstructorsForChat,
+  pricesCache,
 } = require('../cache');
 const { t } = require('../i18n');
 const { computeBestTeams } = require('../cores/bestTeamsCore');
+const { refreshWeeklyTeamData } = require('../services/weeklyTeamDataService');
+const { recommendationIssue } = require('../utils/teamDataStatus');
+const { recommendationMessage, teamDataNotice } = require('../utils/teamDataPresentation');
 
 async function handleBestTeamsMessage(bot, chatId) {
   const teamId = await resolveSelectedTeam(bot, chatId);
   if (!teamId) {
     return;
   }
+  await refreshWeeklyTeamData(chatId);
 
   // Try to fetch cached data for this chat
   const drivers = getDriversForChat(chatId);
@@ -37,8 +42,14 @@ async function handleBestTeamsMessage(bot, chatId) {
     return;
   }
 
-  // `validateJsonData` is intentionally side-effecty: it sends a user-facing
-  // "Invalid JSON" message via `bot.sendMessage` when the cached data is
+  const issueMessage = recommendationMessage(recommendationIssue(currentTeam, pricesCache.metadata?.matchdayId ?? null), chatId);
+  if (issueMessage) {
+    await bot.sendMessage(chatId, issueMessage);
+
+    return;
+  }
+
+  // `validateJsonData` sends an "Invalid JSON" message when cached data is
   // malformed. Keep calling it here so the Telegram surface keeps the same
   // observable behaviour. The agent's core does its own pure validation.
   if (
@@ -47,7 +58,7 @@ async function handleBestTeamsMessage(bot, chatId) {
       {
         Drivers: Object.values(drivers),
         Constructors: Object.values(constructors),
-        CurrentTeam: currentTeam,
+        CurrentTeam: currentTeam.transfersStatus === 'unlimited' ? { ...currentTeam, freeTransfers: 7 } : currentTeam,
       },
       chatId,
     ))
@@ -165,7 +176,7 @@ async function handleBestTeamsMessage(bot, chatId) {
     .join('\n\n');
 
   await bot
-    .sendMessage(chatId, messageMarkdown, { parse_mode: 'Markdown' })
+    .sendMessage(chatId, [teamDataNotice(result.dataStatus, chatId), messageMarkdown].filter(Boolean).join('\n\n'), { parse_mode: 'Markdown' })
     .catch((err) => console.error('Error sending JSON reply:', err));
 
   await bot

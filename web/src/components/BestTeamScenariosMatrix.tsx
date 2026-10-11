@@ -2,6 +2,7 @@ import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { directionFor, uiLanguageOf, type UiLanguage } from './uiLanguage';
 import { ToolLoading } from './ToolLoading';
+import { TeamDataNotice, RecommendationDataError, weeklyErrorMessages, type TeamDataStatus, type RecommendationIssue } from './TeamDataNotice';
 
 type ScenarioResult = {
   chipKey: string | null;
@@ -18,8 +19,10 @@ type ScenarioRow = {
 };
 
 type BestTeamScenariosResult = {
+  dataStatus?: TeamDataStatus;
   lang?: string;
   status?:
+    | RecommendationIssue
     | 'ok'
     | 'no_teams'
     | 'unknown_team'
@@ -91,6 +94,7 @@ export function BestTeamScenariosMatrix({
 }) {
   if (!result || !result.status) return null;
   const lang = uiLanguageOf(result);
+  if (Object.hasOwn(weeklyErrorMessages.en, result.status)) return <RecommendationDataError status={result.status} lang={lang} />;
   const labels =
     lang === 'he'
       ? {
@@ -219,6 +223,7 @@ export function BestTeamScenariosMatrix({
           borderBottom: '1px solid var(--app-border)',
         }}
       >
+        <TeamDataNotice status={result.dataStatus} lang={lang} />
         <div
           style={{ fontWeight: 700, fontSize: 14, color: 'var(--app-text)' }}
         >

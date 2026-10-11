@@ -63,6 +63,21 @@ describe('handleJsonMessage', () => {
     delete constructorsCache[sharedKey];
   });
 
+  it.each(['unknown', 'unlimited'])('round-trips nullable weekly data with %s transfers', async (transfersStatus) => {
+    const data = { SelectedTeam: 'T1', Teams: { T1: {
+      drivers: ['VER'], constructors: ['MCL'], boost: 'VER',
+      freeTransfers: null, transfersStatus, costCapRemaining: null, budgetStatus: 'unknown',
+      teamStateStatus: 'unavailable', matchdayId: 18, teamStateMatchdayId: 17,
+      bestTeamBudgetChangePointsPerMillion: 0,
+    } } };
+    await handleJsonMessage(botMock, KILZI_CHAT_ID, data);
+    expect(currentTeamCache[KILZI_CHAT_ID].T1).toMatchObject({ freeTransfers: null, costCapRemaining: null, transfersStatus, matchdayId: 18 });
+    const cache = require('../cache');
+    const exported = JSON.parse(cache.getPrintableCache(KILZI_CHAT_ID).match(/\{[\s\S]*\}/)[0]);
+    await handleJsonMessage(botMock, KILZI_CHAT_ID, exported);
+    expect(currentTeamCache[KILZI_CHAT_ID].T1).toMatchObject({ freeTransfers: null, costCapRemaining: null, transfersStatus, teamStateMatchdayId: 17 });
+  });
+
   it('imports a full /print_cache snapshot and persists teams without metadata', async () => {
     bestTeamsCache[KILZI_CHAT_ID] = {
       T1: { stale: true },
