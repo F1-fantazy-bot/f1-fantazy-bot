@@ -94,7 +94,7 @@ export function BestTeamScenariosMatrix({
 }) {
   if (!result || !result.status) return null;
   const lang = uiLanguageOf(result);
-  if (Object.hasOwn(weeklyErrorMessages.en, result.status)) return <RecommendationDataError status={result.status} lang={lang} />;
+  if (Object.prototype.hasOwnProperty.call(weeklyErrorMessages.en, result.status)) return <RecommendationDataError status={result.status} lang={lang} />;
   const labels =
     lang === 'he'
       ? {
