@@ -7,7 +7,7 @@ const ReadCardsContext = createContext<StoredReadCard[]>([]);
 
 export function ReadCardHistoryProvider({ children }: { children: ReactNode }) {
   const [cards, setCards] = useState(loadReadCards);
-  // Direct proposals already have native dialogs in this mount. Recover them
+  // Direct responses already have native renderers in this mount. Recover them
   // only after a reload, when that component-local state no longer exists.
   const recoveredDirectIds = useRef(new Set(cards.filter((card) => card.direct).map((card) => card.id)));
   const { agent } = useAgent({ agentId: 'default' });

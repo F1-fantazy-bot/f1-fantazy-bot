@@ -2,6 +2,7 @@
 // selecting a write target still goes through the ordinary confirmation tool.
 const { defineTool } = require('@copilotkit/runtime/v2');
 const z = require('zod');
+const { getLeaderboard, normalizeLeaderboardArgs } = require('../../cores/leaderboardCore');
 const { listUserLeagues } = require('../../leagueRegistryService');
 const { listUserTeams } = require('../../cores/userTeamsCore');
 const { listLeagueTeams } = require('../../cores/liveScoreCore');
@@ -34,6 +35,9 @@ const LEAGUE_ACTIONS = [
 const ACTIONS = [...TEAM_ACTIONS, ...LEAGUE_ACTIONS, 'set_language'];
 const contextSchema = z
   .object({
+    period: z.enum(['season', 'race']).optional(),
+    matchdayId: z.number().int().positive().optional(),
+    raceName: z.string().optional(),
     leagueCode: z.string().optional(),
     leagueName: z.string().optional(),
     teamId: z.string().optional(),
@@ -52,6 +56,7 @@ const contextSchema = z
 const parameters = z.object({
   action: z.enum(ACTIONS),
   choice: z.enum([
+    'period',
     'team',
     'league',
     'preset',
@@ -81,6 +86,24 @@ function choiceResult({ action, choice, context = {}, lang, options }) {
   };
 }
 
+function leaderboardChoices(result, context, lang) {
+  if (!['select_period', 'ambiguous_race'].includes(result.status)) {
+    return { ...result, lang };
+  }
+  const options = result.races.map((race) => ({
+    label: `${race.raceFlag ? `${race.raceFlag} ` : ''}${race.raceName}`,
+    args: { period: 'race', matchdayId: race.matchdayId, raceName: undefined },
+  }));
+  if (!result.raceOnly) {
+    options.unshift({
+      label: lang === 'he' ? 'כל העונה' : 'Entire season',
+      args: { period: 'season', matchdayId: undefined, raceName: undefined },
+    });
+  }
+
+  return choiceResult({ action: 'get_leaderboard', choice: 'period', context, lang, options });
+}
+
 async function getActionChoices(input) {
   const { action, choice, context = {} } = parameters.parse(input);
   await ensureCacheReady();
@@ -93,6 +116,14 @@ async function getActionChoices(input) {
       detail: league.leagueCode,
       args: { leagueCode: league.leagueCode, leagueName: undefined },
     }));
+  } else if (choice === 'period' && action === 'get_leaderboard') {
+    if (!context.leagueCode) {
+      return getActionChoices({ action, choice: 'league', context });
+    }
+
+    const result = await getLeaderboard({ ...context, chatId, requirePeriod: true });
+
+    return leaderboardChoices(result, context, lang);
   } else if (choice === 'team' && TEAM_ACTIONS.includes(action)) {
     options = listUserTeams({ chatId }).map((team) => ({
       label: team.teamName,
@@ -209,6 +240,7 @@ async function hasAmbiguousLeagueName(chatId, args) {
 // same tool result, avoiding a second tool call whose rich UI could be dropped.
 function wrapSelectableExecute(action, execute) {
   return wrapToolExecute(action, async (args = {}) => {
+    if (action === 'get_leaderboard') {args = normalizeLeaderboardArgs(args);}
     if (args.selectionMode) {
       return await execute(args);
     }
@@ -254,7 +286,7 @@ function wrapSelectableExecute(action, execute) {
 const getActionChoicesTool = defineTool({
   name: 'get_action_choices',
   description:
-    'Show clickable choices for a pending action instead of asking the user to type an existing team, league, language, chip, or ranking preset. Pass the intended action and missing choice. Preserve already supplied filters/targets in context. This is read-only; choosing a write option only proposes it and still requires confirmation. Use existing guided directory/follow/graph tools for their own selection flows.',
+    'Show clickable choices for a pending action instead of asking the user to type an existing team, league, standings period, language, chip, or ranking preset. Pass the intended action and missing choice. Preserve already supplied filters/targets in context. This is read-only; choosing a write option only proposes it and still requires confirmation. Use existing guided directory/follow/graph tools for their own selection flows.',
   parameters,
   execute: wrapToolExecute('get_action_choices', getActionChoices),
 });
@@ -264,4 +296,5 @@ module.exports = {
   getActionChoices,
   wrapSelectableExecute,
   choiceResult,
+  leaderboardChoices,
 };

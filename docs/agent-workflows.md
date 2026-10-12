@@ -104,3 +104,12 @@ and rich result renderer with synthetic outcomes and never sends messages or
 changes live data. Approve simulates a successful chip write followed by a
 failed calculation, preserving both outcomes. This fixture is not an Azure
 integration test and is not included in the production entry-point build.
+
+
+Standings read steps resolve a followed league and a period during preparation.
+Omitted periods return the shared period choices: Entire season first, then
+recorded races newest first. Explicit season or race arguments survive league
+selection. Race names resolve against available scored rounds; ambiguous names
+require a choice. Prepared race steps bind the canonical matchday ID, so replay
+cannot drift to a later race. A race without scores returns `race_unavailable`
+and never falls back to season totals.

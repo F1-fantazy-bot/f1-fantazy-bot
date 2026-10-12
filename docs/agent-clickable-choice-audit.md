@@ -10,7 +10,8 @@ bug-report body, or an unknown name for which no candidates are available.
 | Tools | Selection behavior |
 | --- | --- |
 | `get_live_score_for_team` | Missing league returns followed-league cards; after selection, always show authorized locked-roster team cards plus **All teams in this league**, even with a saved active team. A team click opens its breakdown; the all-teams card opens `get_live_score_leaderboard`. Explicit named-team requests remain direct, and invalid teams reopen the same picker. |
-| `get_live_score_leaderboard`, `get_leaderboard` | Missing league returns clickable followed-league cards directly. |
+| `get_live_score_leaderboard` | Missing league returns clickable followed-league cards directly. |
+| `get_leaderboard` | Missing league returns league cards preserving period/race arguments. Missing period returns Entire season then named recorded races newest first; ambiguous race names return race cards. Explicit selections render directly. Standings clicks call the authenticated `read-choice` endpoint with exact args, without model inference. Direct results persist in chat history. Shared lock/loading/retry applies in both languages. |
 | `get_current_team`, `get_best_teams`, `get_best_team_scenarios` | Use the selected team normally. Unknown/ambiguous targets return team cards that continue the same read, without changing active-team preferences. |
 | `get_action_choices` | Account-backed team/league choices; shared chip/ranking presets; language and sort-order choices; cached driver/constructor filters. Preserves prior arguments and restricts continuation actions to an allowlist. |
 | `list_user_teams`, `select_team` | Existing switch controls stage a canonical target for confirmation. Invalid named targets also render validated team candidates. |

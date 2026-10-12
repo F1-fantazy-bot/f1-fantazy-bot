@@ -49,7 +49,7 @@ const { getAgentChatId } = require('./identity');
 const { ensureCacheReady, ensureCurrentUserIdentity } = require('./cacheBootstrap');
 const { refreshWeeklyTeamData } = require('../services/weeklyTeamDataService');
 const { wrapToolExecute } = require('./wrapToolExecute');
-const { getActionChoicesTool, wrapSelectableExecute } = require('./readTools/getActionChoicesTool');
+const { getActionChoicesTool, wrapSelectableExecute, leaderboardChoices } = require('./readTools/getActionChoicesTool');
 const { executeConfirmedWrite } = require('./writeToolHelpers');
 const { setLanguageTool } = require('./writeTools/setLanguageTool');
 const { selectTeamTool } = require('./writeTools/selectTeamTool');
@@ -393,22 +393,27 @@ const tools = [
   defineTool({
     name: 'get_leaderboard',
     description:
-      'Get standings for a followed league. Pass a canonical leagueCode when known; otherwise omit it to render clickable followed-league cards immediately. Never ask the user to type a league. Returns standings with selected-team highlighting, or safe not_followed/not_found states.',
+      'Get season or race-weekend standings for a followed league. Omit period to show Entire season then recorded races newest first. Use period="season" for explicit season requests; pass period="race" and matchdayId or raceName for explicit races. Ambiguous race names return choices; missing scores return race_unavailable, never season totals. Pass a canonical leagueCode when known; otherwise omit it to render clickable followed-league cards immediately. Never ask the user to type a league. Returns standings with selected-team highlighting, or safe not_followed/not_found states.',
     parameters: z.object({
+      period: z.enum(['season', 'race']).nullable().optional().describe('Only use season or race if the user explicitly requested that period. Use null when unspecified; never choose one yourself.'),
+      matchdayId: z.number().int().positive().nullable().optional().describe('Explicitly requested or clicked race round. Use null when no round was selected; never use 1 as a default.'),
+      raceName: z.string().nullable().optional().describe('Explicitly requested race name only. Use null when unspecified; never infer the first or latest race.'),
       leagueCode: z
         .string()
+        .nullable()
         .optional()
         .describe(
-          'Canonical followed-league code. Omit to show clickable league choices.',
+          'Canonical followed-league code. Use null when unspecified to show clickable league choices.',
         ),
     }),
     execute: wrapSelectableExecute('get_leaderboard', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
-      return await withUiLanguage(
-        chatId,
-        await getLeaderboard({ chatId, leagueCode: args.leagueCode }),
+      const { lang } = await getFreshLanguagePreference(chatId);
+
+      return leaderboardChoices(
+        await getLeaderboard({ ...args, chatId, requirePeriod: true }), args, lang,
       );
     }),
   }),

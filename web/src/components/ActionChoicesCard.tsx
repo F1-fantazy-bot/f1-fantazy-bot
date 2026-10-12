@@ -1,3 +1,5 @@
+import { LeaderboardTable, type LeaderboardResult } from './LeaderboardTable';
+import { useReadChoice } from './WriteDecisionContext';
 import { useId, useState } from 'react';
 import { useCopilotAction } from '@copilotkit/react-core';
 import {
@@ -26,6 +28,7 @@ export type ActionChoicesResult = {
   status: 'selection_required';
   lang?: string;
   choice:
+    | 'period'
     | 'graph'
     | 'recipient'
     | 'recommendation'
@@ -117,14 +120,17 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
     updates: [UseAgentUpdate.OnRunStatusChanged],
   });
   const { copilotkit } = useCopilotKit();
+  const readChoice = useReadChoice();
   const runActive = useAgentRunActive(agent);
   const busy = runActive || agent.isRunning;
   const [pending, setPending] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
+  const [readResult, setReadResult] = useState<Record<string, unknown> | null>(null);
   const heading = useId();
   const lang = uiLanguageOf(result);
   const he = lang === 'he';
   const titles = {
+    period: he ? 'בחר תקופת דירוג' : 'Choose a standings period',
     graph: he ? 'בחר סוג גרף' : 'Choose a chart type',
     recipient: he ? 'בחר נמען' : 'Choose a recipient',
     recommendation: he ? 'בחר המלצה' : 'Choose a recommendation',
@@ -159,6 +165,11 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
     setPending(index);
     setFailed(false);
     try {
+      if (option.action === 'get_leaderboard') {
+        if (!readChoice) throw new Error('Standings choices require the read client');
+        setReadResult(await readChoice(option.action, option.args));
+        return;
+      }
       agent.addMessage({
         id: crypto.randomUUID(),
         role: 'developer',
@@ -179,6 +190,7 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
     }
   }
   return (
+    <>
     <section
       dir={directionFor(lang)}
       aria-busy={busy || pending !== null}
@@ -255,6 +267,10 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
         </p>
       )}
     </section>
+    {readResult && (isActionChoices(readResult)
+      ? <ActionChoicesCard result={readResult} />
+      : <LeaderboardTable result={readResult as LeaderboardResult} />)}
+    </>
   );
 }
 

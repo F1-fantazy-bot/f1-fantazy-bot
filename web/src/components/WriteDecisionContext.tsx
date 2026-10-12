@@ -32,6 +32,7 @@ export type WriteProposalResponse = {
 };
 
 type WriteDecisionContextValue = {
+  readChoice: (tool: string, args: Record<string, unknown>) => Promise<Record<string, unknown>>;
   decide: (
     writeNonce: string,
     decision: WriteDecision,
@@ -167,6 +168,30 @@ export async function requestWriteProposal({
   return body;
 }
 
+export async function requestReadChoice({
+  runtimeUrl, idToken, tool, args, fetchImpl = window.fetch.bind(window),
+}: RequestWriteProposalOptions): Promise<Record<string, unknown>> {
+  const url = new URL(buildWriteProposalUrl(runtimeUrl));
+  url.pathname = url.pathname.replace(/\/write-proposal$/, '/read-choice');
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (idToken) headers.Authorization = `Bearer ${idToken}`;
+  const response = await fetchImpl(url.toString(), {
+    method: 'POST', headers, body: JSON.stringify({ tool, args }),
+  });
+  const body = await response.json();
+  if (!response.ok || !body || typeof body !== 'object' || body.status === 'tool_error') {
+    throw new Error('Unable to load standings. Please try again.');
+  }
+  window.dispatchEvent(new CustomEvent(DIRECT_CARD_PROPOSAL_EVENT, {
+    detail: { tool, args, result: body },
+  }));
+  return body;
+}
+
+export function useReadChoice() {
+  return useContext(WriteDecisionContext)?.readChoice;
+}
+
 export function WriteDecisionProvider({
   runtimeUrl,
   idToken,
@@ -178,6 +203,7 @@ export function WriteDecisionProvider({
 }) {
   const value = useMemo<WriteDecisionContextValue>(
     () => ({
+      readChoice: (tool, args) => requestReadChoice({ runtimeUrl, idToken, tool, args }),
       decide: (writeNonce, decision) =>
         requestWriteDecision({
           runtimeUrl,

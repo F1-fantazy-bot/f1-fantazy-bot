@@ -26,6 +26,7 @@ const { runWithRequestContext } = require('../src/agent/requestContext');
 const { getAgentChatId } = require('../src/agent/identity');
 const { applyWriteDecision } = require('../src/agent/writeDecision');
 const { applyWriteProposal } = require('../src/agent/writeProposal');
+const { applyReadChoice } = require('../src/agent/readChoice');
 const {
   getAllowedUserByEmail,
 } = require('../src/webUserAllowlistService');
@@ -224,6 +225,20 @@ function isWriteProposalPath(req) {
   }
 }
 
+function isReadChoicePath(req) {
+  return buildRequestUrl(req).pathname === '/api/agent/read-choice';
+}
+
+async function buildReadChoiceResponse(req, chatId) {
+  const result = await applyReadChoice({ chatId, payload: parseRequestBody(req) });
+
+  return {
+    status: result.status,
+    headers: { ...buildResponseCorsHeaders(req), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    body: JSON.stringify(result.body),
+  };
+}
+
 function parseRequestBody(req) {
   if (
     req.body &&
@@ -311,6 +326,7 @@ module.exports = async function (context, req) {
   const whoami = isWhoamiPath(req);
   const writeDecision = isWriteDecisionPath(req);
   const writeProposal = isWriteProposalPath(req);
+  const readChoice = isReadChoicePath(req);
   if (whoami && (req.method || '').toUpperCase() !== 'GET') {
     context.res = {
       status: 405,
@@ -335,7 +351,7 @@ module.exports = async function (context, req) {
 
     return;
   }
-  if (writeProposal && (req.method || '').toUpperCase() !== 'POST') {
+  if ((writeProposal || readChoice) && (req.method || '').toUpperCase() !== 'POST') {
     context.res = {
       status: 405,
       headers: {
@@ -375,8 +391,8 @@ module.exports = async function (context, req) {
       return;
     }
 
-    if (writeDecision || writeProposal || workflow) {
-      const buildWriteResponse = workflow ? buildWorkflowResponse : writeDecision
+    if (writeDecision || writeProposal || workflow || readChoice) {
+      const buildWriteResponse = readChoice ? buildReadChoiceResponse : workflow ? buildWorkflowResponse : writeDecision
         ? buildWriteDecisionResponse
         : buildWriteProposalResponse;
       if (authResult.status === STATUS.OK) {
