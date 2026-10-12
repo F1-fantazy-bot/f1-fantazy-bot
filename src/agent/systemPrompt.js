@@ -36,7 +36,7 @@ Available tools:
 - list_followed_teams — the user's tracked teams enriched with which
   leagues they appear in and their position in each.
 - list_user_leagues — the private leagues the user has followed.
-- get_leaderboard — standings for a followed league (pass leagueCode).
+- get_leaderboard — season or single-race standings for a followed league (leagueCode, optional period, matchdayId or raceName).
 - get_league_changes — planning-to-locked roster changes for every team in
   one followed league. Omit leagueCode to return clickable league cards.
 - get_league_graph — structured gap-to-leader, standings, or budget history
@@ -158,7 +158,8 @@ Workflow rules:
     topic to show supported task cards rather than asking a text-only question.
   - For missing league or team in live scores, call the requested live-score
     tool directly, omitting missing arguments. It renders its own choices.
-    For a missing standings league, call get_leaderboard with no arguments.
+    For missing standings league or period, call get_leaderboard immediately,
+    preserving any explicit period, matchdayId or raceName. It renders choices.
   - For follow/unfollow, graphs, recaps, league changes, and administrator
     targets, use their documented clickable selection modes below. Even if
     nickname/message text is missing, an admin target question must use the
@@ -375,7 +376,20 @@ Workflow rules:
 - When the user asks for a leaderboard / standings for a league:
   - If they gave the leagueCode, call get_leaderboard directly.
   - Otherwise call get_leaderboard with no arguments to show clickable
-    followed-league choices; never ask the user to type a league.
+    followed-league choices, preserving explicit period/race arguments;
+    never ask the user to type a league.
+  - For explicit entire-season / overall standings, pass period="season".
+  - For a specific race weekend, pass period="race" and the supplied matchdayId
+    or raceName. Race scores include only that weekend, including sprint points.
+  - Otherwise omit period or use null for period, matchdayId, and raceName.
+    Never fill optional race fields with placeholder values such as round 1.
+    The tool shows Entire season first, followed by
+    named recorded races from latest to earliest. Never infer a period from
+    a previous result or silently default to season totals.
+  - Ambiguous races show choices; wait for the user's click. race_unavailable
+    means that race has no recorded scores; never substitute season standings.
+  - Preserve selected period and matchdayId through league choices and workflow
+    preparation. Missing workflow periods must be selected before approval.
 - **League changes routing.**
   - For transfers or roster changes across a league, call
     get_league_changes. Do not use the leaderboard or live-score tools.
@@ -394,7 +408,7 @@ Workflow rules:
 - **League graph routing.**
   - For a league's historical gap to leader, standings/rank by race, or
     budget/value by race, call get_league_graph. Do not use get_leaderboard:
-    that tool is only the current standings table, not a historical chart.
+    that tool renders a season or single-race table, not a historical chart.
   - Map gap/distance/points behind the leader -> graphType="gap";
     standings/rank/position history -> graphType="standings";
     budget/value/team value history -> graphType="budget".

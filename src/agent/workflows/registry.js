@@ -18,7 +18,8 @@ const TEAM_TOOLS = new Set([
   'get_current_team',
 ]);
 const { listUserLeagues } = require('../../leagueRegistryService');
-const { getActionChoices } = require('../readTools/getActionChoicesTool');
+const { getLeaderboard, normalizeLeaderboardArgs } = require('../../cores/leaderboardCore');
+const { getActionChoices, leaderboardChoices } = require('../readTools/getActionChoicesTool');
 const LEAGUE_TOOLS = new Set([
   'get_leaderboard',
   'get_live_score_for_team',
@@ -123,7 +124,7 @@ function createRegistry(tools) {
       async prepare(owner, raw, context = {}) {
         await ensureCacheReady();
         await hydrateUserMutationState(owner);
-        let args = { ...raw };
+        let args = tool.name === 'get_leaderboard' ? normalizeLeaderboardArgs(raw) : { ...raw };
         let label = '';
         if (TEAM_TOOLS.has(tool.name)) {
           if (!args.teamId && !args.teamName && context.teamId) {
@@ -180,6 +181,18 @@ function createRegistry(tools) {
               context: args,
             });
           }
+        }
+        if (tool.name === 'get_leaderboard') {
+          const result = await getLeaderboard({ ...args, chatId: owner, requirePeriod: true });
+          if (result.status !== 'ok') {
+            return leaderboardChoices(result, args, getLanguage(owner));
+          }
+          args.period = result.period;
+          if (result.period === 'race') {
+            args.matchdayId = result.matchdayId;
+            delete args.raceName;
+          }
+          label += ` — ${result.raceName || (getLanguage(owner) === 'he' ? 'כל העונה' : 'Entire season')}`;
         }
         if (tool.name === 'get_league_graph' && !args.graphType) {
           return {

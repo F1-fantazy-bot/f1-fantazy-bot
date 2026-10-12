@@ -1,3 +1,6 @@
+jest.mock('../../leagueRegistryService', () => ({ listUserLeagues: jest.fn() }));
+jest.mock('../../azureStorageService', () => ({ getLeagueData: jest.fn() }));
+jest.mock('../../raceScheduleService', () => ({ fetchCurrentSeasonRaces: jest.fn() }));
 jest.mock('@copilotkit/runtime/v2', () => ({ defineTool: (spec) => spec }));
 jest.mock('../cacheBootstrap', () => ({ ensureCacheReady: jest.fn() }));
 jest.mock('../../services/userMutationHydrationService', () => ({
@@ -139,4 +142,63 @@ test('a downstream calculation binds the chip from the preceding write', async (
       },
     );
   expect(step.args).toEqual({ teamId: 'B', chipOverride: 'EXTRA_BOOST' });
+});
+
+
+test('standings workflow prepares league then period choices and binds the selected race', async () => {
+  setup();
+  const { listUserLeagues } = require('../../leagueRegistryService');
+  const { getLeagueData } = require('../../azureStorageService');
+  listUserLeagues.mockResolvedValue([{ leagueCode: 'C7', leagueName: 'League' }]);
+  getLeagueData.mockResolvedValue({ teams: [{ raceScores: { matchday_10: 20, matchday_2: 1 } }] });
+  const tool = { name: 'get_leaderboard', description: 'Standings.', parameters: z.object({
+    leagueCode: z.string(), period: z.enum(['season', 'race']).optional(), matchdayId: z.number().optional(), raceName: z.string().optional(),
+  }), execute: jest.fn() };
+  const adapter = createRegistry([tool]).get('get_leaderboard');
+  const leagues = await adapter.prepare(42, {});
+  expect(leagues.choice).toBe('league');
+  const periods = await adapter.prepare(42, leagues.options[0].args);
+  expect(periods.choice).toBe('period');
+  expect(periods.options.map((option) => option.label)).toEqual(['Entire season', 'R10', 'R2']);
+  const prepared = await adapter.prepare(42, periods.options[1].args);
+  expect(prepared.args).toEqual({ leagueCode: 'C7', period: 'race', matchdayId: 10 });
+  expect(prepared.summary).toContain('R10');
+  expect((await adapter.revalidate(42, prepared)).valid).toBe(true);
+  await adapter.execute(42, prepared);
+  expect(tool.execute).toHaveBeenCalledWith(prepared.args);
+  const direct = await adapter.prepare(42, { period: 'race', matchdayId: 2 });
+  expect(direct.options[0].args).toMatchObject({ period: 'race', matchdayId: 2 });
+  expect((await adapter.prepare(42, direct.options[0].args)).args.matchdayId).toBe(2);
+  expect((await adapter.prepare(42, { leagueCode: 'C7', period: 'season' })).args.period).toBe('season');
+  expect(await adapter.prepare(42, { leagueCode: 'C7', matchdayId: 9 })).toMatchObject({ status: 'race_unavailable' });
+  await adapter.prepare(42, { leagueCode: 'C7', period: 'season', chatId: 99 });
+  expect(listUserLeagues).toHaveBeenLastCalledWith(42);
+});
+
+test('workflow race names require disambiguation, then prepare a canonical round and reject lost scores', async () => {
+  setup();
+  const { listUserLeagues } = require('../../leagueRegistryService');
+  const { getLeagueData } = require('../../azureStorageService');
+  const { fetchCurrentSeasonRaces } = require('../../raceScheduleService');
+  listUserLeagues.mockResolvedValue([{ leagueCode: 'C7', leagueName: 'League' }]);
+  getLeagueData.mockResolvedValue({ teams: [{ raceScores: { matchday_10: 20, matchday_2: 0 } }] });
+  fetchCurrentSeasonRaces.mockResolvedValue({ MRData: { RaceTable: { Races: [
+    { round: '10', raceName: 'Austrian Grand Prix' },
+    { round: '2', raceName: 'Australian Grand Prix' },
+  ] } } });
+  const tool = {
+    name: 'get_leaderboard', description: 'Standings.',
+    parameters: z.object({ leagueCode: z.string(), period: z.enum(['season', 'race']).optional(), matchdayId: z.number().optional(), raceName: z.string().optional() }),
+    execute: jest.fn(),
+  };
+  const adapter = createRegistry([tool]).get('get_leaderboard');
+  const ambiguous = await adapter.prepare(42, { leagueCode: 'C7', raceName: 'Austr' });
+  expect(ambiguous).toMatchObject({ status: 'selection_required', choice: 'period' });
+  expect(ambiguous.options.map((option) => option.label)).toEqual(['Austrian GP', 'Australian GP']);
+  const named = await adapter.prepare(42, { leagueCode: 'C7', raceName: 'Austrian Grand Prix' });
+  expect(named.args).toEqual({ leagueCode: 'C7', period: 'race', matchdayId: 10 });
+  expect(named.summary).toContain('Austrian GP');
+  getLeagueData.mockResolvedValue({ teams: [{ totalScore: 1234, raceScores: { matchday_10: null } }] });
+  expect(await adapter.revalidate(42, named)).toMatchObject({ valid: false, failure: { status: 'race_unavailable' } });
+  expect(tool.execute).not.toHaveBeenCalled();
 });
