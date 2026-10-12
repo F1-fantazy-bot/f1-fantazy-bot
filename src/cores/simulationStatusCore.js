@@ -203,7 +203,7 @@ function buildSimulationStatus({
     lastUpdate,
     freshness: buildFreshness({
       simulationName: simulationInfo?.name,
-      matchday,
+      matchday: simulationInfo?.matchdayId ?? null,
       nextRaceInfo,
       lastUpdate,
       now,

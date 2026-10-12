@@ -7,8 +7,10 @@ import { ActionChoicesCard } from './ActionChoicesCard';
 import { safeParse } from './safeParse';
 import { ToolLoading } from './ToolLoading';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
+import { TeamDataNotice, type TeamDataStatus } from './TeamDataNotice';
 
 type Result = {
+  dataStatus?: TeamDataStatus;
   status: string; lang?: string; calculationId?: string; row?: number; teamName?: string;
   request?: Record<string, unknown>; rows?: number[]; noChanges?: boolean;
   driversToRemove?: string[]; driversToAdd?: string[]; constructorsToRemove?: string[]; constructorsToAdd?: string[];
@@ -47,6 +49,7 @@ export function BestTeamChangesCard({ result }: { result?: Result }) {
       <ActionChoicesCard result={{ status: 'selection_required', choice: 'recommendation', lang: result.lang, options }} /></section>;
   }
   return <article className="transfer-plan" dir={he ? 'rtl' : 'ltr'}>
+    <TeamDataNotice status={result.dataStatus} lang={result.lang} />
     <header className="transfer-plan__header"><div><span className="transfer-plan__eyebrow">{label('Transfer plan', 'תוכנית העברות')} <bdi>#{result.row}</bdi></span><h3><bdi>{result.teamName}</bdi></h3></div>
       <span className="transfer-plan__badge"><MetricNumber value={result.transfersNeeded} digits={0} /> {label('transfers', 'העברות')}</span>
       {!!result.penalty && <span className="transfer-plan__penalty">{label('Penalty', 'קנס')}: <MetricNumber value={result.penalty} digits={0} /></span>}

@@ -247,6 +247,9 @@ function prepareBestTeamsData({
   if (!drivers || !constructors || !currentTeam) {
     return { status: 'missing_cache' };
   }
+  if (currentTeam.transfersStatus === 'unlimited') {
+    currentTeam = { ...currentTeam, freeTransfers: 7 };
+  }
 
   if (!hasAlignedDriverIds(currentTeam)) {
     return validateLegacyData({ drivers, constructors, currentTeam });

@@ -56,6 +56,8 @@ export type LeagueChangesResult = {
   leagues?: LeagueChoice[];
   changedTeams?: LeagueChangeTeam[];
   unchangedTeams?: LeagueChangeTeam[];
+  unavailableTeams?: LeagueChangeTeam[];
+  planningKind?: 'race-start';
 };
 
 function names(values: string[]): string {
@@ -342,7 +344,10 @@ export function LeagueChangesCard({
         </div>
       </header>
 
-      {changedTeams.length === 0 ? (
+      {result.planningKind === 'race-start' ? <p role="note">{lang === 'he' ? 'הרכב פתיחה ← הרכב נעול' : 'Starting baseline → locked roster'}</p> : null}
+      {result.unavailableTeams?.length ? <p role="status">{lang === 'he' ? 'לא ניתן להשוות שינויים: הרכב הפתיחה אינו זמין עבור' : 'Changes could not be compared: starting roster unavailable for'} {result.unavailableTeams.map((team) => team.teamName || team.userName).join(', ')}</p> : null}
+
+      {changedTeams.length === 0 && !result.unavailableTeams?.length ? (
         <p role="status" style={{ color: 'var(--app-muted)' }}>{labels.noChanges}</p>
       ) : (
         <div role="list" style={{ display: 'grid', gap: 8 }}>

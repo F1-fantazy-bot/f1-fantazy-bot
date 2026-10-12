@@ -164,6 +164,11 @@ function formatLeagueChanges(latest, previous, chatId) {
     LEAGUE: escapeHtml(latest.leagueName || latest.leagueCode),
     N: latest.matchdayId ?? '?',
   });
+  const notices = [
+    result.planningKind === 'race-start' ? t('Starting baseline → locked roster.', chatId) : '',
+    result.unavailableTeams?.length ? t('{COUNT} team(s) have no usable starting roster; changes could not be compared.', chatId, { COUNT: result.unavailableTeams.length }) : '',
+  ].filter(Boolean).join('\n');
+  if (notices) {blocks.push(notices);}
 
   if (blocks.length === 0) {
     return [

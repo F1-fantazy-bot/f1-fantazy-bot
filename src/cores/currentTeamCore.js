@@ -27,6 +27,7 @@ const {
   getConstructorsForChat,
 } = require('../cache');
 const { prepareBestTeamsData } = require('../utils/bestTeamsData');
+const { publicFreeTransfers, teamDataStatus, recommendationIssue } = require('../utils/teamDataStatus');
 
 function pickTeamId({ chatId, requestedTeamId, requestedTeamName }) {
   const teamIds = getUserTeamIds(chatId);
@@ -95,6 +96,9 @@ async function getCurrentTeam({ chatId, teamId, teamName } = {}) {
     };
   }
 
+  if (recommendationIssue(currentTeam, pricesCache.metadata?.matchdayId ?? null) === 'race_mismatch') {
+    return { status: 'race_mismatch', teamId: resolvedTeamId };
+  }
   const prepared = prepareBestTeamsData({
     drivers,
     constructors,
@@ -130,9 +134,10 @@ async function getCurrentTeam({ chatId, teamId, teamName } = {}) {
     chip: getActiveChip(chatId, resolvedTeamId) || null,
     drivers: currentTeam.drivers,
     constructors: currentTeam.constructors,
-    boostDriver: currentTeam.boostDriver || null,
+    boostDriver: currentTeam.boostDriver || currentTeam.boost || null,
     extraBoostDriver: currentTeam.extraBoostDriver || null,
-    freeTransfers: currentTeam.freeTransfers ?? null,
+    freeTransfers: publicFreeTransfers(currentTeam),
+    ...(Object.keys(teamDataStatus(currentTeam)).length ? { dataStatus: teamDataStatus(currentTeam) } : {}),
     teamInfo: {
       totalPrice: teamInfo.totalPrice,
       costCapRemaining: teamInfo.costCapRemaining,

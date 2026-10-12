@@ -12,6 +12,9 @@ const {
 } = require('../cache');
 const { prepareBestTeamsData } = require('../utils/bestTeamsData');
 const { t } = require('../i18n');
+const { refreshWeeklyTeamData } = require('../services/weeklyTeamDataService');
+const { recommendationIssue, teamDataStatus } = require('../utils/teamDataStatus');
+const { recommendationMessage, teamDataNotice } = require('../utils/teamDataPresentation');
 const {
   EXTRA_BOOST_CHIP,
   LIMITLESS_CHIP,
@@ -87,6 +90,7 @@ async function handleBestTeamScenariosMessage(bot, chatId) {
   if (!teamId) {
     return;
   }
+  await refreshWeeklyTeamData(chatId);
 
   const drivers = getDriversForChat(chatId);
   const constructors = getConstructorsForChat(chatId);
@@ -108,16 +112,25 @@ async function handleBestTeamScenariosMessage(bot, chatId) {
     return;
   }
 
+  const issueMessage = recommendationMessage(recommendationIssue(currentTeam, pricesCache.metadata?.matchdayId ?? null), chatId);
+  if (issueMessage) {
+    await bot.sendMessage(chatId, issueMessage);
+
+    return;
+  }
+  const notice = teamDataNotice(teamDataStatus(currentTeam), chatId);
+  if (notice) {await bot.sendMessage(chatId, notice);}
+
   if (
-    !validateJsonData(
+    !(await validateJsonData(
       bot,
       {
         Drivers: Object.values(drivers),
         Constructors: Object.values(constructors),
-        CurrentTeam: currentTeam,
+        CurrentTeam: currentTeam.transfersStatus === 'unlimited' ? { ...currentTeam, freeTransfers: 7 } : currentTeam,
       },
       chatId,
-    )
+    ))
   ) {
     return;
   }

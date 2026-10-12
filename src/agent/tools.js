@@ -47,6 +47,7 @@ const {
 } = require('../services/activateChipService');
 const { getAgentChatId } = require('./identity');
 const { ensureCacheReady, ensureCurrentUserIdentity } = require('./cacheBootstrap');
+const { refreshWeeklyTeamData } = require('../services/weeklyTeamDataService');
 const { wrapToolExecute } = require('./wrapToolExecute');
 const { getActionChoicesTool, wrapSelectableExecute } = require('./readTools/getActionChoicesTool');
 const { executeConfirmedWrite } = require('./writeToolHelpers');
@@ -169,6 +170,7 @@ const tools = [
       await ensureCacheReady();
       const chatId = getAgentChatId();
       await ensureCurrentUserIdentity(chatId);
+      await refreshWeeklyTeamData(chatId);
       await refreshChipPreferencesSafely(chatId);
 
       return await withUiLanguage(chatId, {
@@ -272,6 +274,7 @@ const tools = [
         lang: language.lang,
         teamId: result.teamId,
         teamName: result.teamName,
+        dataStatus: result.dataStatus,
         chip: result.chip || null,
         rankBy: result.rankBy,
         budgetChangePointsPerMillion: result.budgetChangePointsPerMillion,
@@ -329,6 +332,7 @@ const tools = [
     execute: wrapSelectableExecute('get_best_team_scenarios', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
+      await refreshWeeklyTeamData(chatId);
       await refreshChipPreferencesSafely(chatId);
 
       const result = await computeBestTeamScenarios({
@@ -352,6 +356,7 @@ const tools = [
       await ensureCacheReady();
       const chatId = getAgentChatId();
       await ensureCurrentUserIdentity(chatId);
+      await refreshWeeklyTeamData(chatId);
 
       return await withUiLanguage(chatId, {
         ...(await listFollowedTeams({ chatId })),
@@ -484,6 +489,7 @@ const tools = [
     execute: wrapSelectableExecute('get_current_team', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
+      await refreshWeeklyTeamData(chatId);
       const [language] = await Promise.all([
         getFreshLanguagePreference(chatId),
         refreshBestTeamRankingPreferencesSafely(chatId),

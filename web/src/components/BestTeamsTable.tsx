@@ -3,6 +3,7 @@ import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { ToolLoading } from './ToolLoading';
 import './BestTeamsTable.css';
+import { TeamDataNotice, weeklyErrorMessages, type TeamDataStatus, type RecommendationIssue } from './TeamDataNotice';
 
 type BestTeamRow = {
   row: number;
@@ -20,6 +21,7 @@ type BestTeamRow = {
 };
 
 type GetBestTeamsOkResult = {
+  dataStatus?: TeamDataStatus;
   status: 'ok';
   calculationId?: string;
   lang?: string;
@@ -40,6 +42,7 @@ type GetBestTeamsOkResult = {
 type GetBestTeamsErrorResult = {
   lang?: string;
   status:
+    | RecommendationIssue
     | 'no_teams'
     | 'ambiguous_team'
     | 'unknown_team'
@@ -93,6 +96,7 @@ const copy = {
     unresolved: 'Unresolved',
     candidates: 'Candidates',
     statuses: {
+      ...weeklyErrorMessages.en,
       no_teams:
         'No teams found for this user. Follow a league and pick teams to track first.',
       ambiguous_team:
@@ -142,6 +146,7 @@ const copy = {
     unresolved: 'לא זוהו',
     candidates: 'אפשרויות',
     statuses: {
+      ...weeklyErrorMessages.he,
       no_teams: 'לא נמצאו קבוצות. יש לעקוב אחר ליגה ולבחור קבוצות למעקב.',
       ambiguous_team: 'יש לך כמה קבוצות — נא לציין איזו קבוצה.',
       unknown_team: 'לא הצלחתי למצוא את הקבוצה. בקש להציג את הקבוצות שלך.',
@@ -311,6 +316,7 @@ export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
           fontSize: 14,
         }}
       >
+        <TeamDataNotice status={result.dataStatus} lang={lang} />
         <div style={{ fontWeight: 600 }}>
           {labels.title} — {result.teamName}
         </div>

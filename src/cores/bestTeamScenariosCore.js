@@ -18,6 +18,7 @@ const {
   getUserTeamIds,
 } = require('../cache');
 const { prepareBestTeamsData } = require('../utils/bestTeamsData');
+const { recommendationIssue, teamDataStatus } = require('../utils/teamDataStatus');
 const {
   EXTRA_BOOST_CHIP,
   LIMITLESS_CHIP,
@@ -126,6 +127,8 @@ function computeBestTeamScenarios({ chatId, teamId, teamName }) {
     return { status: 'missing_cache', teamId: resolvedTeamId };
   }
 
+  const issue = recommendationIssue(currentTeam, pricesCache.metadata?.matchdayId ?? null);
+  if (issue) {return { status: issue, teamId: resolvedTeamId, dataStatus: teamDataStatus(currentTeam) };}
   const prepared = prepareBestTeamsData({
     drivers,
     constructors,
@@ -213,6 +216,7 @@ function computeBestTeamScenarios({ chatId, teamId, teamName }) {
     teamName: currentTeam.teamName || resolvedTeamId,
     chip: selectedChip, // Saved-selection metadata only; never a scenario input.
     scenarios,
+    ...(Object.keys(teamDataStatus(currentTeam)).length ? { dataStatus: teamDataStatus(currentTeam) } : {}),
   };
 }
 

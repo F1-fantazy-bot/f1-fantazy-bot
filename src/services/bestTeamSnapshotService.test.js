@@ -13,7 +13,9 @@ const mockStore = {
 jest.mock('@azure/data-tables', () => ({ TableClient: { fromConnectionString: () => mockStore } }));
 jest.mock('@azure/storage-blob', () => ({ BlobServiceClient: { fromConnectionString: () => ({ getContainerClient: () => ({ getBlockBlobClient: () => ({ getProperties: async () => ({ etag: mockVersion }) }) }) }) } }));
 jest.mock('../userRegistryService', () => ({ getUserById: jest.fn(async () => ({ userResetEpoch: 0 })) }));
+jest.mock('../leagueRegistryService', () => ({ listUserLeagues: jest.fn(async () => []) }));
 jest.mock('../azureStorageService', () => ({
+  getLeagueTeamsData: jest.fn(),
   getFantasyData: jest.fn(async () => ({ Drivers: [{ DR: 'A', price: 10, expectedPoints: 10, expectedPriceChange: 0 }], Constructors: [{ CN: 'X', price: 10, expectedPoints: 10, expectedPriceChange: 0 }] })),
   getPricesData: jest.fn(async () => ({ drivers: [], constructors: [] })),
   getNextRaceInfoData: jest.fn(async () => ({ race: 'Monza' })),
@@ -23,12 +25,40 @@ const cache = require('../cache');
 const service = require('./bestTeamSnapshotService');
 let result;
 beforeEach(async () => {
+  require('../leagueRegistryService').listUserLeagues.mockResolvedValue([]);
   mockEntities.clear(); mockVersion = 'v1'; mockRemoved = false;
   cache.currentTeamCache[42] = { T1: { teamName: 'First' }, T2: { teamName: 'Second' } };
   cache.remainingRaceCountCache[cache.sharedKey] = 10;
   const context = await service.loadCalculationContext(42, 'T1');
   result = { teamId: 'T1', teamName: 'First', calculationData: { CurrentTeam: context.currentTeam, Drivers: context.drivers, Constructors: context.constructors },
     budgetChangePointsPerMillion: 0, bestTeams: [1, 2].map((row) => ({ row, drivers: ['A'], constructors: ['X'], boost_driver: 'A', projected_points: row * 30, expected_price_change: 0, transfers_needed: 0, penalty: 0, total_price: 20 })) };
+});
+
+test('league calculations use fresh weekly inputs, and timestamps alone do not invalidate selections', async () => {
+  const storage = require('../azureStorageService');
+  const teamId = 'Owner_1_aaaaaaaaaaaa';
+  require('../leagueRegistryService').listUserLeagues.mockResolvedValue([{ leagueCode: 'L1' }]);
+  const weekly = { matchdayId: 18, fetchedAt: 'first', teams: [{ accountId: 'aaaaaaaaaaaa', teamNo: 1, userName: 'Owner',
+    drivers: [{ name: 'A', price: 10 }], constructors: [{ name: 'X', price: 10 }], budget: 90,
+    budgetStatus: 'calculated-race-start', teamStateStatus: 'reconstructed-race-start', teamStateMatchdayId: 17,
+    transfersStatus: 'calculated-race-start', transfersRemaining: 2 }] };
+  storage.getLeagueTeamsData.mockResolvedValue(weekly);
+  const context = await service.loadCalculationContext(42, teamId);
+  expect(context.currentTeam).toMatchObject({ costCapRemaining: 70, freeTransfers: 2, matchdayId: 18 });
+  weekly.fetchedAt = 'second';
+  expect(await service.dependencies(42, teamId)).toBe(context.fingerprint);
+  weekly.teams[0].transfersRemaining = 3;
+  expect(await service.dependencies(42, teamId)).not.toBe(context.fingerprint);
+});
+
+test('a weekly blob changed during the read rejects the calculation', async () => {
+  require('../leagueRegistryService').listUserLeagues.mockResolvedValue([{ leagueCode: 'L1' }]);
+  require('../azureStorageService').getLeagueTeamsData.mockImplementationOnce(async () => {
+    mockVersion = 'changed';
+
+    return { matchdayId: 18, teams: [] };
+  });
+  await expect(service.loadCalculationContext(42, 'Owner_1_aaaaaaaaaaaa')).rejects.toThrow('Inputs changed');
 });
 async function save() { return service.saveCalculation(42, result, { mustIncludeDrivers: ['A'], rankBy: 'points' }, await service.dependencies(42, 'T1')); }
 test('exact rows survive multiple calculations and active-team switches', async () => {

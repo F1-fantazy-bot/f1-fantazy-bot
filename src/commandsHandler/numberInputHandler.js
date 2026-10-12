@@ -20,6 +20,7 @@ const {
 } = require('../services/activateChipService');
 const { COMMAND_BEST_TEAMS } = require('../constants');
 const { t } = require('../i18n');
+const { refreshWeeklyTeamData } = require('../services/weeklyTeamDataService');
 
 // Handles the case when the message text is a number
 async function handleNumberMessageInternal(
@@ -150,6 +151,7 @@ async function handleNumberMessageInternal(
 module.exports = { handleNumberMessage };
 
 async function handleNumberMessage(bot, chatId, textTrimmed) {
+  await refreshWeeklyTeamData(chatId, { force: true });
   const selectedTeam = getSelectedTeam(chatId);
   const cachedTeamIds = Object.keys(bestTeamsCache[chatId] || {});
   const teamId =

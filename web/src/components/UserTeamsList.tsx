@@ -1,7 +1,9 @@
 import { useEffect, useId, useState } from 'react';
 import { directionFor, uiLanguageOf, type UiLanguage } from './uiLanguage';
+import { TeamDataNotice, transferLabel, type TeamDataStatus } from './TeamDataNotice';
 
 export type UserTeam = {
+  dataStatus?: TeamDataStatus;
   teamId: string;
   teamName: string;
   isLeague: boolean;
@@ -269,13 +271,14 @@ export function UserTeamsList({
                   marginTop: 4,
                 }}
               >
-                {team.freeTransfers != null
-                  ? `${team.freeTransfers} ${labels.freeTransfers}`
+                {team.freeTransfers != null || team.dataStatus
+                  ? `${transferLabel(team.freeTransfers, team.dataStatus, lang)} ${labels.freeTransfers}`
                   : ''}
                 {team.costCapRemaining != null
                   ? ` · ${team.costCapRemaining.toFixed?.(1) ?? team.costCapRemaining} ${labels.capLeft}`
                   : ''}
               </div>
+              <TeamDataNotice status={team.dataStatus} lang={lang} />
             </div>
             {!isSelected && onSelectTeam ? (
               <span className="user-team-card__action">

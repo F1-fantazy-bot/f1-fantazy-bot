@@ -43,6 +43,13 @@ function compareNames(latestEntries, planningEntries) {
 
 function compareTeamChanges(latestTeam, planningTeam, matchdayId = latestTeam?.matchdayId) {
   const { transferPenalty } = deriveLiveScoreOptions({ ...latestTeam, matchdayId });
+  const unusable = (team) => team && (['historical', 'unavailable'].includes(team.teamStateStatus) ||
+    (team.teamStateStatus && team.matchdayId !== undefined && team.matchdayId !== matchdayId));
+  if (unusable(latestTeam) || unusable(planningTeam)) {
+    return { comparisonStatus: 'unavailable', isNew: false, hasChanges: false,
+      drivers: { in: [], out: [] }, constructors: { in: [], out: [] },
+      captain: null, megaCaptain: null, chipsActivated: [], transferPenalty: 0 };
+  }
   if (!planningTeam) {
     return {
       isNew: true,
@@ -158,7 +165,11 @@ function compareLeagueChanges({ latest, planning } = {}) {
       (left, right) =>
         (left?.position || Infinity) - (right?.position || Infinity),
     )
-    .map((team) => normalizeTeam(team, findPlanningTeam(team), lockedMatchdayId));
+    .map((team) => {
+      const planningTeam = findPlanningTeam(team);
+
+      return normalizeTeam(team, planningTeam ? { ...planningTeam, matchdayId: planningMatchdayId } : null, lockedMatchdayId);
+    });
 
   return {
     status: 'ok',
@@ -172,7 +183,11 @@ function compareLeagueChanges({ latest, planning } = {}) {
     matchdayId: lockedMatchdayId,
     teams,
     changedTeams: teams.filter((team) => team.hasChanges),
-    unchangedTeams: teams.filter((team) => !team.hasChanges),
+    unchangedTeams: teams.filter((team) => !team.hasChanges && team.comparisonStatus !== 'unavailable'),
+    ...(teams.some((team) => team.comparisonStatus === 'unavailable')
+      ? { unavailableTeams: teams.filter((team) => team.comparisonStatus === 'unavailable') } : {}),
+    ...(planningTeams.some((team) => team.teamStateStatus === 'reconstructed-race-start')
+      ? { planningKind: 'race-start' } : {}),
   };
 }
 

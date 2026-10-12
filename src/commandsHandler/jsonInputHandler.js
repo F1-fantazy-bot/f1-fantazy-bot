@@ -20,6 +20,7 @@ const {
   updateUserAttributesAtomically,
 } = require('../userRegistryService');
 const { t } = require('../i18n');
+const { teamDataStatus } = require('../utils/teamDataStatus');
 const {
   setCachedSelectedTeam,
 } = require('../services/selectTeamService');
@@ -221,6 +222,10 @@ function isValidTeamSnapshot(teamSnapshot) {
   if (!isPlainObject(teamSnapshot)) {
     return false;
   }
+  const normalizedStatus = teamDataStatus(teamSnapshot);
+  for (const key of ['teamStateStatus', 'budgetStatus', 'transfersStatus']) {
+    if (Object.hasOwn(teamSnapshot, key) && normalizedStatus[key] !== teamSnapshot[key]) {return false;}
+  }
 
   if (
     !Array.isArray(teamSnapshot.drivers) ||
@@ -228,8 +233,10 @@ function isValidTeamSnapshot(teamSnapshot) {
     !Array.isArray(teamSnapshot.constructors) ||
     !teamSnapshot.constructors.every(isNonEmptyString) ||
     !isNonEmptyString(teamSnapshot.boost) ||
-    !Number.isFinite(teamSnapshot.freeTransfers) ||
-    !Number.isFinite(teamSnapshot.costCapRemaining)
+    !(Number.isFinite(teamSnapshot.freeTransfers) ||
+      (teamSnapshot.freeTransfers === null && ['unknown', 'unlimited'].includes(teamSnapshot.transfersStatus))) ||
+    !(Number.isFinite(teamSnapshot.costCapRemaining) ||
+      (teamSnapshot.costCapRemaining === null && teamSnapshot.budgetStatus === 'unknown'))
   ) {
     return false;
   }
