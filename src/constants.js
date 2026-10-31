@@ -488,6 +488,7 @@ exports.NAME_TO_CODE_DRIVERS_MAPPING = {
   'e. ocon': 'OCO',
   'p. gasly': 'GAS',
   'l. lawson': 'LAW',
+  'r. hirakawa': 'HIR',
   'a. lindblad': 'LIN',
   'j. doohan': 'DOO',
   'g. bortoleto': 'BOR',
