@@ -50,5 +50,6 @@
   "trigger_live_score_scheduler": "write",
   "confirm_write": "write",
   "propose_workflow": "workflow",
-  "get_workflow_status": "workflow"
+  "get_workflow_status": "workflow",
+  "get_available_chips": "read"
 }

@@ -1,3 +1,4 @@
+jest.mock('../../cores/availableChipsCore', () => ({ getAvailableChips: jest.fn() }));
 jest.mock('@copilotkit/runtime/v2', () => ({ defineTool: (spec) => spec }));
 jest.mock('../cacheBootstrap', () => ({ ensureCacheReady: jest.fn() }));
 jest.mock('../identity', () => ({ getAgentChatId: () => 42 }));
@@ -337,4 +338,15 @@ test('best-team chip choices use a calculation override and preserve it through 
     teamId: 'OWNED_2', chipOverride: 'EXTRA_BOOST', mustIncludeDrivers: ['VER'],
   });
   expect(teams.options[0].args).not.toHaveProperty('chip');
+});
+
+
+test('remaining-chip scope discovery uses the feature core without cache bootstrap or unrelated calculation args', async () => {
+  const { getAvailableChips } = require('../../cores/availableChipsCore');
+  const { ensureCacheReady } = require('../cacheBootstrap');
+  getAvailableChips.mockResolvedValue({ status: 'selection_required', choice: 'scope', options: ['team', 'tracked', 'league'].map((scope) => ({ label: scope, args: { scope } })) });
+  const result = await getActionChoices({ action: 'get_available_chips', choice: 'scope', context: { scope: 'tracked', teamId: 'old', rankBy: 'points' } });
+  expect(result.choice).toBe('scope');
+  expect(getAvailableChips).toHaveBeenCalledWith({ chatId: 42 });
+  expect(ensureCacheReady).not.toHaveBeenCalled();
 });

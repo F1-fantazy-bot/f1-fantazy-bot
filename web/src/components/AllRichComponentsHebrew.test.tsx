@@ -1,3 +1,4 @@
+import { AvailableChipsCard } from './AvailableChipsCard';
 import { WorkflowCard } from './WorkflowCard';
 import { LanguageCard } from './LanguageCard';
 import { UiLanguageProvider } from './uiLanguage';
@@ -94,6 +95,7 @@ describe('all rich components honor Hebrew ui language', () => {
     element: ReactElement;
     expected: string[];
   }> = [
+    { name: 'available chips', element: <AvailableChipsCard result={{ status: 'ok', lang: 'he', teams: [{ teamName: 'kilzid1', availableChips: null, updatedAt: null }] }} />, expected: ['צ׳יפים שלא נוצלו העונה', 'נתוני השימוש אינם זמינים'] },
     { name: 'saved language', element: <LanguageCard result={{ lang: 'he' }} />, expected: ['השפה השמורה', 'עברית'] },
     {
       name: 'action choices',

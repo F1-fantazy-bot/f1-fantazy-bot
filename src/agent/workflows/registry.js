@@ -1,3 +1,6 @@
+const { getFreshLanguagePreference } = require('../../services/setLanguageService');
+const { getAvailableChips } = require('../../cores/availableChipsCore');
+const { localizeAvailableChips } = require('../readTools/getAvailableChipsTool');
 const { createHash } = require('crypto');
 const { getWorkflowWriteAdapter } = require('../writeToolHelpers');
 const { ensureCacheReady } = require('../cacheBootstrap');
@@ -36,6 +39,7 @@ const EXCLUDED = new Set([
   'propose_workflow',
 ]);
 const READ_LABELS = {
+  get_available_chips: ['Show remaining chips', 'הצגת צ׳יפים שנותרו'],
   get_best_teams: ['Calculate best teams', 'חישוב קבוצות מיטביות'],
   get_current_team: ['Show current team', 'הצגת הקבוצה הנוכחית'],
   get_best_team_scenarios: [
@@ -122,10 +126,20 @@ function createRegistry(tools) {
     const adapter = {
       write: Boolean(writer),
       async prepare(owner, raw, context = {}) {
-        await ensureCacheReady();
-        await hydrateUserMutationState(owner);
+        if (tool.name !== 'get_available_chips') {
+          await ensureCacheReady();
+          await hydrateUserMutationState(owner);
+        }
         let args = tool.name === 'get_leaderboard' ? normalizeLeaderboardArgs(raw) : { ...raw };
         let label = '';
+        if (tool.name === 'get_available_chips') {
+          const { lang } = await getFreshLanguagePreference(owner);
+          const result = await getAvailableChips({ ...tool.parameters.parse(args), chatId: owner });
+          if (result.status !== 'ok' && result.status !== 'empty') {
+            return localizeAvailableChips(result, lang);
+          }
+          args = tool.parameters.parse(result.request || args);
+        }
         if (TEAM_TOOLS.has(tool.name)) {
           if (!args.teamId && !args.teamName && context.teamId) {
             args.teamId = context.teamId;
@@ -402,6 +416,11 @@ function createRegistry(tools) {
         };
       },
       async revalidate(owner, step) {
+        if (tool.name === 'get_available_chips') {
+          // This read authorizes its canonical targets and loads fresh sources
+          // during execute. Avoid a duplicate blob read in the same advance.
+          return { valid: tool.parameters.safeParse(step.args).success };
+        }
         const current = await adapter.prepare(owner, step.args);
         if (current.status) {
           return { valid: false, failure: current };

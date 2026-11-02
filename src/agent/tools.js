@@ -1,3 +1,4 @@
+const { getAvailableChipsTool } = require('./readTools/getAvailableChipsTool');
 const { buildBestTeamChanges } = require('../cores/bestTeamChangesCore');
 const bestTeamSnapshots = require('../services/bestTeamSnapshotService');
 // CopilotKit v2 tool catalogue for the agent.
@@ -419,6 +420,7 @@ const tools = [
   }),
 
   getAgentGuideTool,
+  getAvailableChipsTool,
   getLeagueChangesTool,
   getLeagueGraphTool,
   getRaceSummaryTool,

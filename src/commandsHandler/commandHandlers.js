@@ -1,8 +1,12 @@
+const { handleAvailableChipsCommand } = require('./availableChipsHandler');
+const { parseAvailableChipsCommand } = require('../utils/availableChipsRequest');
+const { t } = require('../i18n');
 const {
   COMMAND_BEST_TEAMS,
   COMMAND_BEST_TEAM_SCENARIOS,
   COMMAND_CURRENT_TEAM_INFO,
   COMMAND_CHIPS,
+  COMMAND_AVAILABLE_CHIPS,
   COMMAND_PRINT_CACHE,
   COMMAND_RESET_CACHE,
   COMMAND_HELP,
@@ -118,6 +122,7 @@ const COMMAND_HANDLERS = {
   [COMMAND_BEST_TEAMS]: handleBestTeamsMessage,
   [COMMAND_BEST_TEAM_SCENARIOS]: handleBestTeamScenariosMessage,
   [COMMAND_CURRENT_TEAM_INFO]: calcCurrentTeamInfo,
+  [COMMAND_AVAILABLE_CHIPS]: handleAvailableChipsCommand,
   [COMMAND_CHIPS]: handleChipsMessage,
   [COMMAND_PRINT_CACHE]: sendPrintableCache,
   [COMMAND_RESET_CACHE]: resetCacheForChat,
@@ -170,6 +175,15 @@ const COMMAND_HANDLERS = {
 
 async function executeCommand(bot, msg, command) {
   const chatId = msg.chat.id;
+  if (/^\/available_chips(?:@[a-z0-9_]+)?(?:\s|$)/i.test(command)) {
+    try {
+      const args = parseAvailableChipsCommand(command);
+
+      return await handleAvailableChipsCommand(bot, msg, args);
+    } catch {
+      return await bot.sendMessage(chatId, t('Invalid available chips request.', chatId));
+    }
+  }
   const handler = COMMAND_HANDLERS[command];
   if (!handler) {
     return;

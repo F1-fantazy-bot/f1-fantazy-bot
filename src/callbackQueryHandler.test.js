@@ -1,3 +1,4 @@
+jest.mock('./commandsHandler/availableChipsHandler', () => ({ handleAvailableChipsCallback: jest.fn() }));
 const { handleCallbackQuery } = require('./callbackQueryHandler');
 const {
   CHIP_CALLBACK_TYPE,
@@ -505,4 +506,13 @@ describe('handleCallbackQuery', () => {
       'sig=secret',
     );
   });
+});
+
+
+test('remaining-chip callback routes to its read-only selection adapter', async () => {
+  const { handleAvailableChipsCallback } = require('./commandsHandler/availableChipsHandler');
+  const bot = { sendMessage: jest.fn() };
+  const query = { message: { chat: { id: 42 } }, data: 'AC:aaaaaaaaaaaa:s:0' };
+  await handleCallbackQuery(bot, query);
+  expect(handleAvailableChipsCallback).toHaveBeenCalledWith(bot, query);
 });

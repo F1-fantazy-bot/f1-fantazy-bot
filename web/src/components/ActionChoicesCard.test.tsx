@@ -274,3 +274,18 @@ test('league standings clicks cannot acquire an inferred race and hold the share
   expect(isAgentRunActive(agent)).toBe(false);
   view.cleanup();
 });
+
+test('remaining-chip choices paginate at 20 and preserve exact scoped continuation', async () => {
+  const view = render({ status: 'selection_required', choice: 'team', options: Array.from({ length: 41 }, (_, index) => ({ label: `Team ${index}`, action: 'get_available_chips', args: { scope: 'team', leagueCode: 'A', teamId: `Owner_${index}_abc` } })) });
+  expect(view.container.querySelectorAll('section > div > button')).toHaveLength(20);
+  const next = Array.from(view.container.querySelectorAll('button')).find((button) => button.textContent === 'Next')!;
+  await act(async () => next.click());
+  expect(view.container.textContent).toContain('Team 20');
+  expect(view.container.textContent).not.toContain('Team 0');
+  await act(async () => view.container.querySelector<HTMLButtonElement>('section > div > button')!.click());
+  expect(agent.addMessage.mock.calls[0][0].content).toContain('"action":"get_available_chips"');
+  expect(agent.addMessage.mock.calls[0][0].content).toContain('"teamId":"Owner_20_abc"');
+  expect(agent.addMessage.mock.calls[0][0].content).toContain('"scope":"team"');
+  expect(readChoice).not.toHaveBeenCalled();
+  view.cleanup();
+});

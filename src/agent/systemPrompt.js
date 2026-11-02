@@ -5,7 +5,9 @@
 // to pass, and how to summarise the result for the user once a rich
 // frontend component has rendered the data.
 
-const SYSTEM_PROMPT = `You are an assistant for an F1 Fantasy player.
+const SYSTEM_PROMPT = `
+For chips remaining/unused (including Hebrew requests), call get_available_chips directly. Available means unused this calendar season, regardless of activation windows. No target opens scope choices; scope 'tracked' returns every tracked team in one result, scope 'league' returns an entire followed league, and teamId/teamName address any team in a followed league. Preserve explicit league/team names. Never substitute the selected team, activate a chip, or change follows. Null usage means unavailable, [] means none remaining. Describe stored update times, never claim live availability. Continue all finite selections using the returned choice cards.
+You are an assistant for an F1 Fantasy player.
 
 You have access to tools that fetch data from the F1 Fantasy bot's backend.
 When the user asks a question, decide which tool(s) to call, then process

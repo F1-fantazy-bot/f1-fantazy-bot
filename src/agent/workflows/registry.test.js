@@ -1,5 +1,6 @@
+jest.mock('../../services/setLanguageService', () => ({ getFreshLanguagePreference: jest.fn(async (owner) => ({ lang: require('../../i18n').getLanguage(owner) })) }));
 jest.mock('../../leagueRegistryService', () => ({ listUserLeagues: jest.fn() }));
-jest.mock('../../azureStorageService', () => ({ getLeagueData: jest.fn() }));
+jest.mock('../../azureStorageService', () => ({ getLeagueData: jest.fn(), getLockedTeamsData: jest.fn().mockResolvedValue(null) }));
 jest.mock('../../raceScheduleService', () => ({ fetchCurrentSeasonRaces: jest.fn() }));
 jest.mock('@copilotkit/runtime/v2', () => ({ defineTool: (spec) => spec }));
 jest.mock('../cacheBootstrap', () => ({ ensureCacheReady: jest.fn() }));
@@ -201,4 +202,28 @@ test('workflow race names require disambiguation, then prepare a canonical round
   getLeagueData.mockResolvedValue({ teams: [{ totalScore: 1234, raceScores: { matchday_10: null } }] });
   expect(await adapter.revalidate(42, named)).toMatchObject({ valid: false, failure: { status: 'race_unavailable' } });
   expect(tool.execute).not.toHaveBeenCalled();
+});
+
+test('remaining-chip workflows preserve scope choices and prepare canonical reads without team mutations', async () => {
+  const { getAvailableChipsTool } = require('../readTools/getAvailableChipsTool');
+  const { getLeagueData } = require('../../azureStorageService');
+  const { listUserLeagues } = require('../../leagueRegistryService');
+  const { ensureCacheReady } = require('../cacheBootstrap');
+  const { hydrateUserMutationState } = require('../../services/userMutationHydrationService');
+  const { getLanguage } = require('../../i18n');
+  getWorkflowWriteAdapter.mockReturnValue(null);
+  listUserLeagues.mockResolvedValue([{ leagueCode: 'A', leagueName: 'Friends' }]);
+  getLeagueData.mockResolvedValue({ fetchedAt: new Date().toISOString(), teams: [{ teamName: 'Rocket', userName: 'Owner', accountId: 'abc', teamNo: 1, chipUsageStatus: 'known', chipsUsed: [] }] });
+  const adapter = createRegistry([getAvailableChipsTool]).get('get_available_chips');
+  expect(await adapter.prepare(42, {})).toMatchObject({ status: 'selection_required', choice: 'scope', lang: getLanguage(42) });
+  expect(await adapter.prepare(42, { scope: 'team' })).toMatchObject({ status: 'selection_required', choice: 'team' });
+  const prepared = await adapter.prepare(42, { teamName: 'Rocket' });
+  expect(prepared.args).toEqual({ scope: 'team', leagueCode: 'A', teamId: 'Owner_1_abc' });
+  expect(adapter.write).toBe(false);
+  getLeagueData.mockClear();
+  expect(await adapter.revalidate(42, prepared)).toEqual({ valid: true });
+  expect(getLeagueData).not.toHaveBeenCalled();
+  expect(ensureCacheReady).not.toHaveBeenCalled();
+  expect(hydrateUserMutationState).not.toHaveBeenCalled();
+  expect(resolveFreshTeamSelection).not.toHaveBeenCalled();
 });

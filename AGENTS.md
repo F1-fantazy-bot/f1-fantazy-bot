@@ -75,6 +75,7 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
 ## Key Commands (User-Facing)
 
 - `/best_teams`, `/best_team_scenarios`, `/current_team_info`, `/chips`, `/extra_boost`, `/limitless`, `/wildcard`, `/reset_chip`
+- `/available_chips` — unused season chips for any followed-league team, all tracked teams, or a league
 - `/set_best_team_ranking`
 - `/select_team`, `/print_cache`, `/reset_cache`
 - `/next_race_info`, `/next_races`, `/next_race_weather`, `/deadline`, `/live_score`
@@ -2052,3 +2053,23 @@ When advancement is blocked by another workflow, the authenticated decision API
 returns `blockingWorkflow` from the same owner partition. Show its recovery
 controls even if Clear history hid it; never silently delete a lease or retry a
 write. Cancellation preserves completed results and releases the workflow lock.
+
+
+### Remaining season chips
+
+`availableChipsCore` backs Telegram `/available_chips`, agent `get_available_chips`,
+choice discovery, and workflow preparation. See [contract and scraper-first
+rollout](docs/available-chips.md). These reads use fresh authorized standings and
+locked storage, without cache bootstrap or preference writes. Chip reads pass
+`latestByUpdate: true` to the locked reader, selecting by blob update metadata
+across season race-number resets; existing consumers keep highest-matchday behavior. Membership/name
+resolution uses standings; usage joins require canonical account ID + team number.
+Newest unknown data must never fall back to older known data. Only marked current-
+calendar-season records can produce remaining lists; null means unknown and []
+means none remaining. No target opens scope choices, including when an active team
+exists. Team arguments can address untracked teams in followed leagues. Telegram
+ASK remains an array of strings; only this command permits a strict validated JSON
+suffix. Temporary picker state uses separate available-chips session blobs, random
+tokens, one-hour expiry and 20-item pages. Web choices use the shared run lock and
+rollback, and `AvailableChipsCard` participates in workflows/history and Hebrew
+completeness checks. Do not backfill legacy markers or start production scrapers.

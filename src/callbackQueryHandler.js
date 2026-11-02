@@ -1,3 +1,4 @@
+const { handleAvailableChipsCallback } = require('./commandsHandler/availableChipsHandler');
 const azureStorageService = require('./azureStorageService');
 const {
   currentTeamCache,
@@ -9,6 +10,7 @@ const { selectChip } = require('./commandsHandler/selectChipHandlers');
 const {
   CURRENT_TEAM_PHOTO_TYPE,
   CHIP_CALLBACK_TYPE,
+  AVAILABLE_CHIPS_CALLBACK_TYPE,
   MENU_CALLBACK_TYPE,
   LANG_CALLBACK_TYPE,
   TEAM_CALLBACK_TYPE,
@@ -92,6 +94,8 @@ exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
 
   switch (callbackType) {
+    case AVAILABLE_CHIPS_CALLBACK_TYPE:
+      return await handleAvailableChipsCallback(bot, query);
     case CHIP_CALLBACK_TYPE:
       return await handleChipCallback(bot, query);
     case LANG_CALLBACK_TYPE:

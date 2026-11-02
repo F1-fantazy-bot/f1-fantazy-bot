@@ -1,3 +1,4 @@
+import { AvailableChipsCard } from './AvailableChipsCard';
 import { RaceInfoCard } from './RaceInfoCard';
 import { LanguageCard } from './LanguageCard';
 import { BestTeamChangesCard, workflowChangesTarget } from './BestTeamChangesCard';
@@ -37,6 +38,7 @@ function renderer<T>(Component: ComponentType<{ result?: T }>) {
   return (result: unknown) => <Component result={result as T} />;
 }
 export const workflowRenderers = {
+  get_available_chips: renderer(AvailableChipsCard),
   get_language: renderer(LanguageCard),
   get_next_race_info: renderer(RaceInfoCard),
   get_best_team_changes: renderer(BestTeamChangesCard),

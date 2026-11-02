@@ -28,6 +28,7 @@ export type ActionChoicesResult = {
   status: 'selection_required';
   lang?: string;
   choice:
+    | 'scope'
     | 'period'
     | 'graph'
     | 'recipient'
@@ -124,12 +125,15 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
   const runActive = useAgentRunActive(agent);
   const busy = runActive || agent.isRunning;
   const [pending, setPending] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
+  const activePage = Math.min(page, Math.max(0, Math.ceil(result.options.length / 20) - 1));
   const [failed, setFailed] = useState(false);
   const [readResult, setReadResult] = useState<Record<string, unknown> | null>(null);
   const heading = useId();
   const lang = uiLanguageOf(result);
   const he = lang === 'he';
   const titles = {
+    scope: he ? 'הצג צ׳יפים שנותרו עבור:' : 'Show remaining chips for:',
     period: he ? 'בחר תקופת דירוג' : 'Choose a standings period',
     graph: he ? 'בחר סוג גרף' : 'Choose a chart type',
     recipient: he ? 'בחר נמען' : 'Choose a recipient',
@@ -220,7 +224,9 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
           gap: 12,
         }}
       >
-        {result.options.map((option, index) => (
+        {result.options.slice(activePage * 20, (activePage + 1) * 20).map((option, offset) => {
+          const index = activePage * 20 + offset;
+          return (
           <button
             key={index}
             type="button"
@@ -252,8 +258,13 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
               </div>
             )}
           </button>
-        ))}
+        );})}
       </div>
+      {result.options.length > 20 && <nav aria-label={he ? 'עמודי אפשרויות' : 'Choice pages'} style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+        <button type="button" disabled={activePage === 0 || busy || pending !== null} onClick={() => setPage(activePage - 1)}>{he ? 'הקודם' : 'Previous'}</button>
+        <span aria-live="polite">{activePage + 1} / {Math.ceil(result.options.length / 20)}</span>
+        <button type="button" disabled={(activePage + 1) * 20 >= result.options.length || busy || pending !== null} onClick={() => setPage(activePage + 1)}>{he ? 'הבא' : 'Next'}</button>
+      </nav>}
       {(pending !== null || (!compact && busy)) && (
         <p role="status" aria-live="polite">
           {he ? 'מכין את המשך הבקשה… נא להמתין.' : 'Preparing the next steps… Please wait.'}
