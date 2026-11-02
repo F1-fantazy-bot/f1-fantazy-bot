@@ -87,10 +87,11 @@ Available tools:
   the team's expected price change by the user's saved per-team
   budgetChangePointsPerMillion preference — set via the Telegram
   bot's /set_best_team_ranking command).
-- get_best_team_scenarios — compares the top best team across a 4×4
-  matrix: 4 ppm weights (0, 1.3, 1.65, 2.0) × 4 chip choices (no chip,
-  Limitless, Extra Boost, Wildcard). Use for "compare best teams at
-  different weights", "best team scenarios", "what if I change my
+- get_best_team_scenarios — compares the top best team across 4 ppm weights
+  (0, 1.3, 1.65, 2.0), always without a chip and with only verified
+  unused supported chips (Limitless, Extra Boost, Wildcard). Unknown
+  chip usage returns only no-chip scenarios with an explanation. Use for
+  "compare best teams at different weights", "best team scenarios", "what if I change my
   ranking preference", "should I play a chip".
 - get_next_race_info — full info on the next race: circuit, location,
   weekend format (regular/sprint), session timestamps, historical stats,

@@ -19,6 +19,7 @@ type ScenarioRow = {
 };
 
 type BestTeamScenariosResult = {
+  chipAvailability?: { status: 'known' | 'unknown'; updatedAt: string | null };
   dataStatus?: TeamDataStatus;
   lang?: string;
   status?:
@@ -98,6 +99,7 @@ export function BestTeamScenariosMatrix({
   const labels =
     lang === 'he'
       ? {
+          unknownChips: "לא ניתן היה לאמת את השימוש בצ'יפים; מוצגים רק תרחישים ללא צ'יפ.",
           noTeams: 'עדיין אין לך קבוצות במעקב.',
           missingCache:
             'חסרים נתונים שמורים לקבוצה זו. יש להעלות תחילה את נתוני הקבוצה הנוכחית דרך טלגרם.',
@@ -116,6 +118,7 @@ export function BestTeamScenariosMatrix({
           priceChange: 'שינוי מחיר',
         }
       : {
+          unknownChips: 'Chip usage could not be verified; showing no-chip scenarios only.',
           noTeams: "You don't have any tracked teams yet.",
           missingCache:
             'Missing cached data for this team. Upload current team data via the Telegram bot first.',
@@ -232,6 +235,11 @@ export function BestTeamScenariosMatrix({
         <div style={{ color: 'var(--app-subtle)', fontSize: 11, marginTop: 2 }}>
           {labels.subtitle}
         </div>
+        {result.chipAvailability?.status === 'unknown' && (
+          <div style={{ color: 'var(--app-warning-text)', fontSize: 12, marginTop: 6 }}>
+            {labels.unknownChips}
+          </div>
+        )}
       </div>
 
       {scenarios.map((row) => (
@@ -349,7 +357,7 @@ export function useBestTeamScenariosAction() {
   useCopilotAction({
     name: 'get_best_team_scenarios',
     description:
-      'Compare best teams across the 4 budget-adjusted weight presets × 4 chip scenarios.',
+      'Compare best teams across the 4 budget-adjusted weight presets with no chip and verified unused supported chips.',
     parameters: [],
     available: 'frontend',
     render: ({ status, result }) => {

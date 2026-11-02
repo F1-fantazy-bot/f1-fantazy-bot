@@ -98,11 +98,11 @@ test('both recommendation cores accept a real starting baseline and block unknow
   const result = await computeBestTeams({ chatId: 42, teamId });
   expect(result.status).toBe('ok'); expect(result.bestTeams.length).toBeGreaterThan(0);
   expect(result.dataStatus.teamStateMatchdayId).toBe(16);
-  expect(computeBestTeamScenarios({ chatId: 42, teamId }).status).toBe('ok');
+  expect((await computeBestTeamScenarios({ chatId: 42, teamId })).status).toBe('ok');
   cache.currentTeamCache[42][teamId].costCapRemaining = null;
   cache.currentTeamCache[42][teamId].budgetStatus = 'unknown';
   expect((await computeBestTeams({ chatId: 42, teamId })).status).toBe('missing_team_budget');
-  expect(computeBestTeamScenarios({ chatId: 42, teamId }).status).toBe('missing_team_budget');
+  expect((await computeBestTeamScenarios({ chatId: 42, teamId })).status).toBe('missing_team_budget');
 });
 
 test('league changes accept restored baselines but exclude unavailable teams from unchanged counts', () => {

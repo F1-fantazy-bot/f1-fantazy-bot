@@ -69,6 +69,7 @@ const translations = {
     'Extra Boost': 'אקסטרה בוסט',
     Limitless: 'ללא הגבלה',
     Wildcard: 'ווילדקארד',
+    'Chip usage could not be verified; showing no-chip scenarios only.': "לא ניתן היה לאמת את השימוש בצ'יפים; מוצגים רק תרחישים ללא צ'יפ.",
     'Without Chip': "ללא צ'יפ",
     'Sorry, only admins can use this command.':
       'מצטער, רק מנהלים יכולים להשתמש בפקודה זו.',

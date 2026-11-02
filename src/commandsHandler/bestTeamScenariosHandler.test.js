@@ -1,3 +1,6 @@
+jest.mock('../services/weeklyTeamDataService', () => ({ refreshWeeklyTeamData: jest.fn() }));
+jest.mock('../cores/availableChipsCore', () => ({ getAvailableChips: jest.fn() }));
+const { getAvailableChips } = require('../cores/availableChipsCore');
 const { KILZI_CHAT_ID, EXTRA_BOOST_CHIP, LIMITLESS_CHIP, WILDCARD_CHIP } = require('../constants');
 
 const mockValidateJsonData = jest.fn().mockReturnValue(true);
@@ -18,7 +21,9 @@ const {
   selectedChipCache,
   sharedKey,
   remainingRaceCountCache,
+  userCache,
 } = require('../cache');
+const { computeBestTeamScenarios } = require('../cores/bestTeamScenariosCore');
 
 const {
   handleBestTeamScenariosMessage,
@@ -28,10 +33,14 @@ describe('handleBestTeamScenariosMessage', () => {
   const botMock = {
     sendMessage: jest.fn().mockResolvedValue(),
   };
-  const TEAM_ID = 'T1';
+  const TEAM_ID = 'Owner_1_abc123';
 
   beforeEach(() => {
     jest.clearAllMocks();
+    getAvailableChips.mockResolvedValue({ status: 'ok', partial: false, teams: [{
+      teamId: TEAM_ID, chipUsageStatus: 'known',
+      availableChips: ['Limitless', 'Extra DRS Boost', 'Wildcard'], updatedAt: new Date().toISOString(),
+    }] });
     mockValidateJsonData.mockReset();
     mockValidateJsonData.mockReturnValue(true);
     delete driversCache[KILZI_CHAT_ID];
@@ -39,6 +48,7 @@ describe('handleBestTeamScenariosMessage', () => {
     delete currentTeamCache[KILZI_CHAT_ID];
     delete selectedChipCache[KILZI_CHAT_ID];
     delete remainingRaceCountCache[sharedKey];
+    delete userCache[String(KILZI_CHAT_ID)];
   });
 
   it('should send no teams message if no current team cache exists', async () => {
@@ -151,5 +161,54 @@ describe('handleBestTeamScenariosMessage', () => {
     const message = botMock.sendMessage.mock.calls[0][1];
     expect(message.match(/Unavailable/g)).toHaveLength(16);
     expect(message).not.toMatch(/🟢|🟡/);
+  });
+
+  it.each(Array.from({ length: 8 }, (_, used) => [used]))('matches web scenario rows for used-chip combination %i', async (used) => {
+    driversCache[KILZI_CHAT_ID] = { VER: { price: 30 } };
+    constructorsCache[KILZI_CHAT_ID] = { RED: { price: 20 } };
+    currentTeamCache[KILZI_CHAT_ID] = { [TEAM_ID]: { drivers: ['VER'], constructors: ['RED'], freeTransfers: 2 } };
+    selectedChipCache[KILZI_CHAT_ID] = { [TEAM_ID]: LIMITLESS_CHIP };
+    getAvailableChips.mockResolvedValue({ status: 'ok', partial: false, teams: [{
+      teamId: TEAM_ID, chipUsageStatus: 'known', updatedAt: null,
+      availableChips: ['Limitless', 'Extra DRS Boost', 'Wildcard'].filter((_, index) => !(used & (1 << index))),
+    }] });
+    calculateBestTeams.mockImplementation((_, chip, ppm) => [{
+      projected_points: 50 + ppm + ({ [LIMITLESS_CHIP]: 125, [EXTRA_BOOST_CHIP]: 60, [WILDCARD_CHIP]: 35 }[chip] || 0),
+      expected_price_change: 0.25,
+    }]);
+    const web = await computeBestTeamScenarios({ chatId: KILZI_CHAT_ID });
+    const webCalls = calculateBestTeams.mock.calls.slice();
+    calculateBestTeams.mockClear();
+    getAvailableChips.mockClear();
+    await handleBestTeamScenariosMessage(botMock, KILZI_CHAT_ID);
+    expect(calculateBestTeams.mock.calls).toEqual(webCalls);
+    expect(getAvailableChips).toHaveBeenCalledTimes(1);
+    const message = botMock.sendMessage.mock.calls[0][1];
+    for (const row of web.scenarios) {
+      for (const cell of row.results) {
+        const dot = { green: ' 🟢', yellow: ' 🟡' }[cell.recommendation] || '';
+        expect(message).toContain(`• *${cell.chipLabel}* — ${cell.projectedPoints.toFixed(2)} pts | Δ 0.25${dot}`);
+      }
+    }
+    for (const [index, label] of ['Limitless', 'Extra Boost', 'Wildcard'].entries()) {
+      if (used & (1 << index)) {expect(message).not.toContain(`*${label}*`);}
+    }
+    expect(message).not.toContain('could not be verified');
+  });
+
+  it.each(['en', 'he'])('renders localized unknown usage with four no-chip baselines in %s', async (lang) => {
+    driversCache[KILZI_CHAT_ID] = { VER: { price: 30 } };
+    constructorsCache[KILZI_CHAT_ID] = { RED: { price: 20 } };
+    currentTeamCache[KILZI_CHAT_ID] = { [TEAM_ID]: { drivers: ['VER'], constructors: ['RED'], freeTransfers: 2 } };
+    userCache[String(KILZI_CHAT_ID)] = { lang };
+    getAvailableChips.mockRejectedValue(new Error('private details'));
+    calculateBestTeams.mockReturnValue([{ projected_points: 50, expected_price_change: 0 }]);
+    await handleBestTeamScenariosMessage(botMock, KILZI_CHAT_ID);
+    expect(calculateBestTeams.mock.calls.map(([, chip]) => chip)).toEqual([null, null, null, null]);
+    const message = botMock.sendMessage.mock.calls[0][1];
+    expect(message).toContain(lang === 'he'
+      ? "לא ניתן היה לאמת את השימוש בצ'יפים; מוצגים רק תרחישים ללא צ'יפ."
+      : 'Chip usage could not be verified; showing no-chip scenarios only.');
+    expect(message).not.toContain('private details');
   });
 });
