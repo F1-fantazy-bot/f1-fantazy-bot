@@ -833,5 +833,20 @@
         ]
       }
     ]
+  },
+  "get_available_chips": {
+    "status": "ok",
+    "lang": "he",
+    "teams": [
+      {
+        "teamName": "kilzid1",
+        "teamId": "test_1_abc",
+        "availableChips": [
+          "Wildcard",
+          "Autopilot"
+        ],
+        "updatedAt": "2026-11-02T12:00:00Z"
+      }
+    ]
   }
 }

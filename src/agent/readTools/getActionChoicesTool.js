@@ -1,3 +1,5 @@
+const { getAvailableChips } = require('../../cores/availableChipsCore');
+const { localizeAvailableChips } = require('./getAvailableChipsTool');
 // Read-only choice discovery. Targets come from the authenticated account;
 // selecting a write target still goes through the ordinary confirmation tool.
 const { defineTool } = require('@copilotkit/runtime/v2');
@@ -32,9 +34,10 @@ const LEAGUE_ACTIONS = [
   'get_live_score_leaderboard',
   'list_league_teams',
 ];
-const ACTIONS = [...TEAM_ACTIONS, ...LEAGUE_ACTIONS, 'set_language'];
+const ACTIONS = [...TEAM_ACTIONS, ...LEAGUE_ACTIONS, 'set_language', 'get_available_chips'];
 const contextSchema = z
   .object({
+    scope: z.enum(['team', 'tracked', 'league']).optional(),
     period: z.enum(['season', 'race']).optional(),
     matchdayId: z.number().int().positive().optional(),
     raceName: z.string().optional(),
@@ -56,6 +59,7 @@ const contextSchema = z
 const parameters = z.object({
   action: z.enum(ACTIONS),
   choice: z.enum([
+    'scope',
     'period',
     'team',
     'league',
@@ -106,8 +110,18 @@ function leaderboardChoices(result, context, lang) {
 
 async function getActionChoices(input) {
   const { action, choice, context = {} } = parameters.parse(input);
-  await ensureCacheReady();
   const chatId = getAgentChatId();
+  if (action === 'get_available_chips') {
+    const { lang } = await getFreshLanguagePreference(chatId);
+    const fields = ['scope', 'teamId', 'teamName', 'leagueCode', 'leagueName'];
+    const args = Object.fromEntries(Object.entries(context).filter(([key]) => fields.includes(key)));
+    if (choice === 'scope') { delete args.scope; delete args.teamId; delete args.teamName; delete args.leagueCode; delete args.leagueName; }
+    else if (choice === 'team') { args.scope = 'team'; delete args.teamId; delete args.teamName; }
+    else if (choice === 'league') { args.scope ||= 'league'; delete args.leagueCode; delete args.leagueName; }
+
+    return localizeAvailableChips(await getAvailableChips({ ...args, chatId }), lang);
+  }
+  await ensureCacheReady();
   const { lang } = await getFreshLanguagePreference(chatId);
   let options;
   if (choice === 'league' && LEAGUE_ACTIONS.includes(action)) {

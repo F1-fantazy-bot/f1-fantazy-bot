@@ -1,3 +1,4 @@
+import { useAvailableChipsAction } from './components/AvailableChipsCard';
 import {
   WorkflowAssistantMessage,
   WorkflowUserMessage,
@@ -72,6 +73,7 @@ function AgentActions() {
   useUserTeamsAction();
   useFollowedTeamsAction();
   useLeaderboardAction();
+  useAvailableChipsAction();
   useLeagueChangesAction();
   useLeagueGraphAction();
   useRaceSummaryAction();

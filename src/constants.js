@@ -86,6 +86,8 @@ exports.EXTRA_TRANSFER_PENALTY_POINTS = 10;
 
 exports.COMMAND_BEST_TEAMS = '/best_teams';
 exports.COMMAND_CURRENT_TEAM_INFO = '/current_team_info';
+exports.COMMAND_AVAILABLE_CHIPS = '/available_chips';
+exports.AVAILABLE_CHIPS_CALLBACK_TYPE = 'AC';
 exports.COMMAND_CHIPS = '/chips';
 exports.COMMAND_PRINT_CACHE = '/print_cache';
 exports.COMMAND_RESET_CACHE = '/reset_cache';
@@ -186,6 +188,11 @@ exports.MENU_CATEGORIES = {
         title: '👥 Current Team Info',
         description:
           'Calculate the current team info based on your cached data',
+      },
+      {
+        constant: exports.COMMAND_AVAILABLE_CHIPS,
+        title: '🎟️ Available Chips',
+        description: 'Show chips unused this season for a team, tracked teams, or a league',
       },
       {
         constant: exports.COMMAND_CHIPS,

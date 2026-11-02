@@ -6,6 +6,7 @@ const COMMAND_GROUPS = Object.freeze(['teams', 'leagues', 'races', 'settings', '
 
 const entries = [
   // Teams and optimization
+  ['get_available_chips', 'teams', '🎟️', 'Available chips', 'צ׳יפים שנותרו', 'Show remaining chips', 'הצג את הצ׳יפים שנותרו'],
   ['list_user_teams', 'teams', '📋', 'My teams', 'הקבוצות שלי', 'List my saved teams', 'הצג את הקבוצות השמורות שלי'],
   ['get_current_team', 'teams', '🔎', 'Current team', 'הקבוצה הנוכחית', 'Show my current team', 'הצג את הקבוצה הנוכחית שלי'],
   ['get_best_teams', 'teams', '🏆', 'Best teams', 'קבוצות מיטביות', 'Calculate the best teams for my selected team', 'חשב את הקבוצות המיטביות לקבוצה שבחרתי'],

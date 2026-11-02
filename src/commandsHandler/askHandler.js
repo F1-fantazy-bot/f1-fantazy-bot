@@ -48,6 +48,7 @@ async function handleAskCommand(bot, msg) {
   let commands;
   try {
     commands = JSON.parse(completion.choices[0].message.content);
+    if (!Array.isArray(commands)) {throw new Error('Expected command array');}
   } catch (err) {
     await sendErrorMessage(
       bot,

@@ -1,3 +1,4 @@
+const { handleAvailableChipsCommand } = require('./availableChipsHandler');
 // Export all command handler functions from a central index file
 const { handleBestTeamsMessage } = require('./bestTeamsHandler');
 const {
@@ -65,6 +66,7 @@ const { handleRevokeWebUserCommand } = require('./revokeWebUserHandler');
 const { handleListWebUsersCommand } = require('./listWebUsersHandler');
 
 module.exports = {
+  handleAvailableChipsCommand,
   handleBestTeamsMessage,
   handleBestTeamScenariosMessage,
   handleChipsMessage,

@@ -186,6 +186,7 @@ All users can access these commands:
 - **`/best_teams`** - Calculate and display the best possible teams based on your cached data, projections, and the latest prices
 - **`/set_best_team_ranking`** - Set how expected budget changes affect best-team ranking suggestions
 - **`/current_team_info`** - Calculate current team info and budget using cached roster data and the latest prices
+- **`/available_chips`** - Show unused season chips for one team, all tracked teams, or an entire followed league ([data contract and rollout](docs/available-chips.md))
 - **`/chips`** - Choose a chip to use for the current race (Extra Boost, Wildcard, Limitless)
 
 #### Analysis & Stats

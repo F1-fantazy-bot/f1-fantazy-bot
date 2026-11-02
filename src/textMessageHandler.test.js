@@ -1,3 +1,4 @@
+jest.mock('./commandsHandler/availableChipsHandler', () => ({ handleAvailableChipsCommand: jest.fn() }));
 const {
   KILZI_CHAT_ID,
   COMMAND_BEST_TEAMS,
@@ -687,4 +688,14 @@ describe('handleTextMessage', () => {
       expect(handleNumberMessage).not.toHaveBeenCalled();
     });
   });
+});
+
+
+test('direct remaining-chip commands route with their optional JSON suffix', async () => {
+  const { handleAvailableChipsCommand } = require('./commandsHandler/availableChipsHandler');
+  const { handleTextMessage } = require('./textMessageHandler');
+  const bot = { sendMessage: jest.fn() };
+  const msg = { chat: { id: 42 }, text: '/available_chips {"scope":"tracked"}' };
+  await handleTextMessage(bot, msg);
+  expect(handleAvailableChipsCommand).toHaveBeenCalledWith(bot, msg);
 });

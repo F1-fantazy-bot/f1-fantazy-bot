@@ -133,6 +133,11 @@ function buildAskSystemPrompt(isAdmin) {
   return `You are an assistant for a Telegram bot that manages F1 Fantasy teams.
 Convert a free text request into an ordered list of bot commands to execute.
 Allowed commands: ${commands.join(', ')}.
+For unused/remaining chips use /available_chips. Available means unused this season, not activation windows.
+Only this command accepts an optional JSON object suffix with scope (team, tracked, league), teamId, teamName, leagueCode, leagueName. Keep each command a STRING in the JSON array; escape quotes inside its suffix. No target -> /available_chips. Explicit requests go directly to their scope.
+Example: "chips left for all teams I track" -> ["/available_chips {\\"scope\\":\\"tracked\\"}"]
+Example: "צ׳יפים שנותרו לקבוצה kilzid1" -> ["/available_chips {\\"teamName\\":\\"kilzid1\\"}"]
+Example: "remaining chips for the Friends league" -> ["/available_chips {\\"leagueName\\":\\"Friends\\"}"]
 Numbers may be used to request team details after /best_teams.
 When asking for best teams with a chip, place the chip command before /best_teams.
 For best teams without a chip, place /reset_chip before /best_teams.

@@ -556,6 +556,26 @@ async function listLockedMatchdays(leagueCode) {
   }
 }
 
+// Chip usage is season-wide: a previous season's high race number must not
+// hide a newly captured low-numbered race. Listing metadata avoids downloading
+// every historical snapshot.
+async function mostRecentlyUpdatedLockedMatchday(leagueCode) {
+  const prefix = `leagues/${leagueCode}/locked/`;
+  let latest = null;
+  for await (const blob of containerClient.listBlobsFlat({ prefix })) {
+    const match = /^matchday_(\d+)\.json$/.exec(blob.name.substring(prefix.length));
+    if (!match) { continue; }
+    const time = new Date(blob.properties?.lastModified || NaN).getTime();
+    if (!Number.isFinite(time)) { throw new Error('Locked snapshot update time unavailable'); }
+    const id = Number(match[1]);
+    if (!latest || time > latest.time || (time === latest.time && id > latest.id)) {
+      latest = { id, time };
+    }
+  }
+
+  return latest?.id ?? null;
+}
+
 /**
  * Get a locked-roster snapshot for a given league + matchday from Azure Blob
  * Storage. Blob path:
@@ -567,10 +587,11 @@ async function listLockedMatchdays(leagueCode) {
  *
  * @param {string} leagueCode
  * @param {number|string} [matchdayId]
+ * @param {{ latestByUpdate?: boolean }} [options] Use blob update time for season-wide chip reads.
  * @returns {Promise<Object|null>}
  * @throws {Error} If the blob exists but cannot be retrieved/parsed.
  */
-async function getLockedTeamsData(leagueCode, matchdayId) {
+async function getLockedTeamsData(leagueCode, matchdayId, { latestByUpdate = false } = {}) {
   try {
     if (!containerClient) {
       initializeAzureStorage();
@@ -578,11 +599,16 @@ async function getLockedTeamsData(leagueCode, matchdayId) {
 
     let resolvedMatchdayId = matchdayId;
     if (resolvedMatchdayId === undefined || resolvedMatchdayId === null) {
-      const ids = await listLockedMatchdays(leagueCode);
-      if (ids.length === 0) {
-        return null;
+      if (latestByUpdate) {
+        resolvedMatchdayId = await mostRecentlyUpdatedLockedMatchday(leagueCode);
+        if (resolvedMatchdayId === null) { return null; }
+      } else {
+        const ids = await listLockedMatchdays(leagueCode);
+        if (ids.length === 0) {
+          return null;
+        }
+        resolvedMatchdayId = ids[ids.length - 1];
       }
-      resolvedMatchdayId = ids[ids.length - 1];
     }
 
     const blobName = `leagues/${leagueCode}/locked/matchday_${resolvedMatchdayId}.json`;
@@ -684,7 +710,56 @@ async function deleteTeamsTrackerSession(chatId) {
   }
 }
 
+async function saveAvailableChipsSession(chatId, session) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = `available-chips-sessions/${chatId}.json`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    const content = JSON.stringify(session, null, 2);
+
+    await blockBlobClient.upload(content, Buffer.byteLength(content), {
+      blobHTTPHeaders: { blobContentType: 'application/json' },
+    });
+  } catch (error) {
+    throw new Error(
+      `Failed to save available chips session for ${chatId}: ${error.message}`,
+    );
+  }
+}
+
+async function getAvailableChipsSession(chatId) {
+  try {
+    if (!containerClient) {
+      initializeAzureStorage();
+    }
+
+    const blobName = `available-chips-sessions/${chatId}.json`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    const exists = await blockBlobClient.exists();
+    if (!exists) {
+      return null;
+    }
+
+    const downloadResponse = await blockBlobClient.download();
+    const jsonString = await streamToString(
+      downloadResponse.readableStreamBody,
+    );
+
+    return JSON.parse(jsonString);
+  } catch (error) {
+    throw new Error(
+      `Failed to get available chips session for ${chatId}: ${error.message}`,
+    );
+  }
+}
+
 module.exports = {
+  saveAvailableChipsSession,
+  getAvailableChipsSession,
   getFantasyData,
   getPricesData,
   getUserTeam,
