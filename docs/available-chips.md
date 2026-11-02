@@ -70,3 +70,22 @@ Read-only local validation on 2026-11-02 checked 22 distinct account/team pairs:
 had valid flags, with zero unknown responses or failures. No uploads/notifications
 were attempted. Browser verification uses the offline fixture
 `web/e2e/available-chips-preview.html`; production data/writes are not required.
+
+Best-team scenarios (`/best_team_scenarios` and `get_best_team_scenarios`) use
+the same authorized lookup once per resolved canonical team. All four ranking
+presets retain Without Chip, followed by unused Limitless, Extra Boost (catalog
+Extra DRS Boost), and Wildcard in that order. Other catalog chips do not add
+scenarios. Omitted chips never reach the optimizer. Unknown, failed or partial
+reads and teams without canonical identity return four no-chip baselines, with:
+“Chip usage could not be verified; showing no-chip scenarios only.” Both surfaces
+localize this notice in Hebrew. Known usage with no supported chips left needs
+no notice. Results include optional `chipAvailability: { status: 'known' |
+'unknown', updatedAt: string | null }`; old saved cards keep their original rows
+and render without this field. Each new workflow calculation resolves its own
+team's availability afresh. Saved chip preferences and follow settings are
+unchanged.
+
+The offline scenario preview is `web/e2e/scenario-chips-preview.html`: use
+`?lang=he` for Hebrew, `?unknown=1` for the fallback, and `?historical=1` for
+old saved payloads. Its three-team fixtures expect Without Chip + Wildcard for
+Kilzid, Without Chip only for Kilzid2, and Without Chip + Limitless for Kilzid 3.

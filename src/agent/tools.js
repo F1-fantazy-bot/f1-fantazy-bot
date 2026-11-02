@@ -315,7 +315,7 @@ const tools = [
   defineTool({
     name: 'get_best_team_scenarios',
     description:
-      'Compare the top best team across the bot\'s 4 budget-adjusted weight presets (0, 1.3, 1.65, 2.0 points-per-million of expected price change) × 4 chip choices (no chip, Limitless, Extra Boost, Wildcard). Use this for questions like "compare best teams at different weights", "best team scenarios", "what if I change my ranking preference", or "should I play a chip". Returns { status, teamId, teamName, chip, scenarios: [{ ppm, ppmLabel, results: [{ chipKey, chipLabel, projectedPoints, expectedPriceChange, recommendation: null|"yellow"|"green" }] }] }. The recommendation level encodes the chip\'s lift over the no-chip baseline of the SAME ppm row, matching the Telegram /best_team_scenarios indicators.',
+      'Compare the top best team across the bot\'s 4 budget-adjusted weight presets (0, 1.3, 1.65, 2.0 points-per-million of expected price change) with no chip plus only verified unused supported chips (Limitless, Extra Boost, Wildcard). Unknown usage returns no-chip scenarios only. Use this for questions like "compare best teams at different weights", "best team scenarios", "what if I change my ranking preference", or "should I play a chip". Returns { status, teamId, teamName, chip, chipAvailability: { status: "known"|"unknown", updatedAt }, scenarios: [{ ppm, ppmLabel, results: [{ chipKey, chipLabel, projectedPoints, expectedPriceChange, recommendation: null|"yellow"|"green" }] }] }. The recommendation level encodes the chip\'s lift over the no-chip baseline of the SAME ppm row, matching the Telegram /best_team_scenarios indicators.',
     parameters: z.object({
       teamId: z
         .string()

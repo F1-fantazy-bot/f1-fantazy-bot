@@ -10,6 +10,7 @@ const {
   getDriversForChat,
   getConstructorsForChat,
 } = require('../cache');
+const { resolveScenarioAvailability, UNKNOWN_CHIP_USAGE_MESSAGE } = require('../utils/scenarioAvailability');
 const { prepareBestTeamsData } = require('../utils/bestTeamsData');
 const { t } = require('../i18n');
 const { refreshWeeklyTeamData } = require('../services/weeklyTeamDataService');
@@ -161,25 +162,10 @@ async function handleBestTeamScenariosMessage(bot, chatId) {
     : 0;
 
   const ppmScenarios = [0, 1.3, 1.65, 2];
-  // Calculate each scenario independently of saved chip preferences.
-  const chipScenarios = [
-    {
-      label: t('Without Chip', chatId),
-      chip: null,
-    },
-    {
-      label: t('Limitless', chatId),
-      chip: LIMITLESS_CHIP,
-    },
-    {
-      label: t('Extra Boost', chatId),
-      chip: EXTRA_BOOST_CHIP,
-    },
-    {
-      label: t('Wildcard', chatId),
-      chip: WILDCARD_CHIP,
-    },
-  ];
+  const { chipScenarios: availableScenarios, chipAvailability } = await resolveScenarioAvailability({ chatId, teamId });
+  const chipScenarios = availableScenarios.map(({ chipKey, chipLabel }) => ({
+    chip: chipKey, label: t(chipLabel, chatId),
+  }));
 
   const sections = ppmScenarios.map((ppm) => {
     const sectionTitle = `*${formatNumber(ppm)} ${t('points per million', chatId)}*`;
@@ -217,7 +203,11 @@ async function handleBestTeamScenariosMessage(bot, chatId) {
     return [sectionTitle, ...lines].join('\n');
   });
 
-  const message = [`*${t('Best Team Scenarios', chatId)}*`, '', ...sections].join(
+  const message = [
+    `*${t('Best Team Scenarios', chatId)}*`,
+    ...(chipAvailability.status === 'unknown' ? [t(UNKNOWN_CHIP_USAGE_MESSAGE, chatId)] : []),
+    '', ...sections,
+  ].join(
     '\n\n',
   );
 

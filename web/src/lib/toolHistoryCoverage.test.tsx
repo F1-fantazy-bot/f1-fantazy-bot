@@ -180,3 +180,20 @@ test('large cards above the old 100 KB limit survive and only the bounded histor
   saveReadCards(conversation('get_race_summary', result));
   expect(loadReadCards()[0].result).toEqual(result);
 });
+
+test.each(['known', 'unknown'])('scenario availability %s and variable rows survive history round trips', (status) => {
+  const result = { status: 'ok', lang: 'en', teamName: 'Rocket', chipAvailability: { status, updatedAt: '2026-11-02T12:00:00Z' },
+    scenarios: [0, 1.3, 1.65, 2].map((ppm) => ({ ppm, ppmLabel: `Preset ${ppm}`, results: [
+      { chipKey: null, chipLabel: 'Without Chip', projectedPoints: 50, expectedPriceChange: 0, recommendation: null },
+      ...(status === 'known' ? [{ chipKey: 'WILDCARD', chipLabel: 'Wildcard', projectedPoints: 85, expectedPriceChange: 0.25, recommendation: 'green' }] : []),
+    ] })),
+  };
+  const messages = conversation('get_best_team_scenarios', result);
+  saveReadCards(messages);
+  saveReadCards(toAgUiMessages(toStoredMessages(messages)));
+  expect(loadReadCards()[0].result).toEqual(result);
+  const container = renderCard();
+  expect(container.querySelectorAll('tbody tr')).toHaveLength(status === 'known' ? 8 : 4);
+  expect(container.textContent?.includes('could not be verified')).toBe(status === 'unknown');
+  expect(runAgent).not.toHaveBeenCalled();
+});

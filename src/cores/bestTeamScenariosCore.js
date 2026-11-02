@@ -1,9 +1,4 @@
-// Pure best-team-scenarios core — computes the 4×4 matrix of top best
-// teams across {0, 1.3, 1.65, 2.0} ppm weights × 4 chip choices (no chip,
-// Limitless, Extra Boost, Wildcard). Mirrors the Telegram
-// `/best_team_scenarios` command logic so the agent's
-// `get_best_team_scenarios` tool returns the same structured data.
-
+// Best-team scenarios across four ppm presets and verified unused supported chips.
 const { calculateBestTeams } = require('../bestTeamsCalculator');
 const {
   currentTeamCache,
@@ -17,6 +12,7 @@ const {
   getSelectedTeam,
   getUserTeamIds,
 } = require('../cache');
+const { resolveScenarioAvailability } = require('../utils/scenarioAvailability');
 const { prepareBestTeamsData } = require('../utils/bestTeamsData');
 const { recommendationIssue, teamDataStatus } = require('../utils/teamDataStatus');
 const {
@@ -107,7 +103,7 @@ function pickTeamId({ chatId, requestedTeamId, requestedTeamName }) {
   return { status: 'ambiguous_team', teamIds };
 }
 
-function computeBestTeamScenarios({ chatId, teamId, teamName }) {
+async function computeBestTeamScenarios({ chatId, teamId, teamName }) {
   const pick = pickTeamId({
     chatId,
     requestedTeamId: teamId,
@@ -146,13 +142,9 @@ function computeBestTeamScenarios({ chatId, teamId, teamName }) {
     ? remainingRaceCount
     : 0;
 
-  // Scenarios are independent of saved chip preferences; the first is always chip-free.
-  const chipScenarios = [
-    { chipKey: null, chipLabel: 'Without Chip' },
-    { chipKey: LIMITLESS_CHIP, chipLabel: 'Limitless' },
-    { chipKey: EXTRA_BOOST_CHIP, chipLabel: 'Extra Boost' },
-    { chipKey: WILDCARD_CHIP, chipLabel: 'Wildcard' },
-  ];
+  const { chipScenarios, chipAvailability } = await resolveScenarioAvailability({
+    chatId, teamId: resolvedTeamId,
+  });
 
   const scenarios = PPM_SCENARIOS.map(({ ppm, label }) => {
     const results = chipScenarios.map(({ chipKey, chipLabel }) => {
@@ -216,6 +208,7 @@ function computeBestTeamScenarios({ chatId, teamId, teamName }) {
     teamName: currentTeam.teamName || resolvedTeamId,
     chip: selectedChip, // Saved-selection metadata only; never a scenario input.
     scenarios,
+    chipAvailability,
     ...(Object.keys(teamDataStatus(currentTeam)).length ? { dataStatus: teamDataStatus(currentTeam) } : {}),
   };
 }
