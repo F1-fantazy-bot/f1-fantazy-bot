@@ -39,7 +39,7 @@ function displayTime(value, chatId) {
   }).format(time) : t('Unknown update time', chatId);
 }
 function formatAvailableChips(result, chatId) {
-  const lines = [t('🎟️ Chips unused this season', chatId), t('Stored data; activation windows are not included.', chatId)];
+  const lines = [t('🎟️ Chips unused this season', chatId)];
   if (result.partial) {lines.push(t('Some league data could not be loaded; partial results are shown.', chatId));}
   for (const team of result.teams) {
     const chips = team.availableChips === null ? t('Usage unavailable', chatId)

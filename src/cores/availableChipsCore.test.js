@@ -106,3 +106,16 @@ test('partial source failures preserve other teams and never expose provider mes
   expect(result).toMatchObject({ status: 'ok', partial: true, teams: [{ availableChips: CHIP_CATALOG }, { availableChips: null }] });
   expect(JSON.stringify(result)).not.toContain('secret');
 });
+
+test('explicit tracked scope survives absent target placeholders without becoming team or league scope', async () => {
+  const { read } = setup({ tracked: { Same_1_abc123: { source: 'league' } } });
+  expect(await read({ scope: 'tracked', teamId: 'undefined', teamName: 'null', leagueCode: '  ', leagueName: null })).toMatchObject({ status: 'ok', scope: 'tracked', teams: [{ teamName: 'Rocket', availableChips: CHIP_CATALOG }] });
+});
+
+test('generic nullable targets do not resolve or mutate an account target', async () => {
+  const { read, ports } = setup();
+  const result = await read({ scope: null, teamId: null, teamName: null, leagueCode: null, leagueName: null });
+  expect(result).toMatchObject({ status: 'selection_required', choice: 'scope' });
+  expect(ports.listUserLeagues).not.toHaveBeenCalled();
+  expect(ports.listTrackedTeams).not.toHaveBeenCalled();
+});

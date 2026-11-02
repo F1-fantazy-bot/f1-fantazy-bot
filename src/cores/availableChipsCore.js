@@ -48,9 +48,18 @@ function choices(choice, options, request = {}) {
   return { status: 'selection_required', choice, options: options.map((option) => ({ action: 'get_available_chips', ...option })), request };
 }
 function normalizeAvailableChipsArgs(args = {}) {
-  const { scope, teamId, teamName, leagueCode, leagueName } = args;
+  const clean = { ...args };
+  for (const field of ['scope', 'teamId', 'teamName', 'leagueCode', 'leagueName']) {
+    const value = typeof clean[field] === 'string' ? clean[field].trim() : clean[field];
+    if (value === undefined || value === null || value === '' || /^(undefined|null)$/i.test(value)) {
+      delete clean[field];
+    } else {
+      clean[field] = value;
+    }
+  }
+  const { scope, teamId, teamName, leagueCode, leagueName } = clean;
 
-  return { ...args, scope: teamId || teamName ? 'team' : leagueCode || leagueName ? (scope || 'league') : scope };
+  return { ...clean, scope: teamId || teamName ? 'team' : leagueCode || leagueName ? (scope || 'league') : scope };
 }
 function defaultPorts() {
   const storage = require('../azureStorageService');

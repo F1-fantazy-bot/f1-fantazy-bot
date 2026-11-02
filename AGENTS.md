@@ -2073,3 +2073,12 @@ suffix. Temporary picker state uses separate available-chips session blobs, rand
 tokens, one-hour expiry and 20-item pages. Web choices use the shared run lock and
 rollback, and `AvailableChipsCard` participates in workflows/history and Hebrew
 completeness checks. Do not backfill legacy markers or start production scrapers.
+
+
+Remaining-chip tool arguments are nullable for strict model providers: generic
+questions must pass no scope/target (omitted or JSON null) and show scope choices,
+including when an active team exists. `normalizeAvailableChipsArgs` removes blank
+and literal `undefined`/`null` target placeholders before inferring scope or
+checking authorization. Explicit tracked/team/league intent remains intact; real
+unauthorized league codes still fail without blob reads. Keep the nullable-schema
+and missing-target routing regressions when changing this tool.

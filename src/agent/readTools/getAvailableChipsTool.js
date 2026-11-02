@@ -13,7 +13,7 @@ function localizeAvailableChips(result, lang) {
 }
 const getAvailableChipsTool = defineTool({
   name: 'get_available_chips',
-  description: 'Show the six chips unused this calendar season, based on stored standings and locked snapshots, regardless of activation windows. No target opens scope choices. Explicit team arguments imply team scope (any team in a followed league); league arguments imply league scope. Use scope tracked for all tracked teams. Unknown usage stays null; [] means none remaining. Never changes the active team or selected chips.',
+  description: 'Show the six chips unused this calendar season from stored standings and locked snapshots, regardless of activation windows. For a generic question (Show remaining chips / מה הציפים שנשארו לשימוש), omit ALL arguments or pass null to open scope choices. Never infer tracked scope or a selected team. Use tracked ONLY for an explicit all-tracked-teams request. Use team arguments only for an explicitly named/selected team in a followed league, or league arguments for an explicitly named/selected league. Unused targets must be null/omitted, never placeholder strings. Unknown usage stays null; [] means none remain. Does not change preferences.',
   parameters,
   execute: wrapToolExecute('get_available_chips', async (args = {}) => {
     const chatId = getAgentChatId();

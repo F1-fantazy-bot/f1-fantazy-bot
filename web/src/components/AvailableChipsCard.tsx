@@ -32,7 +32,6 @@ export function AvailableChipsCard({ result }: { result?: AvailableChipsResult }
   };
   return <section dir={directionFor(lang)} aria-label={title} style={{ padding: 16, margin: '8px 0', border: '1px solid var(--app-border)', borderRadius: 12, color: 'var(--app-text)', overflowWrap: 'anywhere' }}>
     <h3>{title}</h3>
-    <p>{he ? 'נתונים שנשמרו; חלונות ההפעלה אינם נכללים.' : 'Stored data; activation windows are not included.'}</p>
     {result?.status !== 'ok' ? <p role="status">{failures[result?.status || ''] || (he ? 'נתוני השימוש בצ׳יפים אינם זמינים. נסה שוב לאחר העדכון הבא.' : 'Chip usage data is unavailable. Try again after the next refresh.')}</p> : <>
       {result.partial && <p role="status">{he ? 'לא ניתן לטעון חלק מנתוני הליגות; מוצגות תוצאות חלקיות.' : 'Some league data could not be loaded; partial results are shown.'}</p>}
       <div style={{ overflowX: 'auto' }}>

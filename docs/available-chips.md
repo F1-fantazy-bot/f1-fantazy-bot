@@ -14,7 +14,10 @@ Tracked teams are deduplicated by account ID and team number, including across l
 unavailable/legacy tracked teams remain visible as unknown.
 
 The optional arguments are `scope: team | tracked | league`, `teamId`, `teamName`,
-`leagueCode`, `leagueName`. Telegram also accepts these as a validated JSON suffix,
+`leagueCode`, `leagueName`. Model calls may omit unused fields or send JSON null;
+a generic request must omit scope/targets and open the scope picker. Blank and
+literal `undefined`/`null` target placeholders are treated as absent, never as team
+or league identifiers. Telegram also accepts these as a validated JSON suffix,
 including ASK's unchanged array-of-strings protocol:
 
 ```text

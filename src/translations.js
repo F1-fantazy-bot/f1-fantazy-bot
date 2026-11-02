@@ -12,7 +12,6 @@ const translations = {
     'None remaining': 'לא נותרו צ׳יפים',
     'Usage unavailable': 'נתוני השימוש אינם זמינים',
     '🎟️ Chips unused this season': '🎟️ צ׳יפים שלא נוצלו העונה',
-    'Stored data; activation windows are not included.': 'נתונים שנשמרו; חלונות ההפעלה אינם נכללים.',
     'Some league data could not be loaded; partial results are shown.': 'לא ניתן לטעון חלק מנתוני הליגות; מוצגות תוצאות חלקיות.',
     'Unknown update time': 'מועד העדכון אינו ידוע',
     'Updated': 'עודכן',
