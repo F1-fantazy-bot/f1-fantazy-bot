@@ -63,11 +63,7 @@ loading/error/empty states, workflow results, and display-only history recovery.
 4. Locked captures retain the existing schedule-verified qualifying-to-race-end
    write window. Never start a production scraper automatically for this feature.
 
-The scraper's `node scripts/validate-chip-usage.js` is a read-only local probe.
-It disables upload credentials and all Telegram notification settings, imports
-only the API/extraction modules, and reports flag completeness without account
-identifiers. It does not run a weekly/locked scrape or write any snapshots.
-Local validation on 2026-11-02 checked 22 distinct account/team pairs: all 22
+Read-only local validation on 2026-11-02 checked 22 distinct account/team pairs: all 22
 had valid flags, with zero unknown responses or failures. No uploads/notifications
 were attempted. Browser verification uses the offline fixture
 `web/e2e/available-chips-preview.html`; production data/writes are not required.
