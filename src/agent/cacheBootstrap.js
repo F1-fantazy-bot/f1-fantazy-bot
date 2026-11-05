@@ -16,10 +16,11 @@
 
 const { initializeCaches } = require('../cacheInitializer');
 const { getNotifierBot } = require('./notifierBot');
+const { refreshNextRaceInfoIfExpired } = require('../services/nextRaceInfoRefreshService');
 
 let pendingCacheReady = null;
 
-function ensureCacheReady() {
+async function ensureCacheReady() {
   if (!pendingCacheReady) {
     pendingCacheReady = initializeCaches(getNotifierBot()).catch((err) => {
       // Reset on failure so the next tool invocation retries from
@@ -31,7 +32,8 @@ function ensureCacheReady() {
     });
   }
 
-  return pendingCacheReady;
+  await pendingCacheReady;
+  await refreshNextRaceInfoIfExpired();
 }
 
 function resetCacheReadyForTests() {

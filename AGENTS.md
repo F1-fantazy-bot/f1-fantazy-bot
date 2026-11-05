@@ -1887,6 +1887,7 @@ messages must go through `clear()` first, then through
 
 - **Console Noise in Tests:** Many tests intentionally log errors. Filter by test file name when diagnosing issues.
 - **Time Zone Handling:** `formatDateTime` currently uses `Asia/Jerusalem`; adjust carefully if adding time-sensitive features.
+- **Next race freshness:** `services/nextRaceInfoRefreshService.js` reloads the shared race blob on requests more than three hours after the cached race start. Agent `ensureCacheReady` and Telegram race-info/weather handlers call it before reading cached data. Concurrent refreshes share one storage read per worker; failures retain the cache and retry next request. A changed race clears weather forecasts.
 - **Cache Awareness:** Before fetching external data, check relevant caches to avoid redundant requests (see `nextRaceInfoHandler` and `nextRacesHandler`).
 - **Multi-Team Awareness:** Team-related caches are nested by team ID. Always use `resolveSelectedTeam(bot, chatId)` as a guard before accessing team-scoped data. Access patterns: `currentTeamCache[chatId]?.[teamId]`, `bestTeamsCache[chatId]?.[teamId]`, `selectedChipCache[chatId]?.[teamId]`.
 - **Admin Safeguards:** Use `isAdminMessage` from `src/utils` to restrict sensitive commands.
