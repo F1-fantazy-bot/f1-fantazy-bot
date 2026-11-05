@@ -13,6 +13,8 @@ import {
 } from './agentRunLock';
 
 const runAgent = vi.fn();
+const readChoice = vi.fn();
+vi.mock('./WriteDecisionContext', () => ({ useReadChoice: () => readChoice }));
 const unsubscribe = vi.fn();
 let subscriber: { onRunErrorEvent?: () => void } = {};
 const agent = {
@@ -49,6 +51,7 @@ beforeEach(() => {
     return { unsubscribe };
   });
   runAgent.mockResolvedValue(undefined);
+  readChoice.mockResolvedValue({ status: 'ok' });
 });
 function render(result: ActionChoicesResult, twice = false) {
   const container = document.createElement('div');
@@ -123,7 +126,9 @@ test('shared lock prevents two cards from starting overlapping runs', async () =
   });
   expect(runAgent).toHaveBeenCalledTimes(1);
   expect(isAgentRunActive(agent)).toBe(true);
-  expect(view.container.textContent).toContain('Loading choices');
+  expect([...view.container.querySelectorAll('button')].every((button) => button.disabled)).toBe(true);
+  expect(view.container.querySelectorAll('[role="status"]')).toHaveLength(2);
+  expect(view.container.textContent).toContain('Preparing the next steps');
   await act(async () => finish());
   expect(isAgentRunActive(agent)).toBe(false);
   view.cleanup();
@@ -217,4 +222,70 @@ test('invalid preset and chip choices preserve the requested team', () => {
     { teamId: 'T2' },
   );
   expect(chip?.options[0].args).toEqual({ teamId: 'T2', chip: 'LIMITLESS' });
+});
+
+test('compact recommendation rows share disabled state but only clicked row announces progress', async () => {
+  let finish!: () => void;
+  runAgent.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve; }));
+  const container = document.createElement('div');
+  const root = createRoot(container);
+  act(() => root.render(<><ActionChoicesCard compact result={result} /><ActionChoicesCard compact result={result} /></>));
+  await act(async () => container.querySelector('button')!.click());
+  expect([...container.querySelectorAll('button')].every((button) => button.disabled)).toBe(true);
+  expect(container.querySelectorAll('[role="status"]')).toHaveLength(1);
+  expect(container.querySelectorAll('section')[1].textContent).not.toContain('Preparing the next steps');
+  await act(async () => finish());
+  expect(container.querySelectorAll('[role="status"]')).toHaveLength(0);
+  act(() => root.unmount());
+});
+
+
+test.each(['en', 'he'])('period cards localize headings and preserve race continuation in %s', async (lang) => {
+  const view = render({ status: 'selection_required', lang, choice: 'period', options: [
+    { label: lang === 'he' ? 'כל העונה' : 'Entire season', action: 'get_leaderboard', args: { leagueCode: 'C7', period: 'season' } },
+    { label: 'Austrian GP', action: 'get_leaderboard', args: { leagueCode: 'C7', period: 'race', matchdayId: 10 } },
+  ] });
+  expect(view.container.textContent).toContain(lang === 'he' ? 'בחר תקופת דירוג' : 'Choose a standings period');
+  expect(view.container.querySelector('section')?.getAttribute('dir')).toBe(lang === 'he' ? 'rtl' : 'ltr');
+  readChoice.mockRejectedValueOnce(new Error('failure'));
+  await act(async () => view.container.querySelectorAll('button')[1].click());
+  expect(view.container.querySelector('[role="alert"]')).not.toBeNull();
+  expect(agent.messages).toEqual([]);
+  await act(async () => view.container.querySelectorAll('button')[1].click());
+  expect(readChoice).toHaveBeenLastCalledWith('get_leaderboard', { leagueCode: 'C7', period: 'race', matchdayId: 10 });
+  expect(runAgent).not.toHaveBeenCalled();
+  expect(agent.addMessage).not.toHaveBeenCalled();
+  expect(view.container.querySelector('[role="alert"]')).toBeNull();
+  view.cleanup();
+});
+
+
+test('league standings clicks cannot acquire an inferred race and hold the shared lock during reads', async () => {
+  let finish!: () => void;
+  readChoice.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve; }));
+  const view = render({ ...result, options: [
+    { label: 'League', action: 'get_leaderboard', args: { leagueCode: 'C7' } },
+  ] }, true);
+  await act(async () => view.container.querySelector('button')!.click());
+  expect(readChoice).toHaveBeenCalledWith('get_leaderboard', { leagueCode: 'C7' });
+  expect([...view.container.querySelectorAll('button')].every((button) => button.disabled)).toBe(true);
+  expect(runAgent).not.toHaveBeenCalled();
+  await act(async () => finish());
+  expect(isAgentRunActive(agent)).toBe(false);
+  view.cleanup();
+});
+
+test('remaining-chip choices paginate at 20 and preserve exact scoped continuation', async () => {
+  const view = render({ status: 'selection_required', choice: 'team', options: Array.from({ length: 41 }, (_, index) => ({ label: `Team ${index}`, action: 'get_available_chips', args: { scope: 'team', leagueCode: 'A', teamId: `Owner_${index}_abc` } })) });
+  expect(view.container.querySelectorAll('section > div > button')).toHaveLength(20);
+  const next = Array.from(view.container.querySelectorAll('button')).find((button) => button.textContent === 'Next')!;
+  await act(async () => next.click());
+  expect(view.container.textContent).toContain('Team 20');
+  expect(view.container.textContent).not.toContain('Team 0');
+  await act(async () => view.container.querySelector<HTMLButtonElement>('section > div > button')!.click());
+  expect(agent.addMessage.mock.calls[0][0].content).toContain('"action":"get_available_chips"');
+  expect(agent.addMessage.mock.calls[0][0].content).toContain('"teamId":"Owner_20_abc"');
+  expect(agent.addMessage.mock.calls[0][0].content).toContain('"scope":"team"');
+  expect(readChoice).not.toHaveBeenCalled();
+  view.cleanup();
 });

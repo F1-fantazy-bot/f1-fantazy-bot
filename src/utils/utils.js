@@ -340,7 +340,7 @@ exports.calculateTeamInfo = function (team, drivers, constructors) {
 
   // Add cost remaining
   const costCapRemaining = team.costCapRemaining;
-  const overallBudget = normalizePrice(totalPrice + costCapRemaining);
+  const overallBudget = Number.isFinite(costCapRemaining) ? normalizePrice(totalPrice + costCapRemaining) : null;
 
   // calculate current team expected points and price change
   let teamExpectedPoints =

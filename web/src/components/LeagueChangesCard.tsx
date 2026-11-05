@@ -34,6 +34,7 @@ export type LeagueChangeTeam = {
   captain: RoleChange;
   megaCaptain: RoleChange;
   chipsActivated: string[];
+  transferPenalty?: number;
 };
 
 export type LeagueChangesResult = {
@@ -55,6 +56,8 @@ export type LeagueChangesResult = {
   leagues?: LeagueChoice[];
   changedTeams?: LeagueChangeTeam[];
   unchangedTeams?: LeagueChangeTeam[];
+  unavailableTeams?: LeagueChangeTeam[];
+  planningKind?: 'race-start';
 };
 
 function names(values: string[]): string {
@@ -104,6 +107,8 @@ export function LeagueChangesCard({
         captain: 'קפטן',
         megaCaptain: 'מגה קפטן',
         chip: "צ'יפ שהופעל",
+        penalty: 'קנס העברות',
+        points: 'נקודות',
         unchanged: 'קבוצות ללא שינויים',
         unknown: 'ללא',
         error: 'לא ניתן להציג את שינויי הליגה כרגע.',
@@ -135,6 +140,8 @@ export function LeagueChangesCard({
         captain: 'Captain',
         megaCaptain: 'Mega captain',
         chip: 'Chip activated',
+        penalty: 'Transfer penalty',
+        points: 'points',
         unchanged: 'Teams with no changes',
         unknown: 'None',
         error: 'League changes cannot be displayed right now.',
@@ -337,7 +344,10 @@ export function LeagueChangesCard({
         </div>
       </header>
 
-      {changedTeams.length === 0 ? (
+      {result.planningKind === 'race-start' ? <p role="note">{lang === 'he' ? 'הרכב פתיחה ← הרכב נעול' : 'Starting baseline → locked roster'}</p> : null}
+      {result.unavailableTeams?.length ? <p role="status">{lang === 'he' ? 'לא ניתן להשוות שינויים: הרכב הפתיחה אינו זמין עבור' : 'Changes could not be compared: starting roster unavailable for'} {result.unavailableTeams.map((team) => team.teamName || team.userName).join(', ')}</p> : null}
+
+      {changedTeams.length === 0 && !result.unavailableTeams?.length ? (
         <p role="status" style={{ color: 'var(--app-muted)' }}>{labels.noChanges}</p>
       ) : (
         <div role="list" style={{ display: 'grid', gap: 8 }}>
@@ -364,6 +374,7 @@ export function LeagueChangesCard({
                 {team.constructors.in.length ? <li><strong>{labels.constructorsIn}:</strong> {names(team.constructors.in)}</li> : null}
                 {team.captain ? <li><strong>{labels.captain}:</strong> {team.captain.from || labels.unknown} → {team.captain.to || labels.unknown}</li> : null}
                 {team.megaCaptain ? <li><strong>{labels.megaCaptain}:</strong> {team.megaCaptain.from || labels.unknown} → {team.megaCaptain.to || labels.unknown}</li> : null}
+                {(team.transferPenalty || 0) > 0 ? <li style={{ color: 'var(--app-danger-text)' }}><strong>{labels.penalty}:</strong> <bdi>-{team.transferPenalty}</bdi> {labels.points}</li> : null}
                 {team.chipsActivated.map((chip) => <li key={chip}><strong>{labels.chip}:</strong> {chip}</li>)}
               </ul>
             </article>

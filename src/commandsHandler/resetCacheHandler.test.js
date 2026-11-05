@@ -107,6 +107,7 @@ describe('resetCacheForChat', () => {
       bestTeamBudgetChangePointsPerMillion: null,
       selectedBestTeamByTeam: null,
       selectedChipByTeam: null,
+      selectedChipExpiryByTeam: null,
     });
   });
 

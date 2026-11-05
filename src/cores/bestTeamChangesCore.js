@@ -1,4 +1,5 @@
 const { calculateChangesToTeam } = require('../bestTeamsCalculator');
+const { teamDataStatus } = require('../utils/teamDataStatus');
 
 function buildBestTeamChanges({ calculationData, target, chip, ppm, remainingRaceCount }) {
   const changes = calculateChangesToTeam(calculationData, target, chip, ppm, remainingRaceCount);
@@ -15,6 +16,7 @@ function buildBestTeamChanges({ calculationData, target, chip, ppm, remainingRac
 
   return {
     ...changes,
+    ...(Object.keys(teamDataStatus(calculationData.CurrentTeam)).length ? { dataStatus: teamDataStatus(calculationData.CurrentTeam) } : {}),
     noChanges: !changes.driversToAdd.length && !changes.driversToRemove.length &&
       !changes.constructorsToAdd.length && !changes.constructorsToRemove.length &&
       !changes.newBoost && !changes.extraBoostDriver && !changes.chipToActivate,

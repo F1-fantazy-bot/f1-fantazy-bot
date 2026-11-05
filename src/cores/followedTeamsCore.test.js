@@ -35,16 +35,16 @@ describe('listFollowedTeams', () => {
 
   test('lists a single league team with its single-league context', async () => {
     cache.currentTeamCache[42] = {
-      Kilzid_1: { teamName: 'Kilzid' },
+      Kilzid_1_aaaaaaaaaaaa: { teamName: 'Kilzid' },
     };
-    cache.userCache['42'] = { selectedTeam: 'Kilzid_1' };
+    cache.userCache['42'] = { selectedTeam: 'Kilzid_1_aaaaaaaaaaaa' };
     listUserLeagues.mockResolvedValue([
       { leagueCode: 'C7', leagueName: 'MSFT ILDC' },
     ]);
     loadLeagueTeamsData.mockResolvedValueOnce({
       teams: [
-        { userName: 'Kilzid', teamNo: 1, teamName: 'Kilzid', position: 4 },
-        { userName: 'Other', teamNo: 1, teamName: 'Other', position: 1 },
+        { userName: 'Kilzid', teamNo: 1, accountId: 'aaaaaaaaaaaa', teamName: 'Kilzid', position: 4 },
+        { userName: 'Other', teamNo: 1, accountId: 'bbbbbbbbbbbb', teamName: 'Other', position: 1 },
       ],
     });
 
@@ -52,7 +52,7 @@ describe('listFollowedTeams', () => {
     expect(result.status).toBe('ok');
     expect(result.teams).toHaveLength(1);
     expect(result.teams[0]).toEqual({
-      teamId: 'Kilzid_1',
+      teamId: 'Kilzid_1_aaaaaaaaaaaa',
       teamName: 'Kilzid',
       leagues: [
         { leagueCode: 'C7', leagueName: 'MSFT ILDC', position: 4 },
@@ -63,7 +63,7 @@ describe('listFollowedTeams', () => {
 
   test('dedupes the same fantasy team across multiple leagues', async () => {
     cache.currentTeamCache[42] = {
-      Kilzid_1: { teamName: 'Kilzid' },
+      Kilzid_1_aaaaaaaaaaaa: { teamName: 'Kilzid' },
     };
     listUserLeagues.mockResolvedValue([
       { leagueCode: 'C7', leagueName: 'MSFT ILDC' },
@@ -73,14 +73,14 @@ describe('listFollowedTeams', () => {
       if (code === 'C7') {
         return Promise.resolve({
           teams: [
-            { userName: 'Kilzid', teamNo: 1, teamName: 'Kilzid', position: 4 },
+            { userName: 'Kilzid', teamNo: 1, accountId: 'aaaaaaaaaaaa', teamName: 'Kilzid', position: 4 },
           ],
         });
       }
 
       return Promise.resolve({
         teams: [
-          { userName: 'Kilzid', teamNo: 1, teamName: 'Kilzid', position: 2 },
+          { userName: 'Kilzid', teamNo: 1, accountId: 'aaaaaaaaaaaa', teamName: 'Kilzid', position: 2 },
         ],
       });
     });
@@ -95,8 +95,8 @@ describe('listFollowedTeams', () => {
 
   test('returns tracked teams even when no league blob resolves', async () => {
     cache.currentTeamCache[42] = {
-      Kilzid_1: { teamName: 'Kilzid (cached)' },
-      Kilzid_2: {},
+      Kilzid_1_aaaaaaaaaaaa: { teamName: 'Kilzid (cached)' },
+      Kilzid_2_aaaaaaaaaaaa: {},
     };
     listUserLeagues.mockResolvedValue([
       { leagueCode: 'C7', leagueName: 'MSFT ILDC' },
@@ -106,31 +106,31 @@ describe('listFollowedTeams', () => {
     const result = await listFollowedTeams({ chatId: 42 });
     expect(result.status).toBe('ok');
     expect(result.teams.map((t) => t.teamId).sort()).toEqual([
-      'Kilzid_1',
-      'Kilzid_2',
+      'Kilzid_1_aaaaaaaaaaaa',
+      'Kilzid_2_aaaaaaaaaaaa',
     ]);
-    const kilzid1 = result.teams.find((t) => t.teamId === 'Kilzid_1');
+    const kilzid1 = result.teams.find((t) => t.teamId === 'Kilzid_1_aaaaaaaaaaaa');
     expect(kilzid1.teamName).toBe('Kilzid (cached)');
     expect(kilzid1.leagues).toEqual([]);
-    const kilzid2 = result.teams.find((t) => t.teamId === 'Kilzid_2');
-    expect(kilzid2.teamName).toBe('Kilzid_2');
+    const kilzid2 = result.teams.find((t) => t.teamId === 'Kilzid_2_aaaaaaaaaaaa');
+    expect(kilzid2.teamName).toBe('Kilzid_2_aaaaaaaaaaaa');
   });
 
   test('ignores screenshot teams (T1/T2/T3)', async () => {
     cache.currentTeamCache[42] = {
       T1: { teamName: 'Screenshot Team' },
-      Kilzid_1: { teamName: 'Kilzid' },
+      Kilzid_1_aaaaaaaaaaaa: { teamName: 'Kilzid' },
     };
     listUserLeagues.mockResolvedValue([
       { leagueCode: 'C7', leagueName: 'MSFT ILDC' },
     ]);
     loadLeagueTeamsData.mockResolvedValueOnce({
       teams: [
-        { userName: 'Kilzid', teamNo: 1, teamName: 'Kilzid', position: 4 },
+        { userName: 'Kilzid', teamNo: 1, accountId: 'aaaaaaaaaaaa', teamName: 'Kilzid', position: 4 },
       ],
     });
 
     const result = await listFollowedTeams({ chatId: 42 });
-    expect(result.teams.map((t) => t.teamId)).toEqual(['Kilzid_1']);
+    expect(result.teams.map((t) => t.teamId)).toEqual(['Kilzid_1_aaaaaaaaaaaa']);
   });
 });

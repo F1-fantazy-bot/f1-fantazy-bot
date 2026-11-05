@@ -1,6 +1,7 @@
 const { getUserTeamIds, getSelectedTeam, currentTeamCache } = require('../cache');
 const { TEAM_CALLBACK_TYPE } = require('../constants');
 const { t } = require('../i18n');
+const { selectorForTeam } = require('../utils/teamCallbackSelector');
 
 async function handleSelectTeamCommand(bot, msg) {
   const chatId = msg.chat.id;
@@ -21,16 +22,18 @@ async function handleSelectTeamCommand(bot, msg) {
   const selectedTeam = getSelectedTeam(chatId);
 
   const keyboard = teamIds.map((teamId) => {
+    const selector = selectorForTeam(chatId, teamId);
+    if (!selector) {return null;}
     const teamName = currentTeamCache[chatId]?.[teamId]?.teamName || teamId;
     const text = teamId === selectedTeam ? `✅ ${teamName}` : teamName;
 
     return [
       {
         text,
-        callback_data: `${TEAM_CALLBACK_TYPE}:${teamId}`,
+        callback_data: `${TEAM_CALLBACK_TYPE}:${selector}`,
       },
     ];
-  });
+  }).filter(Boolean);
 
   await bot.sendMessage(chatId, t('Select your active team:', chatId), {
     reply_to_message_id: msg.message_id,

@@ -1,3 +1,4 @@
+const { resolveActiveChips } = require('../utils/chipExpiry');
 const { randomUUID, createHash } = require('crypto');
 const { TableClient } = require('@azure/data-tables');
 const { BlobServiceClient } = require('@azure/storage-blob');
@@ -6,6 +7,9 @@ const { getUserById } = require('../userRegistryService');
 const storage = require('../azureStorageService');
 const { applyPrices } = require('../priceData');
 const { buildBestTeamChanges } = require('../cores/bestTeamChangesCore');
+const { AGENT_BEST_TEAMS_MAX_RESULT_COUNT } = require('../constants');
+const { loadWeeklySources, resolveWeeklyTeam } = require('./weeklyTeamDataService');
+const { listUserLeagues } = require('../leagueRegistryService');
 const TTL = 24 * 60 * 60 * 1000;
 const hash = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 let client;
@@ -23,15 +27,16 @@ function inputs(chatId, teamId) {
     drivers: cache.getDriversForChat(chatId), constructors: cache.getConstructorsForChat(chatId),
     currentTeam: cache.currentTeamCache[chatId]?.[teamId], driverEntries: cache.pricesCache.driverEntries,
     nextRaceInfo: cache.nextRaceInfoCache[cache.sharedKey],
-    chip: cache.selectedChipCache[chatId]?.[teamId] || null,
+    chip: cache.getActiveChip(chatId, teamId) || null,
     ppm: cache.getBestTeamBudgetChangePointsPerMillion(chatId, teamId),
     remainingRaceCount: cache.remainingRaceCountCache[cache.sharedKey],
   };
 }
-async function sourceVersions(chatId, teamId) {
+async function sourceVersions(chatId, teamId, leagueCodes = []) {
   const container = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING)
     .getContainerClient(process.env.AZURE_STORAGE_CONTAINER_NAME);
   const names = ['f1-fantasy-data.json', 'prices.json', 'next-race-info.json', `user-teams/${chatId}_${teamId}.json`];
+  names.push(...leagueCodes.map((code) => `leagues/${code}/teams-data.json`));
 
   return Promise.all(names.map(async (name) => {
     try { return (await container.getBlockBlobClient(name).getProperties()).etag; }
@@ -39,13 +44,17 @@ async function sourceVersions(chatId, teamId) {
   }));
 }
 async function loadCalculationContext(chatId, teamId) {
-  const before = await sourceVersions(chatId, teamId);
-  const [fantasy, prices, nextRaceInfo, currentTeam, user] = await Promise.all([
+  const isLeague = cache.isLeagueTeamId(teamId);
+  const leagueCodes = isLeague ? (await listUserLeagues(chatId) || []).map((league) => league.leagueCode) : [];
+  const before = await sourceVersions(chatId, teamId, leagueCodes);
+  const [fantasy, prices, nextRaceInfo, savedTeam, user, weeklySources] = await Promise.all([
     storage.getFantasyData(), storage.getPricesData(), storage.getNextRaceInfoData(),
     storage.getUserTeam(chatId, teamId), getUserById(chatId),
+    isLeague ? loadWeeklySources(chatId, leagueCodes) : [],
   ]);
-  if (!currentTeam || !before[3]) {return { status: 'missing_result' };}
-  const after = await sourceVersions(chatId, teamId);
+  if (!savedTeam || !before[3]) {return { status: 'missing_result' };}
+  const currentTeam = isLeague ? resolveWeeklyTeam(teamId, savedTeam, weeklySources) : savedTeam;
+  const after = await sourceVersions(chatId, teamId, leagueCodes);
   if (hash(before) !== hash(after)) {throw new Error('Inputs changed during calculation; retry');}
   const priced = applyPrices({
     drivers: cache.driversCache[chatId] || Object.fromEntries(fantasy.Drivers.map((item) => [item.DR, item])),
@@ -55,14 +64,15 @@ async function loadCalculationContext(chatId, teamId) {
     drivers: priced.drivers,
     constructors: priced.constructors,
     driverEntries: prices.drivers,
+    priceMatchdayId: prices.matchdayId,
     ppm: cache.normalizeBestTeamBudgetChangePointsPerMillion(user?.bestTeamBudgetChangePointsPerMillion)[teamId] || 0,
-    chip: cache.normalizeSelectedChipByTeam(user?.selectedChipByTeam)[teamId] || null,
+    chip: resolveActiveChips(cache.normalizeSelectedChipByTeam(user?.selectedChipByTeam), user?.selectedChipExpiryByTeam)[teamId] || null,
   };
 
   // ETags guard the read above, but are not calculation inputs. Startup league
   // refreshes can rewrite identical blobs between calculation and selection.
   return { ...context, fingerprint: hash({ context, reset: user?.userResetEpoch,
-    ranking: user?.bestTeamBudgetChangePointsPerMillion, chips: user?.selectedChipByTeam }) };
+    ranking: user?.bestTeamBudgetChangePointsPerMillion, chips: user?.selectedChipByTeam, chipExpiry: user?.selectedChipExpiryByTeam }) };
 }
 async function dependencies(chatId, teamId) {
   return (await loadCalculationContext(chatId, teamId)).fingerprint;
@@ -79,7 +89,7 @@ async function saveCalculation(chatId, result, request, fingerprint) {
   if (!result.calculationData || !fingerprint) {
     throw new Error('Calculation inputs unavailable');
   }
-  const rows = result.bestTeams.slice(0, 10).map((target) => ({ row: target.row,
+  const rows = result.bestTeams.slice(0, AGENT_BEST_TEAMS_MAX_RESULT_COUNT).map((target) => ({ row: target.row,
     details: buildBestTeamChanges({ calculationData: result.calculationData, target,
       chip: result.chip, ppm: result.budgetChangePointsPerMillion, remainingRaceCount: result.remainingRaceCount || 0 }) }));
   const metadata = { teamId: result.teamId, teamName: result.teamName, request: { ...request, teamId: result.teamId, teamName: undefined },

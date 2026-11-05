@@ -14,9 +14,18 @@ type StandingsRow = {
   isSelected: boolean;
 };
 
-type LeaderboardResult = {
+export type LeaderboardResult = {
   lang?: string;
-  status?: 'ok' | 'not_followed' | 'not_found' | 'invalid_input';
+  status?:
+    | 'ok'
+    | 'not_followed'
+    | 'not_found'
+    | 'invalid_input'
+    | 'race_unavailable';
+  period?: 'season' | 'race';
+  raceName?: string | null;
+  raceFlag?: string;
+  matchdayId?: number | null;
   leagueCode?: string;
   leagueName?: string;
   memberCount?: number | null;
@@ -26,8 +35,8 @@ type LeaderboardResult = {
 };
 
 function formatGap(gap: number | null, idx: number): string {
+  if (gap === null) return '—';
   if (idx === 0) return '';
-  if (gap === null) return '';
   if (gap === 0) return '0';
   return String(gap);
 }
@@ -53,6 +62,8 @@ export function LeaderboardTable({ result }: { result?: LeaderboardResult }) {
   const labels =
     lang === 'he'
       ? {
+          season: 'כל העונה',
+          unavailable: 'אין ניקוד זמין למרוץ המבוקש.',
           notFollowed: 'אינך עוקב אחר הליגה',
           followFirst: 'יש לעקוב אחריה תחילה בבוט הטלגרם.',
           notFound: 'עדיין אין טבלה זמינה לליגה',
@@ -66,6 +77,8 @@ export function LeaderboardTable({ result }: { result?: LeaderboardResult }) {
           gap: 'פער',
         }
       : {
+          season: 'Entire season',
+          unavailable: 'No scores are available for the requested race.',
           notFollowed: "You don't follow league",
           followFirst: 'Run /follow_league in the Telegram bot first.',
           notFound: 'No standings available yet for league',
@@ -80,6 +93,18 @@ export function LeaderboardTable({ result }: { result?: LeaderboardResult }) {
         };
   if (!result) {
     return null;
+  }
+
+  if (result.status === 'race_unavailable') {
+    return (
+      <div
+        role="status"
+        dir={directionFor(lang)}
+        style={{ padding: 12, color: 'var(--app-warning-text)' }}
+      >
+        {labels.unavailable} {result.raceName && <bdi>{result.raceFlag && `${result.raceFlag} `}{result.raceName}</bdi>}
+      </div>
+    );
   }
 
   if (result.status === 'not_followed') {
@@ -154,6 +179,11 @@ export function LeaderboardTable({ result }: { result?: LeaderboardResult }) {
           🏆 {result.leagueName ?? result.leagueCode}
         </div>
         <div style={{ color: 'var(--app-subtle)', fontSize: 11, marginTop: 2 }}>
+          <bdi>
+            {result.period === 'race'
+              ? `${result.raceFlag ? `${result.raceFlag} ` : ''}${result.raceName || `R${result.matchdayId}`}`
+              : labels.season}
+          </bdi> ·{' '}
           {result.memberCount ?? rows.length} {labels.teams}
           {fetchedAt ? ` · ${labels.updated} ${fetchedAt}` : ''}
         </div>
@@ -208,7 +238,7 @@ export function LeaderboardTable({ result }: { result?: LeaderboardResult }) {
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
-                  {row.totalScore ?? '—'}
+                  <bdi dir="ltr">{row.totalScore ?? '—'}</bdi>
                 </td>
                 <td
                   style={{
@@ -218,7 +248,7 @@ export function LeaderboardTable({ result }: { result?: LeaderboardResult }) {
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
-                  {formatGap(row.gapToLeader, idx)}
+                  <bdi dir="ltr">{formatGap(row.gapToLeader, idx)}</bdi>
                 </td>
               </tr>
             );

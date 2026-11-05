@@ -122,7 +122,7 @@ test('classifies every Telegram command exactly once', () => {
   const commands = commandConstants();
   const manifestCommands = COMMAND_CAPABILITIES.map((entry) => entry.command);
 
-  expect(commands).toHaveLength(50);
+  expect(commands).toHaveLength(51);
   expect(new Set(manifestCommands).size).toBe(manifestCommands.length);
   expect([...manifestCommands].sort()).toEqual([...commands].sort());
 });
@@ -265,9 +265,9 @@ test('requires implemented admin tools to use the central admin wrapper', () => 
   ).toEqual(['unsafe_admin_tool']);
 });
 
-test('closes the final 50-command parity contract with no planned work', () => {
+test('closes the final 51-command parity contract with no planned work', () => {
   expect(getStatusCounts()).toEqual({
-    [AGENT_STATUS.IMPLEMENTED]: 45,
+    [AGENT_STATUS.IMPLEMENTED]: 46,
     [AGENT_STATUS.ADAPTED]: 1,
     [AGENT_STATUS.PLANNED]: 0,
     [AGENT_STATUS.EXCLUDED]: 4,

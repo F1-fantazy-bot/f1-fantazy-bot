@@ -132,6 +132,7 @@ test('persists reset state before publishing local cache invalidation', async ()
     bestTeamBudgetChangePointsPerMillion: null,
     selectedBestTeamByTeam: null,
     selectedChipByTeam: null,
+    selectedChipExpiryByTeam: null,
   });
   expect(update.mock.calls[1][1]({ [RESET_EPOCH_FIELD]: 3 })).toEqual({
     [RESET_EPOCH_FIELD]: 4,

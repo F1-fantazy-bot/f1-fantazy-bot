@@ -9,9 +9,11 @@ jest.mock('../cache', () => ({
   remainingRaceCountCache: {},
   sharedKey: 'defaultSharedKey',
   userCache: {},
+  currentTeamCache: {},
 }));
 
 const { resolveSelectedTeam } = require('../cache');
+const { currentTeamCache } = require('../cache');
 const {
   handleSetBestTeamRanking,
   BEST_TEAM_RANKING_PRESETS,
@@ -23,6 +25,19 @@ describe('handleSetBestTeamRanking', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete remainingRaceCountCache[sharedKey];
+    delete currentTeamCache[KILZI_CHAT_ID];
+  });
+
+  it('uses a compact account selector even with a forty-character username', async () => {
+    const teamId = `${'A'.repeat(40)}_1_aaaaaaaaaaaa`;
+    currentTeamCache[KILZI_CHAT_ID] = { [teamId]: {
+      userName: 'A'.repeat(40), teamNo: 1, accountId: 'aaaaaaaaaaaa',
+    } };
+    resolveSelectedTeam.mockResolvedValueOnce(teamId);
+    await handleSetBestTeamRanking(botMock, { chat: { id: KILZI_CHAT_ID } });
+    const buttons = botMock.sendMessage.mock.calls[0][2].reply_markup.inline_keyboard.flat();
+    expect(buttons.every((button) => Buffer.byteLength(button.callback_data, 'utf8') <= 64)).toBe(true);
+    expect(buttons[0].callback_data).toContain(':1_aaaaaaaaaaaa:');
   });
 
   it('should send inline keyboard with 4 preset options', async () => {

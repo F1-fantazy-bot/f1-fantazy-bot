@@ -29,7 +29,7 @@ function getMissingLeagueReport(result: WriteResult) {
   };
 }
 
-export function InteractiveWriteResult({ result }: { result: WriteResult }) {
+export function InteractiveWriteResult({ result, historical = false }: { result: WriteResult; historical?: boolean }) {
   const { propose } = useWriteDecision();
   const [confirmation, setConfirmation] =
     useState<WriteConfirmationRequired | null>(null);
@@ -90,7 +90,7 @@ export function InteractiveWriteResult({ result }: { result: WriteResult }) {
 
   return (
     <>
-      <WriteResultCard result={result} />
+      <WriteResultCard result={result} historical={historical} />
       {report && !confirmation && (!feedback || feedback.status === 'failed') ? (
         <div
           dir={isHebrew ? 'rtl' : 'ltr'}

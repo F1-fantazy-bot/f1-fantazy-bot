@@ -1,3 +1,4 @@
+const { normalizeChipExpiryByTeam, resolveActiveChips } = require('../utils/chipExpiry');
 const {
   currentTeamCache,
   bestTeamsCache,
@@ -23,6 +24,7 @@ async function hydrateUserMutationState(chatId) {
   const previousRanking = normalizeBestTeamBudgetChangePointsPerMillion(
     userCache[key]?.bestTeamBudgetChangePointsPerMillion,
   );
+  const previousMetadata = normalizeChipExpiryByTeam(userCache[key]?.selectedChipExpiryByTeam);
   const previousChips = normalizeSelectedChipByTeam(
     userCache[key]?.selectedChipByTeam,
   );
@@ -53,6 +55,9 @@ async function hydrateUserMutationState(chatId) {
     normalizeSelectedChipByTeam(user?.selectedChipByTeam),
     ownedTeamIds,
   );
+  userCache[key].selectedChipExpiryByTeam = filterOwned(
+    normalizeChipExpiryByTeam(user?.selectedChipExpiryByTeam), ownedTeamIds,
+  );
   if (
     typeof user?.selectedTeam === 'string' &&
     ownedTeamIds.has(user.selectedTeam)
@@ -71,6 +76,7 @@ async function hydrateUserMutationState(chatId) {
 
   const nextRanking = userCache[key].bestTeamBudgetChangePointsPerMillion;
   const nextChips = userCache[key].selectedChipByTeam;
+  const activeChips = resolveActiveChips(nextChips, userCache[key].selectedChipExpiryByTeam);
   const teamIds = new Set([
     ...Object.keys(previousTeams),
     ...Object.keys(teams),
@@ -87,6 +93,9 @@ async function hydrateUserMutationState(chatId) {
       nextRanking[teamId] ??
       DEFAULT_BEST_TEAM_BUDGET_CHANGE_POINTS_PER_MILLION;
     if (
+      JSON.stringify(previousMetadata[teamId]) !==
+        JSON.stringify(userCache[key].selectedChipExpiryByTeam[teamId]) ||
+      (nextChips[teamId] && !activeChips[teamId]) ||
       JSON.stringify(previousTeams[teamId] || null) !==
         JSON.stringify(teams[teamId] || null) ||
       (previousChips[teamId] || null) !== (nextChips[teamId] || null) ||

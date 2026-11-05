@@ -1,15 +1,8 @@
 // Pure league-change comparison shared by Telegram and the web agent.
 // The core returns raw structured values; each surface owns localization,
 // escaping, and presentation.
-const { buildLeagueTeamId } = require('../utils/teamId');
-
-function teamIdentity(team) {
-  const teamId = buildLeagueTeamId(team?.userName, team?.teamNo);
-
-  // Older snapshots did not always include teamNo. Preserve their previous
-  // single-team matching behavior without weakening current composite ids.
-  return teamId || (team?.userName ? `legacy:${team.userName}` : null);
-}
+const { deriveLiveScoreOptions } = require('../utils/liveScoreCalc');
+const { resolveLockedRoster } = require('./raceSummaryCore');
 
 function pickCaptainName(team, key) {
   const drivers = Array.isArray(team?.drivers) ? team.drivers : [];
@@ -48,7 +41,15 @@ function compareNames(latestEntries, planningEntries) {
   };
 }
 
-function compareTeamChanges(latestTeam, planningTeam) {
+function compareTeamChanges(latestTeam, planningTeam, matchdayId = latestTeam?.matchdayId) {
+  const { transferPenalty } = deriveLiveScoreOptions({ ...latestTeam, matchdayId });
+  const unusable = (team) => team && (['historical', 'unavailable'].includes(team.teamStateStatus) ||
+    (team.teamStateStatus && team.matchdayId !== undefined && team.matchdayId !== matchdayId));
+  if (unusable(latestTeam) || unusable(planningTeam)) {
+    return { comparisonStatus: 'unavailable', isNew: false, hasChanges: false,
+      drivers: { in: [], out: [] }, constructors: { in: [], out: [] },
+      captain: null, megaCaptain: null, chipsActivated: [], transferPenalty: 0 };
+  }
   if (!planningTeam) {
     return {
       isNew: true,
@@ -58,6 +59,7 @@ function compareTeamChanges(latestTeam, planningTeam) {
       captain: null,
       megaCaptain: null,
       chipsActivated: [],
+      transferPenalty,
     };
   }
 
@@ -92,17 +94,19 @@ function compareTeamChanges(latestTeam, planningTeam) {
         constructors.out.length ||
         captain ||
         megaCaptain ||
-        chipsActivated.length,
+        chipsActivated.length ||
+        transferPenalty > 0,
     ),
     drivers,
     constructors,
     captain,
     megaCaptain,
     chipsActivated,
+    transferPenalty,
   };
 }
 
-function normalizeTeam(latestTeam, planningTeam) {
+function normalizeTeam(latestTeam, planningTeam, matchdayId) {
   return {
     teamName:
       latestTeam?.teamName || latestTeam?.userName || planningTeam?.teamName || null,
@@ -112,7 +116,7 @@ function normalizeTeam(latestTeam, planningTeam) {
       Number.isFinite(latestTeam.position)
         ? latestTeam.position
         : null,
-    ...compareTeamChanges(latestTeam, planningTeam),
+    ...compareTeamChanges(latestTeam, planningTeam, matchdayId),
   };
 }
 
@@ -145,12 +149,15 @@ function compareLeagueChanges({ latest, planning } = {}) {
     };
   }
 
-  const planningByTeam = new Map();
-  for (const team of Array.isArray(planning.teams) ? planning.teams : []) {
-    const identity = teamIdentity(team);
-    if (identity) {
-      planningByTeam.set(identity, team);
-    }
+  const planningTeams = Array.isArray(planning.teams) ? planning.teams : [];
+  function findPlanningTeam(lockedTeam) {
+    const direct = resolveLockedRoster(lockedTeam, planningTeams).team;
+    if (direct) {return direct;}
+    if (lockedTeam.accountId) {return null;}
+    const reverse = planningTeams.filter((candidate) =>
+      resolveLockedRoster(candidate, [lockedTeam]).team === lockedTeam);
+
+    return reverse.length === 1 ? reverse[0] : null;
   }
 
   const teams = [...(Array.isArray(latest.teams) ? latest.teams : [])]
@@ -158,7 +165,11 @@ function compareLeagueChanges({ latest, planning } = {}) {
       (left, right) =>
         (left?.position || Infinity) - (right?.position || Infinity),
     )
-    .map((team) => normalizeTeam(team, planningByTeam.get(teamIdentity(team))));
+    .map((team) => {
+      const planningTeam = findPlanningTeam(team);
+
+      return normalizeTeam(team, planningTeam ? { ...planningTeam, matchdayId: planningMatchdayId } : null, lockedMatchdayId);
+    });
 
   return {
     status: 'ok',
@@ -172,7 +183,11 @@ function compareLeagueChanges({ latest, planning } = {}) {
     matchdayId: lockedMatchdayId,
     teams,
     changedTeams: teams.filter((team) => team.hasChanges),
-    unchangedTeams: teams.filter((team) => !team.hasChanges),
+    unchangedTeams: teams.filter((team) => !team.hasChanges && team.comparisonStatus !== 'unavailable'),
+    ...(teams.some((team) => team.comparisonStatus === 'unavailable')
+      ? { unavailableTeams: teams.filter((team) => team.comparisonStatus === 'unavailable') } : {}),
+    ...(planningTeams.some((team) => team.teamStateStatus === 'reconstructed-race-start')
+      ? { planningKind: 'race-start' } : {}),
   };
 }
 

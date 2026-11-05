@@ -533,3 +533,11 @@ describe('leagueChangesHandler', () => {
     });
   });
 });
+
+test('Telegram league changes show penalties for existing and new teams', () => {
+  const penalized = { userName: 'dor', teamNo: 1, teamName: 'dorseg al', matchdayId: 16, transfersRemaining: -1, drivers: [], constructors: [], chipsUsed: [] };
+  const latest = { leagueName: 'Amba', matchdayId: 16, teams: [penalized] };
+  expect(formatLeagueChanges(latest, { ...latest, teams: [{ ...penalized, transfersRemaining: 2 }] }, 1)).toContain('Transfer penalty: -10 points');
+  expect(formatLeagueChanges(latest, { ...latest, teams: [] }, 1)).toContain('Transfer penalty: -10 points');
+  expect(diffTeam(penalized, null, 1).lines).toContain('↪ Transfer penalty: -10 points');
+});

@@ -75,7 +75,7 @@ const FIXTURE = {
     {
       teamName: 'Cooperon',
       userName: 'Ron Cooper',
-      teamNo: 1,
+      teamNo: 1, accountId: 'aaaaaaaaaaaa',
       position: 1,
       raceBudgets: {
         matchday_1: 100,
@@ -87,7 +87,7 @@ const FIXTURE = {
     {
       teamName: 'dorsegal1',
       userName: 'Dor Segal',
-      teamNo: 1,
+      teamNo: 1, accountId: 'bbbbbbbbbbbb',
       position: 2,
       raceBudgets: {
         matchday_1: 100,
@@ -99,7 +99,7 @@ const FIXTURE = {
     {
       teamName: 'Kilzid',
       userName: 'Doron Kilzi',
-      teamNo: 1,
+      teamNo: 1, accountId: 'cccccccccccc',
       position: 3,
       raceBudgets: {
         matchday_1: 100,
@@ -288,7 +288,7 @@ describe('leagueBudgetGraphHandler', () => {
     });
 
     it('highlights the selected team with a thicker line and larger points', () => {
-      const selectedTeamId = 'Ron-Cooper_1';
+      const selectedTeamId = 'Ron-Cooper_1_aaaaaaaaaaaa';
       const config = buildBudgetChartConfig(FIXTURE, { selectedTeamId });
       expect(config.data.datasets[0].label).toBe('Cooperon');
       expect(config.data.datasets[0].borderWidth).toBe(6);
@@ -378,7 +378,7 @@ describe('leagueBudgetGraphHandler', () => {
     });
 
     it('passes selectedTeamId into chart config so selected series is highlighted', async () => {
-      getSelectedTeam.mockReturnValue('Ron-Cooper_1');
+      getSelectedTeam.mockReturnValue('Ron-Cooper_1_aaaaaaaaaaaa');
       getLeagueData.mockResolvedValueOnce(FIXTURE);
       fetchCurrentSeasonRaces.mockResolvedValueOnce({
         MRData: { RaceTable: { Races: [] } },

@@ -8,7 +8,7 @@
 const { calculateBestTeams } = require('../bestTeamsCalculator');
 const {
   currentTeamCache,
-  selectedChipCache,
+  getActiveChip,
   sharedKey,
   remainingRaceCountCache,
   nextRaceInfoCache,
@@ -21,6 +21,7 @@ const {
 } = require('../cache');
 const { NAME_TO_CODE_MAPPING } = require('../constants');
 const { prepareBestTeamsData } = require('../utils/bestTeamsData');
+const { recommendationIssue, teamDataStatus } = require('../utils/teamDataStatus');
 
 // Normalize a single user-supplied driver / constructor token to its canonical
 // 3-letter code. Accepts already-uppercase codes (`'VER'`) and lowercased
@@ -154,6 +155,7 @@ async function computeBestTeams({
   rankBy = null,
   resultCount,
   includeCalculationData = false,
+  chipOverride,
   loadCalculationContext,
   mustIncludeDrivers,
   mustExcludeDrivers,
@@ -206,7 +208,11 @@ async function computeBestTeams({
     return { status: 'unknown_filter', teamId, filters };
   }
 
-  const chip = context ? context.chip : selectedChipCache[chatId]?.[teamId];
+  const chip = chipOverride !== undefined
+    ? (chipOverride === 'WITHOUT_CHIP' ? null : chipOverride)
+    : context ? context.chip : getActiveChip(chatId, teamId);
+  const issue = recommendationIssue(currentTeam, context ? context.priceMatchdayId ?? null : pricesCache.metadata?.matchdayId ?? null);
+  if (issue) {return { status: issue, teamId, dataStatus: teamDataStatus(currentTeam) };}
   const prepared = prepareBestTeamsData({
     drivers,
     constructors,
@@ -245,6 +251,7 @@ async function computeBestTeams({
     teamName: currentTeam.teamName || teamId,
     currentTeam,
     bestTeams,
+    ...(Object.keys(teamDataStatus(currentTeam)).length ? { dataStatus: teamDataStatus(currentTeam) } : {}),
     ...(includeCalculationData
       ? { remainingRaceCount, snapshotFingerprint: context?.fingerprint }
       : {}),

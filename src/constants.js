@@ -74,6 +74,9 @@ exports.MAX_FOLLOWED_LEAGUE_TEAMS = 6;
 
 exports.MAX_TELEGRAM_MESSAGE_LENGTH = 4096;
 exports.BEST_TEAMS_RESULT_COUNT = 15;
+// Keep agent result payloads and durable recommendation snapshots bounded.
+exports.AGENT_BEST_TEAMS_DEFAULT_RESULT_COUNT = 10;
+exports.AGENT_BEST_TEAMS_MAX_RESULT_COUNT = 20;
 // Points deducted per transfer beyond the user's free-transfer budget.
 // Same rule the live F1 Fantasy app applies, waived when Wildcard or
 // Limitless is active for that matchday. Used by both
@@ -83,6 +86,8 @@ exports.EXTRA_TRANSFER_PENALTY_POINTS = 10;
 
 exports.COMMAND_BEST_TEAMS = '/best_teams';
 exports.COMMAND_CURRENT_TEAM_INFO = '/current_team_info';
+exports.COMMAND_AVAILABLE_CHIPS = '/available_chips';
+exports.AVAILABLE_CHIPS_CALLBACK_TYPE = 'AC';
 exports.COMMAND_CHIPS = '/chips';
 exports.COMMAND_PRINT_CACHE = '/print_cache';
 exports.COMMAND_RESET_CACHE = '/reset_cache';
@@ -183,6 +188,11 @@ exports.MENU_CATEGORIES = {
         title: '👥 Current Team Info',
         description:
           'Calculate the current team info based on your cached data',
+      },
+      {
+        constant: exports.COMMAND_AVAILABLE_CHIPS,
+        title: '🎟️ Available Chips',
+        description: 'Show chips unused this season for a team, tracked teams, or a league',
       },
       {
         constant: exports.COMMAND_CHIPS,
@@ -485,6 +495,7 @@ exports.NAME_TO_CODE_DRIVERS_MAPPING = {
   'e. ocon': 'OCO',
   'p. gasly': 'GAS',
   'l. lawson': 'LAW',
+  'r. hirakawa': 'HIR',
   'a. lindblad': 'LIN',
   'j. doohan': 'DOO',
   'g. bortoleto': 'BOR',

@@ -4,11 +4,11 @@
 
 ## Closure summary
 
-The current Telegram command catalogue contains **50 commands**. Every command has an explicit agent decision: **45 implemented mappings**, **1 adapted mapping**, **4 approved Telegram-only exceptions**, and **0 planned mappings**.
+The current Telegram command catalogue contains **51 commands**. Every command has an explicit agent decision: **46 implemented mappings**, **1 adapted mapping**, **4 approved Telegram-only exceptions**, and **0 planned mappings**.
 
 | Agent status | Command count | Meaning |
 | --- | ---: | --- |
-| implemented | 45 | Full conversational agent mapping with registered tool(s). |
+| implemented | 46 | Full conversational agent mapping with registered tool(s). |
 | adapted | 1 | Supported through an intentionally different conversational flow. |
 | excluded | 4 | Deliberately Telegram-only, with a reviewed rationale. |
 | planned | 0 | Not allowed after Phase 14 closure. |
@@ -42,6 +42,7 @@ The CI contract verifies all 50 `COMMAND_*` constants are represented once, each
 | `/teams_tracker` | user | adapted | `list_followed_teams`, `list_user_leagues`, `list_league_teams`, `follow_team` | guided | The agent adds or removes one canonical team per confirmation; Telegram keeps its batch toggle and Save workflow. |
 | `/help` | user | implemented | `get_agent_guide` | none | — |
 | `/flow` | user | implemented | `get_agent_guide` | none | — |
+| `/available_chips` | user | implemented | `get_available_chips` | none | — |
 | `/league_changes` | user | implemented | `get_league_changes` | none | — |
 | `/league_graphs` | user | implemented | `get_league_graph` | none | — |
 | `/race_summary` | user | implemented | `get_race_summary` | none | — |
@@ -72,7 +73,7 @@ The CI contract verifies all 50 `COMMAND_*` constants are represented once, each
 
 ## Agent-native supporting tools
 
-Supporting tools: `confirm_write`, `get_action_choices`. The confirmation dispatcher commits approved staged writes; action choices provide authenticated clickable clarification. Neither is a standalone Telegram command, but CI accounts for both alongside all manifest mappings.
+Supporting tools: `confirm_write`, `get_action_choices`, `propose_workflow`, `get_workflow_status`. The confirmation dispatcher commits approved staged writes; action choices provide authenticated clickable clarification. Workflow tools prepare ordered requests and retrieve durable results. These supporting tools are not standalone Telegram commands; CI accounts for them alongside all manifest mappings.
 
 ## Final smoke matrix
 

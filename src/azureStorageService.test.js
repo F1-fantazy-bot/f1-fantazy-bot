@@ -557,6 +557,32 @@ describe('azureStorageService', () => {
       expect(result).toEqual(mockData);
     });
 
+    it('chip reads choose the newest update across season race-number resets and download once', async () => {
+      const data = { fetchedAt: '2026-03-01T12:00:00Z', matchdayId: 1, teams: [] };
+      mockListBlobsFlat.mockReturnValueOnce({
+        [Symbol.asyncIterator]: async function* () {
+          yield { name: 'leagues/ABC/locked/matchday_24.json', properties: { lastModified: new Date('2025-12-01') } };
+          yield { name: 'leagues/ABC/locked/matchday_1.json', properties: { lastModified: new Date('2026-03-01') } };
+          yield { name: 'leagues/ABC/locked/notes.txt' };
+          yield { name: 'leagues/ABC/locked/matchday_7.json', properties: { lastModified: new Date('2025-05-01') } };
+        },
+      });
+      mockExists.mockResolvedValueOnce(true);
+      mockDownload.mockResolvedValueOnce({ readableStreamBody: createMockStream(data) });
+      const result = await azureStorageService.getLockedTeamsData('ABC', undefined, { latestByUpdate: true });
+      const { BlobServiceClient } = require('@azure/storage-blob');
+      const container = BlobServiceClient.fromConnectionString().getContainerClient();
+      expect(container.getBlockBlobClient).toHaveBeenLastCalledWith('leagues/ABC/locked/matchday_1.json');
+      expect(result).toEqual(data);
+      expect(mockDownload).toHaveBeenCalledTimes(1);
+    });
+
+    it('chip reads fail conservatively if listing timestamps are missing', async () => {
+      mockListBlobsFlat.mockReturnValueOnce(yieldBlobs('leagues/ABC/locked/matchday_24.json'));
+      await expect(azureStorageService.getLockedTeamsData('ABC', undefined, { latestByUpdate: true })).rejects.toThrow('update time unavailable');
+      expect(mockDownload).not.toHaveBeenCalled();
+    });
+
     it('returns null when no locked snapshots exist and matchdayId is omitted', async () => {
       mockListBlobsFlat.mockReturnValueOnce(yieldBlobs());
 

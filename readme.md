@@ -70,6 +70,8 @@ A **web-chat agent** (preview) provides a second channel for the same functional
 - **Admin Controls**: Restricted commands for data management and system control
 - **Version Reporting**: `/version` command reveals the deployed commit details
 
+The general AI model is pinned to `gpt-6.1-sol` in `src/aiModel.js`; race summaries use `gpt-6-astra`.
+
 ## How to Run Locally
 
 1. **Clone the repository**
@@ -96,7 +98,6 @@ A **web-chat agent** (preview) provides a second channel for the same functional
    # Azure OpenAI Configuration
    AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint
    AZURE_OPENAI_API_KEY=your_azure_openai_api_key
-   AZURE_OPEN_AI_MODEL=your_azure_openai_model_deployment_name
 
    # Azure Storage Configuration
    AZURE_STORAGE_CONNECTION_STRING=your_azure_storage_connection_string
@@ -119,7 +120,7 @@ A **web-chat agent** (preview) provides a second channel for the same functional
 
    - **Telegram Bot Token**: Go to [@BotFather](https://t.me/botfather) and follow the instructions to create a new bot. This token will be your test token for local development.
 
-   - **Azure OpenAI**: Get your endpoint, API key, and model deployment name from the [Azure AI portal](https://ai.azure.com/).
+   - **Azure OpenAI**: Get your endpoint and API key from the [Azure AI portal](https://ai.azure.com/). The general model deployment is `gpt-6.1-sol`; race summaries use the separate `gpt-6-astra` deployment.
 
    - **Azure Storage**: Create a storage account in Azure and get the connection string from the portal. Create a container for the bot's data storage.
 
@@ -185,6 +186,7 @@ All users can access these commands:
 - **`/best_teams`** - Calculate and display the best possible teams based on your cached data, projections, and the latest prices
 - **`/set_best_team_ranking`** - Set how expected budget changes affect best-team ranking suggestions
 - **`/current_team_info`** - Calculate current team info and budget using cached roster data and the latest prices
+- **`/available_chips`** - Show unused season chips for one team, all tracked teams, or an entire followed league ([data contract and rollout](docs/available-chips.md))
 - **`/chips`** - Choose a chip to use for the current race (Extra Boost, Wildcard, Limitless)
 
 #### Analysis & Stats
@@ -458,3 +460,9 @@ The agent is a SEPARATE Function App (`f1-fantazy-agent-func`) and a Static Web 
 | PR closed (with `web/**` changes)                          | `pr_test_f1-fantazy-agent-web.yml` (close job) | Tears down the PR preview environment                        |
 
 The Telegram bot workflows (`main_f1-fantazy-bot-func.yml`, `pr_test_f1-fantazy-bot-func.yml`) remain unchanged and continue to deploy to `f1-fantazy-bot-func` independently.
+
+### Compound web requests
+
+Multi-tool workflows are available automatically when deployed. They combine exact write previews into one
+approval and show sequential progress and results. Read-only workflows need no
+approval. See [workflow operation and rollout](docs/agent-workflows.md) for validation in the test environment.

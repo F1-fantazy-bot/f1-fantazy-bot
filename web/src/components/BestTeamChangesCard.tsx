@@ -1,3 +1,5 @@
+import { createPortal } from 'react-dom';
+import { type ReactNode } from 'react';
 import { TransferPlayerTile, MetricNumber, type TransferPlayer as Player } from './TransferPlayerTile';
 import './BestTeamChangesCard.css';
 import { useCopilotAction } from '@copilotkit/react-core';
@@ -5,8 +7,10 @@ import { ActionChoicesCard } from './ActionChoicesCard';
 import { safeParse } from './safeParse';
 import { ToolLoading } from './ToolLoading';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
+import { TeamDataNotice, type TeamDataStatus } from './TeamDataNotice';
 
 type Result = {
+  dataStatus?: TeamDataStatus;
   status: string; lang?: string; calculationId?: string; row?: number; teamName?: string;
   request?: Record<string, unknown>; rows?: number[]; noChanges?: boolean;
   driversToRemove?: string[]; driversToAdd?: string[]; constructorsToRemove?: string[]; constructorsToAdd?: string[];
@@ -45,6 +49,7 @@ export function BestTeamChangesCard({ result }: { result?: Result }) {
       <ActionChoicesCard result={{ status: 'selection_required', choice: 'recommendation', lang: result.lang, options }} /></section>;
   }
   return <article className="transfer-plan" dir={he ? 'rtl' : 'ltr'}>
+    <TeamDataNotice status={result.dataStatus} lang={result.lang} />
     <header className="transfer-plan__header"><div><span className="transfer-plan__eyebrow">{label('Transfer plan', 'תוכנית העברות')} <bdi>#{result.row}</bdi></span><h3><bdi>{result.teamName}</bdi></h3></div>
       <span className="transfer-plan__badge"><MetricNumber value={result.transfersNeeded} digits={0} /> {label('transfers', 'העברות')}</span>
       {!!result.penalty && <span className="transfer-plan__penalty">{label('Penalty', 'קנס')}: <MetricNumber value={result.penalty} digits={0} /></span>}
@@ -69,11 +74,20 @@ export function BestTeamChangesCard({ result }: { result?: Result }) {
     </details>
   </article>;
 }
+export function workflowChangesTarget(calculationId: string) {
+  return `workflow-changes-${calculationId}`;
+}
+export function LocatedBestTeamChanges({ calculationId, children }: { calculationId?: string; children: ReactNode }) {
+  const target = calculationId ? document.getElementById(workflowChangesTarget(calculationId)) : null;
+  return target ? createPortal(children, target) : <>{children}</>;
+}
 export function useBestTeamChangesAction() {
-  useCopilotAction({ name: 'get_best_team_changes', parameters: [], available: 'frontend', render: ({ status, result }) => {
-    if (status === 'inProgress' || status === 'executing') return <ToolLoading kind="bestTeamChanges" />;
+  useCopilotAction({ name: 'get_best_team_changes', parameters: [], available: 'frontend', render: ({ status, result, args }) => {
     const parsed = safeParse(result);
-    if (isToolErrorResult(parsed)) return <ToolErrorFallback result={parsed} />;
-    return <BestTeamChangesCard result={parsed as Result | undefined} />;
+    const content = status === 'inProgress' || status === 'executing'
+      ? <ToolLoading kind="bestTeamChanges" />
+      : isToolErrorResult(parsed) ? <ToolErrorFallback result={parsed} />
+        : <BestTeamChangesCard result={parsed as Result | undefined} />;
+    return <LocatedBestTeamChanges calculationId={args?.calculationId || (parsed as Result | undefined)?.calculationId}>{content}</LocatedBestTeamChanges>;
   } });
 }

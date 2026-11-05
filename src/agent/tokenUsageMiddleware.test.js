@@ -11,7 +11,9 @@ async function collectStream(stream) {
   const out = [];
   while (true) {
     const { done, value } = await reader.read();
-    if (done) {break;}
+    if (done) {
+      break;
+    }
     out.push(value);
   }
 
@@ -46,6 +48,7 @@ function makeBot() {
 }
 
 const FAKE_MODEL = { modelId: 'gpt-test-1' };
+const { LOG_CHANNEL_ID, ERRORS_CHANNEL_ID } = require('../constants');
 
 describe('safeTotal', () => {
   test('returns 0 when field is missing', () => {
@@ -71,10 +74,11 @@ describe('formatLine', () => {
       step: 2,
       prompt: 100,
       completion: 50,
+      reasoning: 20,
       total: 150,
     });
     expect(line).toBe(
-      'Agent step usage — model: gpt-4o, step: 2, prompt: 100, completion: 50, total: 150',
+      'Agent step usage — model: gpt-4o, step: 2, prompt: 100, completion: 50, reasoning: 20, total: 150',
     );
   });
 
@@ -88,7 +92,7 @@ describe('formatLine', () => {
       email: 'foo@example.com',
     });
     expect(line).toBe(
-      'Agent step usage — model: gpt-4o, step: 1, prompt: 10, completion: 5, total: 15\nemail: foo@example.com',
+      'Agent step usage — model: gpt-4o, step: 1, prompt: 10, completion: 5, reasoning: n/a, total: 15\nemail: foo@example.com',
     );
   });
 });
@@ -105,6 +109,99 @@ describe('createTokenUsageMiddleware', () => {
     jest.restoreAllMocks();
   });
 
+  test('reports an initial model rejection to both channels and preserves the original error', async () => {
+    const bot = makeBot();
+    const error = Object.assign(
+      new Error('Unsupported reasoning effort with tools'),
+      {
+        statusCode: 400,
+        requestBodyValues: { messages: ['private prompt'] },
+        requestHeaders: { authorization: 'private-key' },
+      },
+    );
+
+    await expect(
+      createTokenUsageMiddleware({ bot }).wrapStream({
+        doStream: async () => {
+          throw error;
+        },
+        model: FAKE_MODEL,
+      }),
+    ).rejects.toBe(error);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(bot.calls.map(({ chatId }) => chatId)).toEqual([
+      LOG_CHANNEL_ID,
+      ERRORS_CHANNEL_ID,
+    ]);
+    for (const { line } of bot.calls) {
+      expect(line).toContain(
+        'Agent model error — model: gpt-test-1, status: 400',
+      );
+      expect(line).toContain(error.message);
+      expect(line).not.toContain('private prompt');
+      expect(line).not.toContain('private-key');
+    }
+  });
+
+  test('reports a provider error chunk without replacing it or later stream chunks', async () => {
+    const bot = makeBot();
+    const chunks = [
+      { type: 'error', error: new Error('Azure model failed') },
+      { type: 'text-delta', delta: 'later text' },
+    ];
+    const result = await createTokenUsageMiddleware({ bot }).wrapStream({
+      doStream: async () => ({ stream: makeReadable(chunks) }),
+      model: FAKE_MODEL,
+    });
+
+    const out = await collectStream(result.stream);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(out).toEqual(chunks);
+    expect(out[0]).toBe(chunks[0]);
+    expect(bot.calls.map(({ chatId }) => chatId)).toEqual([
+      LOG_CHANNEL_ID,
+      ERRORS_CHANNEL_ID,
+    ]);
+  });
+
+  test('a failed error notification cannot replace the model rejection', async () => {
+    const bot = {
+      sendMessage: jest.fn().mockRejectedValue(new Error('Telegram is down')),
+    };
+    const error = new Error('Azure model failed');
+
+    await expect(
+      createTokenUsageMiddleware({ bot }).wrapStream({
+        doStream: async () => {
+          throw error;
+        },
+        model: FAKE_MODEL,
+      }),
+    ).rejects.toBe(error);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(bot.sendMessage).toHaveBeenCalledTimes(2);
+  });
+
+  test('intentional cancellation preserves the abort without logging a model failure', async () => {
+    const bot = makeBot();
+    const error = Object.assign(new Error('Cancelled'), { name: 'AbortError' });
+
+    await expect(
+      createTokenUsageMiddleware({ bot }).wrapStream({
+        doStream: async () => {
+          throw error;
+        },
+        model: FAKE_MODEL,
+      }),
+    ).rejects.toBe(error);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(bot.sendMessage).not.toHaveBeenCalled();
+  });
+
   test('emits a log line for each finish chunk with nested V3 usage', async () => {
     const bot = makeBot();
     const middleware = createTokenUsageMiddleware({ bot });
@@ -116,7 +213,7 @@ describe('createTokenUsageMiddleware', () => {
         finishReason: 'tool-calls',
         usage: {
           inputTokens: { total: 120 },
-          outputTokens: { total: 30 },
+          outputTokens: { total: 30, reasoning: 10 },
         },
       },
       { type: 'text-delta', delta: 'world' },
@@ -125,7 +222,7 @@ describe('createTokenUsageMiddleware', () => {
         finishReason: 'stop',
         usage: {
           inputTokens: { total: 200 },
-          outputTokens: { total: 80 },
+          outputTokens: { total: 80, reasoning: 0 },
         },
       },
     ]);
@@ -153,45 +250,51 @@ describe('createTokenUsageMiddleware', () => {
     expect(firstLine).toContain('step: 1');
     expect(firstLine).toContain('prompt: 120');
     expect(firstLine).toContain('completion: 30');
+    expect(firstLine).toContain('reasoning: 10');
     expect(firstLine).toContain('total: 150');
 
     expect(secondLine).toContain('step: 2');
     expect(secondLine).toContain('prompt: 200');
     expect(secondLine).toContain('completion: 80');
+    expect(secondLine).toContain('reasoning: 0');
     expect(secondLine).toContain('total: 280');
   });
 
-  test('treats missing nested totals as zero (no crash)', async () => {
-    const bot = makeBot();
-    const middleware = createTokenUsageMiddleware({ bot });
+  test.each([undefined, null, Number.NaN, Infinity])(
+    'logs unavailable reasoning as n/a and missing totals as zero (%s)',
+    async (reasoning) => {
+      const bot = makeBot();
+      const middleware = createTokenUsageMiddleware({ bot });
 
-    const upstream = makeReadable([
-      {
-        type: 'finish',
-        finishReason: 'stop',
-        usage: {
-          inputTokens: { total: undefined },
-          outputTokens: {},
+      const upstream = makeReadable([
+        {
+          type: 'finish',
+          finishReason: 'stop',
+          usage: {
+            inputTokens: { total: undefined },
+            outputTokens: { reasoning },
+          },
         },
-      },
-    ]);
+      ]);
 
-    const result = await middleware.wrapStream({
-      doStream: async () => ({ stream: upstream }),
-      doGenerate: async () => {
-        throw new Error('not used');
-      },
-      params: {},
-      model: FAKE_MODEL,
-    });
-    await collectStream(result.stream);
-    await new Promise((r) => setImmediate(r));
+      const result = await middleware.wrapStream({
+        doStream: async () => ({ stream: upstream }),
+        doGenerate: async () => {
+          throw new Error('not used');
+        },
+        params: {},
+        model: FAKE_MODEL,
+      });
+      await collectStream(result.stream);
+      await new Promise((r) => setImmediate(r));
 
-    expect(bot.sendMessage).toHaveBeenCalledTimes(1);
-    expect(bot.calls[0].line).toContain('prompt: 0');
-    expect(bot.calls[0].line).toContain('completion: 0');
-    expect(bot.calls[0].line).toContain('total: 0');
-  });
+      expect(bot.sendMessage).toHaveBeenCalledTimes(1);
+      expect(bot.calls[0].line).toContain('prompt: 0');
+      expect(bot.calls[0].line).toContain('completion: 0');
+      expect(bot.calls[0].line).toContain('reasoning: n/a');
+      expect(bot.calls[0].line).toContain('total: 0');
+    },
+  );
 
   test('non-finish chunks pass through without logging', async () => {
     const bot = makeBot();
@@ -221,9 +324,7 @@ describe('createTokenUsageMiddleware', () => {
 
   test('telegram failure does not break the stream', async () => {
     const bot = {
-      sendMessage: jest
-        .fn()
-        .mockRejectedValue(new Error('telegram is down')),
+      sendMessage: jest.fn().mockRejectedValue(new Error('telegram is down')),
     };
     const middleware = createTokenUsageMiddleware({ bot });
 

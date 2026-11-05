@@ -4,6 +4,7 @@ import {
   buildWriteProposalUrl,
   requestWriteDecision,
   requestWriteProposal,
+  requestReadChoice,
 } from './WriteDecisionContext';
 
 afterEach(() => {
@@ -151,4 +152,28 @@ describe('requestWriteDecision', () => {
       }),
     ).rejects.toThrow('The pending change has expired.');
   });
+});
+
+
+test('standings reads send exact selected args with authentication and persist the returned choice card', async () => {
+  const result = { status: 'selection_required', choice: 'period', options: [] };
+  const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify(result), { status: 200 }));
+  const captured = vi.fn();
+  window.addEventListener('f1-direct-card-proposal', captured);
+  try {
+    expect(await requestReadChoice({ runtimeUrl: 'https://agent.example.com/api/agent/copilotkit', idToken: 'google-token', tool: 'get_leaderboard', args: { leagueCode: 'C7' }, fetchImpl })).toEqual(result);
+    expect(fetchImpl).toHaveBeenCalledWith('https://agent.example.com/api/agent/read-choice', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer google-token' }, body: JSON.stringify({ tool: 'get_leaderboard', args: { leagueCode: 'C7' } }),
+    });
+    expect(captured.mock.calls[0][0].detail).toEqual({ tool: 'get_leaderboard', args: { leagueCode: 'C7' }, result });
+  } finally { window.removeEventListener('f1-direct-card-proposal', captured); }
+});
+
+test.each([401, 500])('failed standings read %s does not create a history card', async (status) => {
+  const captured = vi.fn();
+  window.addEventListener('f1-direct-card-proposal', captured);
+  try {
+    await expect(requestReadChoice({ runtimeUrl: 'https://agent.example.com/api/agent/copilotkit', tool: 'get_leaderboard', args: { leagueCode: 'C7' }, fetchImpl: vi.fn().mockResolvedValue(new Response('{}', { status })) })).rejects.toThrow();
+    expect(captured).not.toHaveBeenCalled();
+  } finally { window.removeEventListener('f1-direct-card-proposal', captured); }
 });

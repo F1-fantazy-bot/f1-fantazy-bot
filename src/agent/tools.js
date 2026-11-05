@@ -1,3 +1,4 @@
+const { getAvailableChipsTool } = require('./readTools/getAvailableChipsTool');
 const { buildBestTeamChanges } = require('../cores/bestTeamChangesCore');
 const bestTeamSnapshots = require('../services/bestTeamSnapshotService');
 // CopilotKit v2 tool catalogue for the agent.
@@ -14,6 +15,10 @@ const bestTeamSnapshots = require('../services/bestTeamSnapshotService');
 
 const { defineTool } = require('@copilotkit/runtime/v2');
 const z = require('zod');
+const {
+  AGENT_BEST_TEAMS_DEFAULT_RESULT_COUNT,
+  AGENT_BEST_TEAMS_MAX_RESULT_COUNT,
+} = require('../constants');
 const { getNextRaces } = require('../cores/nextRacesCore');
 const { computeBestTeams } = require('../cores/bestTeamsCore');
 const {
@@ -42,9 +47,10 @@ const {
   refreshChipPreferencesSafely,
 } = require('../services/activateChipService');
 const { getAgentChatId } = require('./identity');
-const { ensureCacheReady } = require('./cacheBootstrap');
+const { ensureCacheReady, ensureCurrentUserIdentity } = require('./cacheBootstrap');
+const { refreshWeeklyTeamData } = require('../services/weeklyTeamDataService');
 const { wrapToolExecute } = require('./wrapToolExecute');
-const { getActionChoicesTool, wrapSelectableExecute } = require('./readTools/getActionChoicesTool');
+const { getActionChoicesTool, wrapSelectableExecute, leaderboardChoices } = require('./readTools/getActionChoicesTool');
 const { executeConfirmedWrite } = require('./writeToolHelpers');
 const { setLanguageTool } = require('./writeTools/setLanguageTool');
 const { selectTeamTool } = require('./writeTools/selectTeamTool');
@@ -152,15 +158,25 @@ const tools = [
   defineTool({
     name: 'list_user_teams',
     description:
-      'List the F1 Fantasy teams the user is tracking. Returns an array of teams with `teamId` (canonical identifier — pass this to other tools), `teamName` (the authenticated user\'s friendly saved label), `isSelected`, `chip`, current drivers, current constructors, and roster metadata. Use it when the user asks to see or choose from their teams. Do not call it solely to resolve a named active-team switch: `select_team` accepts and validates an exact teamName directly. If the latest conversation context already contains this result and the user then picks a team, pass that teamId directly to `select_team`.',
-    parameters: z.object({}),
-    execute: wrapToolExecute('list_user_teams', async () => {
+      'List the F1 Fantasy teams the user is tracking. Returns an array of teams with `teamId` (canonical identifier — pass this to other tools), `teamName` (the authenticated user\'s friendly saved label), `isSelected`, `chip`, current drivers, current constructors, and roster metadata. Use it when the user asks to see or choose from their teams. For internal multi-team workflow target discovery, pass mode="workflow_discovery"; the frontend will keep that lookup silent while the agent builds the workflow. Do not call it solely to resolve a named active-team switch: `select_team` accepts and validates an exact teamName directly. If the latest conversation context already contains this result and the user then picks a team, pass that teamId directly to `select_team`.',
+    parameters: z.object({
+      mode: z
+        .enum(['workflow_discovery'])
+        .optional()
+        .describe(
+          'Use workflow_discovery only when resolving all tracked team IDs for a compound multi-team workflow. Omit it for a user-visible team list.',
+        ),
+    }),
+    execute: wrapToolExecute('list_user_teams', async ({ mode } = {}) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
+      await ensureCurrentUserIdentity(chatId);
+      await refreshWeeklyTeamData(chatId);
       await refreshChipPreferencesSafely(chatId);
 
       return await withUiLanguage(chatId, {
         teams: listUserTeams({ chatId }),
+        ...(mode ? { mode } : {}),
       });
     }),
   }),
@@ -168,8 +184,10 @@ const tools = [
   defineTool({
     name: 'get_best_teams',
     description:
-      'Compute the top scoring F1 Fantasy teams the user could field next race. Supports must-include / must-exclude filters on drivers and constructors so you can answer questions like "best teams with Verstappen but no Alonso". Pass driver/constructor codes (e.g. VER, ALO, MCL, FER) — full names like "Verstappen" or "McLaren" are also accepted but codes are safer. Identify the user\'s team by `teamId` (preferred, obtained from list_user_teams) or `teamName` (exact match). Successful results include an opaque calculationId and numbered bestTeams rows. Use get_best_team_changes with that calculationId and row for numeric replies or transfer details. On status "unknown_filter" the result includes a `filters` field listing which inputs failed to resolve — tell the user which names you could not map.',
+      'Compute the top scoring F1 Fantasy teams the user could field next race. When the user requests a number of teams, pass it as resultCount (1–20); omit it for the default 10. Supports must-include / must-exclude filters on drivers and constructors so you can answer questions like "best teams with Verstappen but no Alonso". Pass driver/constructor codes (e.g. VER, ALO, MCL, FER) — full names like "Verstappen" or "McLaren" are also accepted but codes are safer. Identify the user\'s team by `teamId` (preferred, obtained from list_user_teams) or `teamName` (exact match). Successful results include an opaque calculationId and numbered bestTeams rows. Use get_best_team_changes with that calculationId and row for numeric replies or transfer details. On status "invalid_result_count", tell the user the supported range; on status "unknown_filter" tell the user which names you could not map.',
     parameters: z.object({
+      resultCount: z.number().optional().describe('Number of best teams explicitly requested by the user. Must be a whole number from 1 to 20; omit if unspecified (default 10).'),
+      chipOverride: z.enum(['EXTRA_BOOST', 'LIMITLESS', 'WILDCARD', 'WITHOUT_CHIP']).optional().describe('Hypothetical chip for this calculation only; does not change the saved chip.'),
       teamId: z
         .string()
         .optional()
@@ -208,6 +226,16 @@ const tools = [
         .describe('Constructor codes the team MUST NOT contain.'),
     }),
     execute: wrapSelectableExecute('get_best_teams', async (args) => {
+      const resultCount = args.resultCount ?? AGENT_BEST_TEAMS_DEFAULT_RESULT_COUNT;
+
+      if (!Number.isInteger(resultCount) || resultCount < 1 || resultCount > AGENT_BEST_TEAMS_MAX_RESULT_COUNT) {
+        const chatId = getAgentChatId();
+
+        return { status: 'invalid_result_count', requestedResultCount: args.resultCount,
+          maximum: AGENT_BEST_TEAMS_MAX_RESULT_COUNT,
+          lang: (await getFreshLanguagePreference(chatId)).lang };
+      }
+
       await ensureCacheReady();
       const chatId = getAgentChatId();
       const [language] = await Promise.all([
@@ -215,15 +243,14 @@ const tools = [
         refreshBestTeamRankingPreferencesSafely(chatId),
         refreshChipPreferencesSafely(chatId),
       ]);
-      // Web component renders up to 10 teams at a time — anything beyond
-      // that bloats the streamed tool payload and the LLM context.
       const result = await computeBestTeams({
         chatId,
         teamId: args.teamId,
         teamName: args.teamName,
         rankBy: args.rankBy ?? null,
-        resultCount: 10,
+        resultCount,
         includeCalculationData: true,
+        chipOverride: args.chipOverride,
         loadCalculationContext: bestTeamSnapshots.loadCalculationContext,
         mustIncludeDrivers: args.mustIncludeDrivers,
         mustExcludeDrivers: args.mustExcludeDrivers,
@@ -248,6 +275,7 @@ const tools = [
         lang: language.lang,
         teamId: result.teamId,
         teamName: result.teamName,
+        dataStatus: result.dataStatus,
         chip: result.chip || null,
         rankBy: result.rankBy,
         budgetChangePointsPerMillion: result.budgetChangePointsPerMillion,
@@ -287,7 +315,7 @@ const tools = [
   defineTool({
     name: 'get_best_team_scenarios',
     description:
-      'Compare the top best team across the bot\'s 4 budget-adjusted weight presets (0, 1.3, 1.65, 2.0 points-per-million of expected price change) × 4 chip choices (no chip, Limitless, Extra Boost, Wildcard). Use this for questions like "compare best teams at different weights", "best team scenarios", "what if I change my ranking preference", or "should I play a chip". Returns { status, teamId, teamName, chip, scenarios: [{ ppm, ppmLabel, results: [{ chipKey, chipLabel, projectedPoints, expectedPriceChange, recommendation: null|"yellow"|"green" }] }] }. The recommendation level encodes the chip\'s lift over the no-chip baseline of the SAME ppm row, matching the Telegram /best_team_scenarios indicators.',
+      'Compare the top best team across the bot\'s 4 budget-adjusted weight presets (0, 1.3, 1.65, 2.0 points-per-million of expected price change) with no chip plus only verified unused supported chips (Limitless, Extra Boost, Wildcard). Unknown usage returns no-chip scenarios only. Use this for questions like "compare best teams at different weights", "best team scenarios", "what if I change my ranking preference", or "should I play a chip". Returns { status, teamId, teamName, chip, chipAvailability: { status: "known"|"unknown", updatedAt }, scenarios: [{ ppm, ppmLabel, results: [{ chipKey, chipLabel, projectedPoints, expectedPriceChange, recommendation: null|"yellow"|"green" }] }] }. The recommendation level encodes the chip\'s lift over the no-chip baseline of the SAME ppm row, matching the Telegram /best_team_scenarios indicators.',
     parameters: z.object({
       teamId: z
         .string()
@@ -305,6 +333,7 @@ const tools = [
     execute: wrapSelectableExecute('get_best_team_scenarios', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
+      await refreshWeeklyTeamData(chatId);
       await refreshChipPreferencesSafely(chatId);
 
       const result = await computeBestTeamScenarios({
@@ -327,6 +356,8 @@ const tools = [
     execute: wrapToolExecute('list_followed_teams', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
+      await ensureCurrentUserIdentity(chatId);
+      await refreshWeeklyTeamData(chatId);
 
       return await withUiLanguage(chatId, {
         ...(await listFollowedTeams({ chatId })),
@@ -363,27 +394,33 @@ const tools = [
   defineTool({
     name: 'get_leaderboard',
     description:
-      'Get standings for a followed league. Pass a canonical leagueCode when known; otherwise omit it to render clickable followed-league cards immediately. Never ask the user to type a league. Returns standings with selected-team highlighting, or safe not_followed/not_found states.',
+      'Get season or race-weekend standings for a followed league. Omit period to show Entire season then recorded races newest first. Use period="season" for explicit season requests; pass period="race" and matchdayId or raceName for explicit races. Ambiguous race names return choices; missing scores return race_unavailable, never season totals. Pass a canonical leagueCode when known; otherwise omit it to render clickable followed-league cards immediately. Never ask the user to type a league. Returns standings with selected-team highlighting, or safe not_followed/not_found states.',
     parameters: z.object({
+      period: z.enum(['season', 'race']).nullable().optional().describe('Only use season or race if the user explicitly requested that period. Use null when unspecified; never choose one yourself.'),
+      matchdayId: z.number().int().positive().nullable().optional().describe('Explicitly requested or clicked race round. Use null when no round was selected; never use 1 as a default.'),
+      raceName: z.string().nullable().optional().describe('Explicitly requested race name only. Use null when unspecified; never infer the first or latest race.'),
       leagueCode: z
         .string()
+        .nullable()
         .optional()
         .describe(
-          'Canonical followed-league code. Omit to show clickable league choices.',
+          'Canonical followed-league code. Use null when unspecified to show clickable league choices.',
         ),
     }),
     execute: wrapSelectableExecute('get_leaderboard', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
 
-      return await withUiLanguage(
-        chatId,
-        await getLeaderboard({ chatId, leagueCode: args.leagueCode }),
+      const { lang } = await getFreshLanguagePreference(chatId);
+
+      return leaderboardChoices(
+        await getLeaderboard({ ...args, chatId, requirePeriod: true }), args, lang,
       );
     }),
   }),
 
   getAgentGuideTool,
+  getAvailableChipsTool,
   getLeagueChangesTool,
   getLeagueGraphTool,
   getRaceSummaryTool,
@@ -459,6 +496,7 @@ const tools = [
     execute: wrapSelectableExecute('get_current_team', async (args) => {
       await ensureCacheReady();
       const chatId = getAgentChatId();
+      await refreshWeeklyTeamData(chatId);
       const [language] = await Promise.all([
         getFreshLanguagePreference(chatId),
         refreshBestTeamRankingPreferencesSafely(chatId),
@@ -641,5 +679,8 @@ const tools = [
     }),
   }),
 ];
+
+const workflowTool = require('./workflows').initializeWorkflows(tools);
+tools.push(workflowTool, require('./workflows').getWorkflowStatusTool());
 
 module.exports = { tools };

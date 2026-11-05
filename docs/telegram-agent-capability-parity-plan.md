@@ -418,3 +418,12 @@ run/result reference without exposing raw service errors.
   sensitive and must never persist raw technical errors in chat history.
 - General browser file uploads are out of scope. Projection-image commands
   remain permanent Telegram-only manifest exceptions.
+
+
+## Remaining-chips extension
+
+`/available_chips` maps to `get_available_chips` with shared scope/target
+resolution, read-only authorization, selectable finite choices, workflows,
+English/Hebrew rich tables and display history. This extends the audited command
+catalogue to 51 entries (46 implemented, one adapted, four excluded). Data and
+scraper-first rollout requirements are in [available-chips.md](available-chips.md).

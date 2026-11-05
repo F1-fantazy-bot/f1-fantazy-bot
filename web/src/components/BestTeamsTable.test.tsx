@@ -100,5 +100,15 @@ describe('BestTeamsTable localization', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  test('explains the supported count in Hebrew', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<BestTeamsTable result={{ lang: 'he', status: 'invalid_result_count' }} />));
+    expect(container.textContent).toContain('בין 1 ל-20');
+    act(() => root.unmount());
+    container.remove();
+  });
 });
 vi.mock('@copilotkit/react-core/v2', () => ({}));

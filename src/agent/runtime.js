@@ -16,6 +16,7 @@ const {
   createCopilotRuntimeHandler,
 } = require('@copilotkit/runtime/v2');
 const { createAzure } = require('@ai-sdk/azure');
+const { AI_MODEL } = require('../aiModel');
 const { wrapLanguageModel } = require('ai');
 
 const { tools } = require('./tools');
@@ -24,58 +25,36 @@ const { getNotifierBot } = require('./notifierBot');
 const { createTokenUsageMiddleware } = require('./tokenUsageMiddleware');
 
 const COPILOTKIT_ENDPOINT = '/api/agent/copilotkit';
-const AZURE_OPENAI_API_VERSION = '2024-04-01-preview';
 const AGENT_MAX_STEPS = 5;
-const MODELS_REQUIRING_NO_REASONING_WITH_TOOLS = new Set(['gpt-5.6-terra']);
 
 let cachedHandler = null;
 
 function readEnv() {
-  const {
-    AZURE_OPENAI_ENDPOINT,
-    AZURE_OPENAI_API_KEY,
-    AZURE_OPEN_AI_MODEL,
-  } = process.env;
+  const { AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY } = process.env;
 
-  if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY || !AZURE_OPEN_AI_MODEL) {
+  if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY) {
     throw new Error(
-      'Missing Azure OpenAI configuration (AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_API_KEY / AZURE_OPEN_AI_MODEL).',
+      'Missing Azure OpenAI configuration (AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_API_KEY).',
     );
   }
 
   return {
     endpoint: AZURE_OPENAI_ENDPOINT.replace(/\/+$/, ''),
     apiKey: AZURE_OPENAI_API_KEY,
-    model: AZURE_OPEN_AI_MODEL,
   };
 }
 
-function buildAzureLanguageModel({ endpoint, apiKey, model }) {
-  // Use the deployment-based URL pattern (`{baseURL}/deployments/{model}/...`)
-  // because that's what every existing Azure OpenAI deployment supports
-  // regardless of whether the endpoint host is `*.openai.azure.com` or
-  // `*.services.ai.azure.com` (Azure AI Foundry). `azure.chat(...)` returns
-  // a Chat Completions language model (not the new `/responses` API).
+function buildAzureLanguageModel({ endpoint, apiKey }) {
+  // Sol requires Responses for reasoning with function tools. Azure's v1
+  // endpoint selects the pinned deployment through the model field in the body.
   const azure = createAzure({
     baseURL: `${endpoint}/openai`,
     apiKey,
-    apiVersion: AZURE_OPENAI_API_VERSION,
-    useDeploymentBasedUrls: true,
+    apiVersion: 'v1',
+    useDeploymentBasedUrls: false,
   });
 
-  return azure.chat(model);
-}
-
-function getReasoningEffort(model) {
-  const normalizedModel = String(model || '').trim().toLowerCase();
-
-  // GPT-5.6 Terra's Chat Completions endpoint rejects a reasoning effort when
-  // function tools are present, while the local GPT-5.3 Chat deployment
-  // rejects `none` and requires `medium`. The Azure deployment name is the
-  // model identifier available at this layer.
-  return MODELS_REQUIRING_NO_REASONING_WITH_TOOLS.has(normalizedModel)
-    ? 'none'
-    : 'medium';
+  return azure.responses(AI_MODEL);
 }
 
 function buildAgent(cfg) {
@@ -108,11 +87,13 @@ function buildAgent(cfg) {
     // hook fires — the rest are silently dropped from the UI. Forcing
     // sequential tool calls makes each tool call land in its own
     // assistant message, so each gets its own rich UI render. Reasoning
-    // effort is chosen for the configured Chat Completions deployment.
+    // effort is fixed for the pinned Sol deployment.
     providerOptions: {
       openai: {
         parallelToolCalls: false,
-        reasoningEffort: getReasoningEffort(cfg.model),
+        reasoningEffort: 'medium',
+        // Request encrypted reasoning for stateless tool-step continuations.
+        store: false,
       },
     },
   });
@@ -147,5 +128,4 @@ module.exports = {
   COPILOTKIT_ENDPOINT,
   getSystemPrompt,
   buildAgent,
-  getReasoningEffort,
 };

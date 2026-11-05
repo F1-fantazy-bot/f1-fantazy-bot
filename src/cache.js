@@ -1,3 +1,4 @@
+const { resolveActiveChips, normalizeChipExpiryByTeam } = require('./utils/chipExpiry');
 const {
   DRIVERS_PHOTO_TYPE,
   CONSTRUCTORS_PHOTO_TYPE,
@@ -155,6 +156,25 @@ exports.normalizeSelectedChipByTeam = function (rawSelectedChipByTeam) {
   );
 };
 
+// Evaluate time on every read, including long-lived caches and outage fallbacks.
+exports.getChipExpiry = function (chatId, teamId) {
+  return normalizeChipExpiryByTeam(userCache[String(chatId)]?.selectedChipExpiryByTeam)[teamId];
+};
+
+exports.getActiveChips = function (chatId, now = Date.now()) {
+  return resolveActiveChips(
+    exports.normalizeSelectedChipByTeam(
+      exports.selectedChipCache[chatId] || userCache[String(chatId)]?.selectedChipByTeam,
+    ),
+    userCache[String(chatId)]?.selectedChipExpiryByTeam,
+    now,
+  );
+};
+
+exports.getActiveChip = function (chatId, teamId, now = Date.now()) {
+  return exports.getActiveChips(chatId, now)[teamId];
+};
+
 exports.serializeSelectedChipByTeam = function (selectedChipByTeam) {
   const normalized = exports.normalizeSelectedChipByTeam(selectedChipByTeam);
 
@@ -201,9 +221,10 @@ exports.getUserTeamIds = function (chatId) {
 };
 
 /**
- * A league-loaded teamId has the shape `{leagueCode}_{sanitizedTeamName}`
- * (always contains `_`), while screenshot teamIds are the short labels
- * `T1`, `T2`, `T3` (no `_`).
+ * A league-loaded teamId has the canonical shape
+ * `{sanitize(userName)}_{teamNo}_{accountId}` (legacy blobs may temporarily
+ * use `{sanitize(userName)}_{teamNo}`). Screenshot teamIds are the short
+ * labels `T1`, `T2`, `T3` and contain no underscore.
  */
 exports.isLeagueTeamId = function (teamId) {
   return typeof teamId === 'string' && teamId.includes('_');
@@ -256,6 +277,10 @@ exports.getBestTeamBudgetChangePointsPerMillion = function (chatId, teamId) {
 
 exports.getSelectedBestTeam = function (chatId, teamId) {
   const key = String(chatId);
+  const savedChip = exports.normalizeSelectedChipByTeam(userCache[key]?.selectedChipByTeam)[teamId];
+  if (savedChip && !exports.getActiveChip(chatId, teamId)) {
+    return null;
+  }
   const selectedBestTeamByTeam = exports.normalizeSelectedBestTeamByTeam(
     userCache[key]?.selectedBestTeamByTeam,
   );
@@ -431,13 +456,13 @@ exports.getPrintableCache = function (chatId, type) {
       const sortedTeamIds = Object.keys(teamsData).sort();
       for (const teamId of sortedTeamIds) {
         const teamData = teamsData[teamId];
-        const chip = exports.selectedChipCache[chatId]?.[teamId];
+        const chip = exports.getActiveChip(chatId, teamId);
         const selectedBestTeam = exports.getSelectedBestTeam(chatId, teamId);
         const bestTeamBudgetChangePointsPerMillion =
           exports.getBestTeamBudgetChangePointsPerMillion(chatId, teamId);
         teams[teamId] = {
           ...teamData,
-          ...(chip ? { chip } : {}),
+          ...(chip ? { chip, chipExpiry: exports.getChipExpiry(chatId, teamId) } : {}),
           ...(selectedBestTeam ? { selectedBestTeam } : {}),
           bestTeamBudgetChangePointsPerMillion,
         };

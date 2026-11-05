@@ -4,9 +4,11 @@ import { safeParse } from './safeParse';
 import { ToolLoading } from './ToolLoading';
 import { directionFor, uiLanguageOf } from './uiLanguage';
 import { ProjectionTables, type ProjectionData } from './ProjectionTables';
+import { TeamDataNotice, transferLabel, type TeamDataStatus, type RecommendationIssue, weeklyErrorMessages } from './TeamDataNotice';
 
 type Freshness = { status?: 'fresh' | 'stale' | 'unknown' };
 type CachedTeam = {
+  dataStatus?: TeamDataStatus;
   teamId?: string;
   teamName?: string;
   isSelected?: boolean;
@@ -19,6 +21,7 @@ type CachedTeam = {
   budgetChangePointsPerMillion?: number | null;
 };
 type MissingPrerequisite =
+  | RecommendationIssue
   | 'simulation'
   | 'drivers'
   | 'constructors'
@@ -102,6 +105,7 @@ export function DataStatusCard({ result }: { result?: DataStatusResult }) {
             constructors: 'תחזיות קבוצות',
             owned_team: 'קבוצה שמורה',
             selected_team: 'קבוצה פעילה',
+            ...weeklyErrorMessages.he,
           },
           actionValues: {
             refresh_simulation: 'נסה שוב לאחר רענון הסימולציה',
@@ -153,6 +157,7 @@ export function DataStatusCard({ result }: { result?: DataStatusResult }) {
             constructors: 'constructor projections',
             owned_team: 'a saved team',
             selected_team: 'an active team',
+            ...weeklyErrorMessages.en,
           },
           actionValues: {
             refresh_simulation: 'Try again after the simulation refreshes',
@@ -275,9 +280,10 @@ export function DataStatusCard({ result }: { result?: DataStatusResult }) {
                     label={labels.pointsPerMillion}
                     value={formatPpm(team.budgetChangePointsPerMillion, lang)}
                   />
-                  {typeof team.freeTransfers === 'number' ? <Metric label={labels.freeTransfers} value={team.freeTransfers} /> : null}
+                  {typeof team.freeTransfers === 'number' || team.dataStatus ? <Metric label={labels.freeTransfers} value={transferLabel(team.freeTransfers, team.dataStatus, lang)} /> : null}
                   {typeof team.costCapRemaining === 'number' ? <Metric label={labels.costCap} value={team.costCapRemaining} /> : null}
                 </dl>
+                <TeamDataNotice status={team.dataStatus} lang={lang} />
               </section>
             ))}
           </div>

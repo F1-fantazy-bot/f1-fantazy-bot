@@ -106,3 +106,18 @@ test('recommendation controls share the run lock while a selection is pending', 
   await act(async () => finish());
   view.cleanup();
 });
+
+test('workflow transfer results render below their own table, with standalone fallback', async () => {
+  const { LocatedBestTeamChanges, workflowChangesTarget } = await import('./BestTeamChangesCard');
+  const workflow = document.createElement('section');
+  workflow.innerHTML = `<div>Recommendation table</div><div id="${workflowChangesTarget('workflow-calculation')}"></div>`;
+  document.body.append(workflow);
+  const view = render(<LocatedBestTeamChanges calculationId="workflow-calculation"><p>Transfer details</p></LocatedBestTeamChanges>);
+  expect(view.container.textContent).toBe('');
+  expect(workflow.lastElementChild?.textContent).toBe('Transfer details');
+  view.cleanup();
+  const standalone = render(<LocatedBestTeamChanges calculationId="other-calculation"><p>Standalone details</p></LocatedBestTeamChanges>);
+  expect(standalone.container.textContent).toBe('Standalone details');
+  standalone.cleanup();
+  workflow.remove();
+});

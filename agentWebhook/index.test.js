@@ -1,3 +1,5 @@
+jest.mock('../src/agent/readChoice', () => ({ applyReadChoice: jest.fn() }));
+jest.mock('../src/agent/workflows', () => ({ applyWorkflowRequest: jest.fn() }));
 // Integration-shaped test for agentWebhook/index.js. We mock the heavy
 // dependencies (CopilotKit runtime + allowlist storage) so the test runs
 // in milliseconds, but exercise the real auth → context wiring.
@@ -518,4 +520,77 @@ describe('agentWebhook → /write-decision', () => {
     expect(authenticateRequest).not.toHaveBeenCalled();
     expect(applyWriteDecision).not.toHaveBeenCalled();
   });
+});
+
+
+describe('workflow endpoints', () => {
+  const { applyWorkflowRequest } = require('../src/agent/workflows');
+  test('authenticates workflow decisions and ignores model-supplied identity', async () => {
+    authenticateRequest.mockResolvedValue({ status: STATUS.OK, chatId: 42, email: 'owner@example.com' });
+    applyWorkflowRequest.mockImplementation(async (input) => {
+      expect(input.chatId).toBe(42);
+      expect(getRequestContext().chatId).toBe(42);
+
+      return { status: 200, body: { state: 'ready' } };
+    });
+    const context = { log: jest.fn() };
+    await webhook(context, makeReq({ url: '/api/agent/workflow-decision', body: { id: 'flow', revision: 1, decision: 'approve', chatId: 99 } }));
+    expect(context.res.status).toBe(200);
+    expect(context.res.headers['Cache-Control']).toBe('no-store');
+  });
+  test.each(['approve', 'cancel_all'])('unauthorized %s requests never reach workflow storage or execution', async (decision) => {
+    applyWorkflowRequest.mockClear();
+    authenticateRequest.mockResolvedValue({ status: STATUS.UNAUTHORIZED });
+    const context = { log: jest.fn() };
+    await webhook(context, makeReq({ url: '/api/agent/workflow-decision', body: { decision } }));
+    expect(context.res.status).toBe(401);
+    expect(applyWorkflowRequest).not.toHaveBeenCalled();
+  });
+  test('workflow status is GET-only and decisions are POST-only', async () => {
+    const context = { log: jest.fn() };
+    await webhook(context, makeReq({ url: '/api/agent/workflows' }));
+    expect(context.res.status).toBe(405);
+    await webhook(context, makeReq({ url: '/api/agent/workflow-decision', method: 'GET' }));
+    expect(context.res.status).toBe(405);
+  });
+});
+
+test('bulk workflow cancellation uses authenticated owner identity', async () => {
+  const { applyWorkflowRequest }=require('../src/agent/workflows');
+  authenticateRequest.mockResolvedValue({ status:STATUS.OK,chatId:42 });
+  applyWorkflowRequest.mockResolvedValue({ status:200,body:{ status:'ok',workflows:[] } });
+  const context={ log:jest.fn() };
+  await webhook(context,makeReq({ url:'/api/agent/workflow-decision',body:{ decision:'cancel_all',chatId:99 } }));
+  expect(context.res.status).toBe(200);
+  expect(applyWorkflowRequest).toHaveBeenLastCalledWith(expect.objectContaining({ chatId:42,payload:expect.objectContaining({ decision:'cancel_all' }) }));
+});
+
+
+test('standings clicks execute in the authenticated owner scope without invoking the model', async () => {
+  const { applyReadChoice } = require('../src/agent/readChoice');
+  authenticateRequest.mockResolvedValue({ status: STATUS.OK, chatId: 123, email: 'user@example.com' });
+  applyReadChoice.mockImplementation(async ({ chatId, payload }) => {
+    expect(getRequestContext()).toMatchObject({ chatId: 123 });
+    expect(chatId).toBe(123);
+    expect(payload).toEqual({ tool: 'get_leaderboard', args: { leagueCode: 'C7' } });
+
+    return { status: 200, body: { status: 'selection_required', choice: 'period', options: [] } };
+  });
+  const context = { log: jest.fn() };
+  await webhook(context, makeReq({ url: '/api/agent/read-choice', body: { tool: 'get_leaderboard', args: { leagueCode: 'C7' } } }));
+  expect(context.res.status).toBe(200);
+  expect(JSON.parse(context.res.body).choice).toBe('period');
+  expect(context.res.headers['Cache-Control']).toBe('no-store');
+  expect(copilotHandler).not.toHaveBeenCalled();
+});
+
+test('standings read endpoint requires POST and authentication', async () => {
+  const { applyReadChoice } = require('../src/agent/readChoice');
+  const context = { log: jest.fn() };
+  await webhook(context, makeReq({ url: '/api/agent/read-choice', method: 'GET' }));
+  expect(context.res.status).toBe(405);
+  authenticateRequest.mockResolvedValue({ status: STATUS.UNAUTHORIZED, reason: 'missing_token' });
+  await webhook(context, makeReq({ url: '/api/agent/read-choice', body: { tool: 'get_leaderboard', args: { leagueCode: 'C7' } } }));
+  expect(context.res.status).toBe(401);
+  expect(applyReadChoice).not.toHaveBeenCalled();
 });

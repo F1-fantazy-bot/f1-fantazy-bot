@@ -1,7 +1,10 @@
+const { getAvailableChips } = require('../../cores/availableChipsCore');
+const { localizeAvailableChips } = require('./getAvailableChipsTool');
 // Read-only choice discovery. Targets come from the authenticated account;
 // selecting a write target still goes through the ordinary confirmation tool.
 const { defineTool } = require('@copilotkit/runtime/v2');
 const z = require('zod');
+const { getLeaderboard, normalizeLeaderboardArgs } = require('../../cores/leaderboardCore');
 const { listUserLeagues } = require('../../leagueRegistryService');
 const { listUserTeams } = require('../../cores/userTeamsCore');
 const { listLeagueTeams } = require('../../cores/liveScoreCore');
@@ -31,16 +34,22 @@ const LEAGUE_ACTIONS = [
   'get_live_score_leaderboard',
   'list_league_teams',
 ];
-const ACTIONS = [...TEAM_ACTIONS, ...LEAGUE_ACTIONS, 'set_language'];
+const ACTIONS = [...TEAM_ACTIONS, ...LEAGUE_ACTIONS, 'set_language', 'get_available_chips'];
 const contextSchema = z
   .object({
+    scope: z.enum(['team', 'tracked', 'league']).optional(),
+    period: z.enum(['season', 'race']).optional(),
+    matchdayId: z.number().int().positive().optional(),
+    raceName: z.string().optional(),
     leagueCode: z.string().optional(),
     leagueName: z.string().optional(),
     teamId: z.string().optional(),
     teamName: z.string().optional(),
     presetId: z.string().optional(),
     chip: z.string().optional(),
+    chipOverride: z.enum(['EXTRA_BOOST', 'LIMITLESS', 'WILDCARD', 'WITHOUT_CHIP']).optional(),
     rankBy: z.enum(['points', 'budget_adjusted']).optional(),
+    resultCount: z.number().optional(),
     mustIncludeDrivers: z.array(z.string()).optional(),
     mustExcludeDrivers: z.array(z.string()).optional(),
     mustIncludeConstructors: z.array(z.string()).optional(),
@@ -50,6 +59,8 @@ const contextSchema = z
 const parameters = z.object({
   action: z.enum(ACTIONS),
   choice: z.enum([
+    'scope',
+    'period',
     'team',
     'league',
     'preset',
@@ -79,10 +90,38 @@ function choiceResult({ action, choice, context = {}, lang, options }) {
   };
 }
 
+function leaderboardChoices(result, context, lang) {
+  if (!['select_period', 'ambiguous_race'].includes(result.status)) {
+    return { ...result, lang };
+  }
+  const options = result.races.map((race) => ({
+    label: `${race.raceFlag ? `${race.raceFlag} ` : ''}${race.raceName}`,
+    args: { period: 'race', matchdayId: race.matchdayId, raceName: undefined },
+  }));
+  if (!result.raceOnly) {
+    options.unshift({
+      label: lang === 'he' ? 'כל העונה' : 'Entire season',
+      args: { period: 'season', matchdayId: undefined, raceName: undefined },
+    });
+  }
+
+  return choiceResult({ action: 'get_leaderboard', choice: 'period', context, lang, options });
+}
+
 async function getActionChoices(input) {
   const { action, choice, context = {} } = parameters.parse(input);
-  await ensureCacheReady();
   const chatId = getAgentChatId();
+  if (action === 'get_available_chips') {
+    const { lang } = await getFreshLanguagePreference(chatId);
+    const fields = ['scope', 'teamId', 'teamName', 'leagueCode', 'leagueName'];
+    const args = Object.fromEntries(Object.entries(context).filter(([key]) => fields.includes(key)));
+    if (choice === 'scope') { delete args.scope; delete args.teamId; delete args.teamName; delete args.leagueCode; delete args.leagueName; }
+    else if (choice === 'team') { args.scope = 'team'; delete args.teamId; delete args.teamName; }
+    else if (choice === 'league') { args.scope ||= 'league'; delete args.leagueCode; delete args.leagueName; }
+
+    return localizeAvailableChips(await getAvailableChips({ ...args, chatId }), lang);
+  }
+  await ensureCacheReady();
   const { lang } = await getFreshLanguagePreference(chatId);
   let options;
   if (choice === 'league' && LEAGUE_ACTIONS.includes(action)) {
@@ -91,6 +130,14 @@ async function getActionChoices(input) {
       detail: league.leagueCode,
       args: { leagueCode: league.leagueCode, leagueName: undefined },
     }));
+  } else if (choice === 'period' && action === 'get_leaderboard') {
+    if (!context.leagueCode) {
+      return getActionChoices({ action, choice: 'league', context });
+    }
+
+    const result = await getLeaderboard({ ...context, chatId, requirePeriod: true });
+
+    return leaderboardChoices(result, context, lang);
   } else if (choice === 'team' && TEAM_ACTIONS.includes(action)) {
     options = listUserTeams({ chatId }).map((team) => ({
       label: team.teamName,
@@ -134,10 +181,12 @@ async function getActionChoices(input) {
       label: `${preset.label} (${preset.value})`,
       args: { presetId: preset.id },
     }));
-  } else if (choice === 'chip' && action === 'activate_chip') {
+  } else if (choice === 'chip' && ['activate_chip', 'get_best_teams'].includes(action)) {
     options = availableChips(chatId).map((chip) => ({
       label: chip.label,
-      args: { chip: chip.chip },
+      args: action === 'get_best_teams'
+        ? { chipOverride: chip.chip }
+        : { chip: chip.chip },
     }));
   } else if (choice === 'language' && action === 'set_language') {
     options = [
@@ -205,6 +254,7 @@ async function hasAmbiguousLeagueName(chatId, args) {
 // same tool result, avoiding a second tool call whose rich UI could be dropped.
 function wrapSelectableExecute(action, execute) {
   return wrapToolExecute(action, async (args = {}) => {
+    if (action === 'get_leaderboard') {args = normalizeLeaderboardArgs(args);}
     if (args.selectionMode) {
       return await execute(args);
     }
@@ -250,7 +300,7 @@ function wrapSelectableExecute(action, execute) {
 const getActionChoicesTool = defineTool({
   name: 'get_action_choices',
   description:
-    'Show clickable choices for a pending action instead of asking the user to type an existing team, league, language, chip, or ranking preset. Pass the intended action and missing choice. Preserve already supplied filters/targets in context. This is read-only; choosing a write option only proposes it and still requires confirmation. Use existing guided directory/follow/graph tools for their own selection flows.',
+    'Show clickable choices for a pending action instead of asking the user to type an existing team, league, standings period, language, chip, or ranking preset. Pass the intended action and missing choice. Preserve already supplied filters/targets in context. This is read-only; choosing a write option only proposes it and still requires confirmation. Use existing guided directory/follow/graph tools for their own selection flows.',
   parameters,
   execute: wrapToolExecute('get_action_choices', getActionChoices),
 });
@@ -260,4 +310,5 @@ module.exports = {
   getActionChoices,
   wrapSelectableExecute,
   choiceResult,
+  leaderboardChoices,
 };

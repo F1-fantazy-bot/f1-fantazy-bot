@@ -44,6 +44,9 @@ exports.calculateBestTeams = function (
 
   // Current team info
   const current_team = cachedJsonData.CurrentTeam;
+  if (current_team.teamStateStatus && require('./utils/teamDataStatus').recommendationIssue(current_team)) {
+    throw new Error('Recommendation inputs unavailable');
+  }
 
   // Determine free transfers and budget based on selected chip
   let freeTransfers = current_team.freeTransfers;

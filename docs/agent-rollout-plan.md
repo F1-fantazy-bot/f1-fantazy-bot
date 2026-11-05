@@ -223,14 +223,14 @@ abstraction for the agent that returns enriched standings
 - 3 new agent tools in `src/agent/tools.js`:
   `list_followed_teams`, `list_user_leagues`, `get_leaderboard`. Plus
   `get_best_team_scenarios` (a 4th tool added in the same phase) —
-  returns the 4×4 ppm-preset × chip matrix from
+  returns the four-preset × available-chip comparison from
   `src/cores/bestTeamScenariosCore.js`, mirroring the Telegram
   `/best_team_scenarios` command. Used by the LLM for "compare best
   teams at different weights", "best team scenarios", and "what if I
   change my ranking preference" questions.
-- `src/cores/bestTeamScenariosCore.js` + tests — pure 4×4 matrix
+- `src/cores/bestTeamScenariosCore.js` + tests — asynchronous four-preset comparison
   computation. Returns status-tagged result with one section per ppm
-  (0 / 1.3 / 1.65 / 2.0) and per-section results for the 4 chip
+  (0 / 1.3 / 1.65 / 2.0) and per-section results for verified unused supported chip
   scenarios (no chip / Limitless / Extra Boost / Wildcard). Each cell
   carries `projectedPoints`, `expectedPriceChange`, and a
   `recommendation` (`null` / `'yellow'` / `'green'`) computed against
@@ -247,7 +247,7 @@ abstraction for the agent that returns enriched standings
   the user's row highlighted, status-driven fallbacks for
   not_followed / not_found.
 - `web/src/components/BestTeamScenariosMatrix.tsx` — 4 ppm sections ×
-  4 chip rows showing projected points, Δ expected price change, and
+  variable chip rows showing projected points, Δ expected price change, and
   🟢/🟡 chip recommendation dots mirroring the Telegram
   `/best_team_scenarios` display.
 - `web/src/App.tsx` — registers the 3 new render hooks.

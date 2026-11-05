@@ -76,7 +76,7 @@ const FIXTURE = {
     {
       teamName: 'Cooperon',
       userName: 'Ron Cooper',
-      teamNo: 1,
+      teamNo: 1, accountId: 'aaaaaaaaaaaa',
       position: 1,
       raceScores: {
         matchday_1: 50,
@@ -89,7 +89,7 @@ const FIXTURE = {
     {
       teamName: 'dorsegal1',
       userName: 'Dor Segal',
-      teamNo: 1,
+      teamNo: 1, accountId: 'bbbbbbbbbbbb',
       position: 2,
       raceScores: {
         matchday_1: 40,
@@ -102,7 +102,7 @@ const FIXTURE = {
     {
       teamName: 'Kilzid',
       userName: 'Doron Kilzi',
-      teamNo: 1,
+      teamNo: 1, accountId: 'cccccccccccc',
       position: 3,
       raceScores: {
         matchday_1: 30,
@@ -233,7 +233,7 @@ describe('leagueStandingsGraphHandler', () => {
     });
 
     it('highlights the selected team with a thicker line', () => {
-      const selectedTeamId = 'Ron-Cooper_1';
+      const selectedTeamId = 'Ron-Cooper_1_aaaaaaaaaaaa';
       const config = buildStandingsChartConfig(FIXTURE, { selectedTeamId });
       expect(config.data.datasets[0].label).toBe('Cooperon');
       expect(config.data.datasets[0].borderWidth).toBe(6);
@@ -345,7 +345,7 @@ describe('leagueStandingsGraphHandler', () => {
     });
 
     it('passes selectedTeamId into chart config so selected series is highlighted', async () => {
-      getSelectedTeam.mockReturnValue('Ron-Cooper_1');
+      getSelectedTeam.mockReturnValue('Ron-Cooper_1_aaaaaaaaaaaa');
       getLeagueData.mockResolvedValueOnce(FIXTURE);
       fetchCurrentSeasonRaces.mockResolvedValueOnce({
         MRData: { RaceTable: { Races: [] } },

@@ -1,3 +1,5 @@
+import { LeaderboardTable, type LeaderboardResult } from './LeaderboardTable';
+import { useReadChoice } from './WriteDecisionContext';
 import { useId, useState } from 'react';
 import { useCopilotAction } from '@copilotkit/react-core';
 import {
@@ -6,7 +8,7 @@ import {
   useCopilotKit,
 } from '@copilotkit/react-core/v2';
 import {
-  isAgentRunActive,
+  useAgentRunActive,
   releaseAgentRun,
   tryAcquireAgentRun,
 } from './agentRunLock';
@@ -26,6 +28,10 @@ export type ActionChoicesResult = {
   status: 'selection_required';
   lang?: string;
   choice:
+    | 'scope'
+    | 'period'
+    | 'graph'
+    | 'recipient'
     | 'recommendation'
     | 'team'
     | 'league'
@@ -115,12 +121,22 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
     updates: [UseAgentUpdate.OnRunStatusChanged],
   });
   const { copilotkit } = useCopilotKit();
+  const readChoice = useReadChoice();
+  const runActive = useAgentRunActive(agent);
+  const busy = runActive || agent.isRunning;
   const [pending, setPending] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
+  const activePage = Math.min(page, Math.max(0, Math.ceil(result.options.length / 20) - 1));
   const [failed, setFailed] = useState(false);
+  const [readResult, setReadResult] = useState<Record<string, unknown> | null>(null);
   const heading = useId();
   const lang = uiLanguageOf(result);
   const he = lang === 'he';
   const titles = {
+    scope: he ? 'הצג צ׳יפים שנותרו עבור:' : 'Show remaining chips for:',
+    period: he ? 'בחר תקופת דירוג' : 'Choose a standings period',
+    graph: he ? 'בחר סוג גרף' : 'Choose a chart type',
+    recipient: he ? 'בחר נמען' : 'Choose a recipient',
     recommendation: he ? 'בחר המלצה' : 'Choose a recommendation',
     team: he ? 'בחר קבוצה' : 'Choose a team',
     league: he ? 'בחר ליגה' : 'Choose a league',
@@ -153,6 +169,11 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
     setPending(index);
     setFailed(false);
     try {
+      if (option.action === 'get_leaderboard') {
+        if (!readChoice) throw new Error('Standings choices require the read client');
+        setReadResult(await readChoice(option.action, option.args));
+        return;
+      }
       agent.addMessage({
         id: crypto.randomUUID(),
         role: 'developer',
@@ -173,8 +194,10 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
     }
   }
   return (
+    <>
     <section
       dir={directionFor(lang)}
+      aria-busy={busy || pending !== null}
       aria-labelledby={compact ? undefined : heading}
       style={{
         border: compact ? 'none' : '1px solid var(--app-border)',
@@ -201,13 +224,15 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
           gap: 12,
         }}
       >
-        {result.options.map((option, index) => (
+        {result.options.slice(activePage * 20, (activePage + 1) * 20).map((option, offset) => {
+          const index = activePage * 20 + offset;
+          return (
           <button
             key={index}
             type="button"
             aria-label={option.accessibleLabel}
             disabled={
-              pending !== null || agent.isRunning || isAgentRunActive(agent)
+              pending !== null || busy
             }
             onClick={() => void select(option, index)}
             style={{
@@ -220,7 +245,8 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
               borderRadius: 8,
               background: 'var(--app-surface-alt, var(--app-surface))',
               color: 'inherit',
-              cursor: 'pointer',
+              cursor: busy || pending !== null ? 'wait' : 'pointer',
+              opacity: busy || pending !== null ? 0.6 : 1,
             }}
           >
             <strong>
@@ -232,9 +258,18 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
               </div>
             )}
           </button>
-        ))}
+        );})}
       </div>
-      {pending !== null && <ToolLoading kind="choices" />}
+      {result.options.length > 20 && <nav aria-label={he ? 'עמודי אפשרויות' : 'Choice pages'} style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+        <button type="button" disabled={activePage === 0 || busy || pending !== null} onClick={() => setPage(activePage - 1)}>{he ? 'הקודם' : 'Previous'}</button>
+        <span aria-live="polite">{activePage + 1} / {Math.ceil(result.options.length / 20)}</span>
+        <button type="button" disabled={(activePage + 1) * 20 >= result.options.length || busy || pending !== null} onClick={() => setPage(activePage + 1)}>{he ? 'הבא' : 'Next'}</button>
+      </nav>}
+      {(pending !== null || (!compact && busy)) && (
+        <p role="status" aria-live="polite">
+          {he ? 'מכין את המשך הבקשה… נא להמתין.' : 'Preparing the next steps… Please wait.'}
+        </p>
+      )}
       {failed && (
         <p role="alert">
           {he
@@ -243,6 +278,10 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
         </p>
       )}
     </section>
+    {readResult && (isActionChoices(readResult)
+      ? <ActionChoicesCard result={readResult} />
+      : <LeaderboardTable result={readResult as LeaderboardResult} />)}
+    </>
   );
 }
 

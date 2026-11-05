@@ -1,3 +1,4 @@
+const { handleAvailableChipsCallback } = require('./commandsHandler/availableChipsHandler');
 const azureStorageService = require('./azureStorageService');
 const {
   currentTeamCache,
@@ -9,6 +10,7 @@ const { selectChip } = require('./commandsHandler/selectChipHandlers');
 const {
   CURRENT_TEAM_PHOTO_TYPE,
   CHIP_CALLBACK_TYPE,
+  AVAILABLE_CHIPS_CALLBACK_TYPE,
   MENU_CALLBACK_TYPE,
   LANG_CALLBACK_TYPE,
   TEAM_CALLBACK_TYPE,
@@ -27,6 +29,7 @@ const {
 } = require('./constants');
 
 const { sendLogMessage, sendMessageToUser } = require('./utils');
+const { resolveTeamSelector } = require('./utils/teamCallbackSelector');
 const { ensureSourceIsScreenshot } = require('./utils/teamSourceSwitcher');
 const { handleMenuCallback } = require('./commandsHandler/menuHandler');
 const { t, getLanguageName } = require('./i18n');
@@ -91,6 +94,8 @@ exports.handleCallbackQuery = async function (bot, query) {
   const callbackType = query.data.split(':')[0];
 
   switch (callbackType) {
+    case AVAILABLE_CHIPS_CALLBACK_TYPE:
+      return await handleAvailableChipsCallback(bot, query);
     case CHIP_CALLBACK_TYPE:
       return await handleChipCallback(bot, query);
     case LANG_CALLBACK_TYPE:
@@ -229,7 +234,7 @@ async function handleLanguageCallback(bot, query) {
 async function handleBestTeamRankingCallback(bot, query) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
-  const teamId = query.data.split(':')[1];
+  const teamId = resolveTeamSelector(chatId, query.data.split(':')[1]);
   const presetId = query.data.split(':')[2];
 
   const result = await setBestTeamRankingPreference({
@@ -271,7 +276,7 @@ async function handleBestTeamRankingCallback(bot, query) {
 async function handleTeamCallback(bot, query) {
   const chatId = query.message.chat.id;
   const messageId = query.message.message_id;
-  const teamId = query.data.split(':')[1];
+  const teamId = resolveTeamSelector(chatId, query.data.split(':')[1]);
 
   const result = await selectTeamPreference({ chatId, teamId });
   if (result.status !== 'ok') {

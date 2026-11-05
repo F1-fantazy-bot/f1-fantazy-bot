@@ -1,3 +1,4 @@
+const { handleAvailableChipsCommand } = require('./commandsHandler/availableChipsHandler');
 // Import all command handlers from the index file
 const {
   handleNumberMessage,
@@ -113,6 +114,8 @@ exports.handleTextMessage = async function (bot, msg) {
   const textTrimmed = msg.text.trim();
 
   switch (true) {
+    case /^\/available_chips(?:@[a-z0-9_]+)?(?:\s|$)/i.test(textTrimmed):
+      return await handleAvailableChipsCommand(bot, msg);
     // Check if message text is a number and delegate to the number handler
     case /^\d+$/.test(textTrimmed):
       await handleNumberMessage(bot, chatId, textTrimmed);

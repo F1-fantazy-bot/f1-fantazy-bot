@@ -56,6 +56,9 @@ import {
   save,
   toStoredMessages,
   toAgUiMessages,
+  saveReadCards,
+  DIRECT_CARD_PROPOSAL_EVENT,
+  saveDirectCard,
 } from '../lib/chatHistoryStore';
 
 // Used as a save-debounce dedupe key — NOT as the canonical
@@ -110,10 +113,38 @@ export function HistoryRestorer(): null {
     if (!agent) return;
     const sub = agent.subscribe({
       onMessagesChanged: () => {
+        // Capture completed read cards immediately, even before the run ends.
+        if (agent.messages.length) saveReadCards(agent.messages);
         bumpMessageVersion();
       },
     });
     return () => sub.unsubscribe();
+  }, [agent]);
+
+  useEffect(() => {
+    if (!agent) return;
+    const capture = (event: Event) => {
+      const { tool, args, result } = (event as CustomEvent<{
+        tool: string; args: Record<string, unknown>; result: Record<string, unknown>;
+      }>).detail;
+      saveDirectCard(agent.messages, tool, args, result);
+    };
+    window.addEventListener(DIRECT_CARD_PROPOSAL_EVENT, capture);
+    return () => window.removeEventListener(DIRECT_CARD_PROPOSAL_EVENT, capture);
+  }, [agent]);
+
+  // A refresh can arrive before the debounce fires. Flush the last visible
+  // text and display snapshots without ever restoring tool data to the agent.
+  useEffect(() => {
+    if (!agent) return;
+    const flush = () => {
+      const next = toStoredMessages(agent.messages);
+      if (next.length === 0 && load().length > 0) return;
+      saveReadCards(agent.messages);
+      save(next);
+    };
+    window.addEventListener('pagehide', flush);
+    return () => window.removeEventListener('pagehide', flush);
   }, [agent]);
 
   const isRunning = agent?.isRunning ?? false;
@@ -184,6 +215,7 @@ export function HistoryRestorer(): null {
         // restore effect on the next render will re-apply it.
         return;
       }
+      saveReadCards(agent.messages);
       save(next);
     }, 500);
     return () => {

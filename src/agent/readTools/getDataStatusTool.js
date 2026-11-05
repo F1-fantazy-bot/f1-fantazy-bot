@@ -4,7 +4,7 @@ const {
   driversCache,
   constructorsCache,
   currentTeamCache,
-  selectedChipCache,
+  getActiveChips,
   simulationInfoCache,
   nextRaceInfoCache,
   pricesCache,
@@ -22,6 +22,7 @@ const {
   getUpcomingRaceIdentity,
 } = require('../../services/simulationRaceStatusService');
 const { ensureCacheReady } = require('../cacheBootstrap');
+const { refreshWeeklyTeamData } = require('../../services/weeklyTeamDataService');
 const { getAgentChatId } = require('../identity');
 const { wrapToolExecute } = require('../wrapToolExecute');
 const { localizeDataStatus } = require('./simulationStatusPresentation');
@@ -34,6 +35,7 @@ const getDataStatusTool = defineTool({
   execute: wrapToolExecute('get_data_status', async () => {
     await ensureCacheReady();
     const chatId = getAgentChatId();
+    await refreshWeeklyTeamData(chatId);
     const [{ lang }, nextRaceInfo] = await Promise.all([
       getFreshLanguagePreference(chatId),
       getUpcomingRaceIdentity({
@@ -60,7 +62,7 @@ const getDataStatusTool = defineTool({
         nextRaceInfo,
         teams: currentTeamCache[chatId],
         selectedTeamId: getSelectedTeam(chatId),
-        chipsByTeam: selectedChipCache[chatId],
+        chipsByTeam: getActiveChips(chatId),
         ppmByTeam,
         projectionSource: hasPersonalProjectionData
           ? 'personal_or_mixed'

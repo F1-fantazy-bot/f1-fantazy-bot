@@ -4,11 +4,12 @@
 
 const {
   currentTeamCache,
-  selectedChipCache,
+  getActiveChip,
   isLeagueTeamId,
   getSelectedTeam,
   getUserTeamIds,
 } = require('../cache');
+const { publicFreeTransfers, teamDataStatus } = require('../utils/teamDataStatus');
 
 function listUserTeams({ chatId }) {
   const teamIds = getUserTeamIds(chatId);
@@ -16,7 +17,7 @@ function listUserTeams({ chatId }) {
 
   return teamIds.map((teamId) => {
     const team = currentTeamCache[chatId]?.[teamId] || {};
-    const chip = selectedChipCache[chatId]?.[teamId] || null;
+    const chip = getActiveChip(chatId, teamId) || null;
 
     return {
       teamId,
@@ -27,8 +28,8 @@ function listUserTeams({ chatId }) {
       drivers: Array.isArray(team.drivers) ? [...team.drivers] : [],
       constructors: Array.isArray(team.constructors) ? [...team.constructors] : [],
       boost: team.boost || null,
-      freeTransfers:
-        typeof team.freeTransfers === 'number' ? team.freeTransfers : null,
+      freeTransfers: publicFreeTransfers(team),
+      ...(Object.keys(teamDataStatus(team)).length ? { dataStatus: teamDataStatus(team) } : {}),
       costCapRemaining:
         typeof team.costCapRemaining === 'number'
           ? team.costCapRemaining

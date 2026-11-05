@@ -1,4 +1,4 @@
-const { AZURE_OPEN_AI_MODEL } = process.env;
+const { AI_MODEL } = require('../aiModel');
 const { getAzureOpenAiClient } = require('../azureOpenAiClient');
 const { t } = require('../i18n');
 const {
@@ -31,7 +31,7 @@ async function handleAskCommand(bot, msg) {
   let completion;
   try {
     completion = await getAzureOpenAiClient().chat.completions.create({
-      model: AZURE_OPEN_AI_MODEL,
+      model: AI_MODEL,
       messages: [systemMessage, userMessage],
     });
   } catch (error) {
@@ -42,12 +42,13 @@ async function handleAskCommand(bot, msg) {
   }
 
   const usage = completion.usage;
-  const tokensInfo = `Azure OpenAI model - ${AZURE_OPEN_AI_MODEL}, tokens - prompt: ${usage.prompt_tokens}, completion: ${usage.completion_tokens}, total: ${usage.total_tokens}`;
+  const tokensInfo = `Azure OpenAI model - ${AI_MODEL}, tokens - prompt: ${usage.prompt_tokens}, completion: ${usage.completion_tokens}, total: ${usage.total_tokens}`;
   await sendLogMessage(bot, tokensInfo);
 
   let commands;
   try {
     commands = JSON.parse(completion.choices[0].message.content);
+    if (!Array.isArray(commands)) {throw new Error('Expected command array');}
   } catch (err) {
     await sendErrorMessage(
       bot,

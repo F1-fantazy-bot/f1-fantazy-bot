@@ -35,6 +35,7 @@ const {
   handleTeamsTrackerCallback,
 } = require('./teamsTrackerHandler');
 const { COMMAND_FOLLOW_LEAGUE } = require('../constants');
+const { encodeLeagueCallbackCode } = require('../utils/leagueCallbackCode');
 
 function makeBot() {
   return {
@@ -116,6 +117,24 @@ describe('handleTeamsTrackerCommand', () => {
     expect(bot.editMessageText).toHaveBeenCalled();
   });
 
+  it('shows both Tom accounts with distinct short callbacks even for a long league code', async () => {
+    const leagueCode = 'A'.repeat(80);
+    listUserLeagues.mockResolvedValue([{ leagueCode, leagueName: 'Friends' }]);
+    seedLeagueRoster(leagueCode, [
+      { position: 1, teamName: 'NoNoItsSoNotRightMikeyNO',
+        userName: 'Tom Kregenbild', teamNo: 1, accountId: 'aaaaaaaaaaaa' },
+      { position: 2, teamName: 'Agentic Racing Co.',
+        userName: 'Tom Kregenbild', teamNo: 1, accountId: 'bbbbbbbbbbbb' },
+    ]);
+    const bot = makeBot();
+    await handleTeamsTrackerCommand(bot, { chat: { id: 1 } });
+    const keyboard = bot.editMessageText.mock.calls.at(-1)[1].reply_markup.inline_keyboard;
+    const callbacks = keyboard.flat().map((button) => button.callback_data);
+    expect(callbacks).toContain(`TT:T:${encodeLeagueCallbackCode(leagueCode)}:1_aaaaaaaaaaaa`);
+    expect(callbacks).toContain(`TT:T:${encodeLeagueCallbackCode(leagueCode)}:1_bbbbbbbbbbbb`);
+    expect(callbacks.every((callback) => Buffer.byteLength(callback, 'utf8') <= 64)).toBe(true);
+  });
+
   it('shows league picker when user has >1 leagues', async () => {
     listUserLeagues.mockResolvedValue([
       { leagueCode: 'L1', leagueName: 'One' },
@@ -145,11 +164,11 @@ describe('handleTeamsTrackerCommand', () => {
   });
 
   it('seeds the same fantasy team in every followed league it appears in (visual sync)', async () => {
-    // The user follows one team (Doron-Kilzi_1) that exists in two leagues.
+    // The user follows one team (Doron-Kilzi_1_aaaaaaaaaaaa) that exists in two leagues.
     // Seeding produces one entry per league (no position field — looked up
     // fresh at render time).
     cache.currentTeamCache[1] = {
-      'Doron-Kilzi_1': { drivers: [] },
+      'Doron-Kilzi_1_aaaaaaaaaaaa': { drivers: [] },
     };
     listUserLeagues.mockResolvedValue([
       { leagueCode: 'L1', leagueName: 'One' },
@@ -162,7 +181,7 @@ describe('handleTeamsTrackerCommand', () => {
           {
             teamName: 'Kilzid',
             userName: 'Doron Kilzi',
-            teamNo: 1,
+            teamNo: 1, accountId: 'aaaaaaaaaaaa',
             position: code === 'L1' ? 2 : 5,
           },
         ],
@@ -177,12 +196,12 @@ describe('handleTeamsTrackerCommand', () => {
     expect(saved.selected).toHaveLength(2);
     expect(saved.selected).toEqual(
       expect.arrayContaining([
-        { leagueCode: 'L1', teamId: 'Doron-Kilzi_1' },
-        { leagueCode: 'L2', teamId: 'Doron-Kilzi_1' },
+        { leagueCode: 'L1', teamId: 'Doron-Kilzi_1_aaaaaaaaaaaa' },
+        { leagueCode: 'L2', teamId: 'Doron-Kilzi_1_aaaaaaaaaaaa' },
       ]),
     );
     // The fantasy id appears once in initiallyFollowed (dedup'd).
-    expect(saved.initiallyFollowed).toEqual(['Doron-Kilzi_1']);
+    expect(saved.initiallyFollowed).toEqual(['Doron-Kilzi_1_aaaaaaaaaaaa']);
   });
 });
 
@@ -294,12 +313,12 @@ describe('handleTeamsTrackerCallback', () => {
         position: i + 1,
         teamName: `T${i + 1}`,
         userName: `Owner ${i + 1}`,
-        teamNo: 1,
+        teamNo: 1, accountId: 'aaaaaaaaaaaa',
       })),
     });
     const bot = makeBot();
     // Click team #7 (a new fantasy id) → would exceed cap → show_alert.
-    await handleTeamsTrackerCallback(bot, queryFixture('TT:T:L1:Owner-7_1'));
+    await handleTeamsTrackerCallback(bot, queryFixture('TT:T:L1:Owner-7_1_aaaaaaaaaaaa'));
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith(
       'cb1',
       expect.objectContaining({ show_alert: true }),
@@ -314,21 +333,21 @@ describe('handleTeamsTrackerCallback', () => {
     azureStorageService.getLeagueTeamsData.mockResolvedValue({
       leagueCode: 'L1',
       teams: [
-        { position: 3, teamName: 'Gamma', userName: 'Gamma Owner', teamNo: 1 },
+        { position: 3, teamName: 'Gamma', userName: 'Gamma Owner', teamNo: 1, accountId: 'aaaaaaaaaaaa' },
       ],
     });
     const bot = makeBot();
     await handleTeamsTrackerCallback(
       bot,
-      queryFixture('TT:T:L1:Gamma-Owner_1'),
+      queryFixture('TT:T:L1:1_aaaaaaaaaaaa'),
     );
     const saved = azureStorageService.saveTeamsTrackerSession.mock.calls[0][1];
     expect(saved.selected).toHaveLength(1);
     expect(saved.selected[0]).toEqual({
       leagueCode: 'L1',
-      teamId: 'Gamma-Owner_1',
+      teamId: 'Gamma-Owner_1_aaaaaaaaaaaa',
     });
-    expect(saved.addOrder).toContain('Gamma-Owner_1');
+    expect(saved.addOrder).toContain('Gamma-Owner_1_aaaaaaaaaaaa');
   });
 
   it('disambiguates tied positions by teamId (regression: PR #178)', async () => {
@@ -341,13 +360,13 @@ describe('handleTeamsTrackerCallback', () => {
           position: 5,
           teamName: 'dorsegal2',
           userName: 'Dor Segal',
-          teamNo: 2,
+          teamNo: 2, accountId: 'bbbbbbbbbbbb',
         },
         {
           position: 5,
           teamName: 'Kilzid2',
           userName: 'Doron Kilzi',
-          teamNo: 2,
+          teamNo: 2, accountId: 'aaaaaaaaaaaa',
         },
       ],
     });
@@ -359,12 +378,12 @@ describe('handleTeamsTrackerCallback', () => {
     const bot1 = makeBot();
     await handleTeamsTrackerCallback(
       bot1,
-      queryFixture('TT:T:L1:Doron-Kilzi_2'),
+      queryFixture('TT:T:L1:2_aaaaaaaaaaaa'),
     );
     const saved1 =
       azureStorageService.saveTeamsTrackerSession.mock.calls[0][1];
     expect(saved1.selected).toEqual([
-      { leagueCode: 'L1', teamId: 'Doron-Kilzi_2' },
+      { leagueCode: 'L1', teamId: 'Doron-Kilzi_2_aaaaaaaaaaaa' },
     ]);
 
     // Step 2: now toggle ON dorsegal2 — both should end up selected.
@@ -375,14 +394,14 @@ describe('handleTeamsTrackerCallback', () => {
     const bot2 = makeBot();
     await handleTeamsTrackerCallback(
       bot2,
-      queryFixture('TT:T:L1:Dor-Segal_2'),
+      queryFixture('TT:T:L1:2_bbbbbbbbbbbb'),
     );
     const saved2 =
       azureStorageService.saveTeamsTrackerSession.mock.calls[0][1];
     expect(saved2.selected).toEqual(
       expect.arrayContaining([
-        { leagueCode: 'L1', teamId: 'Doron-Kilzi_2' },
-        { leagueCode: 'L1', teamId: 'Dor-Segal_2' },
+        { leagueCode: 'L1', teamId: 'Doron-Kilzi_2_aaaaaaaaaaaa' },
+        { leagueCode: 'L1', teamId: 'Dor-Segal_2_bbbbbbbbbbbb' },
       ]),
     );
     expect(saved2.selected).toHaveLength(2);
@@ -395,12 +414,12 @@ describe('handleTeamsTrackerCallback', () => {
     const bot3 = makeBot();
     await handleTeamsTrackerCallback(
       bot3,
-      queryFixture('TT:T:L1:Doron-Kilzi_2'),
+      queryFixture('TT:T:L1:2_aaaaaaaaaaaa'),
     );
     const saved3 =
       azureStorageService.saveTeamsTrackerSession.mock.calls[0][1];
     expect(saved3.selected).toEqual([
-      { leagueCode: 'L1', teamId: 'Dor-Segal_2' },
+      { leagueCode: 'L1', teamId: 'Dor-Segal_2_bbbbbbbbbbbb' },
     ]);
   });
 
@@ -417,14 +436,14 @@ describe('handleTeamsTrackerCallback', () => {
   });
 
   it('save keeps prevActive when still in the final selection', async () => {
-    cache.userCache[String(CHAT_ID)] = { selectedTeam: 'Keep-Owner_1' };
-    cache.currentTeamCache[CHAT_ID] = { 'Keep-Owner_1': { drivers: [] } };
+    cache.userCache[String(CHAT_ID)] = { selectedTeam: 'Keep-Owner_1_aaaaaaaaaaaa' };
+    cache.currentTeamCache[CHAT_ID] = { 'Keep-Owner_1_aaaaaaaaaaaa': { drivers: [] } };
     azureStorageService.getTeamsTrackerSession = jest
       .fn()
       .mockResolvedValue(
         sessionFixture({
-          selected: [{ leagueCode: 'L1', teamId: 'Keep-Owner_1' }],
-          initiallyFollowed: ['Keep-Owner_1'],
+          selected: [{ leagueCode: 'L1', teamId: 'Keep-Owner_1_aaaaaaaaaaaa' }],
+          initiallyFollowed: ['Keep-Owner_1_aaaaaaaaaaaa'],
           addOrder: [],
         }),
       );
@@ -435,7 +454,7 @@ describe('handleTeamsTrackerCallback', () => {
           position: 5,
           teamName: 'Keep',
           userName: 'Keep Owner',
-          teamNo: 1,
+          teamNo: 1, accountId: 'aaaaaaaaaaaa',
           budget: 100,
         },
       ],
@@ -445,20 +464,20 @@ describe('handleTeamsTrackerCallback', () => {
     expect(retainSelectedBestTeamPreferences).toHaveBeenCalledWith(
       expect.objectContaining({
         chatId: CHAT_ID,
-        attributes: { selectedTeam: 'Keep-Owner_1' },
+        attributes: { selectedTeam: 'Keep-Owner_1_aaaaaaaaaaaa' },
       }),
     );
   });
 
   it('preserves the tracker session and reports failure when final CAS fails', async () => {
-    cache.userCache[String(CHAT_ID)] = { selectedTeam: 'Keep-Owner_1' };
-    cache.currentTeamCache[CHAT_ID] = { 'Keep-Owner_1': { drivers: [] } };
+    cache.userCache[String(CHAT_ID)] = { selectedTeam: 'Keep-Owner_1_aaaaaaaaaaaa' };
+    cache.currentTeamCache[CHAT_ID] = { 'Keep-Owner_1_aaaaaaaaaaaa': { drivers: [] } };
     azureStorageService.getTeamsTrackerSession = jest
       .fn()
       .mockResolvedValue(
         sessionFixture({
-          selected: [{ leagueCode: 'L1', teamId: 'Keep-Owner_1' }],
-          initiallyFollowed: ['Keep-Owner_1'],
+          selected: [{ leagueCode: 'L1', teamId: 'Keep-Owner_1_aaaaaaaaaaaa' }],
+          initiallyFollowed: ['Keep-Owner_1_aaaaaaaaaaaa'],
           addOrder: [],
         }),
       );
@@ -469,7 +488,7 @@ describe('handleTeamsTrackerCallback', () => {
           position: 5,
           teamName: 'Keep',
           userName: 'Keep Owner',
-          teamNo: 1,
+          teamNo: 1, accountId: 'aaaaaaaaaaaa',
           budget: 100,
         },
       ],
@@ -500,15 +519,15 @@ describe('handleTeamsTrackerCallback', () => {
   });
 
   it('save falls back to first addOrder entry when prevActive was removed', async () => {
-    cache.userCache[String(CHAT_ID)] = { selectedTeam: 'Old-Owner_1' };
-    cache.currentTeamCache[CHAT_ID] = { 'Old-Owner_1': { drivers: [] } };
+    cache.userCache[String(CHAT_ID)] = { selectedTeam: 'Old-Owner_1_aaaaaaaaaaaa' };
+    cache.currentTeamCache[CHAT_ID] = { 'Old-Owner_1_aaaaaaaaaaaa': { drivers: [] } };
     azureStorageService.getTeamsTrackerSession = jest
       .fn()
       .mockResolvedValue(
         sessionFixture({
-          selected: [{ leagueCode: 'L1', teamId: 'NewTeam-Owner_1' }],
-          initiallyFollowed: ['Old-Owner_1'],
-          addOrder: ['NewTeam-Owner_1'],
+          selected: [{ leagueCode: 'L1', teamId: 'NewTeam-Owner_1_aaaaaaaaaaaa' }],
+          initiallyFollowed: ['Old-Owner_1_aaaaaaaaaaaa'],
+          addOrder: ['NewTeam-Owner_1_aaaaaaaaaaaa'],
         }),
       );
     azureStorageService.getLeagueTeamsData.mockResolvedValue({
@@ -518,7 +537,7 @@ describe('handleTeamsTrackerCallback', () => {
           position: 2,
           teamName: 'NewTeam',
           userName: 'NewTeam Owner',
-          teamNo: 1,
+          teamNo: 1, accountId: 'aaaaaaaaaaaa',
           budget: 100,
         },
       ],
@@ -528,20 +547,20 @@ describe('handleTeamsTrackerCallback', () => {
     expect(retainSelectedBestTeamPreferences).toHaveBeenCalledWith(
       expect.objectContaining({
         chatId: CHAT_ID,
-        attributes: { selectedTeam: 'NewTeam-Owner_1' },
+        attributes: { selectedTeam: 'NewTeam-Owner_1_aaaaaaaaaaaa' },
       }),
     );
   });
 
   it('save clears selectedTeam when final selection is empty', async () => {
-    cache.userCache[String(CHAT_ID)] = { selectedTeam: 'Old-Owner_1' };
-    cache.currentTeamCache[CHAT_ID] = { 'Old-Owner_1': { drivers: [] } };
+    cache.userCache[String(CHAT_ID)] = { selectedTeam: 'Old-Owner_1_aaaaaaaaaaaa' };
+    cache.currentTeamCache[CHAT_ID] = { 'Old-Owner_1_aaaaaaaaaaaa': { drivers: [] } };
     azureStorageService.getTeamsTrackerSession = jest
       .fn()
       .mockResolvedValue(
         sessionFixture({
           selected: [],
-          initiallyFollowed: ['Old-Owner_1'],
+          initiallyFollowed: ['Old-Owner_1_aaaaaaaaaaaa'],
           addOrder: [],
         }),
       );
@@ -552,7 +571,7 @@ describe('handleTeamsTrackerCallback', () => {
           position: 1,
           teamName: 'Old',
           userName: 'Old Owner',
-          teamNo: 1,
+          teamNo: 1, accountId: 'aaaaaaaaaaaa',
           budget: 100,
         },
       ],
@@ -573,7 +592,7 @@ describe('handleTeamsTrackerCallback', () => {
       .fn()
       .mockResolvedValue(
         sessionFixture({
-          selected: [{ leagueCode: 'L1', teamId: 'Alpha-Owner_1' }],
+          selected: [{ leagueCode: 'L1', teamId: 'Alpha-Owner_1_aaaaaaaaaaaa' }],
           initiallyFollowed: [],
         }),
       );
@@ -584,7 +603,7 @@ describe('handleTeamsTrackerCallback', () => {
           position: 1,
           teamName: 'Alpha',
           userName: 'Alpha Owner',
-          teamNo: 1,
+          teamNo: 1, accountId: 'aaaaaaaaaaaa',
           budget: 100,
         },
       ],

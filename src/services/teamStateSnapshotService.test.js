@@ -1,3 +1,8 @@
+const activeExpiry = {
+  selectedAt: new Date(Date.now() - 86400000).toISOString(),
+  expiresAt: new Date(Date.now() + 5 * 86400000).toISOString(),
+};
+
 jest.mock('../azureStorageService', () => ({
   deleteAllUserTeams: jest.fn(),
   saveUserTeam: jest.fn(),
@@ -47,6 +52,7 @@ beforeEach(() => {
     bestTeamBudgetChangePointsPerMillion: { T1: 1.3 },
     selectedBestTeamByTeam: {},
     selectedChipByTeam: { T1: 'EXTRA_BOOST' },
+    selectedChipExpiryByTeam: { T1: activeExpiry },
   };
   azureStorageService.deleteAllUserTeams.mockResolvedValue(undefined);
   azureStorageService.saveUserTeam.mockResolvedValue(undefined);
@@ -86,9 +92,23 @@ test('captures and restores durable and local team state', async () => {
     42,
     { T1: 'EXTRA_BOOST' },
     null,
+    { T1: activeExpiry },
   );
   expect(setCachedSelectedTeam).toHaveBeenCalledWith(42, 'T1', {
     preserveNull: true,
   });
   expect(currentTeamCache[42]).toEqual({ T1: { drivers: ['VER'] } });
+});
+
+test('rollback preserves the original expiry even if it elapsed during the operation', async () => {
+  const snapshot = captureTeamState(42);
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.parse(activeExpiry.expiresAt));
+  try {
+    await restoreTeamState({}, 42, snapshot);
+    const transform = updateUserAttributesAtomically.mock.calls.at(-1)[1];
+    expect(JSON.parse(transform({}).selectedChipExpiryByTeam)).toEqual({ T1: activeExpiry });
+    expect(setCachedChipPreferences).toHaveBeenCalledWith(42, snapshot.chips, null, { T1: activeExpiry });
+  } finally {
+    clock.mockRestore();
+  }
 });

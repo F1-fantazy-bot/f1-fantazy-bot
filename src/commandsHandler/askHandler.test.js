@@ -1,3 +1,4 @@
+jest.mock('./availableChipsHandler', () => ({ handleAvailableChipsCommand: jest.fn() }));
 const { KILZI_CHAT_ID } = require('../constants');
 
 jest.mock('openai', () => {
@@ -82,7 +83,7 @@ describe('handleAskCommand', () => {
 
     expect(isAdminMessage).toHaveBeenCalledWith(msgMock);
     expect(__createMock).toHaveBeenCalledWith({
-      model: undefined,
+      model: 'gpt-6.1-sol',
       messages: [
         { role: 'system', content: buildAskSystemPrompt(true) },
         { role: 'user', content: 'question' },
@@ -103,11 +104,25 @@ describe('handleAskCommand', () => {
 
     expect(isAdminMessage).toHaveBeenCalledWith(msgMock);
     expect(__createMock).toHaveBeenCalledWith({
-      model: undefined,
+      model: 'gpt-6.1-sol',
       messages: [
         { role: 'system', content: buildAskSystemPrompt(false) },
         { role: 'user', content: 'question' },
       ],
     });
   });
+});
+
+
+test('ASK keeps its string-array contract and routes only validated remaining-chip JSON suffixes', async () => {
+  const { handleAvailableChipsCommand } = require('./availableChipsHandler');
+  const bot = { sendMessage: jest.fn() };
+  const command = '/available_chips ' + JSON.stringify({ scope: 'tracked' });
+  __createMock.mockResolvedValue({ choices: [{ message: { content: JSON.stringify([command]) } }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } });
+  await handleAskCommand(bot, { chat: { id: 42 }, text: 'show remaining chips for all teams I track' });
+  expect(handleAvailableChipsCommand).toHaveBeenCalledWith(bot, expect.any(Object), { scope: 'tracked' });
+  handleAvailableChipsCommand.mockClear();
+  __createMock.mockResolvedValue({ choices: [{ message: { content: JSON.stringify(['/available_chips {"chatId":9}']) } }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } });
+  await handleAskCommand(bot, { chat: { id: 42 }, text: 'invalid' });
+  expect(handleAvailableChipsCommand).not.toHaveBeenCalled();
 });

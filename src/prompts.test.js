@@ -128,3 +128,12 @@ describe('buildRaceSummarySystemPrompt', () => {
     expect(prompt).toContain('always use masculine grammatical forms');
   });
 });
+
+test('remaining chips have explicit missing-target guidance that overrides selected-team defaults', () => {
+  const { getSystemPrompt } = require('./agent/systemPrompt');
+  const prompt = getSystemPrompt();
+  expect(prompt).toContain('get_available_chips({})');
+  expect(prompt).toContain('מה הציפים שנשארו לשימוש');
+  expect(prompt).toContain('Omit unused arguments or pass JSON null');
+  expect(prompt).toContain('This rule overrides selected-team defaults for this tool.');
+});

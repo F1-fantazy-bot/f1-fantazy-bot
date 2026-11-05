@@ -1,3 +1,8 @@
+const activeExpiry = {
+  selectedAt: new Date(Date.now() - 86400000).toISOString(),
+  expiresAt: new Date(Date.now() + 5 * 86400000).toISOString(),
+};
+
 const mockCalculateTeamInfo = jest.fn();
 const mockCalculateBudgetAdjustedPoints = jest.fn();
 
@@ -154,6 +159,7 @@ describe('getCurrentTeam', () => {
     driversCache[CHAT_ID] = { VER: { price: 30 } };
     constructorsCache[CHAT_ID] = { MCL: { price: 10 } };
     selectedChipCache[CHAT_ID] = { [TEAM_ID]: 'EXTRA_BOOST' };
+    userCache[String(CHAT_ID)] = { selectedChipExpiryByTeam: { [TEAM_ID]: activeExpiry } };
     mockCalculateTeamInfo.mockReturnValue({
       totalPrice: 40,
       costCapRemaining: 60,

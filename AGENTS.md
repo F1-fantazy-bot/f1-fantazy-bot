@@ -11,6 +11,9 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
 
 ## Core Concepts
 
+- **Weekly team baselines (scraper PR #26):** `teams-data.json.matchdayId` is the target race. Per-team `teamStateMatchdayId` is the archived source and can be older after restoring Limitless/Final Fix. Preserve `teamStateStatus`, `budgetStatus`, `transfersStatus`, and their source matchdays through `mapLeagueTeamToBotTeam`, saved teams, and safe tool results. `reconstructed-race-start` is a usable starting roster, with calculated budget and transfers before this week's edits. Unknown values stay null. Unlimited transfers use seven internally (the seven roster slots), display as Unlimited, and do not grant an unlimited budget. `teamDataStatus.recommendationIssue` blocks historical/unavailable, unknown inputs, and mismatched race prices for enriched teams; legacy manual JSON retains its existing validator. Both surfaces label starting data using the shared status contract.
+- **Warm weekly refresh:** `weeklyTeamDataService` refreshes followed canonical teams and canonical prices on reads, with a 30-second per-user interval and deduplicated concurrent requests. It updates process-local caches only; it never adds teams or writes preferences/user-team blobs. Changed prices/team data invalidate Telegram recommendation caches. Failed reads disable recommendations until retry. Agent durable calculation snapshots independently re-read followed weekly blobs under ETag guards and fingerprint semantic inputs; timestamp-only rewrites do not expire selections. League-change comparisons exclude unusable starting rosters from both changed and unchanged counts, while accepting reconstructed baselines. Simulation freshness is established from simulation identity, never from updated price metadata alone.
+
 - **Entry Point:** `src/bot.js` bootstraps the Telegram bot, initializes caches via Azure Storage, and registers message/callback listeners. It exports both the bot instance and a `cacheReady` promise. The Azure Function webhook (`telegramWebhook/index.js`) awaits `cacheReady` before processing any update, preventing a race condition where the first cold-start message would be handled before caches are populated.
 - **Message Flow:**
   - `src/messageHandler.js` distinguishes between text, photo, and other message types. It also checks for pending replies (see Pending Reply Manager below) before routing to type-specific handlers.
@@ -72,6 +75,7 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
 ## Key Commands (User-Facing)
 
 - `/best_teams`, `/best_team_scenarios`, `/current_team_info`, `/chips`, `/extra_boost`, `/limitless`, `/wildcard`, `/reset_chip`
+- `/available_chips` — unused season chips for any followed-league team, all tracked teams, or a league
 - `/set_best_team_ranking`
 - `/select_team`, `/print_cache`, `/reset_cache`
 - `/next_race_info`, `/next_races`, `/next_race_weather`, `/deadline`, `/live_score`
@@ -94,7 +98,7 @@ Both surfaces share the same business logic via **pure cores** in `src/cores/`. 
 Required environment variables (see `readme.md` for full list):
 
 - Telegram: `TELEGRAM_BOT_TOKEN`
-- Azure OpenAI: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPEN_AI_MODEL`
+- Azure OpenAI: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`. The general deployment is pinned to `gpt-6.1-sol` in `src/aiModel.js` for the agent, Telegram `/ask`, and JSON extraction; there is no model environment override. Race summaries remain pinned to `gpt-6-astra` in the shared service.
 - Azure Storage: `AZURE_STORAGE_CONNECTION_STRING`, `AZURE_STORAGE_CONTAINER_NAME`
   - **Note:** `AZURE_STORAGE_CONNECTION_STRING` is also used by the Pending Reply Manager and User Registry Service for Azure Table Storage (no additional env var needed).
 - Azure Management API for billing and manual Logic App triggers: `AZURE_SUBSCRIPTION_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`
@@ -109,6 +113,7 @@ Start the web-chat agent locally with `npm run dev` (boots both the agent dev se
 **Cold-Start Initialization (Telegram):** `src/bot.js` stores the `initializeCaches()` promise as `cacheReady` and exports it. The Azure Function webhook (`telegramWebhook/index.js`) awaits `bot.cacheReady` before calling `bot.processUpdate(update)`. On a cold start the first request waits for caches to be ready; on warm invocations the resolved promise returns instantly. In polling dev mode `cacheReady` is unused — the natural polling delay avoids the race.
 
 **Cold-Start Initialization (Agent):** `src/agent/cacheBootstrap.js` lazily calls `initializeCaches()` before cache-dependent agent tools run. `get_next_races` can still answer without cache data, but `list_user_teams`, `list_followed_teams`, `list_user_leagues`, `get_leaderboard`, `get_league_changes`, `get_league_graph`, `get_race_summary`, `get_best_teams`, and `get_best_team_scenarios` all depend on the same initialized caches as Telegram.
+For the two team-list tools, `ensureCurrentUserIdentity(chatId)` also retries unresolved legacy IDs against fresh `teams-data.json` after a scraper rollout. This lets a warm test agent migrate IDs when the upstream blob is updated after its first initialization. Migration updates only the old ID's keys in the latest UserRegistry row using ETag-protected writes, so concurrent chip/ranking changes survive.
 
 **Deployment targets:**
 - The Telegram bot is deployed as the existing Azure Function App `f1-fantazy-bot-func` via the `telegramWebhook/` function. Push to `main` → `production` slot; PR → `test` slot.
@@ -345,8 +350,8 @@ The table is **extensible** — new attributes can be added at any time without 
 
 `src/leagueRegistryService.js` tracks league follows in an Azure Table Storage table (`UserLeagues`). Data is produced by the sibling repo `f1-fantasy-api-data`, which writes two blobs per league to Azure Blob Storage in the same container (`AZURE_STORAGE_CONTAINER_NAME`) used by the bot:
 
-- `leagues/{leagueCode}/league-standings.json` — header + `teams: [{ teamName, userName, position, totalScore, raceScores, raceBudgets, chipsUsed }]`. Used by `/leaderboard`, `/league_graphs`, and `/race_summary`.
-- `leagues/{leagueCode}/teams-data.json` — header + `teams: [{ teamName, userName, position, budget, transfersRemaining, drivers, constructors }]` where each roster entry is `{ id, name, price, isCaptain, isMegaCaptain, isFinal }`. Used by `/teams_tracker` to load/manage followed team rosters from the league directly into the bot's cache. `budget` is the user's cost cap going into the upcoming matchday (`team_info.maxTeambal` from upstream — see f1-fantasy-api-data PR #19). The bot's `mapLeagueTeamToBotTeam` derives `costCapRemaining = max(0, budget − Σ_prices)`. Blobs written before that PR shipped carried `budget = team_info.teamVal` (≈ Σ_prices) which trivially yields `costCapRemaining = 0` through the same formula — same as production today, no regression during the deployment transition.
+- `leagues/{leagueCode}/league-standings.json` — header + `teams: [{ teamName, userName, teamNo, accountId, position, totalScore, raceScores, raceBudgets, chipsUsed }]`. Used by `/leaderboard`, `/league_graphs`, and `/race_summary`.
+- `leagues/{leagueCode}/teams-data.json` — header + `teams: [{ teamName, userName, teamNo, accountId, position, budget, transfersRemaining, drivers, constructors }]` where each roster entry is `{ id, name, price, isCaptain, isMegaCaptain, isFinal }`. Used by `/teams_tracker` to load/manage followed team rosters from the league directly into the bot's cache. `budget` is the user's cost cap going into the upcoming matchday (`team_info.maxTeambal` from upstream — see f1-fantasy-api-data PR #19). The bot's `mapLeagueTeamToBotTeam` derives `costCapRemaining = max(0, budget − Σ_prices)`. Blobs written before that PR shipped carried `budget = team_info.teamVal` (≈ Σ_prices) which trivially yields `costCapRemaining = 0` through the same formula — same as production today, no regression during the deployment transition.
 - `leagues/{leagueCode}/locked/matchday_{N}.json` — one blob per locked matchday written by the upstream `MODE=locked` scrape (fires ~1 minute after each session start: qualifying, race, and on sprint weekends the sprint race). Same per-team shape as `teams-data.json` plus a top-level `mode: 'locked'` discriminator and per-team `chipsUsed: [{ name, gameDayId }]`. Used by `/league_changes`, `/race_summary`, and `/live_score`.
 - `prices.json` — root-level global price snapshot `{ fetchedAt, matchdayId, drivers: [{ id, name, price }], constructors: [{ id, name, price }] }`. Used by startup and `/load_simulation` as the canonical price source for `/best_teams`, `/best_team_scenarios`, `/current_team_info`, and related team-change details. Names are mapped to bot codes via `NAME_TO_CODE_DRIVERS_MAPPING` / `NAME_TO_CODE_CONSTRUCTORS_MAPPING`; unmapped, invalid, or missing entries are reported to admins and fall back to simulation/imported prices.
 
@@ -370,7 +375,7 @@ The table is **extensible** — new attributes can be added at any time without 
 
    **Save logic (deterministic active-team resolution).** At save, each touched league's `teams-data.json` is re-fetched (drops stale positions with a `⚠️ {N} team(s) could not be added` warning). For the final set of followed teamIds: if previous `selectedTeam` still exists in the set → keep it; else first entry of `addOrder` still followed; else first remaining followed team; else clear. Cross-source rule: if save produces ≥1 league team, screenshot teams (`T1`/`T2`/`T3`) are wiped first via `ensureSourceIsLeague`. Persistence is a single `updateUserAttributes({ selectedTeam, selectedBestTeamByTeam })` call.
 
-   **Callback types.** `TEAMS_TRACKER_CALLBACK_TYPE = 'TT'` with actions `TEAMS_TRACKER_ACTIONS = { OPEN_LEAGUE:'L', TOGGLE:'T', BACK:'B', SAVE:'S', CANCEL:'C' }`. Payload formats: `TT:L:{leagueCode}`, `TT:T:{leagueCode}:{teamId}`, `TT:B`, `TT:S`, `TT:C`. The TOGGLE payload uses the canonical fantasy `teamId` (`{sanitize(userName)}_{teamNo}`) rather than a row position — this disambiguates rows tied at the same league position (without it, two teams sharing position 5 would be indistinguishable). Worst-case payload size: `TT:T:` (5) + leagueCode (~11) + `:` + teamId (≤42) ≈ 59 chars, under Telegram's 64-byte `callback_data` limit.
+   **Callback types.** `TEAMS_TRACKER_CALLBACK_TYPE = 'TT'` with actions `TEAMS_TRACKER_ACTIONS = { OPEN_LEAGUE:'L', TOGGLE:'T', BACK:'B', SAVE:'S', CANCEL:'C' }`. Payload formats: `TT:L:{leagueCode}`, `TT:T:{leagueCode}:{callbackKey}`, `TT:B`, `TT:S`, `TT:C`. Canonical account-aware teamIds can be too long for Telegram's 64-byte `callback_data` limit, so TOGGLE uses the compact stable `{teamNo}_{accountId}` callback key and resolves it against the current league roster before mutating the session. Legacy blobs without `accountId` keep the old readable selector until refreshed.
 
    **Shared helpers.** League-team mapping/read logic lives in `src/utils/leagueTeamHelpers.js` (`mapLeagueTeamToBotTeam`, `loadLeagueTeamsData`, `refreshLeagueTeamsData`, `buildLeagueNameMap`, `buildTeamLabel`). Its `followLeagueTeam` / `removeFollowedTeam` exports are thin Telegram adapters over the port-injected `src/services/followTeamService.js`; do not put persistence rules back into the helpers. The service alone enforces `MAX_FOLLOWED_LEAGUE_TEAMS`, resolves additions and name-based removals only from followed leagues plus fresh roster data, and authorizes exact-ID removals from durable stored teams so Telegram cleanup still works after roster or league-follow changes. Source switching, CAS preference cleanup, and snapshot compensation run inside the durable user-mutation boundary. `followLeagueTeam` does **not** mutate `selectedTeam` — Teams Tracker save owns active-team resolution end-to-end. `removeFollowedTeam(chatId, teamId, { mutateSelectedTeam = true })` exposes a flag used by save to defer active-team mutation.
 7. `/league_graphs` opens a two-step flow that renders per-league charts. Same 0/1/N league-selection flow as `/leaderboard` (callback type `LEAGUE_GRAPH_CALLBACK_TYPE`), followed by a graph-type picker (callback type `LEAGUE_GRAPH_TYPE_CALLBACK_TYPE`, payload `LEAGUE_GRAPH_TYPE:<gap|standings|budget>:<leagueCode>`). Three graph types are available:
@@ -382,7 +387,7 @@ The table is **extensible** — new attributes can be added at any time without 
 
 8. `/league_changes` (`src/commandsHandler/leagueChangesHandler.js`) renders a per-team diff between **`teams-data.json` (Monday planning view) and the latest locked snapshot for the same matchday** (`leagues/{code}/locked/matchday_{N}.json`). The diff captures exactly what the user committed during week N's planning window — transfers, captain choice, mega-captain choice, and chip activation. Same 0/1/N league-selection flow as `/leaderboard` (callback type `LEAGUE_CHANGES_CALLBACK_TYPE`). Teams in the latest snapshot are joined on `userName` against the teams-data view; output lines: drivers in/out, constructors in/out, captain change, mega-captain change, and chips activated **for this matchday only**. Teams with no diff are summarised in a `(N other team(s) had no changes)` tail line; brand-new teams (in locked but absent from teams-data) are shown as `🆕 new team`. If the locked snapshot's `matchdayId` doesn't match the teams-data's `matchdayId` (the post-Monday/pre-next-quali window), the bot shows a friendly "wait for next session lock" message instead of rendering a misleading diff. **Chip-this-week filter:** each chip entry in the locked snapshot carries a `gameDayId` field whose value (despite the misleading name — F1 Fantasy's API uses `<chip>takengd`) is actually the matchday the chip was activated for. So `chips.filter(c => c.gameDayId === locked.matchdayId)` keeps only chips activated this week; older entries from previous matchdays are filtered out. The locked roster preserves Limitless mega-squad rosters since the locked-snapshot scrape captures state before Limitless auto-reverts post-race.
 
-9. `/race_summary` (`src/commandsHandler/raceSummaryHandler.js`) builds its model input through pure `src/cores/raceSummaryCore.js` and generates prose through `src/services/raceSummaryService.js`. The core filters the same excluded bot/test teams as league graphs, detects the latest completed matchday, computes season-rank movement and race-winner comparisons, and uses a locked roster only when its matchday matches that latest race; otherwise it falls back to the standings roster. Telegram retains its existing 0/1/N league flow and plain-text formatting. The shared service pins model `gpt-6-astra`, uses the saved-language prompt from `src/prompts.js`, limits completion tokens and output to 3000 characters, and exposes explicit usage/error telemetry callbacks. Race-schedule name lookup remains optional and cannot block a valid recap.
+9. `/race_summary` (`src/commandsHandler/raceSummaryHandler.js`) builds its model input through pure `src/cores/raceSummaryCore.js` and generates prose through `src/services/raceSummaryService.js`. The core filters the same excluded bot/test teams as league graphs, detects the latest completed matchday, computes season-rank movement and race-winner comparisons, and uses a locked roster only when its matchday matches that latest race; otherwise it falls back to the standings roster. Telegram retains its existing 0/1/N league flow and plain-text formatting. The shared service pins model `gpt-6-astra`, uses the saved-language prompt from `src/prompts.js`, limits completion tokens and output to 3000 characters, and exposes explicit usage/error telemetry callbacks. Usage logs include `completion_tokens_details.reasoning_tokens` as `reasoning`, with absent/non-finite values shown as `n/a` and explicit zero preserved. Reasoning is part of completion and is not added again to total; each bounded retry reports its own usage. Race-schedule name lookup remains optional and cannot block a valid recap.
 
 10. `/live_score` (admin-only, `src/commandsHandler/liveScoreHandler.js`) is a 2-step inline-keyboard flow scoped strictly to **league-locked data** (no screenshot-team or `currentTeamCache` fallback). Step 1 is the standard 0/1/N league picker (callback `LS:L:{leagueCode}`). Step 2 is the team picker — fetched from the chosen league's latest `leagues/{code}/locked/matchday_{N}.json` snapshot — sorted by `position`, with a 🏁 **All teams** button at the top (callback `LS:A:{leagueCode}`) and one button per team (callback `LS:T:{leagueCode}:{sanitizedTeamName}`). Picking a specific team renders the existing per-driver / per-constructor breakdown via `calculateLiveScoreBreakdown`: captain (`isCaptain` → Boost x2) and mega captain (`isMegaCaptain` → Extra Boost x3) are read directly from the locked snapshot's per-driver flags; names are mapped to bot codes via `mapNameToCode`. Picking **All teams** renders a leaderboard of every team in the league sorted by total live points DESC (tie-break: total live price change DESC); the user's `selectedTeam` row, if it lives in this league, is bolded for visual orientation. Callback type `LIVE_SCORE_CALLBACK_TYPE = 'LS'` with actions `LIVE_SCORE_ACTIONS = { LEAGUE: 'L', TEAM: 'T', ALL: 'A' }` — kept short so the worst-case payload `LS:T:{leagueCode}:{sanitizedTeamName}` (~56 bytes) stays under Telegram's 64-byte `callback_data` limit. The shared private helper `mapLockedTeamForScoring(lockedTeam)` extracts the `{drivers, constructors, boostDriver, extraBoostDriver}` shape consumed by `calculateLiveScoreBreakdown`. **Scoring rules beyond captain multipliers** are applied via `deriveLiveScoreOptions(lockedTeam)`, which returns `{ noNegativeActive, transferPenalty }` derived from the team's `transfersRemaining` and `chipsUsed` (filtered by `gameDayId === matchdayId`): (a) **transfer penalty** — `EXTRA_TRANSFER_PENALTY_POINTS` (= 10, defined in `constants.js` and shared with `bestTeamsCalculator.js`) for each excess transfer when `transfersRemaining < 0`, **waived** when Wildcard or Limitless is active for THIS matchday; (b) **No Negative chip** — when active for THIS matchday, every driver and constructor's negative `TotalPoints` is clamped to 0 *before* the captain / mega-captain multiplier runs. The per-team rendered message gains `<b>Transfer Penalty:</b> -N (Pre-penalty: M)` and/or `🛡️ No Negative chip active` lines when applicable; the all-teams leaderboard adds a `†` marker on penalised rows + a footer `† transfer penalty applied` when at least one row has it.
 
@@ -446,9 +451,9 @@ The nickname system allows admins to assign custom display names to users that r
 The bot supports **multiple teams per user**. Teams are keyed by a `teamId` string inside each chat's nested caches. Two `teamId` formats are in use:
 
 - **Screenshot flow:** `T1`, `T2`, `T3` — extracted from the colored-square icon in the team photo by `EXTRACT_JSON_FROM_CURRENT_TEAM_PHOTO_SYSTEM_PROMPT`.
-- **League flow:** `{sanitize(userName)}_{teamNo}` (e.g. `Doron-Kilzi_1`) — derived from the F1 Fantasy account login + the team number (1/2/3) within that account. **League-agnostic by design**: the same F1 Fantasy team has the same id in every league it appears in. `userName` is sanitized to be blob-path-safe (only word chars and `-` survive; truncated to 40 chars) and joined with `teamNo` by a literal `_`. Built via `buildLeagueTeamId(userName, teamNo)` in `src/utils/teamId.js`.
+- **League flow:** `{sanitize(userName)}_{teamNo}_{accountId}` (e.g. `Doron-Kilzi_1_a84f1234abcd`) — derived from the display user name, team number (1/2/3), and the stable opaque `accountId` emitted by `f1-fantasy-api-data` from F1 Fantasy's `user_guid`. **League-agnostic by design**: the same F1 Fantasy team has the same id in every league it appears in, while two different F1 accounts that share the same display name and team number remain distinct. `buildLeagueTeamId(userName, teamNo, accountId)` lives in `src/utils/teamId.js`. During rollout, blobs without `accountId` remain readable under the legacy `{sanitize(userName)}_{teamNo}` id; startup migrates an unambiguous legacy id and drops an ambiguous one so the user must reselect rather than the bot guessing an account.
 
-Picking a team from a league **adds it** to the user's followed league teams (up to `MAX_FOLLOWED_LEAGUE_TEAMS = 6`, in `constants.js`). The cap counts **distinct fantasy teams**, not raw selection rows — selecting the same `Kilzid_1` from two leagues in `/teams_tracker` counts as one slot. The two sources still cannot coexist:
+Picking a team from a league **adds it** to the user's followed league teams (up to `MAX_FOLLOWED_LEAGUE_TEAMS = 6`, in `constants.js`). The cap counts **distinct fantasy teams**, not raw selection rows — selecting the same `Kilzid_1_<accountId>` from two leagues in `/teams_tracker` counts as one slot. The two sources still cannot coexist:
 
 - **Following a league team** wipes any screenshot teams (`T1`/`T2`/`T3`) first.
 - **Uploading/assigning a screenshot team** wipes any followed league teams first.
@@ -461,9 +466,13 @@ Each team has its own cached data, chip selection, and best-teams calculation. A
 
 ### Cross-league active team
 
-Because the league teamId is `{sanitize(userName)}_{teamNo}`, every consumer of `getSelectedTeam(chatId)` — graphs, leaderboard, `/best_teams`, `/current_team_info`, `/chips`, `/select_team`, `/live_score`, etc. — automatically treats the user's active team as **the same team across every league it appears in**. The 3 `/league_graphs` charts thicken the active team's line in every league it shows up in; `/leaderboard` bolds its row in every league; `/select_team` lists fantasy teams (not per-league entries).
+The readable persisted team ID is `{sanitize(userName)}_{teamNo}_{accountId}`. The username is only for readability: it is neither unique nor stable. The stable logical identity is `accountId + teamNo`, where `accountId` is a deterministic opaque SHA-256 prefix of the F1 `user_guid`; raw `user_guid` is never persisted. `buildLeagueTeamId` requires an accountId. A username change migrates the readable ID by the stable identity; ambiguous old IDs are cleared rather than assigned to an arbitrary account. `teamName` is display data, used only as a narrow legacy fallback for old locked snapshots. Graphs, leaderboard, `/best_teams`, `/current_team_info`, `/chips`, `/select_team`, and `/live_score` use the active canonical team ID.
 
-In Teams Tracker, selections are **visually synced across leagues**: toggling `Kilzid_1` ON in League A automatically shows ✅ for `Kilzid_1` in League B if that team also appears there, because both rows resolve to the same fantasy id. The session payload (`session.selected[]`) carries `{ leagueCode, teamId }` entries — one per league where the followed fantasy team appears — so the UI stays visually consistent while the persisted follow state collapses to one entry per fantasy id. Position is intentionally NOT stored — it's looked up fresh from `loadLeagueTeamsData` at render time, which sidesteps the tied-position ambiguity (two teams in the same league can share a position).
+Telegram callbacks for Teams Tracker, active-team selection, ranking presets, and live score use a compact `{teamNo}_{accountId}` selector; the full readable ID remains in storage. Long league codes use a deterministic compact token resolved against followed leagues. Generated callback data must fit in 64 UTF-8 bytes.
+
+Race summary resolves locked rosters by `accountId + teamNo`, then cautiously matches historical snapshots lacking accountId by exact normalized team name and user/team-number context. Ambiguities leave the locked roster unavailable. `sameRaceConfiguration` requires equal members, boosts, active chips for the summarized matchday, and transfer penalty/waiver state; an unexplained score gap must remain unattributed.
+
+In Teams Tracker, selections are **visually synced across leagues**: toggling `Kilzid_1_<accountId>` ON in League A automatically shows ✅ for `Kilzid_1_<accountId>` in League B if that team also appears there, because both rows resolve to the same fantasy id. The session payload (`session.selected[]`) carries `{ leagueCode, teamId }` entries — one per league where the followed fantasy team appears — so the UI stays visually consistent while the persisted follow state collapses to one entry per fantasy id. Position is intentionally NOT stored — it's looked up fresh from `loadLeagueTeamsData` at render time, which sidesteps the tied-position ambiguity (two teams in the same league can share a position).
 
 ### Cache Structure
 
@@ -471,9 +480,9 @@ Team-related caches are **nested by team ID** under each `chatId`:
 
 ```javascript
 // Per-user, per-team caches
-currentTeamCache[chatId][teamId]; // e.g., { T1: { drivers, constructors, ... }, 'Doron-Kilzi_1': { ... } }
-bestTeamsCache[chatId][teamId]; // e.g., { 'Doron-Kilzi_1': { currentTeam, bestTeams }, T2: { ... } }
-selectedChipCache[chatId][teamId]; // e.g., { 'Doron-Kilzi_1': 'EXTRA_BOOST', T2: 'WILDCARD' }
+currentTeamCache[chatId][teamId]; // e.g., { T1: { drivers, constructors, ... }, 'Doron-Kilzi_1_a84f1234abcd': { ... } }
+bestTeamsCache[chatId][teamId]; // e.g., { 'Doron-Kilzi_1_a84f1234abcd': { currentTeam, bestTeams }, T2: { ... } }
+selectedChipCache[chatId][teamId]; // e.g., { 'Doron-Kilzi_1_a84f1234abcd': 'EXTRA_BOOST', T2: 'WILDCARD' }
 
 // Per-user caches (shared across all teams — NOT nested by team ID)
 driversCache[chatId]; // driver data shared across teams
@@ -485,6 +494,32 @@ Best-team ranking preferences are stored per team in `userCache[chatId].bestTeam
 Chip preferences are stored durably in `userCache[chatId].selectedChipByTeam`;
 `selectedChipCache` is its normalized runtime projection. Never mutate and
 persist the whole map from process-local state—use `activateChipService`.
+
+### Chip selection expiry
+
+Saved chips apply to one race weekend. `selectedChipByTeam` keeps the chip
+strings; `selectedChipExpiryByTeam` is a JSON map keyed by team ID with
+`selectedAt`, `expiresAt` (UTC ISO timestamps), and optional `raceId`.
+The shared activation service sets expiry to the scheduled Grand Prix start
+plus 12 hours, using the current-season schedule (including an ongoing race),
+then valid cached race timing, then a five-day lifetime when timing is unavailable.
+Reselecting an active chip is a no-op and never renews its expiry.
+
+All chip consumers must use `getActiveChip` / `getActiveChips`, or the pure
+`resolveActiveChips` helper for durable calculation contexts. Never read the raw
+`selectedChipCache` as an effective selection: expired, invalid, and legacy
+undated entries mean no chip. These checks run on every read and survive storage
+outages and warm processes. Profile refresh opportunistically removes expired
+entries and dependent selected-best-team state under the user mutation lease
+and ETag CAS, rechecking fresh state to preserve concurrent activations.
+
+Snapshots and `/print_cache` exports preserve expiry metadata as `chipExpiry`
+next to each team's chip. Import and rollback never extend expiry. Undated or
+expired imported chips and their dependent recommendations are discarded.
+Cached Telegram recommendations retain their calculation chip/expiry; durable
+web recommendation fingerprints include chip expiry and effective chip state,
+so recommendations become outdated when the chip expires. Historical scoring
+and previously rendered messages are unchanged. No timer deployment is needed.
 
 ### Best-Team Ranking
 
@@ -619,11 +654,11 @@ acceptance gates.
   followed league names; cards whose prerequisites are missing are omitted.
   Admin guidance is included only when `isAdminChatId(chatId)` is true.
 - `list_user_teams` — the user's tracked teams (teamId + friendly teamName) (Phase 2).
-- `get_best_teams` — top scoring fantasy combinations with optional must-include / must-exclude filters on drivers and constructors (Phase 2). The marquee _"best teams for X with Verstappen but no Alonso"_ question runs here. Reads canonical prices via `getDriversForChat` / `getConstructorsForChat` so price-aware rankings work without user-uploaded JSON. Sort criteria: `'points'` (raw projected points) or `'budget_adjusted'` (weights expected price change by the user's saved `budgetChangePointsPerMillion` preset — set via `/set_best_team_ranking` in Telegram). "Points per million" questions resolve to `'budget_adjusted'`; the deprecated `'points_per_million'` value-for-money sort was removed.
-- `get_best_team_scenarios` — 4×4 matrix of top best team across the 4 budget-adjusted weight presets (0, 1.3, 1.65, 2.0 ppm) × 4 chip scenarios (no chip, Limitless, Extra Boost, Wildcard) (Phase 3). Scenario calculations are independent of saved chip preferences: “Without Chip” always passes `null`, while the response’s top-level `chip` retains the saved selection as metadata. Each cell reports `projectedPoints`, `expectedPriceChange`, and a `recommendation` (`null`/`'yellow'`/`'green'`) indicating the chip's lift vs. the no-chip baseline of the SAME ppm row, mirroring the Telegram `/best_team_scenarios` indicators.
+- `get_best_teams` — top scoring fantasy combinations with optional must-include / must-exclude filters on drivers and constructors (Phase 2). An optional `resultCount` returns 1–20 recommendations, defaulting to 10; counts outside that range return a localized `invalid_result_count` result. Clickable choices and saved calculation snapshots preserve the count and all displayed rows. The marquee _"best teams for X with Verstappen but no Alonso"_ question runs here. Reads canonical prices via `getDriversForChat` / `getConstructorsForChat` so price-aware rankings work without user-uploaded JSON. Sort criteria: `'points'` (raw projected points) or `'budget_adjusted'` (weights expected price change by the user's saved `budgetChangePointsPerMillion` preset — set via `/set_best_team_ranking` in Telegram). "Points per million" questions resolve to `'budget_adjusted'`; the deprecated `'points_per_million'` value-for-money sort was removed.
+- `get_best_team_scenarios` — top best team across the 4 budget-adjusted weight presets (0, 1.3, 1.65, 2.0 ppm), always without a chip plus only verified unused supported chips (Limitless, Extra Boost, Wildcard) (Phase 3). Scenario calculations are independent of saved chip preferences: “Without Chip” always passes `null`, while the response’s top-level `chip` retains the saved selection as metadata. Each cell reports `projectedPoints`, `expectedPriceChange`, and a `recommendation` (`null`/`'yellow'`/`'green'`) indicating the chip's lift vs. the no-chip baseline of the SAME ppm row, mirroring the Telegram `/best_team_scenarios` indicators.
 - `list_followed_teams` — the user's followed league teams enriched with the leagues each team appears in + position in each (Phase 3).
 - `list_user_leagues` — the private leagues the user has followed via `/follow_league` (Phase 3).
-- `get_leaderboard` — standings for one of the user's followed leagues (Phase 3). Returns status-tagged result (`ok` / `not_followed` / `not_found` / `invalid_input`) plus `selectedTeamId` for client-side highlighting.
+- `get_leaderboard` — season or single-race standings for a followed league. Missing league returns shared clickable league cards, preserving `period`, `matchdayId`, and `raceName`. Once the league is known, omitted period returns `selection_required` period cards: **Entire season** then recorded races newest first. Explicit `period: 'season'` or an unambiguous race displays the table directly. Ambiguous race names return race choices; `race_unavailable` never substitutes season totals. Race scores use competition ranks, race-leader gaps, canonical identities/highlighting, and null scores/ranks for missing data. Workflow preparation resolves the same choices before approval. Standalone standings card clicks use the authenticated POST `/api/agent/read-choice` endpoint, allowlisted to `get_leaderboard`, with exact selected arguments rather than a model continuation. Nullable optional tool fields represent unspecified choices and are normalized to omissions before discovery. Responses reuse direct card history; the shared run lock and retry controls still apply. Telegram retains season-only behavior.
 - `get_league_changes` — planning-to-locked comparison for every team in one
   followed league. Omitting `leagueCode` returns the authenticated user's
   followed leagues as clickable cards; selecting one continues with its
@@ -708,8 +743,8 @@ Browser (Vite + React + CopilotKit)
    │ • CopilotRuntime({ agents: { default } })   │
    │ • BuiltInAgent({ model, prompt, tools,      │
    │     maxSteps: 5 })                          │
-   │ • Model: @ai-sdk/azure → azure.chat(deploy) │
-   │   built with useDeploymentBasedUrls: true   │
+   │ • Model: azure.responses(AI_MODEL)          │
+   │   built with useDeploymentBasedUrls: false  │
    │   for both *.openai.azure.com and           │
    │   *.services.ai.azure.com endpoints.        │
    └─────────────────────────────────────────────┘
@@ -729,7 +764,7 @@ Browser (Vite + React + CopilotKit)
 |---|---|
 | **CopilotKit v2** (`@copilotkit/runtime/v2`) | Rich React chat components with `useCopilotAction({ render })` for per-tool generative UI; runs tool execution server-side via `BuiltInAgent`. |
 | **Vercel AI SDK** under the hood (not the `openai` SDK directly) | CopilotKit v2 ignores bare `actions:` on `CopilotRuntime` — it requires an `agents:` map. `BuiltInAgent` uses AI SDK's `streamText` internally. We accepted this even though we initially planned to reuse the existing `openai`-SDK pattern. |
-| **`@ai-sdk/azure`** with `useDeploymentBasedUrls: true` | Stock `@ai-sdk/openai` builds URLs as `/openai/responses` — wrong for Azure. The Azure provider knows the `/openai/deployments/{model}/chat/completions?api-version=…` shape. Pass `baseURL: '${endpoint}/openai'` so it works for both `*.openai.azure.com` (classic) and `*.services.ai.azure.com` (Azure AI Foundry) hosts. Use `azure.chat(deploymentId)` — `azure(deploymentId)` returns the `/responses` API model and 404s on most deployments. |
+| **`@ai-sdk/azure`** with Azure v1 Responses | Pass `baseURL: '${endpoint}/openai'` for both classic and Foundry hosts. The agent always uses `azure.responses(AI_MODEL)` on `/openai/v1/responses` with `apiVersion: 'v1'` and `useDeploymentBasedUrls: false`. Sol is pinned in `src/aiModel.js` with medium reasoning, sequential tools, and `store: false`. Azure provider `3.0.135` depends on OpenAI provider `3.0.124`, which automatically recognizes GPT-6 reasoning models; no `forceReasoning` override is needed. Keep the AI SDK 6 / provider v3 generation compatible with CopilotKit; encrypted reasoning is replayed between tool steps. There is no legacy model routing or environment override. Telegram `/ask` and extraction use the same pinned model with Chat Completions without tools; summaries use pinned `gpt-6-astra`. |
 | **Zod** for tool parameters | Required by `defineTool` (Standard Schema V1). Already a transitive dep through `@copilotkit/runtime`. |
 | **Single-route mode** on the runtime handler | The default `multi-route` mode would force the frontend to address per-route URLs; single-route keeps the frontend pointed at `{basePath}` with a JSON envelope. Side effect: `GET /threads?agentId=…` returns 405 in single-route — these errors in the browser console are harmless and represent chat-history persistence we haven't enabled. |
 | **`parallelToolCalls: false`** on the agent's `providerOptions.openai` | CopilotKit's `useLazyToolRenderer` (`node_modules/@copilotkit/react-core/src/hooks/use-lazy-tool-renderer.tsx` line 15) only ever renders `message.toolCalls[0]`. When Azure OpenAI emits two tool calls in the SAME assistant message (its default behaviour for independent tool calls), only the first React component renders and the rest are silently dropped. Forcing sequential calls makes each tool land in its own assistant message, so each gets its own rich UI render. |
@@ -746,7 +781,7 @@ f1-fantazy-bot/
 │   │   ├── userTeamsCore.js          # pure: listUserTeams({chatId}) → [{teamId, teamName, ...}]
 │   │   ├── followedTeamsCore.js      # pure: listFollowedTeams({chatId}) — status-tagged
 │   │   ├── leaderboardCore.js        # pure: getLeaderboard({chatId, leagueCode}) — status-tagged
-│   │   ├── bestTeamScenariosCore.js  # pure: computeBestTeamScenarios({chatId, teamId?, teamName?}) — 4×4 matrix
+│   │   ├── bestTeamScenariosCore.js  # async: computeBestTeamScenarios({chatId, teamId?, teamName?}) — four presets × available scenarios
 │   │   ├── nextRaceInfoCore.js       # pure: getNextRaceInfo({onFetch?, onError?}) — cache + opportunistic weather
 │   │   ├── raceWeatherCore.js        # pure: getRaceWeather({now?, onFetch?, onError?}) — hourly forecasts
 │   │   ├── deadlineCore.js           # pure: getDeadlineSnapshot({now?}) — absolute timestamps for client-side countdown
@@ -918,14 +953,15 @@ BuiltInAgent({ model: wrapped, … })
 The middleware (`src/agent/tokenUsageMiddleware.js`) implements `wrapStream` and pipes every chunk through a `TransformStream`. On each `finish` chunk it logs:
 
 ```
-BOT: Agent step usage — model: gpt-4o, step: 1, prompt: 120, completion: 30, total: 150
+AGENT: Agent step usage — model: gpt-6.1-sol, step: 1, prompt: 120, completion: 30, reasoning: 10, total: 150
 env: prod
 pid: 12345
 ```
 
 **Key gotchas:**
 
-- **V3 usage shape is NESTED.** A `LanguageModelV3StreamPart` of type `finish` carries `usage.inputTokens.total` and `usage.outputTokens.total` (NOT the V2 flat `promptTokens` / `completionTokens`). There is no aggregated `totalTokens` in V3 — we compute it locally. Any of these fields may be `undefined`; we substitute 0 so the log line still renders cleanly.
+- **Failed model calls need separate telemetry.** The middleware reports rejected `doStream()` calls and provider `error` chunks as `Agent model error` to stderr plus both Telegram log/error channels. It preserves the original rejection/chunk, skips intentional `AbortError` cancellations, and logs only bounded message/status details rather than SDK request bodies or headers. Reporting remains fire-and-forget so notifier failures cannot affect the model result.
+- **V3 usage shape is NESTED.** A `LanguageModelV3StreamPart` of type `finish` carries `usage.inputTokens.total` and `usage.outputTokens.total` (NOT the V2 flat `promptTokens` / `completionTokens`). There is no aggregated `totalTokens` in V3 — we compute it locally. Missing totals default to 0. Reasoning tokens come from `usage.outputTokens.reasoning` and are included in completion tokens, so they are not added again to the total. Missing/non-finite reasoning usage is logged as `n/a`; an explicit zero is logged as 0.
 - **Per-step, not per-turn.** A single agent turn with N tool calls produces up to N+1 `finish` chunks (one per LLM step). We log each — true per-turn aggregation would require factory mode and is deferred. The log line includes a `step: K` label so you can correlate.
 - **Logging is fire-and-forget.** The send is wrapped in BOTH a sync try/catch AND an `.catch()` on the returned promise so a Telegram outage cannot break the LLM stream piping back to the browser. Worst case: the user gets their answer, the log line lands in stderr instead of Telegram.
 - **Notifier bot is non-polling.** `src/agent/notifierBot.js` instantiates `new TelegramBot(token, { polling: false })` so the agent process never conflicts with the main Telegram bot process that owns the long-polling loop on the same token. Telegram allows N senders on one token; only one poller is allowed. Falls back to a noop if `TELEGRAM_BOT_TOKEN` is unset (so local dev without Telegram still works).
@@ -1387,7 +1423,6 @@ unbounded UserRegistry read to the login path.
 |---|---|---|
 | `AZURE_OPENAI_ENDPOINT` | Agent | Azure OpenAI host (works for both `*.openai.azure.com` and `*.services.ai.azure.com`). |
 | `AZURE_OPENAI_API_KEY` | Agent | Azure OpenAI auth. |
-| `AZURE_OPEN_AI_MODEL` | Agent + Telegram `/ask` | Deployment name (used by `azure.chat(deployment)`). |
 | `AGENT_HARDCODED_CHAT_ID` | Agent | Fallback identity used when no per-request context is active (local dev + cache bootstrap). On Azure-deployed slots both prod + test set `GOOGLE_CLIENT_ID`, so the hardcoded path is unreachable from user traffic — it survives as a local-dev fallback only. The LLM never sees it. Defaults to `KILZI_CHAT_ID` in `scripts/dev-agent-server.js` if absent. |
 | `GOOGLE_CLIENT_ID` | Agent | OAuth 2.0 Web client ID. NOT a secret — safe in app settings. Set on BOTH Azure slots (production + test). When the agent webhook sees a valid bearer it enforces Google sign-in + allowlist lookup on every POST. When unset (local dev only), auth is bypassed and `AGENT_HARDCODED_CHAT_ID` is used instead. |
 | `VITE_GOOGLE_CLIENT_ID` | SWA build env | Same client ID, baked into the bundle by both the prod SWA workflow AND the PR/staging workflow. Unset at build time = chat renders without auth gate (local dev only). |
@@ -1457,6 +1492,11 @@ CopilotKit → BuiltInAgent → tool execute()
   ▼
 getAgentChatId() reads ALS context → the right user's data
 ```
+
+**Profile display:** `web/src/auth/AuthContext.tsx` decodes the JWT payload
+from base64url bytes to UTF-8 before parsing JSON, preserving Hebrew and other
+Unicode profile names on sign-in and session restoration. This display-only
+decoding does not replace backend token verification.
 
 **Backend bypass (local-dev only):** when `GOOGLE_CLIENT_ID` is unset
 on the Function App, `authenticateRequest` returns `BYPASSED` and the
@@ -1663,7 +1703,7 @@ This is the cross-phase invariant. For every capability that needs to be on **bo
 ### Local dev workflow
 
 ```bash
-# .env must already include AZURE_OPENAI_ENDPOINT/AZURE_OPENAI_API_KEY/AZURE_OPEN_AI_MODEL
+# .env must already include AZURE_OPENAI_ENDPOINT/AZURE_OPENAI_API_KEY
 # AGENT_HARDCODED_CHAT_ID is set by scripts/dev-agent-server.js to KILZI_CHAT_ID
 # if absent.
 
@@ -1723,14 +1763,41 @@ client-only and intentionally narrow — see
 `web/src/lib/chatHistoryStore.ts` for the contract:
 
 - Only `role: 'user' | 'assistant'` messages with a non-empty text
-  `content` survive. Tool calls / tool results / large blobs are
-  NEVER persisted (no reloading stale tool data into the LLM, no
-  bloating the per-origin localStorage quota).
+  `content` enter the restored agent context. Tool calls, tool results and
+  approval nonces never enter that context; card data lives in a separate,
+  bounded display cache.
 - Caps: 20 messages, 100 KB total payload, 8 KB per message. Oldest
   messages are trimmed first.
 - Storage key is scoped per Google `sub` when the user is signed in
   (`f1-fantasy-agent-history::<sub>`) and falls back to the
   unscoped key in local-dev / un-authed mode.
+- A separate `::workflow-prompts` display index retains at most 40 workflow IDs
+  and originating user-message IDs so recovered cards stay in their original
+  turns. It contains no tool payloads and never enters model context.
+- A separate `::read-cards` display cache retains visible tool results
+  (200 cards, 2 MiB, UTF-8 byte budget), linked to retained user-message IDs.
+  `toolHistoryPolicy.json` covers all 52 registered tools: read/admin cards,
+  choices, write confirmations and receipts, and workflow recovery. The tool
+  catalogue coverage test fails if a new tool lacks a policy and fixture.
+  Empty, unavailable, prerequisite and error results are included. Only silent
+  `list_user_teams` workflow discovery is excluded because it has no visible card.
+- `ReadCardHistoryProvider` renders snapshots under their original prompt IDs
+  through the existing components and hides duplicates while native tool calls
+  or results are present. Successful workflows recover from durable server
+  state; their results are not duplicated in the display cache. Interrupted
+  requests retain a visible explanation rather than an indefinite loading card.
+- Direct UI write proposals and receipts are captured separately because they
+  do not pass through agent messages. Decisions survive refresh: settled cards
+  stay settled; a submission interrupted before its outcome is known is blocked
+  with an explanation. Refresh never runs a tool, approves a write, or restores
+  tool messages to the model. New clicks still use authenticated endpoints and
+  existing server nonce ownership, expiration and single-use checks.
+- Recovered receipts do not replay global language or selected-team effects.
+  Successful direct actions update the cached parent list so removed teams or
+  leagues do not reappear and the selected team stays consistent on refresh.
+  Clear history and sign-out remove the scoped display cache.
+  `HistoryRestorer` captures cards during message updates and flushes text plus
+  snapshots on `pagehide`, including before the save debounce.
 
 **Why restore is reconciliation-based, not one-shot.** CopilotKit v2
 hands `useAgent()` a `ProxiedCopilotRuntimeAgent` in "pending" mode
@@ -1796,8 +1863,8 @@ messages must go through `clear()` first, then through
 | `src/cores/bestTeamsCore.js` | `computeBestTeams({chatId, teamId?, teamName?, rankBy?, mustInclude*, mustExclude*})` — status-tagged result, normalises codes via `NAME_TO_CODE_MAPPING`, returns `unknown_filter` when a name can't be resolved. |
 | `src/cores/userTeamsCore.js` | `listUserTeams({chatId})` — array of `{teamId, teamName, isLeague, isSelected, chip, …}`. |
 | `src/cores/followedTeamsCore.js` | `listFollowedTeams({chatId})` — status-tagged. Returns `{ status: 'ok', teams: [{ teamId, teamName, leagues: [{leagueCode, leagueName, position}], isSelected }] }` deduplicated by teamId across followed leagues; `status: 'empty'` when the user has no league teams. |
-| `src/cores/leaderboardCore.js` | `getLeaderboard({chatId, leagueCode})` — status-tagged (`ok` / `not_followed` / `not_found` / `invalid_input`). Returns `{ leagueCode, leagueName, memberCount, fetchedAt, selectedTeamId, standings: [{ position, teamName, userName, teamNo, teamId, totalScore, gapToLeader, isSelected }] }`. |
-| `src/cores/leagueChangesCore.js` | Pure `compareLeagueChanges({latest, planning})` and `compareTeamChanges(latestTeam, planningTeam)` structure driver/constructor transfers, captain and mega-captain changes, current-matchday chips, new teams, and unchanged teams. Explicit states: `missing_locked`, `missing_planning`, and `matchday_mismatch`. |
+| `src/cores/leaderboardCore.js` | `getLeaderboard({chatId, leagueCode, period?, matchdayId?, raceName?, requirePeriod?})` — defaults to season for existing callers; web opts into period selection. Exports pure `discoverLeaderboardRaces`, `resolveLeaderboardRace`, and `buildLeaderboardStandings` helpers. Schedule failure falls back to round labels. Race choices and table labels include country flags from schedule `Circuit.Location.country`; race names remain undecorated for resolution. Missing/unknown countries omit the flag. Returns `{ leagueCode, leagueName, memberCount, fetchedAt, selectedTeamId, standings: [{ position, teamName, userName, teamNo, teamId, totalScore, gapToLeader, isSelected }] }`. |
+| `src/cores/leagueChangesCore.js` | Pure `compareLeagueChanges({latest, planning})` and `compareTeamChanges(latestTeam, planningTeam)` structure driver/constructor transfers, captain and mega-captain changes, current-matchday chips, transfer penalties, new teams, and unchanged teams. Transfer penalties use `deriveLiveScoreOptions` on locked allowances (10 points per excess transfer; current-matchday Wildcard/Limitless waive them); teams with penalties stay visible even with no roster differences. Explicit states: `missing_locked`, `missing_planning`, and `matchday_mismatch`. |
 | `src/cores/leagueGraphsCore.js` | Pure gap-to-leader, cumulative standings, and budget series builders shared by all three Telegram QuickChart adapters and the agent. Returns stable matchday metadata plus per-team points, colors, selected-team flags, and chip annotations while preserving exclusions, ties, and null budget values. |
 | `src/cores/raceSummaryCore.js` | Pure race-summary source facts shared by Telegram and the agent: latest matchday, excluded-team filtering, rank movement, locked-roster matchday guard/fallback, race ordering, and winner comparisons. |
 | `src/cores/adminReadCore.js` | Pure, bounded admin read view models: safe version fields, billing totals and service breakdowns, Telegram/web user directories, and BotFather command setup. Shared Telegram adapters retain their established formatting. |
@@ -1818,7 +1885,7 @@ messages must go through `clear()` first, then through
 | `src/agent/writeTools/adminAccessTools.js` | Centrally guarded confirmed `set_user_nickname`, `allow_web_user`, and `revoke_web_user` tools. They stage only canonical inspected targets, revalidate at commit, return safe no-op/stale envelopes, and inherit audit logging from `defineAdminWriteTool`. |
 | `src/agent/writeTools/adminMessagingTools.js` | Centrally guarded confirmed `send_user_message` and `broadcast_message` tools. They accept only text, stage canonical/direct recipients or a broadcast audience fingerprint, recheck at commit, return safe delivery counts, and add actor/target correlation logs. |
 | `src/agent/writeTools/adminManualTriggerTools.js` | Centrally guarded confirmed tools for the five manual Logic App jobs. They provide impact-specific saved-language previews, invoke `manualTriggerService` through durable job leases, return only safe run references, and audit actor/job/outcome correlation. |
-| `src/cores/bestTeamScenariosCore.js` | `computeBestTeamScenarios({chatId, teamId?, teamName?})` — status-tagged (`ok` / `no_teams` / `unknown_team` / `ambiguous_team` / `missing_cache`). Returns the 4×4 matrix `{ teamId, teamName, chip, scenarios: [{ ppm, ppmLabel, results: [{ chipKey, chipLabel, projectedPoints, expectedPriceChange, recommendation: null\|'yellow'\|'green' }] }] }`. Mirrors the Telegram `/best_team_scenarios` chip-recommendation thresholds. |
+| `src/cores/bestTeamScenariosCore.js` | `computeBestTeamScenarios({chatId, teamId?, teamName?})` — status-tagged (`ok` / `no_teams` / `unknown_team` / `ambiguous_team` / `missing_cache`). Returns four presets with variable chip rows `{ teamId, teamName, chip, chipAvailability: { status, updatedAt }, scenarios: [{ ppm, ppmLabel, results: [{ chipKey, chipLabel, projectedPoints, expectedPriceChange, recommendation: null\|'yellow'\|'green' }] }] }`. Mirrors the Telegram `/best_team_scenarios` chip-recommendation thresholds. |
 | `src/bestTeamsCalculator.js` | Accepts an optional 5th `options` arg with `mustInclude*`/`mustExclude*` filters, `rankBy: null \| 'points' \| 'budget_adjusted'`, and `resultCount`. Empty/absent options preserve legacy 4-arg behaviour byte-for-byte. |
 | `src/agent/identity.js` | Reads `AGENT_HARDCODED_CHAT_ID`, exposes `getAgentChatId()`. |
 | `src/agent/cacheBootstrap.js` | `ensureCacheReady()` — lazy `initializeCaches(getNotifierBot())` for the agent process; resets on failure for retry-on-next-call. |
@@ -1826,7 +1893,7 @@ messages must go through `clear()` first, then through
 | `src/agent/tools.js` | Complete read/write tool catalogue. Every execute path is wrapped directly or through `defineWriteTool` via `wrapToolExecute`. |
 | `src/agent/runtime.js` | Builds Azure model → `wrapLanguageModel({ middleware: createTokenUsageMiddleware(…) })` (Phase 6.1) → `BuiltInAgent` (with `parallelToolCalls: false`) → `CopilotRuntime` → `createCopilotRuntimeHandler`. Caches the handler per process. |
 | `src/agent/notifierBot.js` | Singleton non-polling `TelegramBot` for the agent process (Phase 6.1). Real bot when `TELEGRAM_BOT_TOKEN` set, noop fallback otherwise. Polling stays disabled so it never conflicts with the main bot's poller on the same token. |
-| `src/agent/tokenUsageMiddleware.js` | `LanguageModelV3Middleware` that pipes the stream through a `TransformStream` and logs every `finish` chunk's per-step token usage (Phase 6.1). Reads the V3 NESTED usage shape (`usage.inputTokens.total` / `usage.outputTokens.total`). Logging is fire-and-forget — a Telegram outage cannot break the LLM stream. |
+| `src/agent/tokenUsageMiddleware.js` | `LanguageModelV3Middleware` that pipes the stream through a `TransformStream` and logs every `finish` chunk's per-step token usage (Phase 6.1). Reads the V3 NESTED usage shape (`usage.inputTokens.total` / `usage.outputTokens.total` / `usage.outputTokens.reasoning`); reasoning is part of completion, with unavailable reasoning shown as `n/a`. Logging is fire-and-forget — a Telegram outage cannot break the LLM stream. |
 | `src/agent/wrapToolExecute.js` | `wrapToolExecute(toolName, fn)` try/catches the execute and returns `{ status: 'tool_error', tool, errorId, userMessage }` on throw (Phase 6.2). Full error → `ERRORS_CHANNEL_ID` via `sendErrorMessage(notifierBot, …)`. The 8-char `errorId` is the user-visible correlation token. Raw `err.message` is NEVER included in the returned UI shape. |
 | `src/agent/writeToolHelpers.js` | `defineWriteTool(...)` stages serializable intents and registers commit handlers; `executeConfirmedWrite` consumes only server-approved intents. |
 | `src/agent/writeDecision.js` | Applies authenticated UI `approve`, `approve_and_confirm`, `cancel`, and compensating `revoke` decisions to durable pending-write rows. |
@@ -1859,14 +1926,14 @@ messages must go through `clear()` first, then through
 | `web/src/components/AdminReadCards.tsx` | Admin-only rich renders for version, bounded billing, bot/web user directories, and BotFather setup. Directory selection modes provide localized canonical nickname/allow/revoke targets with the shared agent-run lock and rollback. All cards localize English/Hebrew, set RTL, format dates in `Asia/Jerusalem`, use accessible tables, and show safe forbidden/unavailable/empty/capped states. |
 | `web/src/components/SimulationRefreshCard.tsx` | Confirmed `load_latest_simulation` result — localized English/Hebrew and RTL safe source/local-time/matchday/count card that makes the per-process cache boundary explicit. |
 | `web/src/components/ResetUserDataCard.tsx` | Confirmed `reset_user_data` result — localized English/Hebrew and RTL card that shows only the safe counts/categories cleared, never storage data or internal errors. |
-| `web/src/components/BestTeamsTable.tsx` | `get_best_teams` rich render (top-10 table, captain badge, must-include highlights, penalty markers), localized via the tool result's refreshed `lang`. |
+| `web/src/components/BestTeamsTable.tsx` | `get_best_teams` rich render (requested 1–20 rows, default 10; captain badge, must-include highlights, penalty markers), localized via the tool result's refreshed `lang`. |
 | `web/src/components/UserTeamsList.tsx` | `list_user_teams` rich render (card grid). |
 | `web/src/components/UserTeamsAction.tsx` | Registers the teams renderer and turns non-active cards into direct authenticated `select_team` proposals that render the shared confirmation card. |
 | `web/src/components/FollowedTeamsGrid.tsx` | `list_followed_teams` rich render — card per tracked team with league/position chips and active highlight; `unfollow_team` selection mode stages canonical removal proposals. |
 | `web/src/components/UserLeaguesAction.tsx` | `list_user_leagues` rich render — read-only league cards plus contextual `follow_team` and `unfollow_league` selection modes. |
 | `web/src/components/LeagueTeamsAction.tsx` | `list_league_teams` rich render — current league roster; `follow_team` selection mode marks already-tracked teams and stages canonical add proposals. Successful follows remain marked in the card and release the selection lock so another team can be followed from the same card. |
-| `web/src/components/LeaderboardTable.tsx` | `get_leaderboard` rich render — sortable standings table with the user's row highlighted; status fallbacks for `not_followed` / `not_found`. |
-| `web/src/components/BestTeamScenariosMatrix.tsx` | `get_best_team_scenarios` rich render — 4 ppm sections × 4 chip rows showing projected points, Δ price change, and 🟢/🟡 chip recommendation dots mirroring `/best_team_scenarios`. |
+| `web/src/components/LeaderboardTable.tsx` | `get_leaderboard` rich render — season/race label and standings with the user's row highlighted; shared period choices and localized `race_unavailable` fallback. Old results without a period still render as season standings. |
+| `web/src/components/BestTeamScenariosMatrix.tsx` | `get_best_team_scenarios` rich render — 4 ppm sections with no-chip and verified unused chip rows showing projected points, Δ price change, and 🟢/🟡 chip recommendation dots mirroring `/best_team_scenarios`. |
 | `src/cores/nextRaceInfoCore.js` | `getNextRaceInfo({onFetch?, onError?})` — reads `nextRaceInfoCache[sharedKey]` + opportunistic `weatherForecastCache`; on cache miss fetches live weather via `getWeatherForecast` and populates the cache. Callbacks let the Telegram adapter wire `sendLogMessage`/`sendErrorMessage`; the agent omits them. |
 | `src/cores/raceWeatherCore.js` | `getRaceWeather({now?, onFetch?, onError?})` — hourly forecasts per session (3 hours starting at each session start, filtered by `nowRounded`). `now` injection keeps tests deterministic. |
 | `src/cores/deadlineCore.js` | `getDeadlineSnapshot({now?})` — `{status, raceName, sessionType, sessionLabel, sessionStartsAt, nowIso, alreadyStarted}`. Server returns absolute timestamps; the React `<DeadlineCountdown />` ticks client-side with skew compensation. Additive — `deadlineHandler.js` (with its existing pure helpers) is untouched. |
@@ -1939,3 +2006,92 @@ names/codes plus failed-image fallbacks. Ambiguous code-only identities never
 resolve portraits. Transfers are category groups, not inferred pairings; the final
 roster uses a native disclosure collapsed by default. Compact recommendation
 controls retain the row in their accessible label and use the shared run lock.
+
+### Compound web workflows
+
+`src/agent/workflows/` adds the Azure Table workflow store, prepared-tool
+registry and sequential execution state machine. Workflows are always available; keep `parallelToolCalls: false` and the existing
+CopilotKit version. `defineWriteTool` now exposes preparation separately from
+nonce staging so workflows reuse the same validation and commit adapters.
+The authenticated workflow endpoints bind approval to an owner and revision;
+model text and workflow IDs cannot approve execution. Each advance claims one
+step using ETag CAS inside the shared user mutation boundary. Never bypass the
+registered services or repeat a successful write when recovering a later read.
+`web/src/components/WorkflowCard.tsx` reloads durable status and renders ordered
+results through `workflowRenderers.tsx`. Both authenticated and local chat use
+`WorkflowUserMessage` / `WorkflowAssistantMessage` slots to render recovered
+cards within the native message list. Each workflow is linked to its originating
+user-message ID, using tool results when present; bounded, account-scoped
+display metadata preserves those links across reloads and repeated prompts.
+Live `propose_workflow` cards retain their tool-message position and suppress
+the recovered duplicate. Clear history removes the display links.
+Never render recovered workflows after the chat or inject them into agent history.
+Full lifecycle, retention, recovery and
+test-slot rollout instructions: [Web workflows](docs/agent-workflows.md).
+
+Workflow proposals may omit unresolved chip/team/preset arguments: retain the entire
+ordered request and let preparation return choices before approval. Standalone
+`get_action_choices` supports `get_best_teams` chip choices via `chipOverride`;
+subsequent target choices preserve that calculation-only override.
+
+Clear history immediately clears chat and stores an account-scoped display cutoff,
+then calls the authenticated `cancel_all` workflow decision for the current account.
+Cancellation prevents later claims; a running action may finish and its outcome
+is retained. Failure leaves the UI cleared and offers retry. The durable owner history
+generation and transactional proposal commit prevent preparations started before
+clear from reappearing afterward. Choice cards subscribe to the shared agent run lock
+so remounted cards stay disabled and announce progress during continuation.
+
+Workflow best-team tables expose a calculation-scoped result destination below
+the table. The shared best-team-changes renderer portals loading, errors and
+transfer details there; standalone chat calculations keep their inline results.
+
+All-tracked-team calculation requests discover canonical
+IDs using list_user_teams and create a read step per team, without switching the
+saved active team or asking the user to reduce the request to one team.
+
+When advancement is blocked by another workflow, the authenticated decision API
+returns `blockingWorkflow` from the same owner partition. Show its recovery
+controls even if Clear history hid it; never silently delete a lease or retry a
+write. Cancellation preserves completed results and releases the workflow lock.
+
+
+### Remaining season chips
+
+`availableChipsCore` backs Telegram `/available_chips`, agent `get_available_chips`,
+choice discovery, and workflow preparation. See [contract and scraper-first
+rollout](docs/available-chips.md). These reads use fresh authorized standings and
+locked storage, without cache bootstrap or preference writes. Chip reads pass
+`latestByUpdate: true` to the locked reader, selecting by blob update metadata
+across season race-number resets; existing consumers keep highest-matchday behavior. Membership/name
+resolution uses standings; usage joins require canonical account ID + team number.
+Newest unknown data must never fall back to older known data. Only marked current-
+calendar-season records can produce remaining lists; null means unknown and []
+means none remaining. No target opens scope choices, including when an active team
+exists. Team arguments can address untracked teams in followed leagues. Telegram
+ASK remains an array of strings; only this command permits a strict validated JSON
+suffix. Temporary picker state uses separate available-chips session blobs, random
+tokens, one-hour expiry and 20-item pages. Web choices use the shared run lock and
+rollback, and `AvailableChipsCard` participates in workflows/history and Hebrew
+completeness checks. Do not backfill legacy markers or start production scrapers.
+
+
+Remaining-chip tool arguments are nullable for strict model providers: generic
+questions must pass no scope/target (omitted or JSON null) and show scope choices,
+including when an active team exists. `normalizeAvailableChipsArgs` removes blank
+and literal `undefined`/`null` target placeholders before inferring scope or
+checking authorization. Explicit tracked/team/league intent remains intact; real
+unauthorized league codes still fail without blob reads. Keep the nullable-schema
+and missing-target routing regressions when changing this tool.
+
+Best-team scenarios resolve fresh availability once per calculated team using
+`src/utils/scenarioAvailability.js`, shared by the asynchronous scenarios core and
+Telegram handler. The helper queries `availableChipsCore` with canonical team ID
+only, across followed leagues; it never matches usage by name. It preserves the
+no-chip / Limitless / Extra Boost / Wildcard order, mapping catalog Extra DRS Boost
+to calculator Extra Boost. Missing canonical identity, unknown usage, partial
+sources or lookup failures yield four no-chip baselines plus a localized notice.
+`chipAvailability: { status: 'known' | 'unknown', updatedAt: string | null }` is
+optional for historical web cards. Known exhausted supported chips need no notice.
+Saved selections remain metadata and cannot restore a used scenario. Availability
+means unused this season, without activation-window checks.

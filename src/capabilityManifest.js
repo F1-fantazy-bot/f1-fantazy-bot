@@ -141,6 +141,7 @@ const COMMAND_CAPABILITIES = Object.freeze([
 
   user(constants.COMMAND_HELP, AGENT_STATUS.IMPLEMENTED, ['get_agent_guide']),
   user(constants.COMMAND_FLOW, AGENT_STATUS.IMPLEMENTED, ['get_agent_guide']),
+  user(constants.COMMAND_AVAILABLE_CHIPS, AGENT_STATUS.IMPLEMENTED, ['get_available_chips']),
   user(constants.COMMAND_LEAGUE_CHANGES, AGENT_STATUS.IMPLEMENTED, [
     'get_league_changes',
   ]),
@@ -238,7 +239,7 @@ const COMMAND_CAPABILITIES = Object.freeze([
   ),
 ]);
 
-const AGENT_NATIVE_SUPPORTING_TOOLS = Object.freeze(['confirm_write', 'get_action_choices']);
+const AGENT_NATIVE_SUPPORTING_TOOLS = Object.freeze(['confirm_write', 'get_action_choices', 'propose_workflow', 'get_workflow_status']);
 
 function getCapabilityByCommand(command) {
   return (

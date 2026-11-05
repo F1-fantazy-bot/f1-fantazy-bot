@@ -20,7 +20,7 @@ type GuideTask = {
   topic: string;
   icon: string;
   title: string;
-  description: string;
+  description?: string;
   example: string;
 };
 
@@ -58,25 +58,29 @@ const topicLabels: Record<string, { en: string; he: string }> = {
 
 function TaskCard({
   task,
+  request,
   recommended = false,
   exampleLabel,
   onSelect,
   disabled = false,
   selected = false,
+  commandsView = false,
 }: {
   task: GuideTask;
+  request: string;
   recommended?: boolean;
   exampleLabel: string;
   onSelect: (task: GuideTask) => void;
   disabled?: boolean;
   selected?: boolean;
+  commandsView?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={() => onSelect(task)}
       aria-disabled={disabled}
-      aria-label={`${task.title}: ${task.example}`}
+      aria-label={`${task.title}: ${request}`}
       style={{
         width: '100%',
         color: 'inherit',
@@ -93,7 +97,7 @@ function TaskCard({
           ? 'var(--app-highlight-surface)'
           : 'var(--app-surface-muted)',
         padding: '13px 14px 12px',
-        minHeight: 135,
+        minHeight: commandsView ? 88 : 135,
         opacity: disabled && !selected ? 0.55 : 1,
         boxShadow: selected
           ? 'inset 0 0 0 2px var(--app-primary)'
@@ -126,36 +130,42 @@ function TaskCard({
         </span>
         <strong style={{ fontSize: 14 }}>{task.title}</strong>
       </div>
-      <div
-        style={{
-          color: 'var(--app-muted)',
-          fontSize: 12,
-          lineHeight: 1.45,
-          marginBottom: 10,
-        }}
-      >
-        {task.description}
-      </div>
-      <div
-        style={{
-          borderTop: '1px dashed var(--app-control-border)',
-          paddingTop: 8,
-          color: 'var(--app-control-text)',
-          fontSize: 11,
-          lineHeight: 1.4,
-        }}
-      >
-        <span
+      {task.description ? (
+        <div
           style={{
-            color: 'var(--app-subtle)',
-            fontWeight: 800,
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
+            color: 'var(--app-muted)',
+            fontSize: 12,
+            lineHeight: 1.45,
+            marginBottom: 10,
           }}
         >
-          {exampleLabel}
-        </span>
-        <div style={{ marginTop: 3 }}>&ldquo;{task.example}&rdquo;</div>
+          {task.description}
+        </div>
+      ) : null}
+      <div
+        style={{
+          borderTop: commandsView ? undefined : '1px dashed var(--app-control-border)',
+          paddingTop: commandsView ? 0 : 8,
+          color: commandsView ? 'var(--app-muted)' : 'var(--app-control-text)',
+          fontSize: commandsView ? 12 : 11,
+          lineHeight: 1.45,
+        }}
+      >
+        {commandsView ? request : (
+          <>
+            <span
+              style={{
+                color: 'var(--app-subtle)',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+              }}
+            >
+              {exampleLabel}
+            </span>
+            <div style={{ marginTop: 3 }}>&ldquo;{request}&rdquo;</div>
+          </>
+        )}
       </div>
     </button>
   );
@@ -328,51 +338,53 @@ export function AgentGuideCard({
         </p>
       </header>
 
-      <div
-        role="group"
-        aria-label={labels.profile}
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
-          gap: 7,
-          marginBottom: 16,
-        }}
-      >
-        {[
-          [labels.teams, profile.teamCount ?? 0],
-          [labels.tracked, profile.followedTeamCount ?? 0],
-          [labels.leagues, profile.leagueCount ?? 0],
-          [
-            labels.projections,
-            profile.hasProjectionData ? labels.ready : labels.missing,
-          ],
-        ].map(([label, value]) => (
-          <div
-            key={label}
-            style={{
-              border: '1px solid var(--app-control-border)',
-              borderRadius: 8,
-              background: 'var(--app-control-bg)',
-              padding: '8px 9px',
-            }}
-          >
+      {result?.topic !== 'commands' ? (
+        <div
+          role="group"
+          aria-label={labels.profile}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+            gap: 7,
+            marginBottom: 16,
+          }}
+        >
+          {[
+            [labels.teams, profile.teamCount ?? 0],
+            [labels.tracked, profile.followedTeamCount ?? 0],
+            [labels.leagues, profile.leagueCount ?? 0],
+            [
+              labels.projections,
+              profile.hasProjectionData ? labels.ready : labels.missing,
+            ],
+          ].map(([label, value]) => (
             <div
+              key={label}
               style={{
-                color: 'var(--app-subtle)',
-                fontSize: 9,
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
+                border: '1px solid var(--app-control-border)',
+                borderRadius: 8,
+                background: 'var(--app-control-bg)',
+                padding: '8px 9px',
               }}
             >
-              {label}
+              <div
+                style={{
+                  color: 'var(--app-subtle)',
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {label}
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 900, marginTop: 2 }}>
+                {value}
+              </div>
             </div>
-            <div style={{ fontSize: 16, fontWeight: 900, marginTop: 2 }}>
-              {value}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : null}
 
       {recommendations.length > 0 ? (
         <section style={{ marginBottom: 17 }}>
@@ -390,6 +402,7 @@ export function AgentGuideCard({
               <TaskCard
                 key={task.id}
                 task={task}
+                request={task.example}
                 recommended
                 exampleLabel={labels.example}
                 onSelect={runExample}
@@ -424,10 +437,12 @@ export function AgentGuideCard({
               <TaskCard
                 key={task.id}
                 task={task}
+                request={task.example}
                 exampleLabel={labels.example}
                 onSelect={runExample}
                 disabled={busy}
                 selected={selectedTaskId === task.id}
+                commandsView={result?.topic === 'commands'}
               />
             ))}
           </div>
@@ -483,7 +498,7 @@ export function useAgentGuideAction() {
   useCopilotAction({
     name: 'get_agent_guide',
     description:
-      'Show personalized help, onboarding, example prompts, and capability guidance.',
+      'Show personalized help, onboarding, and clickable cards for all actions the agent can run.',
     parameters: [],
     available: 'frontend',
     render: ({ status, result }) => {

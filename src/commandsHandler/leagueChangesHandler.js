@@ -46,6 +46,10 @@ function diffTeam(latestTeam, previousTeam, chatId) {
   if (changes.isNew) {
     lines.push(`↪ ${t('🆕 new team', chatId)}`);
 
+    if (changes.transferPenalty > 0) {
+      lines.push(t('↪ Transfer penalty: -{POINTS} points', chatId, { POINTS: changes.transferPenalty }));
+    }
+
     return { lines, hasChanges: true };
   }
 
@@ -87,6 +91,10 @@ function diffTeam(latestTeam, previousTeam, chatId) {
     lines.push(
       t('↪ Chip: {CHIP}', chatId, { CHIP: escapeHtml(chipName) }),
     );
+  }
+
+  if (changes.transferPenalty > 0) {
+    lines.push(t('↪ Transfer penalty: -{POINTS} points', chatId, { POINTS: changes.transferPenalty }));
   }
 
   return { lines, hasChanges: lines.length > 0 };
@@ -145,6 +153,9 @@ function formatLeagueChanges(latest, previous, chatId) {
         );
       }
     }
+    if (team.transferPenalty > 0) {
+      lines.push(t('↪ Transfer penalty: -{POINTS} points', chatId, { POINTS: team.transferPenalty }));
+    }
     const headerName = `${positionPrefix(team.position)}<b>${escapeHtml(team.teamName || team.userName || '—')}</b>`;
     blocks.push([headerName, ...lines].join('\n'));
   }
@@ -153,6 +164,11 @@ function formatLeagueChanges(latest, previous, chatId) {
     LEAGUE: escapeHtml(latest.leagueName || latest.leagueCode),
     N: latest.matchdayId ?? '?',
   });
+  const notices = [
+    result.planningKind === 'race-start' ? t('Starting baseline → locked roster.', chatId) : '',
+    result.unavailableTeams?.length ? t('{COUNT} team(s) have no usable starting roster; changes could not be compared.', chatId, { COUNT: result.unavailableTeams.length }) : '',
+  ].filter(Boolean).join('\n');
+  if (notices) {blocks.push(notices);}
 
   if (blocks.length === 0) {
     return [

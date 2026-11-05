@@ -45,7 +45,7 @@ describe('mapLeagueTeamToBotTeam', () => {
     return {
       teamName: 'Kilzid',
       userName: 'Doron Kilzi',
-      teamNo: 1,
+      teamNo: 1, accountId: 'aaaaaaaaaaaa',
       position: 4,
       budget: 109.2,
       transfersRemaining: 2,
@@ -77,7 +77,7 @@ describe('mapLeagueTeamToBotTeam', () => {
       costCapRemaining: 2.4,
       teamName: 'Kilzid',
       userName: 'Doron Kilzi',
-      teamNo: 1,
+      teamNo: 1, accountId: 'aaaaaaaaaaaa',
     });
   });
 
@@ -109,7 +109,7 @@ describe('mapLeagueTeamToBotTeam', () => {
           {
             teamName: 'Team',
             userName: 'Owner',
-            teamNo: 1,
+            teamNo: 1, accountId: 'aaaaaaaaaaaa',
             budget: 100,
             transfersRemaining: 2,
             drivers: [],
@@ -136,11 +136,11 @@ describe('mapLeagueTeamToBotTeam', () => {
       await expect(
         followLeagueTeam(bot, 42, {
           leagueCode: 'ABC123',
-          teamId: 'Owner_1',
+          teamId: 'Owner_1_aaaaaaaaaaaa',
           leagueTeam: {
             teamName: 'Team',
             userName: 'Owner',
-            teamNo: 1,
+            teamNo: 1, accountId: 'aaaaaaaaaaaa',
             budget: 100,
             transfersRemaining: 2,
             drivers: [],
@@ -159,37 +159,37 @@ describe('mapLeagueTeamToBotTeam', () => {
 
     test('keeps preferences and cache when blob deletion fails', async () => {
       const teamData = { drivers: ['VER'] };
-      currentTeamCache[42] = { Owner_1: teamData };
-      userCache['42'] = { selectedTeam: 'Owner_1' };
+      currentTeamCache[42] = { Owner_1_aaaaaaaaaaaa: teamData };
+      userCache['42'] = { selectedTeam: 'Owner_1_aaaaaaaaaaaa' };
       azureStorageService.deleteUserTeam.mockRejectedValue(
         new Error('blob unavailable'),
       );
 
       await expect(
-        removeFollowedTeam({}, 42, 'Owner_1'),
+        removeFollowedTeam({}, 42, 'Owner_1_aaaaaaaaaaaa'),
       ).rejects.toThrow('blob unavailable');
       expect(clearTeamDerivedPreferences).not.toHaveBeenCalled();
-      expect(currentTeamCache[42].Owner_1).toBe(teamData);
+      expect(currentTeamCache[42].Owner_1_aaaaaaaaaaaa).toBe(teamData);
     });
 
     test('restores the deleted blob when preference CAS fails', async () => {
       const teamData = { drivers: ['VER'] };
       const bot = {};
-      currentTeamCache[42] = { Owner_1: teamData };
-      userCache['42'] = { selectedTeam: 'Owner_1' };
+      currentTeamCache[42] = { Owner_1_aaaaaaaaaaaa: teamData };
+      userCache['42'] = { selectedTeam: 'Owner_1_aaaaaaaaaaaa' };
       clearTeamDerivedPreferences.mockRejectedValue(
         new Error('CAS unavailable'),
       );
 
       await expect(
-        removeFollowedTeam(bot, 42, 'Owner_1'),
+        removeFollowedTeam(bot, 42, 'Owner_1_aaaaaaaaaaaa'),
       ).rejects.toThrow('CAS unavailable');
       expect(restoreTeamStateWithStorage).toHaveBeenCalledWith(
         42,
         expect.any(Object),
         expect.any(Object),
       );
-      expect(currentTeamCache[42].Owner_1).toBe(teamData);
+      expect(currentTeamCache[42].Owner_1_aaaaaaaaaaaa).toBe(teamData);
     });
   });
 

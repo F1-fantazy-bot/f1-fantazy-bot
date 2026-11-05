@@ -73,6 +73,7 @@ describe('leagueChangesCore', () => {
       captain: { from: 'Verstappen', to: 'Norris' },
       megaCaptain: { from: null, to: 'Norris' },
       chipsActivated: ['Limitless'],
+      transferPenalty: 0,
     });
   });
 
@@ -145,6 +146,50 @@ describe('leagueChangesCore', () => {
     ]);
   });
 
+
+  test('separates same-name teamNo 1 entries from different accounts', () => {
+    const planningA = team({
+      teamName: 'Tom A',
+      userName: 'Tom Kregenbild',
+      teamNo: 1,
+      accountId: 'aaaaaaaaaaaa',
+      position: 3,
+      drivers: [{ name: 'Norris', isCaptain: true }],
+    });
+    const planningB = team({
+      teamName: 'Tom B',
+      userName: 'Tom Kregenbild',
+      teamNo: 1,
+      accountId: 'bbbbbbbbbbbb',
+      position: 4,
+      drivers: [{ name: 'Russell', isCaptain: true }],
+    });
+    const lockedA = team({
+      ...planningA,
+      position: 1,
+      drivers: [{ name: 'Leclerc', isCaptain: true }],
+    });
+    const lockedB = team({
+      ...planningB,
+      position: 2,
+    });
+
+    const result = compareLeagueChanges({
+      latest: snapshot({ teams: [lockedB, lockedA] }),
+      planning: snapshot({ teams: [planningA, planningB] }),
+    });
+
+    expect(result.changedTeams).toEqual([
+      expect.objectContaining({
+        teamName: 'Tom A',
+        drivers: { in: ['Leclerc'], out: ['Norris'] },
+      }),
+    ]);
+    expect(result.unchangedTeams).toEqual([
+      expect.objectContaining({ teamName: 'Tom B' }),
+    ]);
+  });
+
   test('marks locked-only teams as new without inventing transfer details', () => {
     const result = compareLeagueChanges({
       latest: snapshot({ teams: [team()] }),
@@ -173,4 +218,27 @@ describe('leagueChangesCore', () => {
       ),
     ).toEqual(['Extra DRS Boost']);
   });
+});
+
+
+test.each([
+  [-1, [], 10], [-2, [], 20], [0, [], 0], [2, [], 0], [undefined, [], 0],
+  [-1, [{ name: 'Wildcard', gameDayId: 7 }], 0],
+  [-2, [{ name: 'Limitless', gameDayId: 7 }], 0],
+  [-1, [{ name: 'Wildcard', gameDayId: 6 }], 10],
+  [-1, [{ name: 'No Negative', gameDayId: 7 }], 10],
+])('uses locked transfer allowance %s and current chips %j to report %s penalty', (transfersRemaining, chipsUsed, penalty) => {
+  const changes = compareTeamChanges(team({ transfersRemaining, chipsUsed }), team());
+  expect(changes.transferPenalty).toBe(penalty);
+});
+
+test('penalty-only and newly tracked teams expose penalties with the snapshot matchday fallback', () => {
+  const locked = team({ transfersRemaining: -1, matchdayId: undefined });
+  const result = compareLeagueChanges({ latest: snapshot({ teams: [locked] }), planning: snapshot({ teams: [team()] }) });
+  expect(result.changedTeams[0]).toMatchObject({ transferPenalty: 10, hasChanges: true });
+  expect(result.unchangedTeams).toEqual([]);
+  const newTeam = compareLeagueChanges({ latest: snapshot({ teams: [locked] }), planning: snapshot() });
+  expect(newTeam.changedTeams[0]).toMatchObject({ transferPenalty: 10, isNew: true });
+  const waived = compareLeagueChanges({ latest: snapshot({ teams: [{ ...locked, chipsUsed: [{ name: 'Limitless', gameDayId: 7 }] }] }), planning: snapshot({ teams: [team()] }) });
+  expect(waived.teams[0].transferPenalty).toBe(0);
 });

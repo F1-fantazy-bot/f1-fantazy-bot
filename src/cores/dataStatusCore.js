@@ -9,6 +9,7 @@ const {
 } = require('./simulationStatusCore');
 
 const MAX_SAVED_TEAMS = 8;
+const { publicFreeTransfers, teamDataStatus, recommendationIssue } = require('../utils/teamDataStatus');
 const MAX_TEAM_DRIVERS = 5;
 const MAX_TEAM_CONSTRUCTORS = 2;
 const PPM_PRESETS = new Set([0, 1.3, 1.65, 2]);
@@ -78,7 +79,8 @@ function buildSavedTeams({
         isSelected: teamId === selectedTeamId,
         chip: safeString(chipsByTeam?.[teamId], 40),
         ...roster,
-        freeTransfers: safeNumber(team.freeTransfers),
+        freeTransfers: publicFreeTransfers(team),
+        ...(Object.keys(teamDataStatus(team)).length ? { dataStatus: teamDataStatus(team) } : {}),
         costCapRemaining: safeNumber(team.costCapRemaining),
         budgetChangePointsPerMillion: safePpmPreset(ppmByTeam?.[teamId]),
       }];
@@ -140,6 +142,8 @@ function buildDataStatus({
   }
 
   const nextActions = [];
+  const selectedIssue = hasSelectedTeam ? recommendationIssue(ownedTeams[selectedTeamId], pricesMetadata?.matchdayId) : null;
+  if (selectedIssue && ownedTeams[selectedTeamId]?.teamStateStatus) {missingPrerequisites.push(selectedIssue);}
   if (missingPrerequisites.includes('simulation')) {
     nextActions.push('refresh_simulation');
   }

@@ -1,3 +1,7 @@
+import { AvailableChipsCard } from './AvailableChipsCard';
+import { WorkflowCard } from './WorkflowCard';
+import { LanguageCard } from './LanguageCard';
+import { UiLanguageProvider } from './uiLanguage';
 import { BestTeamChangesCard } from './BestTeamChangesCard';
 import { act, type ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -91,6 +95,8 @@ describe('all rich components honor Hebrew ui language', () => {
     element: ReactElement;
     expected: string[];
   }> = [
+    { name: 'available chips', element: <AvailableChipsCard result={{ status: 'ok', lang: 'he', teams: [{ teamName: 'kilzid1', availableChips: null, updatedAt: null }] }} />, expected: ['צ׳יפים שלא נוצלו העונה', 'נתוני השימוש אינם זמינים'] },
+    { name: 'saved language', element: <LanguageCard result={{ lang: 'he' }} />, expected: ['השפה השמורה', 'עברית'] },
     {
       name: 'action choices',
       element: <ActionChoicesCard result={{ status: 'selection_required', lang: 'he', choice: 'league', options: [{ label: 'הליגה שלי', action: 'get_live_score_for_team', args: { leagueCode: 'USER-CODE' } }] }} />,
@@ -246,7 +252,8 @@ describe('all rich components honor Hebrew ui language', () => {
                 constructors: { in: ['FER'], out: ['MER'] },
                 captain: { from: 'NOR', to: 'LEC' },
                 megaCaptain: null,
-                chipsActivated: ['Wildcard'],
+                chipsActivated: [],
+                transferPenalty: 10,
               },
             ],
             unchangedTeams: [],
@@ -259,7 +266,7 @@ describe('all rich components honor Hebrew ui language', () => {
         'נהגים שנכנסו',
         'קבוצות שיצאו',
         'קפטן',
-        "צ'יפ שהופעל",
+        'קנס העברות',
       ],
     },
     {
@@ -716,6 +723,8 @@ describe('all rich components honor Hebrew ui language', () => {
       expected: ['משהו השתבש', 'פרטי תמיכה'],
     },
   ];
+
+  cases.push({ name: 'workflow progress', element: <UiLanguageProvider initialLanguage="he"><WorkflowCard workflow={{ id: 'w', revision: 1, request: 'בחר צ׳יפ', state: 'awaiting_approval', steps: [{ id: 'chip', tool: 'activate_chip', summary: 'בחר צ׳יפ לקבוצה', state: 'waiting', write: true }] }} onDecision={() => {}} /></UiLanguageProvider>, expected: ['אישור והפעלה', 'ביטול', 'ממתין'] });
 
   for (const item of cases) {
     test(item.name, () => {

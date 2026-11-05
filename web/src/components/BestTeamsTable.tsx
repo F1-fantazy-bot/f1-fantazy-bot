@@ -3,6 +3,7 @@ import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { ToolLoading } from './ToolLoading';
 import './BestTeamsTable.css';
+import { TeamDataNotice, weeklyErrorMessages, type TeamDataStatus, type RecommendationIssue } from './TeamDataNotice';
 
 type BestTeamRow = {
   row: number;
@@ -20,6 +21,7 @@ type BestTeamRow = {
 };
 
 type GetBestTeamsOkResult = {
+  dataStatus?: TeamDataStatus;
   status: 'ok';
   calculationId?: string;
   lang?: string;
@@ -40,6 +42,7 @@ type GetBestTeamsOkResult = {
 type GetBestTeamsErrorResult = {
   lang?: string;
   status:
+    | RecommendationIssue
     | 'no_teams'
     | 'ambiguous_team'
     | 'unknown_team'
@@ -48,7 +51,8 @@ type GetBestTeamsErrorResult = {
     | 'missing_remaining_race_count'
     | 'unknown_filter'
     | 'projection_mismatch'
-    | 'missing_weekend_format';
+    | 'missing_weekend_format'
+    | 'invalid_result_count';
   teamId?: string;
   teamIds?: string[];
   teamName?: string;
@@ -92,6 +96,7 @@ const copy = {
     unresolved: 'Unresolved',
     candidates: 'Candidates',
     statuses: {
+      ...weeklyErrorMessages.en,
       no_teams:
         'No teams found for this user. Follow a league and pick teams to track first.',
       ambiguous_team:
@@ -110,6 +115,7 @@ const copy = {
         'Projection data does not match the active player list. Try again after the next data refresh.',
       missing_weekend_format:
         'The next-race weekend format is unavailable. Try again after race data refreshes.',
+      invalid_result_count: 'Choose a whole number of teams from 1 to 20.',
     },
   },
   he: {
@@ -140,6 +146,7 @@ const copy = {
     unresolved: 'לא זוהו',
     candidates: 'אפשרויות',
     statuses: {
+      ...weeklyErrorMessages.he,
       no_teams: 'לא נמצאו קבוצות. יש לעקוב אחר ליגה ולבחור קבוצות למעקב.',
       ambiguous_team: 'יש לך כמה קבוצות — נא לציין איזו קבוצה.',
       unknown_team: 'לא הצלחתי למצוא את הקבוצה. בקש להציג את הקבוצות שלך.',
@@ -152,6 +159,7 @@ const copy = {
         'נתוני התחזית אינם תואמים לרשימת המשתתפים הפעילים. נסה שוב לאחר עדכון הנתונים.',
       missing_weekend_format:
         'פורמט סוף השבוע של המרוץ הבא אינו זמין. נסה שוב לאחר עדכון נתוני המרוץ.',
+      invalid_result_count: 'אפשר לבקש מספר שלם של קבוצות בין 1 ל-20.',
     },
   },
 } as const;
@@ -308,6 +316,7 @@ export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
           fontSize: 14,
         }}
       >
+        <TeamDataNotice status={result.dataStatus} lang={lang} />
         <div style={{ fontWeight: 600 }}>
           {labels.title} — {result.teamName}
         </div>

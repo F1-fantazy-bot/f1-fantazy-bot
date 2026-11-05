@@ -2,11 +2,12 @@ import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { directionFor, uiLanguageOf } from './uiLanguage';
 import { ToolLoading } from './ToolLoading';
+import { TeamDataNotice, transferLabel, RecommendationDataError, type TeamDataStatus } from './TeamDataNotice';
 
 type TeamInfo = {
   totalPrice?: number;
-  costCapRemaining?: number;
-  overallBudget?: number;
+  costCapRemaining?: number | null;
+  overallBudget?: number | null;
   teamExpectedPoints?: number;
   teamPriceChange?: number;
 };
@@ -15,6 +16,7 @@ type CurrentTeamResult = {
   lang?: string;
   status?:
     | 'ok'
+    | 'race_mismatch'
     | 'no_teams'
     | 'unknown_team'
     | 'ambiguous_team'
@@ -29,6 +31,7 @@ type CurrentTeamResult = {
   boostDriver?: string | null;
   extraBoostDriver?: string | null;
   freeTransfers?: number | null;
+  dataStatus?: TeamDataStatus;
   teamInfo?: TeamInfo;
   budgetChangePointsPerMillion?: number;
   budgetAdjustedPoints?: number | null;
@@ -54,6 +57,7 @@ function localizedChip(chip: string, lang: 'en' | 'he'): string {
 
 export function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
   const lang = uiLanguageOf(result);
+  if (result?.status === 'race_mismatch') return <RecommendationDataError status={result.status} lang={lang} />;
   const labels =
     lang === 'he'
       ? {
@@ -222,6 +226,7 @@ export function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
         ) : null}
       </div>
 
+      <TeamDataNotice status={result.dataStatus} lang={lang} />
       <div style={{ padding: '12px 16px' }}>
         <div style={{ fontWeight: 700, marginBottom: 4 }}>
           {labels.drivers}
@@ -310,10 +315,10 @@ export function CurrentTeamCard({ result }: { result?: CurrentTeamResult }) {
           />
         ) : null}
         <Metric label={labels.priceChange} value={fmt(ti.teamPriceChange)} />
-        {typeof result.freeTransfers === 'number' ? (
+        {typeof result.freeTransfers === 'number' || result.dataStatus ? (
           <Metric
             label={labels.freeTransfers}
-            value={String(result.freeTransfers)}
+            value={transferLabel(result.freeTransfers, result.dataStatus, lang)}
           />
         ) : null}
       </div>

@@ -26,6 +26,7 @@ const { runWithRequestContext } = require('../src/agent/requestContext');
 const { getAgentChatId } = require('../src/agent/identity');
 const { applyWriteDecision } = require('../src/agent/writeDecision');
 const { applyWriteProposal } = require('../src/agent/writeProposal');
+const { applyReadChoice } = require('../src/agent/readChoice');
 const {
   getAllowedUserByEmail,
 } = require('../src/webUserAllowlistService');
@@ -197,6 +198,17 @@ function isWhoamiPath(req) {
   }
 }
 
+function isWorkflowPath(req) {
+  return ['/api/agent/workflows', '/api/agent/workflow-decision'].includes(buildRequestUrl(req).pathname);
+}
+
+async function buildWorkflowResponse(req, chatId) {
+  const { applyWorkflowRequest } = require('../src/agent/workflows');
+  const result = await applyWorkflowRequest({ chatId, payload: parseRequestBody(req), list: buildRequestUrl(req).pathname === '/api/agent/workflows' });
+
+  return { status: result.status, headers: { ...buildResponseCorsHeaders(req), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }, body: JSON.stringify(result.body) };
+}
+
 function isWriteDecisionPath(req) {
   try {
     return buildRequestUrl(req).pathname === '/api/agent/write-decision';
@@ -211,6 +223,20 @@ function isWriteProposalPath(req) {
   } catch {
     return false;
   }
+}
+
+function isReadChoicePath(req) {
+  return buildRequestUrl(req).pathname === '/api/agent/read-choice';
+}
+
+async function buildReadChoiceResponse(req, chatId) {
+  const result = await applyReadChoice({ chatId, payload: parseRequestBody(req) });
+
+  return {
+    status: result.status,
+    headers: { ...buildResponseCorsHeaders(req), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    body: JSON.stringify(result.body),
+  };
 }
 
 function parseRequestBody(req) {
@@ -291,9 +317,16 @@ module.exports = async function (context, req) {
     return;
   }
 
+  const workflow = isWorkflowPath(req);
+  if (workflow && (req.method || '').toUpperCase() !== (buildRequestUrl(req).pathname === '/api/agent/workflows' ? 'GET' : 'POST')) {
+    context.res = { status: 405, headers: buildResponseCorsHeaders(req), body: 'Method Not Allowed' };
+
+    return;
+  }
   const whoami = isWhoamiPath(req);
   const writeDecision = isWriteDecisionPath(req);
   const writeProposal = isWriteProposalPath(req);
+  const readChoice = isReadChoicePath(req);
   if (whoami && (req.method || '').toUpperCase() !== 'GET') {
     context.res = {
       status: 405,
@@ -318,7 +351,7 @@ module.exports = async function (context, req) {
 
     return;
   }
-  if (writeProposal && (req.method || '').toUpperCase() !== 'POST') {
+  if ((writeProposal || readChoice) && (req.method || '').toUpperCase() !== 'POST') {
     context.res = {
       status: 405,
       headers: {
@@ -358,8 +391,8 @@ module.exports = async function (context, req) {
       return;
     }
 
-    if (writeDecision || writeProposal) {
-      const buildWriteResponse = writeDecision
+    if (writeDecision || writeProposal || workflow || readChoice) {
+      const buildWriteResponse = readChoice ? buildReadChoiceResponse : workflow ? buildWorkflowResponse : writeDecision
         ? buildWriteDecisionResponse
         : buildWriteProposalResponse;
       if (authResult.status === STATUS.OK) {

@@ -109,6 +109,7 @@ function safeResult(chatId, info, result) {
     status,
     tool: info.name,
     triggerId: info.triggerId,
+    ...(result.uncertain ? { uncertain: true } : {}),
     ...(typeof result.runReference === 'string'
       ? { runReference: result.runReference }
       : {}),

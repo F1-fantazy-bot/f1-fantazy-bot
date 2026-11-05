@@ -21,8 +21,8 @@ function buildDate(dateStr, timeStr) {
   return date;
 }
 
-async function fetchCurrentSeasonRaces() {
-  const response = await fetch(NEXT_RACES_ENDPOINT);
+async function fetchCurrentSeasonRaces(options) {
+  const response = await (options ? fetch(NEXT_RACES_ENDPOINT, options) : fetch(NEXT_RACES_ENDPOINT));
 
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);

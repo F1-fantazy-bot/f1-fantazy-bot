@@ -32,6 +32,7 @@ jest.mock('../../services/selectTeamService', () => ({
   })),
 }));
 jest.mock('../../services/activateChipService', () => ({
+  runChipMutation: (_owner, operation) => operation(),
   getChipOption: jest.fn(() => ({
     chip: 'EXTRA_BOOST',
     labelKey: 'Extra Boost',

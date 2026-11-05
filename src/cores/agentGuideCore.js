@@ -1,7 +1,17 @@
 const { MENU_CATEGORIES } = require('../constants');
+const { AGENT_COMMANDS, COMMAND_GROUPS } = require('./agentCommandCatalog');
+
+const COMMAND_TITLES = Object.freeze({
+  teams: { en: 'Team strategy actions', he: 'פעולות אסטרטגיית קבוצה' },
+  leagues: { en: 'League actions', he: 'פעולות ליגות' },
+  races: { en: 'Race weekend actions', he: 'פעולות סוף שבוע המרוץ' },
+  settings: { en: 'Settings and support actions', he: 'פעולות הגדרות ותמיכה' },
+  admin: { en: 'Admin actions', he: 'פעולות ניהול' },
+});
 
 const GUIDE_TOPICS = Object.freeze([
   'getting_started',
+  'commands',
   'teams',
   'leagues',
   'races',
@@ -288,6 +298,7 @@ function taskIsAvailable(taskId, profile) {
 function buildAgentGuide({
   lang = 'en',
   topic = 'getting_started',
+  commandGroup,
   isAdmin = false,
   teamCount = 0,
   followedTeamCount = 0,
@@ -330,6 +341,58 @@ function buildAgentGuide({
   const primaryLeagueName =
     leagueNames[0] ||
     localize({ en: 'my league', he: 'הליגה שלי' }, normalizedLang);
+  if (normalizedTopic === 'commands') {
+    const selectedGroup = COMMAND_GROUPS.includes(commandGroup)
+      ? commandGroup
+      : null;
+    if (selectedGroup === 'admin' && !isAdmin) {
+      return {
+        status: 'forbidden',
+        topic: normalizedTopic,
+        commandGroup: selectedGroup,
+        lang: normalizedLang,
+        summary: localize({
+          en: 'Admin actions are available only to administrators.',
+          he: 'פעולות ניהול זמינות למנהלים בלבד.',
+        }, normalizedLang),
+      };
+    }
+    const commands = AGENT_COMMANDS
+      .filter((command) => isAdmin || command.topic !== 'admin')
+      .filter((command) => !selectedGroup || command.topic === selectedGroup)
+      .map((command) => ({
+        id: command.id,
+        topic: command.topic,
+        icon: command.icon,
+        title: localize(command.title, normalizedLang),
+        example: localize(command.example, normalizedLang),
+      }));
+
+    return {
+      status: 'ok',
+      topic: normalizedTopic,
+      commandGroup: selectedGroup,
+      lang: normalizedLang,
+      title: localize(
+        selectedGroup
+          ? COMMAND_TITLES[selectedGroup]
+          : { en: 'Agent actions', he: 'פעולות האייג׳נט' },
+        normalizedLang,
+      ),
+      intro: localize({
+        en: 'Choose an action. The agent will ask for missing details and request approval before changing anything.',
+        he: 'בחר פעולה. האייג׳נט יבקש פרטים חסרים ואישור לפני ביצוע שינוי.',
+      }, normalizedLang),
+      recommendations: [],
+      sections: COMMAND_GROUPS
+        .map((sectionTopic) => ({
+          topic: sectionTopic,
+          tasks: commands.filter((command) => command.topic === sectionTopic),
+        }))
+        .filter((section) => section.tasks.length > 0),
+      notices: [],
+    };
+  }
   const availableTasks = Object.entries(TASKS)
     .filter(([, task]) => isAdmin || task.topic !== 'admin')
     .filter(([id]) => taskIsAvailable(id, profile))
@@ -381,6 +444,7 @@ function buildAgentGuide({
       }))
       .filter((section) => section.tasks.length > 0),
     notices: [
+      localize({ en: 'Combine requests such as “select Extra DRS and show best teams.” Review one workflow approval, then watch each step. Completed changes stay saved if a later step fails. Reopen to resume.', he: 'אפשר לשלב בקשות כמו ״בחר אקסטרה DRS והצג קבוצות מיטביות״. מאשרים תהליך אחד ועוקבים אחרי כל פעולה. שינויים שהושלמו נשמרים גם אם פעולה מאוחרת נכשלת. ניתן לפתוח מחדש ולהמשיך.' }, normalizedLang),
       ...(!hasProjectionData
         ? [
             localize(
