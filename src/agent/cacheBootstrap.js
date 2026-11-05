@@ -18,11 +18,12 @@ const { initializeCaches } = require('../cacheInitializer');
 const { refreshLeagueSourcedTeams } = require('../cacheInitializer');
 const { currentTeamCache, isLeagueTeamId } = require('../cache');
 const { getNotifierBot } = require('./notifierBot');
+const { refreshNextRaceInfoIfExpired } = require('../services/nextRaceInfoRefreshService');
 
 let pendingCacheReady = null;
 const pendingUserRefresh = new Map();
 
-function ensureCacheReady() {
+async function ensureCacheReady() {
   if (!pendingCacheReady) {
     pendingCacheReady = initializeCaches(getNotifierBot()).catch((err) => {
       // Reset on failure so the next tool invocation retries from
@@ -34,7 +35,8 @@ function ensureCacheReady() {
     });
   }
 
-  return pendingCacheReady;
+  await pendingCacheReady;
+  await refreshNextRaceInfoIfExpired();
 }
 
 // The test agent can start before a newly deployed scraper finishes writing

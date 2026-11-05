@@ -1,9 +1,11 @@
+const { refreshNextRaceInfoIfExpired } = require('../services/nextRaceInfoRefreshService');
 const { sendLogMessage, sendErrorMessage } = require('../utils');
 const { formatDateTime } = require('../utils/utils');
 const { getRaceWeather } = require('../cores/raceWeatherCore');
 const { t } = require('../i18n');
 
 async function handleNextRaceWeatherCommand(bot, chatId) {
+  await refreshNextRaceInfoIfExpired();
   const result = await getRaceWeather({
     onFetch: async ({ locality, country }) => {
       await sendLogMessage(

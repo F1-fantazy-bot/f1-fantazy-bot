@@ -1,3 +1,7 @@
+jest.mock('../services/nextRaceInfoRefreshService', () => ({
+  refreshNextRaceInfoIfExpired: jest.fn(),
+}));
+
 jest.mock('../cacheInitializer', () => ({
   initializeCaches: jest.fn().mockResolvedValue(undefined),
   refreshLeagueSourcedTeams: jest.fn().mockResolvedValue(undefined),
@@ -9,11 +13,13 @@ jest.mock('../cache', () => ({
 jest.mock('./notifierBot', () => ({ getNotifierBot: () => ({}) }));
 
 const { currentTeamCache } = require('../cache');
+const { refreshNextRaceInfoIfExpired } = require('../services/nextRaceInfoRefreshService');
 const {
   initializeCaches,
   refreshLeagueSourcedTeams,
 } = require('../cacheInitializer');
 const {
+  ensureCacheReady,
   ensureCurrentUserIdentity,
   resetCacheReadyForTests,
 } = require('./cacheBootstrap');
@@ -52,4 +58,11 @@ test('canonical teams and screenshot teams do not trigger another migration', as
   };
   await ensureCurrentUserIdentity(42);
   expect(refreshLeagueSourcedTeams).not.toHaveBeenCalled();
+});
+
+test('checks race freshness on every agent access while initializing once', async () => {
+  await ensureCacheReady();
+  await ensureCacheReady();
+  expect(initializeCaches).toHaveBeenCalledTimes(1);
+  expect(refreshNextRaceInfoIfExpired).toHaveBeenCalledTimes(2);
 });

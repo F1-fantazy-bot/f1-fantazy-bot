@@ -1,3 +1,4 @@
+const { refreshNextRaceInfoIfExpired } = require('../services/nextRaceInfoRefreshService');
 const { sendLogMessage, sendErrorMessage, sendPhotoToUser } = require('../utils');
 const { formatDateTime } = require('../utils/utils');
 const { MAX_TELEGRAM_MESSAGE_LENGTH } = require('../constants');
@@ -5,6 +6,7 @@ const { getNextRaceInfo } = require('../cores/nextRaceInfoCore');
 const { t, getLanguage } = require('../i18n');
 
 async function handleNextRaceInfoCommand(bot, chatId) {
+  await refreshNextRaceInfoIfExpired();
   const result = await getNextRaceInfo({
     onFetch: async ({ locality, country }) => {
       await sendLogMessage(
