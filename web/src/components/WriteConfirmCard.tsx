@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAgent, useCopilotKit } from '@copilotkit/react-core/v2';
 import { useWriteDecision } from './WriteDecisionContext';
 import { isWriteResult, type WriteResult } from './WriteResultCard';
@@ -105,6 +105,9 @@ export function WriteConfirmCard({
         directConfirmError:
           'The final status could not be verified. Refresh the team list before trying again.',
       };
+  // React state updates after the current event; lock synchronously so rapid
+  // approve/cancel clicks cannot submit the same nonce twice.
+  const submissionInFlight = useRef(false);
   const [decision, setDecision] = useState<CardDecision>(() => {
     const saved = initialDecision || loadReadCards().find((card) => card.result.writeNonce === result.writeNonce)?.decision;
     return saved === 'submitting' ? 'blocked' : saved || 'pending';
@@ -137,7 +140,8 @@ export function WriteConfirmCard({
   }
 
   async function onConfirm() {
-    if (decision !== 'pending' && decision !== 'error') return;
+    if (submissionInFlight.current || (decision !== 'pending' && decision !== 'error')) return;
+    submissionInFlight.current = true;
     setDecision('submitting');
     setErrorMessage('');
     let approved = false;
@@ -202,11 +206,14 @@ export function WriteConfirmCard({
       setErrorMessage(message);
       setDecision('error');
       onSettled?.('error', message);
+    } finally {
+      submissionInFlight.current = false;
     }
   }
 
   async function onCancel() {
-    if (decision !== 'pending' && decision !== 'error') return;
+    if (submissionInFlight.current || (decision !== 'pending' && decision !== 'error')) return;
+    submissionInFlight.current = true;
     setDecision('submitting');
     setErrorMessage('');
     try {
@@ -224,6 +231,8 @@ export function WriteConfirmCard({
       setErrorMessage(message);
       setDecision('error');
       onSettled?.('error', message);
+    } finally {
+      submissionInFlight.current = false;
     }
   }
 

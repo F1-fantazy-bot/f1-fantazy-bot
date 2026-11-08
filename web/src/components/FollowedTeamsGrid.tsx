@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { useState } from 'react';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { directionFor, uiLanguageOf } from './uiLanguage';
@@ -351,12 +352,9 @@ export function InteractiveFollowedTeams({
 }
 
 export function useFollowedTeamsAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'list_followed_teams',
-    description:
-      "List the user's followed F1 Fantasy teams enriched with each league they appear in and their current position.",
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="followedTeams" />;

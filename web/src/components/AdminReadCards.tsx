@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import {
   UseAgentUpdate,
   useAgent,
@@ -883,11 +884,9 @@ function renderAdminAction<T extends AdminResult>({
 }
 
 export function useAdminVersionAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_admin_version',
-    description: 'Show the admin deployment version.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: (props) =>
       renderAdminAction<AdminVersionResult>({
         ...props,
@@ -897,11 +896,9 @@ export function useAdminVersionAction() {
   });
 }
 export function useBillingStatsAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_billing_stats',
-    description: 'Show safe admin billing statistics.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: (props) =>
       renderAdminAction<BillingResult>({
         ...props,
@@ -911,11 +908,9 @@ export function useBillingStatsAction() {
   });
 }
 export function useBotUsersAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'list_bot_users',
-    description: 'Show the admin bot-user directory.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: (props) =>
       renderAdminAction<BotUsersResult>({
         ...props,
@@ -925,11 +920,9 @@ export function useBotUsersAction() {
   });
 }
 export function useWebUsersAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'list_web_users',
-    description: 'Show the admin web-user directory.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: (props) =>
       renderAdminAction<WebUsersResult>({
         ...props,
@@ -939,11 +932,9 @@ export function useWebUsersAction() {
   });
 }
 export function useBotfatherSetupAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_botfather_setup',
-    description: 'Show the admin BotFather command setup.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: (props) =>
       renderAdminAction<BotfatherSetupResult>({
         ...props,

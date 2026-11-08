@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import {
   directionFor,
@@ -243,12 +244,9 @@ export function WeatherForecast({ result }: { result?: WeatherResult }) {
 }
 
 export function useWeatherForecastAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_race_weather',
-    description:
-      'Per-session hourly weather forecast (up to 3 hours per session) for the next F1 race weekend.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="weather" />;

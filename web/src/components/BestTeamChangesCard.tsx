@@ -2,7 +2,8 @@ import { createPortal } from 'react-dom';
 import { type ReactNode } from 'react';
 import { TransferPlayerTile, MetricNumber, type TransferPlayer as Player } from './TransferPlayerTile';
 import './BestTeamChangesCard.css';
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { ActionChoicesCard } from './ActionChoicesCard';
 import { safeParse } from './safeParse';
 import { ToolLoading } from './ToolLoading';
@@ -82,12 +83,12 @@ export function LocatedBestTeamChanges({ calculationId, children }: { calculatio
   return target ? createPortal(children, target) : <>{children}</>;
 }
 export function useBestTeamChangesAction() {
-  useCopilotAction({ name: 'get_best_team_changes', parameters: [], available: 'frontend', render: ({ status, result, args }) => {
+  useRenderTool({ name: 'get_best_team_changes', parameters: toolRenderParameters, render: ({ status, result, parameters: args }) => {
     const parsed = safeParse(result);
     const content = status === 'inProgress' || status === 'executing'
       ? <ToolLoading kind="bestTeamChanges" />
       : isToolErrorResult(parsed) ? <ToolErrorFallback result={parsed} />
         : <BestTeamChangesCard result={parsed as Result | undefined} />;
-    return <LocatedBestTeamChanges calculationId={args?.calculationId || (parsed as Result | undefined)?.calculationId}>{content}</LocatedBestTeamChanges>;
+    return <LocatedBestTeamChanges calculationId={(typeof args?.calculationId === 'string' ? args.calculationId : undefined) || (parsed as Result | undefined)?.calculationId}>{content}</LocatedBestTeamChanges>;
   } });
 }

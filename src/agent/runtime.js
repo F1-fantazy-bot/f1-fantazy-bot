@@ -20,6 +20,8 @@ const { AI_MODEL } = require('../aiModel');
 const { wrapLanguageModel } = require('ai');
 
 const { tools } = require('./tools');
+const { getAgentChatId } = require('./identity');
+const { getRequestContext } = require('./requestContext');
 const { getSystemPrompt } = require('./systemPrompt');
 const { getNotifierBot } = require('./notifierBot');
 const { createTokenUsageMiddleware } = require('./tokenUsageMiddleware');
@@ -80,17 +82,12 @@ function buildAgent(cfg) {
     // final assistant message in one run. Without this it stops after
     // emitting the tool call and never synthesises a reply.
     maxSteps: AGENT_MAX_STEPS,
-    // CopilotKit's `useLazyToolRenderer` only renders `toolCalls[0]` of
-    // an assistant message (see node_modules/.../use-lazy-tool-renderer.tsx
-    // line 15). When Azure OpenAI emits PARALLEL tool calls in one
-    // message (default behaviour), only the first tool's React render
-    // hook fires — the rest are silently dropped from the UI. Forcing
-    // sequential tool calls makes each tool call land in its own
-    // assistant message, so each gets its own rich UI render. Reasoning
-    // effort is fixed for the pinned Sol deployment.
+    // V2 renderers join each result by tool-call ID, including concurrent
+    // independent reads. Dependent calculations and writes still use the
+    // ordered workflow with its existing approvals and mutation boundary.
     providerOptions: {
       openai: {
-        parallelToolCalls: false,
+        parallelToolCalls: true,
         reasoningEffort: 'medium',
         // Request encrypted reasoning for stateless tool-step continuations.
         store: false,
@@ -108,6 +105,13 @@ function getCopilotRuntimeHandler() {
   const agent = buildAgent(cfg);
   const runtime = new CopilotRuntime({
     agents: { default: agent },
+    // Runtime replay/connect/stop must have the same account boundary as
+    // local history. Identity comes only from the verified webhook scope.
+    identifyUser: () => ({
+      id: getRequestContext()?.sub
+        ? `google:${getRequestContext().sub}`
+        : `chat:${getAgentChatId()}`,
+    }),
   });
 
   // Single-route mode keeps the protocol identical to the legacy

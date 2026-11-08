@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { directionFor, localeFor, uiLanguageOf, USER_TIME_ZONE } from './uiLanguage';
 import { ToolLoading } from './ToolLoading';
@@ -273,11 +274,9 @@ const cellBody: React.CSSProperties = {
 };
 
 export function useLiveScoreLeaderboardAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_live_score_leaderboard',
-    description: 'All-teams live-score leaderboard for one followed league.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="liveLeaderboard" />;

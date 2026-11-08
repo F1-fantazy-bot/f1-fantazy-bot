@@ -18,14 +18,17 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { useAgent } from '@copilotkit/react-core/v2';
 import {
-  AssistantMessage,
-  UserMessage,
-  type AssistantMessageProps,
-  type UserMessageProps,
-} from '@copilotkit/react-ui';
+  CopilotChatMessageView,
+  type CopilotChatMessageViewProps,
+  CopilotChatAssistantMessage,
+  CopilotChatUserMessage,
+  type CopilotChatAssistantMessageProps,
+  type CopilotChatUserMessageProps,
+} from '@copilotkit/react-core/v2';
 import type { Message } from '@ag-ui/core';
 import {
   isAgentRunActive,
@@ -47,31 +50,39 @@ const WorkflowConversationContext = createContext<ConversationCard[]>([]);
 
 // Use CopilotChat's message slots: React owns the cards' position relative to
 // later prompts, while the native components retain text, controls and tool UI.
-export function WorkflowUserMessage(props: UserMessageProps) {
+export const WorkflowUserMessage = Object.assign(function WorkflowUserMessage(props: CopilotChatUserMessageProps) {
   const cards = useContext(WorkflowConversationContext);
   return (
     <>
-      <UserMessage {...props} />
+      <CopilotChatUserMessage {...props} />
       <ReadCardHistory promptId={props.message?.id} />
       {cards.filter((card) => card.promptId === props.message?.id).map((card) => (
         <div key={card.id} data-workflow-card-id={card.id}>{card.content}</div>
       ))}
     </>
   );
+}, CopilotChatUserMessage);
+
+export const WorkflowAssistantMessage = Object.assign(function WorkflowAssistantMessage(props: CopilotChatAssistantMessageProps) {
+  return <CopilotChatAssistantMessage {...props} />;
+}, CopilotChatAssistantMessage);
+
+export function WorkflowOrphanCards() {
+  const cards = useContext(WorkflowConversationContext);
+  return <>{cards.filter((card) => !card.promptId).map((card) => (
+    <div key={card.id} data-workflow-card-id={card.id}>{card.content}</div>
+  ))}</>;
 }
 
-export function WorkflowAssistantMessage(props: AssistantMessageProps) {
-  const cards = useContext(WorkflowConversationContext);
-  return (
-    <>
-      <AssistantMessage {...props} />
-      {props.messages?.[0]?.id === props.message?.id &&
-        cards.filter((card) => !card.promptId).map((card) => (
-          <div key={card.id} data-workflow-card-id={card.id}>{card.content}</div>
-        ))}
-    </>
-  );
-}
+// Wrap the native list, retaining its keyboard controls, streaming and scrolling.
+// Unanchored durable workflows also need a recovery surface in an empty chat.
+export const WorkflowMessageView = Object.assign(function WorkflowMessageView(props: CopilotChatMessageViewProps) {
+  return <>
+    {!props.messages?.length && <p className="chat-greeting">Hi! Ask what I can do to get a personalized guide.</p>}
+    <WorkflowOrphanCards />
+    <CopilotChatMessageView {...props} userMessage={WorkflowUserMessage} assistantMessage={WorkflowAssistantMessage} toolCallDisplay="separate" />
+  </>;
+}, CopilotChatMessageView);
 
 function workflowPromptId(messages: Message[], flow: Workflow): string | undefined {
   // A tool result identifies its originating turn even when polling returns
@@ -435,10 +446,9 @@ export function WorkflowWorkspace({
       return next;
     });
   }, []);
-  useCopilotAction({
+  useRenderTool({
     name: 'propose_workflow',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ result }) => {
       const parsed = typeof result === 'string' ? safeParse(result) : result;
       const initial = parsed as Workflow | undefined;

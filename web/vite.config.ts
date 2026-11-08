@@ -9,5 +9,7 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     globals: true,
+    include: ['src/**/*.test.{ts,tsx}'],
+    server: { deps: { inline: [/@copilotkit\/react-core/] } },
   },
 });

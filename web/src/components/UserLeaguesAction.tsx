@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { useAgent, useCopilotKit } from '@copilotkit/react-core/v2';
 import { useState } from 'react';
 import { isToolErrorResult, ToolErrorFallback } from './ToolErrorFallback';
@@ -274,12 +275,9 @@ export function InteractiveUserLeagues({
 }
 
 export function useUserLeaguesAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'list_user_leagues',
-    description:
-      'Show followed leagues and optionally select one for follow_team or unfollow_league.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="write" englishLabel="Loading leagues…" />;

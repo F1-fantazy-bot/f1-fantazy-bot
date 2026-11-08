@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import {
   directionFor,
@@ -474,11 +475,9 @@ export function LiveScoreBreakdown({
 }
 
 export function useLiveScoreBreakdownAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_live_score_for_team',
-    description: 'Per-team live-score breakdown for a followed league.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="liveScore" />;
