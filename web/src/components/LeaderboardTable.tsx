@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { directionFor, localeFor, uiLanguageOf, USER_TIME_ZONE } from './uiLanguage';
 import { ToolLoading } from './ToolLoading';
@@ -260,12 +261,9 @@ export function LeaderboardTable({ result }: { result?: LeaderboardResult }) {
 }
 
 export function useLeaderboardAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_leaderboard',
-    description:
-      "Show the standings for one of the user's followed F1 Fantasy leagues.",
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="leaderboard" />;

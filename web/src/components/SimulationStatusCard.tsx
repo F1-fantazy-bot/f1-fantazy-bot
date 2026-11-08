@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { isToolErrorResult, ToolErrorFallback } from './ToolErrorFallback';
 import { safeParse } from './safeParse';
 import { ToolLoading } from './ToolLoading';
@@ -190,11 +191,9 @@ export function SimulationStatusCard({
 }
 
 export function useSimulationStatusAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_simulation_status',
-    description: 'Show safe status for the shared F1 Fantasy simulation.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="simulationStatus" />;

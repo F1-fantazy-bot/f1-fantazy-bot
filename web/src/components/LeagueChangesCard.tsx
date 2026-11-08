@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import {
   UseAgentUpdate,
   useAgent,
@@ -399,11 +400,9 @@ export function LeagueChangesCard({
 }
 
 export function useLeagueChangesAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_league_changes',
-    description: 'Show planning-to-locked changes for a followed league.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="leagueChanges" />;

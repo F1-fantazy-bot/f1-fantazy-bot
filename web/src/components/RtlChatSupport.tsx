@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 const DIRECTIONAL_TEXT_SELECTOR = [
   '.chat-wrapper .copilotKitMessage',
-  '.chat-wrapper .copilotKitInput > textarea',
+  '.chat-wrapper [data-testid="copilot-chat-textarea"]',
 ].join(', ');
 
 const HEBREW_TEXT_RE = /[\u0590-\u05ff]/;

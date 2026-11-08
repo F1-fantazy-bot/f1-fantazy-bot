@@ -5,8 +5,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 const propose = vi.fn();
 const registerAction = vi.fn();
 
-vi.mock('@copilotkit/react-core', () => ({
-  useCopilotAction: (spec: unknown) => registerAction(spec),
+vi.mock('@copilotkit/react-core/v2', () => ({
+  useRenderTool: (spec: unknown) => registerAction(spec),
 }));
 
 vi.mock('./WriteDecisionContext', () => ({
@@ -194,14 +194,14 @@ test('workflow discovery keeps the team list renderer silent', async () => {
     render: (input: {
       status: string;
       result?: unknown;
-      args?: Record<string, unknown>;
+      parameters?: Record<string, unknown>;
     }) => unknown;
   };
 
   expect(
     registration.render({
       status: 'executing',
-      args: { mode: 'workflow_discovery' },
+      parameters: { mode: 'workflow_discovery' },
     }),
   ).not.toBeNull();
   expect(
@@ -224,7 +224,7 @@ test('workflow discovery keeps the team list renderer silent', async () => {
           },
         ],
       },
-      args: { mode: 'workflow_discovery' },
+      parameters: { mode: 'workflow_discovery' },
     }),
   ).not.toBeNull();
   expect(
@@ -235,14 +235,14 @@ test('workflow discovery keeps the team list renderer silent', async () => {
         mode: 'workflow_discovery',
         teams: [],
       },
-      args: {},
+      parameters: {},
     }),
   ).not.toBeNull();
   expect(
     registration.render({
       status: 'complete',
       result: { lang: 'en', teams: [] },
-      args: {},
+      parameters: {},
     }),
   ).not.toBeNull();
 });

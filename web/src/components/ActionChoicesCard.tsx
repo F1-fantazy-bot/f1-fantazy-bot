@@ -1,7 +1,8 @@
 import { LeaderboardTable, type LeaderboardResult } from './LeaderboardTable';
 import { useReadChoice } from './WriteDecisionContext';
 import { useId, useState } from 'react';
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import {
   UseAgentUpdate,
   useAgent,
@@ -286,11 +287,9 @@ export function ActionChoicesCard({ result, compact = false }: { result: ActionC
 }
 
 export function useActionChoicesAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_action_choices',
-    description: 'Clickable options for a pending request.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing')
         return <ToolLoading kind="choices" />;

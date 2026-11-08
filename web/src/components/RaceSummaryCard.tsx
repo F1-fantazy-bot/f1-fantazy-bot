@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import {
   UseAgentUpdate,
   useAgent,
@@ -282,11 +283,9 @@ export function RaceSummaryCard({ result }: { result?: RaceSummaryResult }) {
 }
 
 export function useRaceSummaryAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_race_summary',
-    description: 'Show a generated post-race recap for one followed league.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="raceSummary" />;

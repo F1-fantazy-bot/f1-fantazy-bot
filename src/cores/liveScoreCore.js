@@ -35,8 +35,7 @@ const {
 
 // Resolve `leagueCode` OR `leagueName` against the user's followed leagues.
 // Accepting either avoids forcing the LLM to chain `list_user_leagues`
-// → `get_live_score_*` (which triggers the CopilotKit
-// `useLazyToolRenderer` multi-step quirk and drops the second render).
+// → `get_live_score_*` when the league name is already known.
 async function ensureFollowed({ chatId, leagueCode, leagueName }) {
   if (
     (typeof leagueCode !== 'string' || !leagueCode.trim()) &&

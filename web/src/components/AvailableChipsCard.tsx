@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { ActionChoicesCard, isActionChoices } from './ActionChoicesCard';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { ToolLoading } from './ToolLoading';
@@ -52,8 +53,8 @@ export function AvailableChipsCard({ result }: { result?: AvailableChipsResult }
   </section>;
 }
 export function useAvailableChipsAction() {
-  useCopilotAction({
-    name: 'get_available_chips', description: 'Show chips unused this season.', parameters: [], available: 'frontend',
+  useRenderTool({
+    name: 'get_available_chips', parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') return <ToolLoading kind="availableChips" />;
       const parsed = safeParse(result);

@@ -1,12 +1,12 @@
 const { testAgent } = vi.hoisted(() => ({ testAgent: { isRunning: false, messages: [] as Message[], setMessages: vi.fn(), abortRun: vi.fn() } }));
 vi.mock('@copilotkit/react-core/v2', () => ({
   useAgent: () => ({ agent: testAgent }),
+  CopilotChatMessageView: () => null,
+  CopilotChatUserMessage: ({ message }: { message: { id: string; content: string } }) => <div data-prompt-id={message.id}>{message.content}</div>,
+  CopilotChatAssistantMessage: ({ message, subComponent }: { message: { content: string }; subComponent?: React.ReactNode }) => <div>{message.content}{subComponent}</div>,
+  useRenderTool: vi.fn(),
 }));
-vi.mock('@copilotkit/react-core', () => ({ useCopilotAction: vi.fn() }));
-vi.mock('@copilotkit/react-ui', () => ({
-  UserMessage: ({ message }: { message: { id: string; content: string } }) => <div data-prompt-id={message.id}>{message.content}</div>,
-  AssistantMessage: ({ message, subComponent }: { message: { content: string }; subComponent?: React.ReactNode }) => <div>{message.content}{subComponent}</div>,
-}));
+
 vi.mock('./ActionChoicesCard', () => ({
   ActionChoicesCard: () => null,
   isActionChoices: () => false,
@@ -15,9 +15,10 @@ vi.mock('./ActionChoicesCard', () => ({
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, expect, test, vi } from 'vitest';
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
 import type { Message } from '@ag-ui/core';
 import {
+  WorkflowOrphanCards,
   WorkflowArrival,
   WorkflowCard,
   WorkflowAssistantMessage,
@@ -60,13 +61,13 @@ function Conversation({ children }: { children?: React.ReactNode }) {
     <div className="chat-wrapper">
       <div className="copilotKitMessages">
         <div className="copilotKitMessagesContainer">
+          <WorkflowOrphanCards />
           <WorkflowAssistantMessage
             message={{ id: 'greeting', role: 'assistant', content: 'Chat' }}
             messages={[{ id: 'greeting', role: 'assistant', content: 'Chat' }]}
-            rawData={{}} isLoading={false} isGenerating={false}
           />
           {testAgent.messages.filter((message) => message.role === 'user').map((message) => (
-            <WorkflowUserMessage key={message.id} message={message as { id: string; role: 'user'; content: string }} rawData={message} ImageRenderer={() => null} />
+            <WorkflowUserMessage key={message.id} message={message as { id: string; role: 'user'; content: string }} />
           ))}
           {children}
         </div>
@@ -316,10 +317,10 @@ test('workflow arrival renders the live workflow inline and tracks its visibilit
 test('polled workflows do not duplicate inline cards and return inside chat after inline unmount', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ workflows: [flow] }) })));
   function Proposal() {
-    const calls = vi.mocked(useCopilotAction).mock.calls;
+    const calls = vi.mocked(useRenderTool).mock.calls;
     const registration = calls[calls.length - 1][0];
-    const renderProposal = registration.render as (props: { result: Workflow }) => React.ReactNode;
-    return renderProposal({ result: flow });
+    const renderProposal = registration.render;
+    return renderProposal({ name: 'propose_workflow', toolCallId: 'proposal', parameters: {}, status: 'complete', result: JSON.stringify(flow) });
   }
   const container = document.createElement('div');
   document.body.append(container);

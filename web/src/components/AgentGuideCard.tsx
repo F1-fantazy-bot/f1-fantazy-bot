@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import {
   UseAgentUpdate,
   useAgent,
@@ -495,12 +496,9 @@ export function AgentGuideCard({
 }
 
 export function useAgentGuideAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_agent_guide',
-    description:
-      'Show personalized help, onboarding, and clickable cards for all actions the agent can run.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="guide" />;

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { directionFor, localeFor, uiLanguageOf, USER_TIME_ZONE } from './uiLanguage';
 import { ToolLoading } from './ToolLoading';
@@ -243,12 +244,9 @@ function CountdownCell({
 }
 
 export function useDeadlineCountdownAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_deadline',
-    description:
-      'Next F1 Fantasy team-lock deadline with a live ticking countdown.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="deadline" />;

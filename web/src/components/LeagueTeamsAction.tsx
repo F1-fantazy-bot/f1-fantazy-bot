@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { useState } from 'react';
 import { isToolErrorResult, ToolErrorFallback } from './ToolErrorFallback';
 import {
@@ -298,12 +299,9 @@ export function InteractiveLeagueTeams({
 }
 
 export function useLeagueTeamsAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'list_league_teams',
-    description:
-      'Show every team in a followed league and optionally select one for follow_team.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="write" englishLabel="Loading league teams…" />;
