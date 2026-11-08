@@ -1985,9 +1985,11 @@ Project-scoped Copilot CLI skills live under `.github/skills/<name>/SKILL.md` an
 
 The web agent's `get_best_teams` reads current durable calculation inputs through
 `bestTeamSnapshotService` without changing saved rosters or preferences. It stores
-up to ten displayed rows in the dedicated `BestTeamCalculations` Azure Table,
+up to twenty displayed rows in the dedicated `BestTeamCalculations` Azure Table,
 partitioned by a hash of authenticated identity, with a 24-hour expiry, bounded
-cleanup, and a twenty-calculation per-user admission limit. Metadata and each
+cleanup, and a twenty-calculation per-user admission limit for non-admins.
+Admins are exempt through the shared server-side `isAdminChatId` predicate;
+snapshot expiry, cleanup and authenticated-owner isolation still apply. Metadata and each
 row's transfer details are separate entities in one atomic transaction; oversized
 payloads or storage failures fail the tool safely instead of returning unusable
 buttons. The optional core context loader leaves the Telegram path unchanged.

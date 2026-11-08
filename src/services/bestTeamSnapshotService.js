@@ -10,6 +10,7 @@ const { buildBestTeamChanges } = require('../cores/bestTeamChangesCore');
 const { AGENT_BEST_TEAMS_MAX_RESULT_COUNT } = require('../constants');
 const { loadWeeklySources, resolveWeeklyTeam } = require('./weeklyTeamDataService');
 const { listUserLeagues } = require('../leagueRegistryService');
+const { isAdminChatId } = require('../adminIdentity');
 const TTL = 24 * 60 * 60 * 1000;
 const hash = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 let client;
@@ -80,9 +81,11 @@ async function dependencies(chatId, teamId) {
 async function saveCalculation(chatId, result, request, fingerprint) {
   const store = await table();
   const partitionKey = hash(String(chatId));
-  let activeRows = 0;
-  for await (const entity of store.listEntities({ queryOptions: { filter: `PartitionKey eq '${partitionKey}' and expiresAt ge '${new Date().toISOString()}'`, select: ['rowKey'] } })) {
-    if (!entity.rowKey.includes('_') && ++activeRows >= 20) {throw new Error('Calculation limit reached; retry later');}
+  if (!isAdminChatId(chatId)) {
+    let activeRows = 0;
+    for await (const entity of store.listEntities({ queryOptions: { filter: `PartitionKey eq '${partitionKey}' and expiresAt ge '${new Date().toISOString()}'`, select: ['rowKey'] } })) {
+      if (!entity.rowKey.includes('_') && ++activeRows >= 20) {throw new Error('Calculation limit reached; retry later');}
+    }
   }
   const calculationId = randomUUID();
   const expiresAt = new Date(Date.now() + TTL).toISOString();
