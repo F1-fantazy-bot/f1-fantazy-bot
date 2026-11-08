@@ -87,6 +87,7 @@ npm --prefix web ci --registry=https://registry.npmjs.org
 COPILOTKIT_TELEMETRY_DISABLED=true npm run test:coverage -- --runInBand
 npm run lint
 npm --prefix web test
+(cd web && npx tsc -b --force)
 npm --prefix web run build
 npm --prefix web run test:browser
 git diff --check

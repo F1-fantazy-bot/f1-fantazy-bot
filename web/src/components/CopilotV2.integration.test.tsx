@@ -158,7 +158,7 @@ test('the mounted v2 provider uses refreshed authorization headers and retains e
   await act(async () => button('Run reads').click());
   await vi.waitFor(() => expect(container.textContent).toContain('first race'));
   expect(
-    requests.filter((request) => request.body.method === 'agent/run').at(-1)
+    requests.filter((request) => request.body.method === 'agent/run').slice(-1)[0]
       ?.authorization,
   ).toBe('Bearer initial-token');
   await act(async () => button('Refresh token').click());
