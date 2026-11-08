@@ -7,8 +7,16 @@ const mockStore = {
   getEntity: jest.fn(async (partition, row) => { const item = mockEntities.get(`${partition}/${row}`); if (!item) {throw { statusCode: 404 };}
 
  return item; }),
-  listEntities: jest.fn(async function* () {}),
-  deleteEntity: jest.fn(),
+  listEntities: jest.fn(async function* ({ queryOptions }) {
+    const partition = queryOptions.filter.match(/PartitionKey eq '([^']+)'/)[1];
+    const [, comparison, cutoff] = queryOptions.filter.match(/expiresAt (ge|lt) '([^']+)'/);
+    for (const entity of [...mockEntities.values()]) {
+      if (entity.partitionKey === partition && (comparison === 'ge' ? entity.expiresAt >= cutoff : entity.expiresAt < cutoff)) {
+        yield entity;
+      }
+    }
+  }),
+  deleteEntity: jest.fn(async (partition, row) => {mockEntities.delete(`${partition}/${row}`);}),
 };
 jest.mock('@azure/data-tables', () => ({ TableClient: { fromConnectionString: () => mockStore } }));
 jest.mock('@azure/storage-blob', () => ({ BlobServiceClient: { fromConnectionString: () => ({ getContainerClient: () => ({ getBlockBlobClient: () => ({ getProperties: async () => ({ etag: mockVersion }) }) }) }) } }));
@@ -22,9 +30,11 @@ jest.mock('../azureStorageService', () => ({
   getUserTeam: jest.fn(async () => mockRemoved ? null : ({ drivers: ['A'], constructors: ['X'], boost: 'A', costCapRemaining: 10, freeTransfers: 1 })),
 }));
 const cache = require('../cache');
+const { ADMIN_CHAT_IDS } = require('../adminIdentity');
 const service = require('./bestTeamSnapshotService');
 let result;
 beforeEach(async () => {
+  jest.clearAllMocks();
   require('../leagueRegistryService').listUserLeagues.mockResolvedValue([]);
   mockEntities.clear(); mockVersion = 'v1'; mockRemoved = false;
   cache.currentTeamCache[42] = { T1: { teamName: 'First' }, T2: { teamName: 'Second' } };
@@ -107,6 +117,54 @@ test('expiry filters use quoted ISO strings supported by Azure Table Storage', a
   const filter = mockStore.listEntities.mock.calls.at(-2)[0].queryOptions.filter;
   expect(filter).toMatch(/expiresAt ge '\d{4}-\d{2}-\d{2}T/);
   expect([...mockEntities.values()][0].expiresAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+});
+
+test('regular users may save 20 calculations but the 21st is rejected without deleting history', async () => {
+  for (let index = 0; index < 20; index++) {await save();}
+  const before = [...mockEntities.entries()];
+  await expect(save()).rejects.toThrow('Calculation limit reached; retry later');
+  expect([...mockEntities.entries()]).toEqual(before);
+  expect(mockStore.submitTransaction).toHaveBeenCalledTimes(20);
+});
+
+test.each(ADMIN_CHAT_IDS)('admin %s can exceed 20 calculations and retain every unexpired result', async (chatId) => {
+  cache.currentTeamCache[chatId] = { T1: { teamName: 'First' } };
+  try {
+    const fingerprint = await service.dependencies(chatId, 'T1');
+    const ids = [];
+    for (let index = 0; index < 25; index++) {
+      ids.push(await service.saveCalculation(chatId, result, {}, fingerprint));
+    }
+    expect(mockEntities.size).toBe(25 * 3);
+    expect((await service.getChanges(chatId, ids[0], 2)).status).toBe('ok');
+    expect((await service.getChanges(chatId, ids[24], 1)).status).toBe('ok');
+    expect(mockStore.listEntities.mock.calls.every(([options]) => options.queryOptions.filter.includes('expiresAt lt'))).toBe(true);
+    // The admin's exemption must not grant additional calculations to another user.
+    for (let index = 0; index < 20; index++) {await save();}
+    await expect(save()).rejects.toThrow('Calculation limit reached; retry later');
+  } finally {delete cache.currentTeamCache[chatId];}
+});
+
+test('admins still receive outdated_result for expired snapshots and cleanup runs on save', async () => {
+  const chatId = ADMIN_CHAT_IDS[0];
+  cache.currentTeamCache[chatId] = { T1: { teamName: 'First' } };
+  try {
+    const fingerprint = await service.dependencies(chatId, 'T1');
+    const id = await service.saveCalculation(chatId, result, {}, fingerprint);
+    for (const entity of mockEntities.values()) {entity.expiresAt = new Date(0).toISOString();}
+    expect((await service.getChanges(chatId, id, 1)).status).toBe('outdated_result');
+    const current = await service.saveCalculation(chatId, result, {}, fingerprint);
+    expect(mockEntities.size).toBe(3);
+    expect((await service.getChanges(chatId, current, 1)).status).toBe('ok');
+  } finally {delete cache.currentTeamCache[chatId];}
+});
+
+test('expired regular-user calculations do not consume the quota', async () => {
+  for (let index = 0; index < 20; index++) {await save();}
+  for (const entity of mockEntities.values()) {entity.expiresAt = new Date(0).toISOString();}
+  const id = await save();
+  expect(mockEntities.size).toBe(3);
+  expect((await service.getChanges(42, id, 1)).status).toBe('ok');
 });
 
 test.each([
