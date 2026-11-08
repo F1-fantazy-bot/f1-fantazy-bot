@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { RecommendationButton, useBestTeamChangesAction } from './BestTeamChangesCard';
 import { useCopilotAction } from '@copilotkit/react-core';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
@@ -86,6 +87,12 @@ const copy = {
     budgetAdjustedShort: 'Budget-adj',
     transfers: 'Tr',
     priceChange: 'Δ price',
+    recommendationNumber: 'Recommendation number',
+    pointsSort: 'Points',
+    transfersSort: 'Transfers',
+    priceChangeSort: 'Price change',
+    sortDescending: 'Sort by {column}, descending',
+    sortAscending: 'Sort by {column}, ascending',
     current: 'current',
     penalty: 'pen',
     captain: 'captain',
@@ -136,6 +143,12 @@ const copy = {
     budgetAdjustedShort: 'מותאם תקציב',
     transfers: 'העברות',
     priceChange: 'שינוי מחיר',
+    recommendationNumber: 'מספר המלצה',
+    pointsSort: 'נקודות',
+    transfersSort: 'העברות',
+    priceChangeSort: 'שינוי מחיר',
+    sortDescending: 'מיון לפי {column}, בסדר יורד',
+    sortAscending: 'מיון לפי {column}, בסדר עולה',
     current: 'נוכחית',
     penalty: 'קנס',
     captain: 'קפטן',
@@ -279,6 +292,16 @@ export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
   if (result.status !== 'ok') {
     return <BestTeamsError result={result} />;
   }
+  // A fresh calculation starts in server order. The fallback also supports
+  // historical cards without a calculation ID and survives equivalent JSON re-parses.
+  return <BestTeamsResultTable key={result.calculationId ?? JSON.stringify(result)} result={result} />;
+}
+
+type SortColumn = 'row' | 'totalPrice' | 'projectedPoints' | 'budgetAdjustedPoints' | 'transfersNeeded' | 'expectedPriceChange';
+type Sort = { column: SortColumn; direction: 'ascending' | 'descending' };
+
+function BestTeamsResultTable({ result }: { result: GetBestTeamsOkResult }) {
+  const [sort, setSort] = useState<Sort | null>(null);
   const lang: UiLanguage = result.lang === 'he' ? 'he' : 'en';
   const labels = copy[lang];
   if (!result.bestTeams || result.bestTeams.length === 0) {
@@ -295,6 +318,36 @@ export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
   const includeDrivers = new Set(result.filters.mustIncludeDrivers);
   const includeConstructors = new Set(result.filters.mustIncludeConstructors);
   const showBudgetAdjusted = result.budgetChangePointsPerMillion > 0;
+  const activeSort = sort?.column === 'budgetAdjustedPoints' && !showBudgetAdjusted ? null : sort;
+  const teams = activeSort
+    ? result.bestTeams.map((team, index) => ({ team, index })).sort((a, b) => {
+        const left = a.team[activeSort.column];
+        const right = b.team[activeSort.column];
+        const leftMissing = left == null || !Number.isFinite(left);
+        const rightMissing = right == null || !Number.isFinite(right);
+        if (leftMissing || rightMissing) {
+          return leftMissing === rightMissing ? a.index - b.index : leftMissing ? 1 : -1;
+        }
+        return (activeSort.direction === 'descending' ? right - left : left - right) || a.index - b.index;
+      }).map(({ team }) => team)
+    : result.bestTeams;
+  const sortHeader = (column: SortColumn, text: string, accessibleName: string) => {
+    const direction = activeSort?.column === column ? activeSort.direction : undefined;
+    const nextDirection = direction === 'descending' ? 'ascending' : 'descending';
+    const actionLabel = nextDirection === 'descending' ? labels.sortDescending : labels.sortAscending;
+    return (
+      <th scope="col" style={cellHeader} className="best-teams__sort-header" aria-sort={direction}>
+        <button
+          type="button"
+          className="best-teams__sort"
+          aria-label={actionLabel.replace('{column}', accessibleName)}
+          onClick={() => setSort({ column, direction: nextDirection })}
+        >
+          {text} <span aria-hidden="true">{direction === 'descending' ? '↓' : direction === 'ascending' ? '↑' : '↕'}</span>
+        </button>
+      </th>
+    );
+  };
 
   return (
     <div
@@ -353,36 +406,22 @@ export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
               textAlign: 'start',
             }}
           >
-            <th scope="col" style={cellHeader}>
-              #
-            </th>
+            {sortHeader('row', '#', labels.recommendationNumber)}
             <th scope="col" style={cellHeader}>
               {labels.drivers}
             </th>
             <th scope="col" style={cellHeader}>
               {labels.constructors}
             </th>
-            <th scope="col" style={cellHeader}>
-              {labels.price}
-            </th>
-            <th scope="col" style={cellHeader}>
-              {labels.points}
-            </th>
-            {showBudgetAdjusted ? (
-              <th scope="col" style={cellHeader}>
-                {labels.budgetAdjustedShort}
-              </th>
-            ) : null}
-            <th scope="col" style={cellHeader}>
-              {labels.transfers}
-            </th>
-            <th scope="col" style={cellHeader}>
-              {labels.priceChange}
-            </th>
+            {sortHeader('totalPrice', labels.price, labels.price)}
+            {sortHeader('projectedPoints', labels.points, labels.pointsSort)}
+            {showBudgetAdjusted ? sortHeader('budgetAdjustedPoints', labels.budgetAdjustedShort, labels.budgetAdjustedPoints) : null}
+            {sortHeader('transfersNeeded', labels.transfers, labels.transfersSort)}
+            {sortHeader('expectedPriceChange', labels.priceChange, labels.priceChangeSort)}
           </tr>
         </thead>
         <tbody>
-          {result.bestTeams.map((team) => (
+          {teams.map((team) => (
             <tr
               key={team.row}
               style={{ borderTop: '1px solid var(--app-border)' }}
@@ -430,13 +469,13 @@ export function BestTeamsTable({ result }: { result?: GetBestTeamsResult }) {
                 <span className="best-teams__label" aria-hidden="true">
                   {labels.price}
                 </span>
-                {team.totalPrice.toFixed(1)}
+                {team.totalPrice?.toFixed(1) ?? '—'}
               </td>
               <td style={cellBody}>
                 <span className="best-teams__label" aria-hidden="true">
                   {labels.points}
                 </span>
-                <strong>{team.projectedPoints.toFixed(1)}</strong>
+                <strong>{team.projectedPoints?.toFixed(1) ?? '—'}</strong>
                 {team.penalty > 0 ? (
                   <div
                     style={{ fontSize: 11, color: 'var(--app-danger-text)' }}

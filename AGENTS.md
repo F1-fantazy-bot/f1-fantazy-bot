@@ -1392,7 +1392,11 @@ summary, filters, column headers, penalties, legend, errors, and RTL
 layout. F1 driver/constructor codes and proper names remain unchanged.
 The best-teams table uses a container query in `BestTeamsTable.css` to
 stack rows into labeled two-column metrics when the card is at most
-640px wide; wider cards retain the comparison table.
+640px wide; wider cards retain the comparison table. Numeric headers sort the
+returned rows locally (descending first, then ascending), with stable ties and
+missing values last. On narrow cards these headers wrap above the stacked rows.
+Sorting resets for a new calculation and preserves each recommendation's original
+row and calculation ID; it does not change saved ranking preferences.
 
 **All rich UI must follow the same saved-language contract.**
 `src/agent/tools.js#withUiLanguage` enriches every read-tool payload

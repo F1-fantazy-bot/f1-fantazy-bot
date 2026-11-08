@@ -10,6 +10,29 @@
   display: none;
 }
 
+.best-teams__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.best-teams__sort:hover {
+  color: var(--app-text);
+}
+
+.best-teams__sort:focus-visible {
+  outline: 2px solid var(--app-text);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
 /* Use the card's available width, including padding inside chat messages. */
 @container (max-width: 640px) {
   .best-teams table,
@@ -17,14 +40,33 @@
     display: block;
   }
 
-  /* Keep column headers available to assistive technology. */
   .best-teams thead {
+    display: block;
+  }
+
+  .best-teams thead tr {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding: 8px 14px;
+  }
+
+  /* Roster labels are repeated on each stacked card. */
+  .best-teams th:not(.best-teams__sort-header) {
     position: absolute;
     width: 1px;
     height: 1px;
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
+  }
+
+  .best-teams__sort-header {
+    padding: 0 !important;
+  }
+
+  .best-teams__sort {
+    min-height: 32px;
   }
 
   .best-teams tbody tr {
