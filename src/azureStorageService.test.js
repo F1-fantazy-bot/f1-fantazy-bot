@@ -1,4 +1,5 @@
 const mockDownload = jest.fn();
+const mockDownloadToBuffer = jest.fn();
 const mockUpload = jest.fn();
 const mockDeleteIfExists = jest.fn();
 const mockExists = jest.fn();
@@ -9,12 +10,13 @@ jest.mock('@azure/storage-blob', () => ({
   BlobServiceClient: {
     fromConnectionString: jest.fn().mockReturnValue({
       getContainerClient: jest.fn().mockReturnValue({
-        getBlockBlobClient: jest.fn().mockReturnValue({
+        getBlockBlobClient: jest.fn((blobName) => ({
           download: mockDownload,
+          downloadToBuffer: (...args) => mockDownloadToBuffer(blobName, ...args),
           upload: mockUpload,
           deleteIfExists: mockDeleteIfExists,
           exists: mockExists,
-        }),
+        })),
         listBlobsFlat: mockListBlobsFlat,
       }),
     }),
@@ -33,6 +35,7 @@ describe('azureStorageService', () => {
     // Reset all mocks
     jest.clearAllMocks();
     mockDownload.mockReset();
+    mockDownloadToBuffer.mockReset();
     mockUpload.mockReset();
     mockDeleteIfExists.mockReset();
     mockExists.mockReset();
@@ -72,6 +75,22 @@ describe('azureStorageService', () => {
     // Import the service after mocks are set up
     jest.isolateModules(() => {
       azureStorageService = require('./azureStorageService');
+    });
+  });
+
+  describe('getRaceCalendar', () => {
+    it('reads the Jolpica blob and forwards the caller timeout to Azure', async () => {
+      const calendar = { MRData: { RaceTable: { Races: [] } } };
+      const signal = new AbortController().signal;
+      mockDownloadToBuffer.mockResolvedValueOnce(Buffer.from(JSON.stringify(calendar)));
+
+      await expect(azureStorageService.getRaceCalendar({ signal })).resolves.toEqual(calendar);
+      expect(mockDownloadToBuffer).toHaveBeenCalledWith(
+        'jolpica/calendar.json',
+        0,
+        undefined,
+        { abortSignal: signal },
+      );
     });
   });
 
