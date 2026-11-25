@@ -12,3 +12,7 @@ yarn-error.log*
 
 # Coverage directory
 coverage/
+
+# Browser regression artifacts
+web/test-results/
+web/playwright-report/

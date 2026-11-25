@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { ActionChoicesCard, writeActionChoices } from './ActionChoicesCard';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import {
@@ -27,9 +28,7 @@ import {
 //   useWriteAction({ name: 'confirm_write', description: '…' });
 //   useWriteAction({ name: 'set_language', description: '…' });
 //
-// `parameters` mirrors the existing read-tool hooks — for render-only
-// frontend actions the empty array is sufficient because CopilotKit
-// uses the backend tool's authoritative schema when invoking.
+// Render-only schemas preserve backend arguments; execution stays on the server.
 export type UseWriteActionOptions = {
   name: string;
   description: string;
@@ -39,16 +38,13 @@ export type UseWriteActionOptions = {
 
 export function useWriteAction({
   name,
-  description,
   loadingLabel,
   loadingKind,
 }: UseWriteActionOptions) {
-  useCopilotAction({
+  useRenderTool({
     name,
-    description,
-    parameters: [],
-    available: 'frontend',
-    render: ({ status, result, args }) => {
+    parameters: toolRenderParameters,
+    render: ({ status, result, parameters: args }) => {
       if (status === 'inProgress' || status === 'executing') {
         return (
           <ToolLoading

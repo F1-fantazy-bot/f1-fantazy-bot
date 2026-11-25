@@ -59,7 +59,7 @@ with the new core shared between the Telegram path and the agent tool.
 | Decision           | Value                                                                                                                                                                                        |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Channel            | Web chat — **Vite + React + CopilotKit** frontend                                                                                                                                            |
-| Frontend UX        | CopilotKit `<CopilotChat />` + `useCopilotAction({ render })` per tool                                                                                                                       |
+| Frontend UX        | CopilotKit `<CopilotChat />` + `useRenderTool({ render })` per tool                                                                                                                       |
 | LLM runtime        | **CopilotKit v2 `BuiltInAgent`** wraps Zod-typed `defineTool` entries; runs them via Vercel AI SDK `streamText` internally. Model built from **`@ai-sdk/azure`** (`azure.chat(deployment)`). |
 | Tool param schemas | **Zod** (Standard Schema V1) via `defineTool({ parameters: z.object({…}), execute })`                                                                                                        |
 | Backend hosting    | **Separate Azure Function App** for the agent (independent deploy/scale/failure from the Telegram bot)                                                                                       |
@@ -134,8 +134,8 @@ companion cost-cap fix in
 4. ✅ `src/commandsHandler/bestTeamsHandler.js` — refactored to thin adapter. `validateJsonData` is now properly `await`ed (was previously a Promise being `!`'d — silent latent bug). All 11 existing handler tests pass byte-for-byte unchanged.
 5. ✅ `src/agent/cacheBootstrap.js` — `ensureCacheReady()` lazily runs `initializeCaches(noopBot)` once per agent process. Resets on failure for retry-on-next-call. The agent runs in a separate process from the Telegram bot so it needs to populate `currentTeamCache`/`driversCache`/etc. before tools that read them can run. The noop bot is `{ sendMessage: async () => undefined }` — the log-side-effect calls in `initializeCaches` become no-ops since the agent process has no Telegram token.
 6. ✅ `src/agent/tools.js` — adds `list_user_teams` (no args) and `get_best_teams` (`{teamId?, teamName?, rankBy?, mustInclude*, mustExclude*}`). Both `await ensureCacheReady()` first. `get_best_teams` returns a compact DTO (~10 teams × ~10 numeric fields) — kept small so the streamed tool payload doesn't bloat.
-7. ✅ `src/agent/systemPrompt.js` — workflow rules teaching the LLM to call `get_best_teams` DIRECTLY with `teamName` (avoids the multi-tool-call rendering limitation — see #5 in the gotchas table).
-8. ✅ `src/agent/runtime.js` — `providerOptions: { openai: { parallelToolCalls: false } }` on the `BuiltInAgent`. Without this Azure OpenAI emits parallel tool calls in one assistant message; CopilotKit's `useLazyToolRenderer` only renders `toolCalls[0]` (see `node_modules/@copilotkit/react-core/src/hooks/use-lazy-tool-renderer.tsx:15`). Forcing sequential calls makes each tool's React render component mount correctly.
+7. ✅ `src/agent/systemPrompt.js` — workflow rules teaching the LLM to call `get_best_teams` DIRECTLY with `teamName` (avoids unnecessary target-discovery latency).
+8. ✅ `src/agent/runtime.js` — upgraded to CopilotKit 1.85.0 with a fully v2 frontend. Independent tools can share one response via `parallelToolCalls: true`; repeated calls and out-of-order results render by call ID. Dependent operations remain sequential workflows.
 9. ✅ `web/src/components/BestTeamsTable.tsx` — top-10 table; captain ⭐, mega-captain ⭐⭐, must-include drivers highlighted green, penalty markers, conditional budget-adjusted / points-per-million columns.
 10. ✅ `web/src/components/UserTeamsList.tsx` — responsive card grid; ACTIVE badge for the selected team, chip pill, league/screenshot tag.
 11. ✅ `web/src/App.tsx` wires both new actions alongside the Phase 1 `useNextRacesAction`.
@@ -194,11 +194,9 @@ Squash-merged `2026-05-17` as commit `508b681`.
 
 **Goal:** the second user request works:
 _"Best teams by points-per-million for every team I track."_
-**Updated approach (2026-05-17):** the agent does NOT fan out. It calls
-`list_followed_teams`, asks the user which specific team to focus on,
-then runs `get_best_teams` for that one team. Single rich render per
-question. This sidesteps the `parallelToolCalls: false` rendering
-constraint cleanly without a server-side batch tool.
+**Current approach:** discover canonical tracked-team IDs, then prepare one
+ordered read-only workflow step per team. The v2 migration supports parallel
+independent reads; workflows still preserve dependencies and per-step results.
 
 **Telegram surface changes:** none. The handler refactor was
 **deferred** — `leaderboardHandler.js` is already a thin
@@ -461,8 +459,8 @@ work without re-deriving the Phase 6 patterns from the merged PRs.
 - New "Environment variables" table documenting required Azure creds
   + optional `TELEGRAM_BOT_TOKEN` / `LOG_CHANNEL_ID` /
   `ERRORS_CHANNEL_ID` (gracefully degrade to stdout-only when unset).
-- New pitfall callouts captured from Phase 5: `useLazyToolRenderer`
-  + clarify-and-focus pattern for two-arg lookups, `liveScoreCore`
+- Historical Phase 5 renderer workarounds were superseded by the v2 migration.
+  Retain the canonical choice pattern for two-arg lookups and the `liveScoreCore`
   cross-league lesson (don't auto-default to `selectedTeam`),
   unescaped-backtick gotcha in the system-prompt template literal.
 - Updated "Adding a new tool" checklist: step 3 mandates
@@ -617,7 +615,7 @@ For every capability that needs to be on **both** surfaces:
 1. **Extract the pure logic** into `src/cores/<feature>Core.js` — structured JSON return, no `bot`, no `t()`, no `sendMessage`.
 2. **Refactor the existing Telegram handler** in `src/commandsHandler/<feature>Handler.js` to a thin adapter: call the core, format the result for Telegram, `bot.sendMessage`. **External behaviour must stay byte-identical** — existing handler tests must keep passing unchanged. If a test breaks, the refactor changed behaviour; fix the refactor, not the test.
 3. **Wrap the same core** in an agent tool via `defineTool` in `src/agent/tools.js`.
-4. **If the agent should render a rich UI**, add a `<FeatureComponent />` in `web/src/components/` and register it via `useCopilotAction({ name, available: 'frontend', render })`.
+4. **If the agent should render a rich UI**, add a `<FeatureComponent />` in `web/src/components/` and register it via `useRenderTool({ name, parameters: toolRenderParameters, render })`.
 5. **Verify in-browser with Playwright MCP** before declaring "done". The browser is the source of truth for UI changes.
 
 The full per-tool checklist (including the **cache bootstrap** and

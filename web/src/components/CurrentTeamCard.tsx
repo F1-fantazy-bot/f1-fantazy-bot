@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { directionFor, uiLanguageOf } from './uiLanguage';
 import { ToolLoading } from './ToolLoading';
@@ -373,12 +374,9 @@ function Metric({
 }
 
 export function useCurrentTeamAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_current_team',
-    description:
-      "Get the user's current saved roster — drivers, constructors, captain, chip, cost cap, projected points.",
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="currentTeam" />;

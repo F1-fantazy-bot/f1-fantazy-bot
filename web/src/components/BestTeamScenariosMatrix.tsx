@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { directionFor, uiLanguageOf, type UiLanguage } from './uiLanguage';
 import { ToolLoading } from './ToolLoading';
@@ -354,12 +355,9 @@ export function BestTeamScenariosMatrix({
 }
 
 export function useBestTeamScenariosAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_best_team_scenarios',
-    description:
-      'Compare best teams across the 4 budget-adjusted weight presets with no chip and verified unused supported chips.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="scenarios" />;

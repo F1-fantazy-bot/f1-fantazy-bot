@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { isToolErrorResult, ToolErrorFallback } from './ToolErrorFallback';
 import { safeParse } from './safeParse';
 import { ToolLoading } from './ToolLoading';
@@ -302,11 +303,9 @@ function formatPpm(value: number | null | undefined, lang: 'en' | 'he') {
 }
 
 export function useDataStatusAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_data_status',
-    description: 'Show a safe F1 Fantasy data readiness diagnostic.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="dataStatus" />;

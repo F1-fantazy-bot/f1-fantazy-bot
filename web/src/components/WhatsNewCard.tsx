@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { Fragment, useId } from 'react';
 import { isToolErrorResult, ToolErrorFallback } from './ToolErrorFallback';
 import { safeParse } from './safeParse';
@@ -174,11 +175,9 @@ export function WhatsNewCard({ result }: { result?: WhatsNewResult }) {
 }
 
 export function useWhatsNewAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_whats_new',
-    description: 'Show the latest F1 Fantasy Bot release announcement.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="whatsNew" />;

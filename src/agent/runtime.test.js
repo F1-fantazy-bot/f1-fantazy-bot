@@ -52,7 +52,7 @@ test('Sol uses supported medium reasoning without a reasoning-model override', (
     expect.objectContaining({
       providerOptions: {
         openai: {
-          parallelToolCalls: false,
+          parallelToolCalls: true,
           reasoningEffort: 'medium',
           store: false,
         },
@@ -147,7 +147,7 @@ test('the real Azure provider serializes Sol reasoning settings with tools', asy
     model: 'gpt-6.1-sol',
     reasoning: { effort: 'medium' },
     max_output_tokens: 8192,
-    parallel_tool_calls: false,
+    parallel_tool_calls: true,
     store: false,
     include: ['reasoning.encrypted_content'],
     input: [
@@ -298,7 +298,7 @@ test('the real CopilotKit agent completes a streamed Responses tool round trip',
       model: 'gpt-6.1-sol',
       stream: true,
       reasoning: { effort: 'medium' },
-      parallel_tool_calls: false,
+      parallel_tool_calls: true,
       store: false,
     });
   }

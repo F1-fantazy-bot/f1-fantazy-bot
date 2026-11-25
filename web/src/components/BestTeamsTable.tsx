@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { RecommendationButton, useBestTeamChangesAction } from './BestTeamChangesCard';
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { ToolLoading } from './ToolLoading';
 import './BestTeamsTable.css';
@@ -543,12 +544,9 @@ const cellBody: React.CSSProperties = {
 
 export function useBestTeamsAction() {
   useBestTeamChangesAction();
-  useCopilotAction({
+  useRenderTool({
     name: 'get_best_teams',
-    description:
-      'Compute the top scoring fantasy team combinations for the user with optional driver/constructor filters.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="bestTeams" />;

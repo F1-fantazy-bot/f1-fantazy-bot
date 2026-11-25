@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { useState } from 'react';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import {
@@ -93,13 +94,10 @@ export function InteractiveUserTeamsList({
 }
 
 export function useUserTeamsAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'list_user_teams',
-    description:
-      'List the teams the user is tracking. Returns teamId + teamName + roster summary.',
-    parameters: [],
-    available: 'frontend',
-    render: ({ status, result, args }) => {
+    parameters: toolRenderParameters,
+    render: ({ status, result, parameters: args }) => {
       const requestedDiscovery =
         (args as { mode?: string } | undefined)?.mode ===
         'workflow_discovery';

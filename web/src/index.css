@@ -231,42 +231,9 @@ html[data-theme='dark'] .theme-toggle__icon {
 }
 
 .chat-wrapper .copilotKitMessage,
-.chat-wrapper .copilotKitInput > textarea {
+.chat-wrapper [data-testid="copilot-chat-textarea"] {
   text-align: start;
   unicode-bidi: plaintext;
-}
-
-.chat-wrapper
-  .copilotKitMessage[data-text-direction='rtl']
-  ul.copilotKitMarkdownElement,
-.chat-wrapper
-  .copilotKitMessage[data-text-direction='rtl']
-  ol.copilotKitMarkdownElement {
-  padding-left: 0;
-  padding-right: 20px;
-}
-
-.chat-wrapper
-  .copilotKitMessage[data-text-direction='rtl']
-  blockquote.copilotKitMarkdownElement {
-  border-left: 0;
-  border-right: 2px solid rgb(142, 142, 160);
-  padding-left: 0;
-  padding-right: 10px;
-}
-
-.chat-wrapper
-  .copilotKitMessage[data-text-direction='rtl']
-  .copilotKitMessageControls {
-  left: auto;
-  right: 0;
-}
-
-.chat-wrapper .copilotKitCodeBlock,
-.chat-wrapper .copilotKitInlineCode {
-  direction: ltr;
-  text-align: left;
-  unicode-bidi: isolate;
 }
 
 .user-team-card {
@@ -337,4 +304,80 @@ html[data-theme='dark'] .theme-toggle__icon {
   .user-team-card[data-selectable='true']:hover {
     transform: none;
   }
+}
+
+/* V2 sets theme tokens on every data-copilotkit root. Bind them to the
+   application palette so nested message/input roots keep the selected theme. */
+.chat-wrapper [data-copilotkit] {
+  --background: var(--app-surface);
+  --foreground: var(--app-text);
+  --card: var(--app-surface);
+  --card-foreground: var(--app-text);
+  --popover: var(--app-surface);
+  --popover-foreground: var(--app-text);
+  --primary: var(--app-primary);
+  --primary-foreground: var(--app-primary-contrast);
+  --secondary: var(--app-surface-muted);
+  --secondary-foreground: var(--app-text);
+  --muted: var(--app-surface-muted);
+  --muted-foreground: var(--app-muted);
+  --accent: var(--app-control-bg);
+  --accent-foreground: var(--app-control-text);
+  --border: var(--app-border);
+  --input: var(--app-control-border);
+  --ring: var(--app-primary);
+}
+
+.chat-wrapper .copilotKitChat {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.chat-wrapper .copilotKitInput {
+  background: var(--app-control-bg);
+  color: var(--app-text);
+}
+
+.chat-greeting {
+  padding: 16px;
+  color: var(--app-muted);
+}
+
+.chat-wrapper .copilotKitMessage {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.chat-wrapper .copilotKitMessage table {
+  max-width: 100%;
+}
+
+.chat-wrapper .copilotKitMessage pre,
+.chat-wrapper .copilotKitMessage code {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+}
+
+.chat-wrapper .copilotKitMessage[data-text-direction='rtl'] :is(ul, ol) {
+  padding-inline-start: 20px;
+  padding-inline-end: 0;
+}
+
+.chat-wrapper .copilotKitMessage[data-text-direction='rtl'] blockquote {
+  border-inline-start: 2px solid var(--app-border);
+  border-inline-end: 0;
+  padding-inline-start: 10px;
+}
+
+.tool-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.tool-table-scroll:focus-visible {
+  outline: 2px solid var(--app-primary);
+  outline-offset: -2px;
 }

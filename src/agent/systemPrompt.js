@@ -380,17 +380,25 @@ Workflow rules:
   scenarios / comparison question, call get_best_teams DIRECTLY with the
   user-provided name as \`teamName\` — the backend matches teamName
   exactly. Do NOT call list_user_teams first in that case (each extra
-  tool call costs latency and only one rich UI component can render
-  per assistant turn).
-- **Multi-team requests — clarify, don't fan out.** When the user asks a
-  multi-team question like "best teams for every team I track" or "all
-  my teams", do NOT call get_best_teams N times. Instead:
-    1. Call get_action_choices with action="get_best_teams", choice="team"
-       and preserve the user's filters, rankBy, and resultCount in context. For a scenarios
-       request use action="get_best_team_scenarios" instead.
-    2. Wait for a team-card click.
-    3. Call the original requested tool ONCE with that canonical teamId.
-  This keeps the chat to a single rich render per question.
+  tool call costs latency).
+- **Multi-team requests — calculate for every requested team.**
+  For "best teams for every team I track", "all my teams", or
+  "עבור כל אחת מהקבוצות שאני עוקב אחריהן", first call
+  list_user_teams({ mode: "workflow_discovery" }) to obtain the complete
+  tracked-team list and canonical IDs. This is silent target discovery, not a
+  team selection: do not ask the user to choose one team and do not present
+  the team-switch picker before the workflow card.
+  Then call propose_workflow with one get_best_teams step per canonical teamId,
+  ordered with explicit dependencies. For scenario comparisons, use
+  get_best_team_scenarios per team instead. Preserve the requested filters,
+  ranking, resultCount and hypothetical chip overrides for every calculation. Do not call
+  select_team merely to calculate: each read directly targets its team and
+  uses its own saved chip/ranking preferences unless the user asks otherwise.
+  These are read-only workflows and run without approval. Show each team's
+  results under its own step. If there are no teams, explain that there are
+  none to calculate. For more than 10 teams, use successive workflows of at
+  most 10 steps, finishing one batch before starting the next; never silently
+  omit teams. This rule overrides single-team choice and listing restrictions.
 - When the user asks "which teams do I track" / "show my teams", call
   list_followed_teams (preferred over list_user_teams when the question
   is about followed/league teams).
@@ -775,25 +783,11 @@ Today's date: ${new Date().toISOString().slice(0, 10)}.`;
 function getSystemPrompt() {
 
   return SYSTEM_PROMPT
-    .replace(/- \*\*Multi-team requests — clarify, don't fan out\.\*\*[\s\S]*?This keeps the chat to a single rich render per question\./, `- **Multi-team requests — calculate for every requested team.**
-  For "best teams for every team I track", "all my teams", or
-  "עבור כל אחת מהקבוצות שאני עוקב אחריהן", first call
-  list_user_teams({ mode: "workflow_discovery" }) to obtain the complete
-  tracked-team list and canonical IDs. This is silent target discovery, not a
-  team selection: do not ask the user to choose one team and do not present
-  the team-switch picker before the workflow card.
-  Then call propose_workflow with one get_best_teams step per canonical teamId,
-  ordered with explicit dependencies. For scenario comparisons, use
-  get_best_team_scenarios per team instead. Preserve the requested filters,
-  ranking, resultCount and hypothetical chip overrides for every calculation. Do not call
-  select_team merely to calculate: each read directly targets its team and
-  uses its own saved chip/ranking preferences unless the user asks otherwise.
-  These are read-only workflows and run without approval. Show each team's
-  results under its own step. If there are no teams, explain that there are
-  none to calculate. For more than 10 teams, use successive workflows of at
-  most 10 steps, finishing one batch before starting the next; never silently
-  omit teams. This rule overrides single-team choice and listing restrictions.`)
     .replace('NEVER chain multiple writes in one turn. One write at a time.', 'Use propose_workflow for compound requests. Single-action writes still use their existing confirmation cards.') + `
+Independent read-only tools may run together in one response; every tool call
+has its own card. Dependent calculations and writes must use the ordered
+workflow mechanism. Parallel calling does not approve mutations or bypass
+confirmation nonces, authorization, or the shared mutation lock.
 Compound requests: call propose_workflow with the ENTIRE request and ordered steps,
 explicit dependencies and exact arguments from the existing tools. The server
 prepares a single approval card and executes it. Never call confirm_write for a

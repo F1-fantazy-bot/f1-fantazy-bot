@@ -1,8 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 import { LeaderboardTable } from './LeaderboardTable';
-vi.mock('@copilotkit/react-core', () => ({ useCopilotAction: vi.fn() }));
-vi.mock('@copilotkit/react-core/v2', () => ({ useAgent: vi.fn(), useCopilotKit: vi.fn(), UseAgentUpdate: {} }));
+vi.mock('@copilotkit/react-core/v2', () => ({ useRenderTool: vi.fn(), useAgent: vi.fn(), useCopilotKit: vi.fn(), UseAgentUpdate: {} }));
+
 const standings = [
   { position: 1, teamName: 'Winner', userName: 'W', teamNo: 1, teamId: 'W_1', totalScore: 20, gapToLeader: 0, isSelected: false },
   { position: 1, teamName: 'Selected', userName: 'S', teamNo: 1, teamId: 'S_1', totalScore: 20, gapToLeader: 0, isSelected: true },

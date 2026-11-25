@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { safeParse } from './safeParse';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { ToolLoading } from './ToolLoading';
@@ -11,8 +12,8 @@ export function LanguageCard({ result }: { result?: { lang?: string } }) {
 }
 
 export function useLanguageAction() {
-  useCopilotAction({
-    name: 'get_language', parameters: [], available: 'frontend',
+  useRenderTool({
+    name: 'get_language', parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') return <ToolLoading kind="write" />;
       const parsed = safeParse(result);

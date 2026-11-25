@@ -43,6 +43,9 @@ import {
 } from './AdminReadCards';
 
 vi.mock('@copilotkit/react-core/v2', () => ({
+  CopilotChatUserMessage: () => null,
+  CopilotChatAssistantMessage: () => null,
+  CopilotChatMessageView: () => null,
   UseAgentUpdate: { OnRunStatusChanged: 'run-status' },
   useAgent: () => ({
     agent: {

@@ -700,24 +700,21 @@ acceptance gates.
 - `get_live_score_for_team` — per-team live score breakdown (per-driver / per-constructor points, captain x2 / mega-captain x3 multipliers, transfer penalty, No Negative chip, session breakdowns) for ONE team in ONE followed league. Missing team arguments always render team cards plus All teams in this league; the saved active team does not bypass selection.
 - `get_live_score_leaderboard` — all-teams live leaderboard for ONE followed league. Sorted by total live points desc (tie-break: total live price change desc). User's row marked with `isSelected: true` for client highlighting (Phase 5).
 
-**Multi-team "every team I track" pattern.** When the user asks a multi-team
-question like _"best teams by points-per-million for every team I track"_,
-the agent does NOT fan out N `get_best_teams` calls. It calls
-`get_action_choices({ action: 'get_best_teams', choice: 'team', context })`
-and waits for a canonical team-card click — then runs `get_best_teams` ONCE
-with the preserved filters/ranking and chosen team. This keeps the chat to a single rich render per question
-and sidesteps the `parallelToolCalls: false` rendering constraint.
+**Multi-team "every team I track" pattern.** Discover canonical IDs with
+`list_user_teams({ mode: 'workflow_discovery' })`, then prepare a sequential
+read-only workflow with one calculation per team. Independent standalone reads
+may share one response; dependent calculations and writes remain ordered.
 
 ### Architecture
 
 ```
 Browser (Vite + React + CopilotKit)
    ┌─────────────────────────────────────────────┐
-   │ <CopilotKit runtimeUrl={…}>                 │
+   │ <CopilotKitProvider runtimeUrl={…}>                 │
    │   <CopilotChat />                           │
-   │   useCopilotAction({                        │
+   │   useRenderTool({                        │
    │     name: 'get_next_races',                 │
-   │     available: 'frontend',                  │  ← render-only
+   │     parameters: toolRenderParameters,      │  ← render-only
    │     render: ({ status, result }) => …       │     for backend tools
    │   });                                       │
    └─────────────────────────────────────────────┘
@@ -762,12 +759,12 @@ Browser (Vite + React + CopilotKit)
 
 | Decision | Why |
 |---|---|
-| **CopilotKit v2** (`@copilotkit/runtime/v2`) | Rich React chat components with `useCopilotAction({ render })` for per-tool generative UI; runs tool execution server-side via `BuiltInAgent`. |
+| **CopilotKit v2** (`@copilotkit/runtime/v2`) | Rich React chat components with `useRenderTool({ render })` for per-tool generative UI; runs tool execution server-side via `BuiltInAgent`. |
 | **Vercel AI SDK** under the hood (not the `openai` SDK directly) | CopilotKit v2 ignores bare `actions:` on `CopilotRuntime` — it requires an `agents:` map. `BuiltInAgent` uses AI SDK's `streamText` internally. We accepted this even though we initially planned to reuse the existing `openai`-SDK pattern. |
-| **`@ai-sdk/azure`** with Azure v1 Responses | Pass `baseURL: '${endpoint}/openai'` for both classic and Foundry hosts. The agent always uses `azure.responses(AI_MODEL)` on `/openai/v1/responses` with `apiVersion: 'v1'` and `useDeploymentBasedUrls: false`. Sol is pinned in `src/aiModel.js` with medium reasoning, sequential tools, and `store: false`. Azure provider `3.0.135` depends on OpenAI provider `3.0.124`, which automatically recognizes GPT-6 reasoning models; no `forceReasoning` override is needed. Keep the AI SDK 6 / provider v3 generation compatible with CopilotKit; encrypted reasoning is replayed between tool steps. There is no legacy model routing or environment override. Telegram `/ask` and extraction use the same pinned model with Chat Completions without tools; summaries use pinned `gpt-6-astra`. |
-| **Zod** for tool parameters | Required by `defineTool` (Standard Schema V1). Already a transitive dep through `@copilotkit/runtime`. |
-| **Single-route mode** on the runtime handler | The default `multi-route` mode would force the frontend to address per-route URLs; single-route keeps the frontend pointed at `{basePath}` with a JSON envelope. Side effect: `GET /threads?agentId=…` returns 405 in single-route — these errors in the browser console are harmless and represent chat-history persistence we haven't enabled. |
-| **`parallelToolCalls: false`** on the agent's `providerOptions.openai` | CopilotKit's `useLazyToolRenderer` (`node_modules/@copilotkit/react-core/src/hooks/use-lazy-tool-renderer.tsx` line 15) only ever renders `message.toolCalls[0]`. When Azure OpenAI emits two tool calls in the SAME assistant message (its default behaviour for independent tool calls), only the first React component renders and the rest are silently dropped. Forcing sequential calls makes each tool land in its own assistant message, so each gets its own rich UI render. |
+| **`@ai-sdk/azure`** with Azure v1 Responses | Pass `baseURL: '${endpoint}/openai'` for both classic and Foundry hosts. The agent always uses `azure.responses(AI_MODEL)` on `/openai/v1/responses` with `apiVersion: 'v1'` and `useDeploymentBasedUrls: false`. Sol is pinned in `src/aiModel.js` with medium reasoning, parallel independent reads, and `store: false`. Azure provider `3.0.135` depends on OpenAI provider `3.0.124`, which automatically recognizes GPT-6 reasoning models; no `forceReasoning` override is needed. Keep the AI SDK 6 / provider v3 generation compatible with CopilotKit; encrypted reasoning is replayed between tool steps. There is no legacy model routing or environment override. Telegram `/ask` and extraction use the same pinned model with Chat Completions without tools; summaries use pinned `gpt-6-astra`. |
+| **Zod** for tool parameters | Required by `defineTool` (Standard Schema V1). Declared explicitly by both packages. |
+| **Single-route mode** on the runtime handler | The default `multi-route` mode would force the frontend to address per-route URLs; single-route keeps the frontend pointed at `{basePath}` with a JSON envelope. Side effect: the provider uses explicit single-endpoint transport; history remains in account-scoped localStorage. |
+| **`parallelToolCalls: true`** on the agent's `providerOptions.openai` | CopilotKit 1.85.0 v2 renders every call by its tool-call ID, including repeated tools and out-of-order results. Independent reads may run concurrently. Dependent calculations and writes use the sequential workflow and existing approvals/locks. |
 | **Separate Azure Function App** for the agent | Independent deploy/scale/failure-isolation from the Telegram bot. An agent rollout cannot break Telegram. The agent re-initialises any state it needs on cold start. |
 
 ### Code layout
@@ -844,22 +841,22 @@ f1-fantazy-bot/
 ├── agentWebhook/
 │   ├── function.json                 # httpTrigger, route `agent/{*restOfPath}`
 │   └── index.js                      # Azure Functions v3 ↔ Web Request bridge
-├── web/                              # Vite + React + TS + @copilotkit/react-ui
+├── web/                              # Vite + React + TS + @copilotkit/react-core/v2
 │   ├── src/
-│   │   ├── App.tsx                   # <CopilotKit runtimeUrl=…> + <CopilotChat />
+│   │   ├── App.tsx                   # <CopilotKitProvider runtimeUrl=…> + <CopilotChat />
 │   │   └── components/
-│   │       ├── NextRacesTable.tsx    # useCopilotAction({ name: 'get_next_races', available: 'frontend', render })
-│   │       ├── BestTeamsTable.tsx    # useCopilotAction({ name: 'get_best_teams', available: 'frontend', render })
-│   │       ├── UserTeamsList.tsx     # useCopilotAction({ name: 'list_user_teams', available: 'frontend', render })
-│   │       ├── FollowedTeamsGrid.tsx # useCopilotAction({ name: 'list_followed_teams', available: 'frontend', render })
-│   │       ├── LeaderboardTable.tsx  # useCopilotAction({ name: 'get_leaderboard', available: 'frontend', render })
-│   │       ├── BestTeamScenariosMatrix.tsx # useCopilotAction({ name: 'get_best_team_scenarios', available: 'frontend', render })
-│   │       ├── RaceInfoCard.tsx      # useCopilotAction({ name: 'get_next_race_info', available: 'frontend', render })
-│   │       ├── WeatherForecast.tsx   # useCopilotAction({ name: 'get_race_weather', available: 'frontend', render })
-│   │       ├── DeadlineCountdown.tsx # useCopilotAction({ name: 'get_deadline', available: 'frontend', render })
-│   │       ├── CurrentTeamCard.tsx   # useCopilotAction({ name: 'get_current_team', available: 'frontend', render })
-│   │       ├── LiveScoreBreakdown.tsx # useCopilotAction({ name: 'get_live_score_for_team', available: 'frontend', render })
-│   │       ├── LiveScoreLeaderboard.tsx # useCopilotAction({ name: 'get_live_score_leaderboard', available: 'frontend', render })
+│   │       ├── NextRacesTable.tsx    # useRenderTool({ name: 'get_next_races', parameters: toolRenderParameters, render })
+│   │       ├── BestTeamsTable.tsx    # useRenderTool({ name: 'get_best_teams', parameters: toolRenderParameters, render })
+│   │       ├── UserTeamsList.tsx     # useRenderTool({ name: 'list_user_teams', parameters: toolRenderParameters, render })
+│   │       ├── FollowedTeamsGrid.tsx # useRenderTool({ name: 'list_followed_teams', parameters: toolRenderParameters, render })
+│   │       ├── LeaderboardTable.tsx  # useRenderTool({ name: 'get_leaderboard', parameters: toolRenderParameters, render })
+│   │       ├── BestTeamScenariosMatrix.tsx # useRenderTool({ name: 'get_best_team_scenarios', parameters: toolRenderParameters, render })
+│   │       ├── RaceInfoCard.tsx      # useRenderTool({ name: 'get_next_race_info', parameters: toolRenderParameters, render })
+│   │       ├── WeatherForecast.tsx   # useRenderTool({ name: 'get_race_weather', parameters: toolRenderParameters, render })
+│   │       ├── DeadlineCountdown.tsx # useRenderTool({ name: 'get_deadline', parameters: toolRenderParameters, render })
+│   │       ├── CurrentTeamCard.tsx   # useRenderTool({ name: 'get_current_team', parameters: toolRenderParameters, render })
+│   │       ├── LiveScoreBreakdown.tsx # useRenderTool({ name: 'get_live_score_for_team', parameters: toolRenderParameters, render })
+│   │       ├── LiveScoreLeaderboard.tsx # useRenderTool({ name: 'get_live_score_leaderboard', parameters: toolRenderParameters, render })
 │   │       └── ToolErrorFallback.tsx # shared red-banner + isToolErrorResult() type-guard (Phase 6.2)
 │   ├── package.json
 │   └── …                             # own package.json — frontend deps don't pollute the backend
@@ -908,16 +905,20 @@ const tools = [
 
 The `execute` handler MUST call into a pure core in `src/cores/*` — handlers must not import `bot`, `t()`, or anything Telegram-specific. The chatId, when needed, comes from `getAgentChatId()` in `src/agent/identity.js` (passed by the runtime context, never from LLM-controlled arguments).
 
+CopilotKit 1.85.0 runtime thread ownership uses the verified Google `sub` from
+`AsyncLocalStorage` (or the server-resolved chat ID in local bypass mode).
+Never derive `identifyUser` from model arguments or unverified request headers.
+The runtime's in-memory replay/connect/continue/stop endpoints enforce that
+owner; the frontend continues to persist text and display cards locally.
+
 ### Rich UI render registration
 
-Each tool that needs a custom React rendering registers a frontend "render" via `useCopilotAction`:
+Each tool that needs a custom React rendering registers a frontend "render" via `useRenderTool`:
 
 ```jsx
-useCopilotAction({
+useRenderTool({
   name: 'get_next_races',
-  description: '…',
-  parameters: [],
-  available: 'frontend',              // ← MANDATORY for render-only backend tools
+  parameters: toolRenderParameters, // shared z.object({}).passthrough()
   render: ({ status, result }) => {
     if (status === 'inProgress' || status === 'executing') return <Spinner />;
     const parsed = typeof result === 'string' ? safeParse(result) : result;
@@ -926,9 +927,12 @@ useCopilotAction({
 });
 ```
 
-> **Pitfall (don't repeat):** without `available: 'frontend'`, CopilotKit's `getActionConfig` throws `Invalid action configuration` and the whole React tree crashes blank. The marker tells CopilotKit "this is render-only for a backend-executed tool".
-
-> **Pitfall (Phase 2):** if you don't disable parallel tool calls (`providerOptions: { openai: { parallelToolCalls: false } }` on the `BuiltInAgent`), Azure OpenAI is free to emit multiple tools in the SAME assistant message — and CopilotKit's `useLazyToolRenderer` only renders `toolCalls[0]`. You'll see ONE of N tool results render and the rest silently disappear from the UI (the LLM's text reply will still describe them correctly, just no rich component). Fix: keep parallel calls disabled in `src/agent/runtime.js`.
+> **V2 contract:** import `useRenderTool` from `@copilotkit/react-core/v2`.
+> This registers display only; never replace it with `useFrontendTool` for
+> backend-owned tools. Callbacks receive `parameters`, not `args`. Use the shared
+> pass-through schema so choice cards retain backend arguments. Messages use
+> v2 `messageView` slots. `CopilotKitProvider` explicitly uses the `default`
+> agent and `useSingleEndpoint` to match the backend's single-route handler.
 
 > **Live-score selection:** call `get_live_score_for_team` immediately, even with no league arguments. `wrapSelectableExecute` returns clickable followed-league choices; after a league click it always returns locked-roster team cards plus **All teams in this league** when no team was explicitly requested. The saved active team must not bypass this picker. A team click fetches its breakdown; the all-teams click calls `get_live_score_leaderboard`. Never ask a text-only league/team question.
 
@@ -1477,7 +1481,7 @@ browser
   │  <GoogleLogin /> → ID token (JWT)
   │  AuthContext caches token in sessionStorage (NOT localStorage —
   │  closes tab = sign out)
-  │  <CopilotKit headers={() => ({ Authorization: `Bearer …` })}>
+  │  <CopilotKitProvider headers={() => ({ Authorization: `Bearer …` })}>
   │  useAuthFetchInterceptor watches window.fetch for 401s from
   │  RUNTIME_URL → on 401 calls setRejection() + signOut()
   ▼
@@ -1648,7 +1652,7 @@ uses `AGENT_HARDCODED_CHAT_ID`.
 Google sign-in only proves the caller has a Google account. The
 backend allowlist is the actual authorization layer. To avoid
 "backend down → user gets into the chat anyway", the frontend runs a
-pre-flight `GET /api/agent/whoami` BEFORE mounting `<CopilotKit>` /
+pre-flight `GET /api/agent/whoami` BEFORE mounting `<CopilotKitProvider>` /
 the chat tree.
 
 **Endpoint** (`agentWebhook/index.js`): same Azure Function, same
@@ -1702,7 +1706,7 @@ This is the cross-phase invariant. For every capability that needs to be on **bo
 1. Extract the pure logic into `src/cores/<feature>Core.js` — returns structured JSON, no `bot`, no `t()`, no `sendMessage`.
 2. Refactor the existing Telegram handler in `src/commandsHandler/<feature>Handler.js` into a thin adapter: call the core, format the result for Telegram, `bot.sendMessage`. **External behavior must stay byte-identical** — existing handler tests must keep passing unchanged. If a test breaks, the refactor changed behavior; fix the refactor, not the test.
 3. Wrap the same core in an agent tool via `defineTool` in `src/agent/tools.js`.
-4. If the agent should render the result as a custom component, add a `<FooComponent />` in `web/src/components/` and register it via `useCopilotAction({ name, available: 'frontend', render })`.
+4. If the agent should render the result as a custom component, add a `<FooComponent />` in `web/src/components/` and register it via `useRenderTool({ name, parameters: toolRenderParameters, render })`.
 
 ### Local dev workflow
 
@@ -1742,8 +1746,8 @@ follow [Adding a new agent write tool](#adding-a-new-agent-write-tool).
 1. **Extract the core** at `src/cores/<feature>Core.js`. Pure function, structured JSON return.
 2. **Refactor the matching Telegram handler** to call the core. Run `npx jest <handler>.test.js` — must pass unchanged.
 3. **Add the tool** to `src/agent/tools.js` via `defineTool({ name, description, parameters: z.object({…}), execute: wrapToolExecute('<tool_name>', async (args) => { … }) })`. **The `execute` MUST be wrapped via `wrapToolExecute` from `src/agent/wrapToolExecute.js`** (Phase 6.2) — this gives the tool friendly UI errors with an opaque `errorId` instead of leaking raw Azure error strings. The wrapper is transparent on success. If `chatId` is needed, use `getAgentChatId()` from `src/agent/identity.js`. **If the core reads from `currentTeamCache`/`driversCache`/etc, `await ensureCacheReady()` first** (see [Cache bootstrap](#cache-bootstrap-cross-process)).
-4. **Update the system prompt** in `src/agent/systemPrompt.js` if the new tool requires guidance (e.g. "if the user names a team in a 'best teams' question, call get_best_teams directly with `teamName` — don't pre-call list_user_teams; the multi-step routing costs latency and only one rich UI component can render per assistant turn"). **Escape any literal backticks inside the prompt** — an unescaped backtick terminates the template literal early and breaks `require('./systemPrompt')`. Prefer single-quotes for code-like fragments (`'tool_error'`) over backticks where possible.
-5. **Build the React component** at `web/src/components/<Feature>.tsx`. Define it inside a `useCopilotAction({ name, available: 'frontend', render })` hook (the hook must run inside a component mounted under `<CopilotKit>`). Match `name` exactly to the backend tool's name; for `available: 'frontend'` actions the `parameters` array is metadata-only — keep it as `[]` to avoid TypeScript / shape-matching issues with CopilotKit's frontend tooling. **Inside the `render` callback, after `safeParse`, add the shared error fallback short-circuit:**
+4. **Update the system prompt** in `src/agent/systemPrompt.js` if the new tool requires guidance (e.g. "if the user names a team in a 'best teams' question, call get_best_teams directly with `teamName` — don't pre-call list_user_teams; avoid unnecessary target-discovery latency"). **Escape any literal backticks inside the prompt** — an unescaped backtick terminates the template literal early and breaks `require('./systemPrompt')`. Prefer single-quotes for code-like fragments (`'tool_error'`) over backticks where possible.
+5. **Build the React component** at `web/src/components/<Feature>.tsx`. Define it inside a `useRenderTool({ name, parameters: toolRenderParameters, render })` hook (the hook must run inside a component mounted under `<CopilotKitProvider>`). Match `name` exactly to the backend tool's name. Use `parameters: toolRenderParameters` and read callback arguments from `parameters`; execution stays on the backend. **Inside the `render` callback, after `safeParse`, add the shared error fallback short-circuit:**
    ```tsx
    import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
    // …
@@ -1850,13 +1854,13 @@ messages must go through `clear()` first, then through
 
 - **Token-usage logging** is wired in Phase 6.1 — see [Token usage logging](#token-usage-logging-phase-61). Logs land in stdout always, and in `LOG_CHANNEL_ID` when `TELEGRAM_BOT_TOKEN` is set.
 - **Tool-error UX** is wired in Phase 6.2 — see [Tool error handling](#tool-error-handling-phase-62). Full errors go to `ERRORS_CHANNEL_ID`; users see a friendly banner with an opaque `errorId`.
-- **405s on `/threads?agentId=default`** in the browser console are CopilotKit polling for chat-history persistence routes that don't exist in single-route mode. Harmless — we run Phase 6.5 client-side via `localStorage` (see [Chat-history persistence](#chat-history-persistence-phase-65)) so the runtime doesn't need a `/threads` backend.
+- **Thread transport:** v2 explicitly uses single-endpoint envelopes, including any runtime resource requests. Durable conversation text and display cards remain client-side in account-scoped `localStorage`; runtime thread replay is separately scoped to verified request identity.
 - **SSE streaming on Azure Functions Consumption plan** is unverified — locally the bridge buffers the full response. If streaming flushing turns out to be flaky on Consumption, fall back to non-streaming JSON or upgrade to Premium. Deferred along with deployment.
 - **CORS** is currently permissive (`Access-Control-Allow-Origin: *`). CORS hardening is deferred until frontend deployment unparks.
 - **Agent prose language** is model-driven. Saved-language hydration and every
   maintained rich component/card support English/Hebrew labels and RTL; new
   renderers must join the completeness tests.
-- **Multi-tool-call rendering**: CopilotKit's `useLazyToolRenderer` only renders `message.toolCalls[0]`. We force sequential tool calls via `parallelToolCalls: false`. If a future tool needs to fan out (e.g., "best teams for every team I track"), it has to do so server-side inside one `execute` and return a list — the LLM cannot emit N parallel tool calls and expect N React renders. The clarify-and-focus pattern (ask once, call once) is the established workaround for two-arg lookups like live-score.
+- **Multi-tool-call rendering:** supported by the v2 provider/chat and `useRenderTool` registrations. Regressions cover repeated calls, call-ID matching, streaming, errors, and display-only history recovery.
 
 ### Key files
 
@@ -1895,7 +1899,7 @@ messages must go through `clear()` first, then through
 | `src/agent/cacheBootstrap.js` | `ensureCacheReady()` — lazy `initializeCaches(getNotifierBot())` for the agent process; resets on failure for retry-on-next-call. |
 | `src/agent/systemPrompt.js` | English system prompt; extended per phase. Includes a `tool_error` handling rule (Phase 6.2). Backticks inside the template literal MUST be escaped. |
 | `src/agent/tools.js` | Complete read/write tool catalogue. Every execute path is wrapped directly or through `defineWriteTool` via `wrapToolExecute`. |
-| `src/agent/runtime.js` | Builds Azure model → `wrapLanguageModel({ middleware: createTokenUsageMiddleware(…) })` (Phase 6.1) → `BuiltInAgent` (with `parallelToolCalls: false`) → `CopilotRuntime` → `createCopilotRuntimeHandler`. Caches the handler per process. |
+| `src/agent/runtime.js` | Builds Azure model → `wrapLanguageModel({ middleware: createTokenUsageMiddleware(…) })` (Phase 6.1) → `BuiltInAgent` (with `parallelToolCalls: true`) → `CopilotRuntime` → `createCopilotRuntimeHandler`. Caches the handler per process. |
 | `src/agent/notifierBot.js` | Singleton non-polling `TelegramBot` for the agent process (Phase 6.1). Real bot when `TELEGRAM_BOT_TOKEN` set, noop fallback otherwise. Polling stays disabled so it never conflicts with the main bot's poller on the same token. |
 | `src/agent/tokenUsageMiddleware.js` | `LanguageModelV3Middleware` that pipes the stream through a `TransformStream` and logs every `finish` chunk's per-step token usage (Phase 6.1). Reads the V3 NESTED usage shape (`usage.inputTokens.total` / `usage.outputTokens.total` / `usage.outputTokens.reasoning`); reasoning is part of completion, with unavailable reasoning shown as `n/a`. Logging is fire-and-forget — a Telegram outage cannot break the LLM stream. |
 | `src/agent/wrapToolExecute.js` | `wrapToolExecute(toolName, fn)` try/catches the execute and returns `{ status: 'tool_error', tool, errorId, userMessage }` on throw (Phase 6.2). Full error → `ERRORS_CHANNEL_ID` via `sendErrorMessage(notifierBot, …)`. The 8-char `errorId` is the user-visible correlation token. Raw `err.message` is NEVER included in the returned UI shape. |
@@ -1917,7 +1921,7 @@ messages must go through `clear()` first, then through
 | `web/src/components/ToolErrorFallback.tsx` | Shared red-banner fallback + `isToolErrorResult()` type-guard (Phase 6.2). Every maintained rich renderer short-circuits on `tool_error` via this component. |
 | `agentWebhook/function.json` | Azure Functions httpTrigger config (route `agent/{*restOfPath}`). |
 | `agentWebhook/index.js` | Bridges Azure Functions v3 (context, req) onto a Web Request; handles OPTIONS preflight + CORS; tolerant of both `Uint8Array` and string body chunks. |
-| `web/src/App.tsx` | Mounts `<CopilotKit>` + `<CopilotChat />`; reads `VITE_AGENT_API_URL`. |
+| `web/src/App.tsx` | Mounts `<CopilotKitProvider>` + `<CopilotChat />`; reads `VITE_AGENT_API_URL`. |
 | `web/src/components/NextRacesTable.tsx` | `get_next_races` rich render. |
 | `web/src/components/AgentGuideCard.tsx` | `get_agent_guide` pit-wall guide with profile status, user-specific recommended next moves, topic sections, and Hebrew/RTL support. Every task card is an accessible prompt action: it appends the localized example as a user message and runs the same agent, with a shared per-agent lock and failure rollback. |
 | `web/src/components/agentRunLock.ts` | Shared per-agent lock for interactive rich cards so two controls cannot start overlapping runs. |
@@ -2016,8 +2020,8 @@ controls retain the row in their accessible label and use the shared run lock.
 ### Compound web workflows
 
 `src/agent/workflows/` adds the Azure Table workflow store, prepared-tool
-registry and sequential execution state machine. Workflows are always available; keep `parallelToolCalls: false` and the existing
-CopilotKit version. `defineWriteTool` now exposes preparation separately from
+registry and sequential execution state machine. Workflows remain sequential even with independent parallel calls enabled on
+CopilotKit 1.85.0. `defineWriteTool` now exposes preparation separately from
 nonce staging so workflows reuse the same validation and commit adapters.
 The authenticated workflow endpoints bind approval to an owner and revision;
 model text and workflow IDs cannot approve execution. Each advance claims one

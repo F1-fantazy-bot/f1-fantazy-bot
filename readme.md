@@ -271,7 +271,7 @@ Enter numbers when prompted by various commands for:
 
 The web frontend keeps its own `package.json` so its deps don't pollute the backend bundle.
 
-- **`@copilotkit/react-core`** + **`@copilotkit/react-ui`**: `<CopilotChat />` + `useCopilotAction({ render })` for per-tool generative UI
+- **`@copilotkit/react-core` 1.85.0**: v2 `CopilotKitProvider`, `CopilotChat`, and render-only `useRenderTool` cards; explicit single-endpoint transport and independent parallel tools. See [migration verification](docs/copilotkit-v2-verification.md).
 - **`react`** + **`react-dom`**: UI library
 - **`vite`** + **`@vitejs/plugin-react`**: dev server + build
 - **`typescript`**: TS toolchain

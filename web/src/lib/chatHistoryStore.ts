@@ -352,7 +352,7 @@ export function saveReadCards(messages: Message[]): void {
         calls.set(call.id, { tool: call.function.name, promptId, ...(args && Object.keys(args).length ? { args } : {}) });
       }
     }
-    if (message.role !== 'tool') continue;
+    if (message.role !== 'tool' || typeof message.content !== 'string') continue;
     const call = calls.get(message.toolCallId);
     if (!call || !visiblePrompts.has(call.promptId) || !toolPersistencePolicy(call.tool)) continue;
     try {

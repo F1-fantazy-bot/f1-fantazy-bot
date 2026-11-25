@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { ToolLoading } from './ToolLoading';
 import { USER_TIME_ZONE } from './uiLanguage';
@@ -398,12 +399,9 @@ const cellBody: React.CSSProperties = {
 };
 
 export function useRaceInfoAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_next_race_info',
-    description:
-      'Get detailed info on the next F1 race: circuit, location, schedule, weather snapshot, historical stats, and track history.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="raceInfo" />;

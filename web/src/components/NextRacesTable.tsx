@@ -1,4 +1,5 @@
-import { useCopilotAction } from '@copilotkit/react-core';
+import { useRenderTool } from '@copilotkit/react-core/v2';
+import { toolRenderParameters } from './toolRenderParameters';
 import { ToolErrorFallback, isToolErrorResult } from './ToolErrorFallback';
 import { directionFor, localeFor, uiLanguageOf, USER_TIME_ZONE } from './uiLanguage';
 import { ToolLoading } from './ToolLoading';
@@ -108,8 +109,9 @@ export function NextRacesTable({ result }: { result?: NextRacesResult }) {
         {labels.title}
         {season ? ` — ${season}` : ''}
       </div>
+      <div className="tool-table-scroll" role="region" aria-label={labels.title} tabIndex={0}>
       <table
-        style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}
+        style={{ minWidth: 560, width: '100%', borderCollapse: 'collapse', fontSize: 14 }}
       >
         <thead>
           <tr
@@ -153,6 +155,7 @@ export function NextRacesTable({ result }: { result?: NextRacesResult }) {
           })}
         </tbody>
       </table>
+      </div>
       {counts ? (
         <div
           style={{
@@ -194,16 +197,11 @@ const cellBody: React.CSSProperties = {
 // src/agent/tools.js produces the data; this render decides how it
 // appears in the chat stream.
 //
-// `available: 'frontend'` tells CopilotKit this action is render-only
-// (no client-side handler) — it visualises the result of a backend
-// tool call with the matching name.
+// useRenderTool registers display only; backend tools own execution.
 export function useNextRacesAction() {
-  useCopilotAction({
+  useRenderTool({
     name: 'get_next_races',
-    description:
-      'Get the list of upcoming F1 races for the current season. Returns season, race list, and counts.',
-    parameters: [],
-    available: 'frontend',
+    parameters: toolRenderParameters,
     render: ({ status, result }) => {
       if (status === 'inProgress' || status === 'executing') {
         return <ToolLoading kind="nextRaces" />;

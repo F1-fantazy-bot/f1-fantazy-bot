@@ -1,12 +1,14 @@
 import { useAvailableChipsAction } from './components/AvailableChipsCard';
 import {
-  WorkflowAssistantMessage,
-  WorkflowUserMessage,
+  WorkflowMessageView,
   WorkflowWorkspace,
 } from './components/WorkflowCard';
-import { CopilotKit } from '@copilotkit/react-core';
-import { CopilotChat } from '@copilotkit/react-ui';
-import '@copilotkit/react-ui/styles.css';
+import {
+  CopilotKitProvider,
+  CopilotChat,
+  useAgentContext,
+} from '@copilotkit/react-core/v2';
+import '@copilotkit/react-core/v2/styles.css';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
@@ -68,6 +70,10 @@ const GOOGLE_CLIENT_ID =
   (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? '';
 
 function AgentActions() {
+  useAgentContext({
+    description: 'Chat response instructions',
+    value: "You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language.",
+  });
   useNextRacesAction();
   useActionChoicesAction();
   useUserTeamsAction();
@@ -265,7 +271,11 @@ function VerifiedAgentChat({
 
   return (
     <WriteDecisionProvider runtimeUrl={RUNTIME_URL} idToken={session.idToken}>
-      <CopilotKit
+      <CopilotKitProvider
+        key={session.claims.sub}
+        agentId="default"
+        useSingleEndpoint
+        enableInspector={false}
         runtimeUrl={RUNTIME_URL}
         headers={() => ({ Authorization: `Bearer ${session.idToken}` })}
       >
@@ -293,17 +303,17 @@ function VerifiedAgentChat({
           </div>
           <div className="chat-wrapper">
             <CopilotChat
-              UserMessage={WorkflowUserMessage}
-              AssistantMessage={WorkflowAssistantMessage}
-              instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
+              agentId="default"
+              welcomeScreen={false}
+              messageView={WorkflowMessageView}
               labels={{
-                title: 'F1 Fantasy Agent',
-                initial: 'Hi! Ask what I can do to get a personalized guide.',
+                modalHeaderTitle: 'F1 Fantasy Agent',
+                welcomeMessageText: 'Hi! Ask what I can do to get a personalized guide.',
               }}
             />
           </div>
         </WorkflowWorkspace>
-      </CopilotKit>
+      </CopilotKitProvider>
     </WriteDecisionProvider>
   );
 }
@@ -381,7 +391,12 @@ export function UnauthedAgent({
   return (
     <UiLanguageProvider initialLanguage={languageState.lang}>
       <WriteDecisionProvider runtimeUrl={RUNTIME_URL}>
-        <CopilotKit runtimeUrl={RUNTIME_URL}>
+        <CopilotKitProvider
+          runtimeUrl={RUNTIME_URL}
+          agentId="default"
+          useSingleEndpoint
+          enableInspector={false}
+        >
           <WorkflowWorkspace runtimeUrl={RUNTIME_URL}>
             <HistoryRestorer />
             <RtlChatSupport />
@@ -401,17 +416,17 @@ export function UnauthedAgent({
             </div>
             <div className="chat-wrapper">
               <CopilotChat
-                UserMessage={WorkflowUserMessage}
-                AssistantMessage={WorkflowAssistantMessage}
-                instructions="You are an assistant for an F1 Fantasy player. Use the registered tools to answer questions; the user will see rich UI components automatically when you call them. Match the language of the user's latest message: answer Hebrew questions in Hebrew and English questions in English, unless the user explicitly asks for a specific response language."
+                agentId="default"
+                welcomeScreen={false}
+                messageView={WorkflowMessageView}
                 labels={{
-                  title: 'F1 Fantasy Agent',
-                  initial: 'Hi! Ask what I can do to get a personalized guide.',
+                  modalHeaderTitle: 'F1 Fantasy Agent',
+                  welcomeMessageText: 'Hi! Ask what I can do to get a personalized guide.',
                 }}
               />
             </div>
           </WorkflowWorkspace>
-        </CopilotKit>
+        </CopilotKitProvider>
       </WriteDecisionProvider>
     </UiLanguageProvider>
   );
