@@ -1,5 +1,4 @@
-const NEXT_RACES_ENDPOINT = 'https://api.jolpi.ca/ergast/f1/current.json';
-const NEXT_RACE_ENDPOINT = 'https://api.jolpi.ca/ergast/f1/current/next.json';
+const { getRaceCalendar } = require('./azureStorageService');
 
 function buildDate(dateStr, timeStr) {
   if (!dateStr) {
@@ -22,25 +21,36 @@ function buildDate(dateStr, timeStr) {
 }
 
 async function fetchCurrentSeasonRaces(options) {
-  const response = await (options ? fetch(NEXT_RACES_ENDPOINT, options) : fetch(NEXT_RACES_ENDPOINT));
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+  const data = await getRaceCalendar(options);
+  const year = String(new Date().getUTCFullYear());
+  const mr = data?.MRData;
+  const races = mr?.RaceTable?.Races;
+  if (mr?.RaceTable?.season !== year || !Array.isArray(races) ||
+    !races.length || mr.offset !== '0' || String(races.length) !== mr.total ||
+    Number(mr.limit) < races.length || !Number.isFinite(Number(mr.limit)) ||
+    !Number.isFinite(Date.parse(data.fetchedAt))) {
+    throw new Error('Invalid cached F1 season calendar');
+  }
+  const validRounds = new Set(races.map((_, i) => String(i + 1)));
+  for (const race of races) {
+    if (race?.season !== year || !validRounds.delete(race.round) || !race.raceName ||
+      !race.Circuit?.circuitId || !race.date?.startsWith(`${year}-`) ||
+      buildDate(race.date)?.toISOString().slice(0, 10) !== race.date ||
+      (race.time !== null && race.time !== undefined && (!/^([01]\d|2[0-3]):[0-5]\d:[0-5]\dZ$/.test(race.time) ||
+        !buildDate(race.date, race.time)))) {
+      throw new Error('Invalid race in cached F1 season calendar');
+    }
   }
 
-  return response.json();
+  return data;
 }
 
 async function fetchNextRace() {
-  const response = await fetch(NEXT_RACE_ENDPOINT);
+  const data = await fetchCurrentSeasonRaces();
+  const upcoming = filterUpcomingRaces(data.MRData.RaceTable.Races.filter((race) => race.time));
+  upcoming.sort((a, b) => buildDate(a.date, a.time) - buildDate(b.date, b.time));
 
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-
-  const data = await response.json();
-
-  return data?.MRData?.RaceTable?.Races?.[0] || null;
+  return upcoming[0] || null;
 }
 
 function filterUpcomingRaces(races) {
@@ -61,8 +71,6 @@ async function fetchRemainingRaceCount() {
 }
 
 module.exports = {
-  NEXT_RACES_ENDPOINT,
-  NEXT_RACE_ENDPOINT,
   buildDate,
   fetchCurrentSeasonRaces,
   fetchNextRace,

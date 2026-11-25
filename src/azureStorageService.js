@@ -38,6 +38,16 @@ async function streamToString(readableStream) {
   });
 }
 
+async function getRaceCalendar({ signal } = {}) {
+  if (!containerClient) {
+    initializeAzureStorage();
+  }
+  const blob = containerClient.getBlockBlobClient('jolpica/calendar.json');
+  const contents = await blob.downloadToBuffer(0, undefined, { abortSignal: signal });
+
+  return JSON.parse(contents.toString('utf8'));
+}
+
 /**
  * Get the main F1 fantasy data from Azure Storage
  * @returns {Promise<Object>} The parsed fantasy data
@@ -761,6 +771,7 @@ module.exports = {
   saveAvailableChipsSession,
   getAvailableChipsSession,
   getFantasyData,
+  getRaceCalendar,
   getPricesData,
   getUserTeam,
   saveUserTeam,
